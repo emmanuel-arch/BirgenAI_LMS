@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, ShieldCheck, Bot,
+  Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, ShieldCheck, Bot, Package,
 } from "lucide-react";
 import { SignOutButton } from "./signout";
 
@@ -12,8 +12,9 @@ export const dynamic = "force-dynamic";
 // Staff console shell — the org-scoped home for officers/managers/admins.
 // Modules below are the Phase-2+ build order; each card lights up as it ships.
 const MODULES = [
+  { icon: FileText, title: "Applications", desc: "AI pre-screened queue, SHAP reasons, two-tier approvals", ready: true, href: "/console/applications" },
+  { icon: Package, title: "Products", desc: "Loan products: limits, interest, schedule, disbursement mode", ready: true, href: "/console/products" },
   { icon: Users, title: "Borrowers", desc: "KYC profiles, Customer-360, consents", ready: false },
-  { icon: FileText, title: "Applications", desc: "AI pre-screened queue, SHAP reasons, approvals", ready: false },
   { icon: Banknote, title: "Loans & Disbursement", desc: "Book, schedules, maker-checker B2C, float", ready: false },
   { icon: Landmark, title: "Repayments", desc: "STK push, C2B receipting, reconciliation", ready: false },
   { icon: Gauge, title: "Credit Intelligence", desc: "Scorer, statement cruncher, portfolio early-warning", ready: false },

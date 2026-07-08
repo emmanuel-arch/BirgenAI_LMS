@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getOrg, getEntityId, isOrgConfigured } from "@/lib/enterprise/connections";
+import { resolveOrg } from "@/lib/tenancy";
 import { scoreThinFileAuto } from "@/lib/statement/score-thinfile";
 import type { CashflowFeatures } from "@/lib/statement/features";
 import { LMS_STAGES, stageFromDecision, type LmsStageKey } from "@/lib/lms/workflow";
@@ -66,8 +66,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 });
   }
 
-  const org = getOrg(body.lenderSlug ?? "");
-  if (!org || org.isAdmin) return NextResponse.json({ success: false, message: "Choose a lender." }, { status: 400 });
+  const org = await resolveOrg(body.lenderSlug ?? "");
+  if (!org) return NextResponse.json({ success: false, message: "Choose a lender." }, { status: 400 });
 
   const phone = (body.phone ?? "").trim();
   const amount = Number(body.amountRequested);
@@ -85,15 +85,25 @@ export async function POST(req: NextRequest) {
 
   // Server-authoritative thin-file (cashflow) score from the submitted features.
   const thinFile = scoreThinFileAuto(body.features);
-  const entityId = getEntityId(org);
+  const entityId = org.entityId;
+  const orgRow = { id: org.id };
 
-  // Resolve the tenant row — every funnel write hangs off orgId.
-  const orgRow = await prisma.org.findUnique({ where: { slug: org.slug }, select: { id: true } });
-  if (!orgRow) {
-    return NextResponse.json(
-      { success: false, message: `${org.name} is not provisioned in the LMS yet (run \`prisma db seed\`).` },
-      { status: 500 },
-    );
+  // NATIVE orgs: resolve the chosen product from OUR product table (uuid ref)
+  // so the application carries productId and booking can generate the schedule.
+  let nativeProductId: string | null = null;
+  if (org.mode === "NATIVE" && body.productRef) {
+    const p = await prisma.product.findFirst({
+      where: { id: body.productRef, orgId: org.id, isActive: true },
+      select: { id: true, name: true, minPrincipal: true, maxPrincipal: true },
+    });
+    if (p) {
+      nativeProductId = p.id;
+      body.productName = body.productName || p.name;
+      const min = Number(p.minPrincipal), max = Number(p.maxPrincipal);
+      if ((min > 0 && amount < min) || (max > 0 && amount > max)) {
+        return NextResponse.json({ success: false, message: `For ${p.name}, enter an amount within the product limits.` }, { status: 400 });
+      }
+    }
   }
 
   // FUSION: a matched ServiceSuite borrower (returning/graduated) also has a repayment
@@ -101,9 +111,9 @@ export async function POST(req: NextRequest) {
   // a stronger decision. Brand-new applicants (no borrower id) stay on thin-file only.
   let originationPd: number | null = null;
   let hasHistory = !!body.graduated || (Number.isInteger(body.priorLoanCount) && (body.priorLoanCount ?? 0) > 0);
-  if (Number.isInteger(body.serviceSuiteBorrowerId) && isOriginationConfigured() && isOrgConfigured(org)) {
+  if (Number.isInteger(body.serviceSuiteBorrowerId) && isOriginationConfigured() && org.bridgedReady && org.registry) {
     try {
-      const o = await scoreOrigination(org, entityId, body.serviceSuiteBorrowerId!, { loanAmount: amount });
+      const o = await scoreOrigination(org.registry, entityId, body.serviceSuiteBorrowerId!, { loanAmount: amount });
       originationPd = o.pd;
       hasHistory = o.hasHistory;
     } catch { /* best-effort — fall back to thin-file only */ }
@@ -186,6 +196,7 @@ export async function POST(req: NextRequest) {
       data: {
         orgId: orgRow.id,
         borrowerId: borrower.id,
+        productId: nativeProductId,
         hubUserId: session?.user?.id ?? null,
         phone,
         nationalId: body.nationalId?.trim() || null,
@@ -252,9 +263,9 @@ export async function POST(req: NextRequest) {
 
   // Repeat/graduated borrower: also capture a BEHAVIOURAL score snapshot (training
   // datapoint from internal repayment history). Non-fatal — best effort.
-  if (Number.isInteger(body.serviceSuiteBorrowerId) && isOrgConfigured(org)) {
+  if (Number.isInteger(body.serviceSuiteBorrowerId) && org.bridgedReady && org.registry) {
     try {
-      const beh = await scoreBorrowerBehavioral(org, entityId, body.serviceSuiteBorrowerId!);
+      const beh = await scoreBorrowerBehavioral(org.registry, entityId, body.serviceSuiteBorrowerId!);
       await prisma.scoreSnapshot.create({
         data: {
           orgId: orgRow.id,
@@ -287,14 +298,14 @@ export async function POST(req: NextRequest) {
   const posting: { attempted: boolean; ok: boolean; message: string } = { attempted: false, ok: false, message: "" };
   const wantsPost =
     isPostingEnabled() &&
-    isOrgConfigured(org) &&
+    org.bridgedReady && !!org.registry &&
     !!body.productRef &&
     (scored.decision === "APPROVE" || scored.decision === "REFER");
 
   let verified: Awaited<ReturnType<typeof checkGraduation>> = null;
   if (wantsPost) {
     try {
-      verified = await checkGraduation(org, entityId, phone, body.nationalId?.trim() || undefined);
+      verified = await checkGraduation(org.registry!, entityId, phone, body.nationalId?.trim() || undefined);
     } catch {
       /* lender DB unreachable — application stays in the BirgenAI pipeline */
     }
@@ -307,7 +318,7 @@ export async function POST(req: NextRequest) {
 
   if (wantsPost && verified?.graduated) {
     posting.attempted = true;
-    const res = await postLoan(org, {
+    const res = await postLoan(org.registry!, {
       borrowerId: verified.borrowerId,
       principal: amount,
       productId: Number(body.productRef),

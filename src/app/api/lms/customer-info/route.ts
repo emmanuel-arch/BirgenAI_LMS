@@ -9,7 +9,7 @@
 // TODO(hardening): phone-OTP proof-of-possession before public launch.
 
 import { NextRequest, NextResponse } from "next/server";
-import { getOrg, getEntityId, isOrgConfigured } from "@/lib/enterprise/connections";
+import { resolveOrg } from "@/lib/tenancy";
 import { getCustomer360 } from "@/lib/lms/servicesuite";
 
 export const runtime = "nodejs";
@@ -33,12 +33,17 @@ export async function POST(req: NextRequest) {
   const phone = (body.phone ?? "").trim();
   if (!phone) return NextResponse.json({ success: false, message: "Enter your phone number." }, { status: 400 });
 
-  const org = getOrg(body.lenderSlug ?? "");
-  if (!org || org.isAdmin) return NextResponse.json({ success: false, message: "Choose a lender." }, { status: 400 });
-  if (!isOrgConfigured(org)) return NextResponse.json({ success: true, found: false, lender: org.name });
+  const org = await resolveOrg(body.lenderSlug ?? "");
+  if (!org) return NextResponse.json({ success: false, message: "Choose a lender." }, { status: 400 });
+  // NATIVE orgs: no ServiceSuite profile — the wizard skips the 360 step.
+  // (A native Customer-360 from our own Borrower/Loan tables lands with the
+  // borrowers module.)
+  if (org.mode === "NATIVE" || !org.bridgedReady || !org.registry) {
+    return NextResponse.json({ success: true, found: false, lender: org.name });
+  }
 
   try {
-    const c = await getCustomer360(org, getEntityId(org), phone, body.nationalId);
+    const c = await getCustomer360(org.registry, org.entityId, phone, body.nationalId);
     if (!c) return NextResponse.json({ success: true, found: false, lender: org.name });
 
     // Never expose the internal borrower id — posting re-matches server-side.
