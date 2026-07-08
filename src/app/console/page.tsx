@@ -16,7 +16,7 @@ const MODULES = [
   { icon: Package, title: "Products", desc: "Loan products: limits, interest, schedule, disbursement mode", ready: true, href: "/console/products" },
   { icon: Users, title: "Borrowers", desc: "KYC profiles, Customer-360, consents", ready: false },
   { icon: Banknote, title: "Loans & Disbursement", desc: "Maker-checker B2C queue, manual confirm, float ledger", ready: true, href: "/console/disbursements" },
-  { icon: Landmark, title: "Repayments", desc: "STK push, C2B receipting, reconciliation", ready: false },
+  { icon: Landmark, title: "Repayments", desc: "STK requests, C2B receipts, unallocated exceptions", ready: true, href: "/console/repayments" },
   { icon: Gauge, title: "Credit Intelligence", desc: "Scorer, statement cruncher, portfolio early-warning", ready: false },
   { icon: MapPin, title: "Field & Routes", desc: "Geo-pinned verifications, RO route planner", ready: false },
   { icon: MessageSquare, title: "SMS & Comms", desc: "Templates, campaigns, delivery billing", ready: false },
