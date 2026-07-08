@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/lms/outcome-backfill",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

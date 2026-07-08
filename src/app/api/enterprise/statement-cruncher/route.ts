@@ -1,0 +1,84 @@
+// POST /api/enterprise/statement-cruncher  (multipart/form-data)
+// Fields: file (PDF), password? (for encrypted M-Pesa statements), borrowerName?
+//
+// Uploads a borrower's M-Pesa statement → extract text → parse transactions →
+// engineer cashflow features → transparent affordability read. These features are
+// the inputs for the future thin-file / acquisition credit model.
+
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { extractPdfText, PdfPasswordRequiredError, PdfPasswordIncorrectError } from "@/lib/statement/extract-pdf";
+import { parseMpesaStatement } from "@/lib/statement/mpesa-parser";
+import { crunch } from "@/lib/statement/features";
+import { scoreThinFileAuto } from "@/lib/statement/score-thinfile";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
+
+export async function POST(req: NextRequest) {
+  // Session is OPTIONAL: the lms wizard on white-label lender subdomains serves
+  // borrowers without Hub accounts. Compute-only (no DB writes, nothing stored).
+  // TODO(hardening): phone-OTP identity + rate limiting before public launch.
+  await auth();
+
+  let form: FormData;
+  try {
+    form = await req.formData();
+  } catch {
+    return NextResponse.json({ success: false, message: "Upload a statement file." }, { status: 400 });
+  }
+
+  const file = form.get("file") as File | null;
+  const password = ((form.get("password") as string) || "").trim() || undefined;
+  if (!file) return NextResponse.json({ success: false, message: "No file received." }, { status: 400 });
+  if (file.size > MAX_BYTES) return NextResponse.json({ success: false, message: "File is too large (max 15 MB)." }, { status: 400 });
+
+  const name = file.name.toLowerCase();
+  if (!name.endsWith(".pdf") && file.type !== "application/pdf") {
+    return NextResponse.json({ success: false, message: "Please upload the M-Pesa statement PDF." }, { status: 400 });
+  }
+
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const text = await extractPdfText(buffer, password);
+
+    const txns = parseMpesaStatement(text);
+    if (txns.length === 0) {
+      return NextResponse.json({
+        success: false,
+        message:
+          "Couldn't find M-Pesa transactions in this PDF. Make sure it's the official Safaricom statement (with the detailed transaction table).",
+      });
+    }
+
+    const result = crunch(txns);
+    const creditScore = scoreThinFileAuto(result.features);
+
+    return NextResponse.json({
+      success: true,
+      borrowerName: ((form.get("borrowerName") as string) || "").trim() || null,
+      transactionCount: txns.length,
+      creditScore,
+      ...result,
+      // a small sample for display/debugging (not the full ledger)
+      sample: txns.slice(0, 8).map((t) => ({
+        date: t.date,
+        details: t.details.slice(0, 48),
+        direction: t.direction,
+        amount: t.amount,
+        category: t.category,
+      })),
+    });
+  } catch (err) {
+    if (err instanceof PdfPasswordRequiredError) {
+      return NextResponse.json({ success: false, needPassword: true, message: err.message });
+    }
+    if (err instanceof PdfPasswordIncorrectError) {
+      return NextResponse.json({ success: false, needPassword: true, message: err.message });
+    }
+    const message = err instanceof Error ? err.message : "Could not process the statement.";
+    return NextResponse.json({ success: false, message }, { status: 200 });
+  }
+}

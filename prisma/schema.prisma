@@ -394,6 +394,18 @@ model LoanApplication {
   orgId      String
   borrowerId String
   productId  String?
+  // Bridged-mode product reference (ServiceSuite Products.ID) + display name —
+  // native orgs use productId instead.
+  productRef  String?
+  productName String?
+  // Application-time identity snapshot (the training row is self-contained).
+  phone        String?
+  nationalId   String?
+  borrowerName String?
+  hubUserId    String?
+  graduated      Boolean @default(false)
+  priorLoanCount Int     @default(0)
+  serviceSuiteBorrowerId Int?
   amountRequested Decimal      @db.Decimal(18, 2)
   status     ApplicationStatus @default(SUBMITTED)
   stageTitle String?
@@ -407,6 +419,8 @@ model LoanApplication {
   reasonCodes      Json?
   featuresSnapshot Json? // M-Pesa cashflow features (X)
   consentId        String?
+  consent          Json? // application-time consent snapshot (versioned, IP-stamped)
+  consentVersion   String?
   // Consented one-time geo
   lat             Float?
   lng             Float?
@@ -416,9 +430,10 @@ model LoanApplication {
   postedToServiceSuite Boolean @default(false)
   serviceSuiteLoanId   String?
   postError            String?
-  // Outcome label (y) — backfilled by cron
-  outcomeLabel     String? // good | bad | indeterminate
-  outcomeLabeledAt DateTime?
+  // Outcome label (y) — backfilled by the daily cron from the loan book
+  outcome           String    @default("PENDING") // PENDING | REPAID | DEFAULTED
+  outcomeObservedAt DateTime?
+  daysToDefault     Int?
   decidedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -430,6 +445,7 @@ model LoanApplication {
 
   @@index([orgId, status])
   @@index([orgId, borrowerId])
+  @@index([orgId, outcome])
 }
 
 enum LoanStatus {
@@ -642,6 +658,8 @@ model ScoreSnapshot {
   orgId         String
   borrowerId    String?
   applicationId String?
+  serviceSuiteBorrowerId Int? // bridged-mode borrower link (outcome backfill)
+  serviceSuiteLoanId     String?
   modelKind     String // thin-file | origination-v2 | pooled-v3 | behavioral-v1 | fused
   modelVersion  String
   score         Int?
@@ -649,11 +667,16 @@ model ScoreSnapshot {
   riskBand      String?
   features      Json?
   reasons       Json?
+  loanContextAmount Decimal? @db.Decimal(18, 2)
+  // Outcome label (y) — backfilled like LoanApplication
+  outcome           String    @default("PENDING")
+  outcomeObservedAt DateTime?
   capturedBy    String? // apply | batch | hook
   createdAt     DateTime @default(now())
 
   @@index([orgId, borrowerId])
   @@index([orgId, modelKind, createdAt])
+  @@index([orgId, outcome])
 }
 
 model GeoPin {
@@ -667,6 +690,7 @@ model GeoPin {
   accuracyMeters Int?
   locationType  String? // business | home
   address       String?
+  phone         String?
   source        String   @default("self-onboard") // self-onboard | ro-visit
   note          String?
   capturedBy    String?

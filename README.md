@@ -46,7 +46,7 @@ npm run dev
 ## Phase status
 
 - [x] Phase 0 — scaffold, schema, tokens, seed orgs
-- [ ] Phase 1 — port the origination funnel (eligibility → consent → cruncher → score → post)
+- [x] Phase 1 — port the origination funnel (eligibility → consent → cruncher → score → post)
 - [ ] Phase 2 — native LMS core (org onboarding, products, workflows, money, comms)
 - [ ] Phase 3 — elite KYC + field (liveness, face match, IPRS, RO routes)
 - [ ] Phase 4 — Intelligence Suite + billing
