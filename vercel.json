@@ -3,6 +3,10 @@
     {
       "path": "/api/lms/outcome-backfill",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/arrears",
+      "schedule": "0 5 * * *"
     }
   ]
 }

@@ -15,6 +15,7 @@ import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { bookLoanFromApplication } from "@/lib/lending/book";
+import { issueOtp, verifyOtp } from "@/lib/otp";
 
 export const runtime = "nodejs";
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
   const { id } = await ctx.params;
 
-  let body: { action?: string; note?: string };
+  let body: { action?: string; note?: string; otp?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
   const action = body.action;
   if (action !== "approve" && action !== "decline") {
@@ -77,9 +78,24 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ success: true, status: "OFFICER_REVIEW", stageTitle: "Final Approval" });
   }
 
-  // Final stage — validator finalizes.
+  // Final stage — validator finalizes, OTP-gated (ServiceSuite parity).
   if (!tiers.validator) {
     return NextResponse.json({ success: false, message: "Final approval requires the Validator tier." }, { status: 403 });
+  }
+
+  const otpPurpose = `application:${app.id}:finalize`;
+  if (!body.otp) {
+    const { delivered } = await issueOtp(app.orgId, session.user.id, otpPurpose);
+    return NextResponse.json({
+      success: true,
+      otpRequired: true,
+      message: delivered
+        ? "An approval code has been sent to your email — enter it to finalize."
+        : "Could not deliver the code (check the org's email/SMS setup).",
+    });
+  }
+  if (!(await verifyOtp(app.orgId, session.user.id, otpPurpose, body.otp))) {
+    return NextResponse.json({ success: false, message: "Invalid or expired approval code." }, { status: 403 });
   }
 
   if (app.org.mode === "NATIVE") {

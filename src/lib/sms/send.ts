@@ -18,6 +18,10 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
   payment: "{org}: We received KES {amount}. Loan balance: KES {balance}. Thank you!",
   cleared: "{org}: Your loan is fully repaid. Thank you — your limit grows with every on-time loan!",
   declined: "{org}: We could not approve your application this time. Reply HELP for the reasons and how to appeal.",
+  otp: "Your approval code is {code}. It expires in 10 minutes. Never share it.",
+  reminder: "{org}: A friendly reminder — KES {amount} is due on {date}. Pay early, pay less. Dial your paybill or use Pay Now.",
+  due_today: "{org}: KES {amount} is due TODAY on loan {ref}. Pay via your paybill or the Pay Now link to stay on track.",
+  arrears: "{org}: Your installment of KES {amount} on loan {ref} is overdue. Please pay today to avoid penalties and protect your limit.",
 };
 
 function render(template: string, vars: Record<string, string | number>): string {

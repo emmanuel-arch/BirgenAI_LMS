@@ -186,6 +186,21 @@ model StaffUser {
   @@index([orgId])
 }
 
+/// One-time codes for sensitive staff actions (final approvals, big
+/// disbursements). Only the bcrypt hash is stored; codes expire fast.
+model OtpChallenge {
+  id        String    @id @default(uuid())
+  orgId     String
+  staffId   String
+  purpose   String // e.g. "application:<id>:finalize"
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([orgId, staffId, purpose])
+}
+
 model AuditLog {
   id        String   @id @default(uuid())
   orgId     String?

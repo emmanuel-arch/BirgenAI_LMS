@@ -29,6 +29,8 @@ export default function ApplicationsQueue() {
   const [open, setOpen] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [otpFor, setOtpFor] = useState<string | null>(null);
+  const [otp, setOtp] = useState("");
 
   const load = useCallback(async () => {
     setError(null);
@@ -42,15 +44,22 @@ export default function ApplicationsQueue() {
 
   useEffect(() => { setApps(null); load(); }, [load]);
 
-  const act = async (id: string, action: "approve" | "decline") => {
+  const act = async (id: string, action: "approve" | "decline", otpCode?: string) => {
     setActing(id + action); setNotice(null); setError(null);
     try {
       const res = await fetch(`/api/console/applications/${id}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, ...(otpCode ? { otp: otpCode } : {}) }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.message || "Action failed."); return; }
+      if (data.otpRequired) {
+        // Final approval is OTP-gated — the code just went to the approver's email.
+        setOtpFor(id); setOtp("");
+        setNotice(data.message);
+        return;
+      }
+      setOtpFor(null); setOtp("");
       setNotice(
         data.booked
           ? `Loan booked: ${fmtKES(data.booked.loanAmount)} over ${data.booked.installments} installments — queued for disbursement.`
@@ -125,7 +134,7 @@ export default function ApplicationsQueue() {
                       </ul>
                     )}
                     {a.loan && <p className="mt-2 text-xs text-zinc-500">Loan {a.loan.id.slice(0, 8)}… · {a.loan.status}</p>}
-                    {live && (
+                    {live && otpFor !== a.id && (
                       <div className="mt-3 flex gap-2">
                         <button disabled={!!acting} onClick={() => act(a.id, "approve")}
                           className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
@@ -137,6 +146,19 @@ export default function ApplicationsQueue() {
                           {acting === a.id + "decline" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
                           Decline
                         </button>
+                      </div>
+                    )}
+                    {live && otpFor === a.id && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <input value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          inputMode="numeric" placeholder="6-digit code from your email"
+                          className="rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2 text-sm outline-none w-52" />
+                        <button disabled={otp.length !== 6 || !!acting} onClick={() => act(a.id, "approve", otp)}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                          {acting === a.id + "approve" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} Confirm & book
+                        </button>
+                        <button onClick={() => act(a.id, "approve")} disabled={!!acting}
+                          className="text-xs text-zinc-500 underline hover:text-zinc-800">Resend code</button>
                       </div>
                     )}
                   </div>
