@@ -1,0 +1,692 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// BirgenAI_LMS — core schema (Phase 0 first cut).
+//
+// Multi-tenancy: every tenant-scoped row carries orgId. Postgres RLS policies
+// (prisma/rls.sql, applied via migration) enforce isolation at the DB layer on
+// top of app-level scoping — a cross-tenant leak must be architecturally
+// impossible, not just unlikely.
+//
+// Bridged orgs (Micromart/Axe/BuySimu) keep their loan book in ServiceSuite;
+// the adapter links records via serviceSuite* fields. Native orgs book here.
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Connection URLs live in prisma.config.ts (Prisma 7) — DATABASE_URL for the
+// app (pooled), DIRECT_URL for migrations.
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Platform / tenancy ────────────────────────────────────────────────────────
+
+enum OrgMode {
+  NATIVE // loan book lives in this DB
+  BRIDGED // loan book lives in the lender's ServiceSuite; adapter reads/posts
+}
+
+enum OrgStatus {
+  PENDING // self-onboarded, awaiting platform approval
+  ACTIVE
+  SUSPENDED
+}
+
+enum OrgPlan {
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+model Org {
+  id        String    @id @default(uuid())
+  slug      String    @unique // subdomain: <slug>.birgenai.com
+  name      String
+  mode      OrgMode   @default(NATIVE)
+  status    OrgStatus @default(PENDING)
+  plan      OrgPlan   @default(STARTER)
+  country   String    @default("KE")
+  currency  String    @default("KES")
+  timezone  String    @default("Africa/Nairobi")
+  // Branding (white-label): accent drives --brand, assets in storage.
+  accent     String  @default("#F97316")
+  accentSoft String  @default("rgba(249,115,22,0.12)")
+  tagline    String?
+  blurb      String?
+  logoUrl    String?
+  heroUrl    String?
+  // Bridged-mode link
+  serviceSuiteEntityId Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  integrations  OrgIntegration[]
+  branches      Branch[]
+  roles         Role[]
+  staff         StaffUser[]
+  borrowers     Borrower[]
+  products      Product[]
+  workflows     Workflow[]
+  applications  LoanApplication[]
+  loans         Loan[]
+  usageEvents   UsageEvent[]
+}
+
+enum IntegrationKind {
+  MPESA_STK // Daraja STK push (collections)
+  MPESA_B2C // Daraja B2C (disbursement) — NATIVE orgs only
+  MPESA_C2B // paybill callback registration
+  SMS // provider + apiKey + senderId
+  SMTP // per-org from-address (Enterprise)
+  CRB // TransUnion / Metropol / Creditinfo (lender's subscription)
+  KYC // Smile ID keys
+  SERVICESUITE // bridged: .NET conn string + entityId + posting config
+  WEBHOOK
+}
+
+enum IntegrationStatus {
+  UNCONFIGURED
+  CONFIGURED // saved, not verified
+  TESTED // test call succeeded
+  LIVE
+  DISABLED
+}
+
+/// Per-org integration config. `configEnc` is an AES-256-GCM-encrypted JSON
+/// blob (master key in env: VAULT_MASTER_KEY) — secrets never live in env vars
+/// per tenant and never leave the server.
+model OrgIntegration {
+  id        String            @id @default(uuid())
+  orgId     String
+  kind      IntegrationKind
+  status    IntegrationStatus @default(UNCONFIGURED)
+  configEnc String // base64(iv || ciphertext || tag)
+  lastTestAt DateTime?
+  lastError  String?
+  updatedBy  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, kind])
+  @@index([orgId])
+}
+
+model Branch {
+  id                String  @id @default(uuid())
+  orgId             String
+  name              String
+  parentId          String?
+  levelName         String  @default("Branch") // org-defined hierarchy level
+  disbursementLimit Decimal? @db.Decimal(18, 2)
+  lat               Float?
+  lng               Float?
+  radiusMeters      Int?
+  active            Boolean @default(true)
+  createdAt         DateTime @default(now())
+
+  org      Org      @relation(fields: [orgId], references: [id])
+  parent   Branch?  @relation("BranchTree", fields: [parentId], references: [id])
+  children Branch[] @relation("BranchTree")
+  staff    StaffUser[]
+
+  @@index([orgId])
+}
+
+// ── Staff, roles, audit ───────────────────────────────────────────────────────
+
+model Role {
+  id        String   @id @default(uuid())
+  orgId     String
+  title     String
+  rights    Json     @default("[]") // module-right keys
+  menu      Json     @default("[]") // visible menu keys
+  createdAt DateTime @default(now())
+
+  org   Org         @relation(fields: [orgId], references: [id])
+  staff StaffUser[]
+
+  @@unique([orgId, title])
+}
+
+enum StaffStatus {
+  INVITED
+  ACTIVE
+  LOCKED
+  DISABLED
+}
+
+model StaffUser {
+  id           String      @id @default(uuid())
+  orgId        String
+  email        String
+  phone        String?
+  firstName    String
+  otherName    String?
+  passwordHash String?
+  roleId       String?
+  branchId     String?
+  // Approval tiers (ServiceSuite Initiator/Authorizor/Validator parity)
+  isInitiator  Boolean     @default(false)
+  isAuthorizer Boolean     @default(false)
+  isValidator  Boolean     @default(false)
+  status       StaffStatus @default(INVITED)
+  lastLoginAt  DateTime?
+  otpSecret    String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  org    Org     @relation(fields: [orgId], references: [id])
+  role   Role?   @relation(fields: [roleId], references: [id])
+  branch Branch? @relation(fields: [branchId], references: [id])
+
+  @@unique([orgId, email])
+  @@index([orgId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  orgId     String?
+  actorId   String? // StaffUser.id or Borrower.id or "system"
+  actorType String   @default("staff") // staff | borrower | system | platform
+  action    String // e.g. "loan.approve", "disbursement.check"
+  entity    String?
+  entityId  String?
+  meta      Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([entity, entityId])
+}
+
+// ── Borrowers & KYC ───────────────────────────────────────────────────────────
+
+enum KycStatus {
+  NONE
+  IN_PROGRESS
+  PENDING_REVIEW // face-match/liveness in the human-review band
+  VERIFIED
+  FAILED
+}
+
+model Borrower {
+  id         String    @id @default(uuid())
+  orgId      String
+  phone      String // digits-only 2547XXXXXXXX
+  nationalId String?
+  firstName  String?
+  otherName  String?
+  email      String?
+  dob        DateTime?
+  gender     String?
+  // KYC artifacts (private storage keys, not public URLs)
+  portraitKey     String? // white-background canonical portrait
+  selfieKey       String?
+  idFrontKey      String?
+  idBackKey       String?
+  faceMatchScore  Float?
+  livenessPassed  Boolean?
+  iprsVerified    Boolean?
+  kycStatus       KycStatus @default(NONE)
+  kycVerifiedAt   DateTime?
+  // One-time consented location (never tracked)
+  lat             Float?
+  lng             Float?
+  locationType    String? // business | home
+  locationAddress String?
+  // Risk & limits
+  creditScore       Int?
+  riskBand          String?
+  loanLimit         Decimal? @db.Decimal(18, 2)
+  previousLoanLimit Decimal? @db.Decimal(18, 2)
+  graduationCount   Int      @default(0)
+  // Bridged link + suite SSO federation
+  serviceSuiteBorrowerId Int?
+  hubUserId              String? // birgenai.com account id (federated login)
+  deviceFingerprint      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org          Org               @relation(fields: [orgId], references: [id])
+  consents     Consent[]
+  kycChecks    KycCheck[]
+  applications LoanApplication[]
+  loans        Loan[]
+
+  @@unique([orgId, phone])
+  @@index([orgId, nationalId])
+}
+
+model Consent {
+  id         String   @id @default(uuid())
+  orgId      String
+  borrowerId String
+  version    String // e.g. "2026-07-08"
+  grants     Json // { mpesaAnalysis, automatedScoring, crbCheck, iprs, modelImprovement, crossBorder, geoTagging }
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  borrower Borrower @relation(fields: [borrowerId], references: [id])
+
+  @@index([orgId, borrowerId])
+}
+
+enum KycCheckKind {
+  ID_QUALITY
+  ID_OCR
+  LIVENESS
+  FACE_MATCH
+  PORTRAIT_STANDARDIZE
+  IPRS
+  CRB
+  DEVICE
+}
+
+model KycCheck {
+  id         String       @id @default(uuid())
+  orgId      String
+  borrowerId String
+  kind       KycCheckKind
+  passed     Boolean?
+  score      Float?
+  provider   String? // e.g. "smile-id", "internal"
+  payload    Json?
+  createdAt  DateTime     @default(now())
+
+  borrower Borrower @relation(fields: [borrowerId], references: [id])
+
+  @@index([orgId, borrowerId, kind])
+}
+
+// ── Products & workflows ──────────────────────────────────────────────────────
+
+enum DisbursementMode {
+  B2C_MPESA // native: Daraja B2C from the org's vault credentials
+  MANUAL // record-only: staff disburse outside, confirm ref
+  TO_THIRD_PARTY // e.g. school-fees: paid to the institution's paybill
+  LENDER_SIDE // bridged: the lender's existing ServiceSuite/ops process
+}
+
+model Product {
+  id            String  @id @default(uuid())
+  orgId         String
+  name          String
+  description   String?
+  minPrincipal  Decimal  @db.Decimal(18, 2)
+  maxPrincipal  Decimal  @db.Decimal(18, 2)
+  interestRate  Decimal  @db.Decimal(9, 4)
+  interestMethod String  @default("flat") // flat | reducing
+  interestPeriodUnit String @default("month")
+  repaymentPeriod    Int
+  repaymentPeriodUnit String @default("week")
+  gracePeriodDays    Int     @default(0)
+  penaltyRate        Decimal? @db.Decimal(9, 4)
+  minCreditScore     Int?
+  guarantorRequired  Boolean @default(false)
+  securityRequired   Boolean @default(false)
+  disbursementMode   DisbursementMode @default(B2C_MPESA)
+  newWorkflowId      String?
+  repeatWorkflowId   String?
+  isActive           Boolean @default(true)
+  // Bridged link
+  serviceSuiteProductId Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org          Org               @relation(fields: [orgId], references: [id])
+  applications LoanApplication[]
+  loans        Loan[]
+
+  @@index([orgId, isActive])
+}
+
+model Workflow {
+  id          String  @id @default(uuid())
+  orgId       String
+  title       String
+  description String?
+  createdAt   DateTime @default(now())
+
+  org    Org             @relation(fields: [orgId], references: [id])
+  stages WorkflowStage[]
+
+  @@unique([orgId, title])
+}
+
+model WorkflowStage {
+  id          String  @id @default(uuid())
+  workflowId  String
+  title       String
+  parentId    String? // stage tree (ServiceSuite ParentStage parity)
+  order       Int     @default(1)
+  accessTier  Int     @default(1) // 1 initiator · 2 authorizer · 3 validator
+  roleIds     Json    @default("[]")
+  canFinalize Boolean @default(false) // finalize → disbursement queue
+  canUpdate   Boolean @default(false)
+  otpRequired Boolean @default(true)
+  maxAmount   Decimal? @db.Decimal(18, 2) // finalize amount cap
+
+  workflow Workflow        @relation(fields: [workflowId], references: [id])
+  parent   WorkflowStage?  @relation("StageTree", fields: [parentId], references: [id])
+  children WorkflowStage[] @relation("StageTree")
+}
+
+// ── Applications, loans, schedules ───────────────────────────────────────────
+
+enum ApplicationStatus {
+  SUBMITTED
+  AI_PRESCREEN
+  OFFICER_REVIEW
+  APPROVED
+  DISBURSED
+  REFERRED
+  DECLINED
+  WITHDRAWN
+}
+
+/// One row per application = one training row (features X now, outcome y
+/// backfilled). Mirrors the Hub's LmsApplication contract.
+model LoanApplication {
+  id         String            @id @default(uuid())
+  orgId      String
+  borrowerId String
+  productId  String?
+  amountRequested Decimal      @db.Decimal(18, 2)
+  status     ApplicationStatus @default(SUBMITTED)
+  stageTitle String?
+  currentStageId String?
+  // Scoring (server-side recompute only)
+  score            Int?
+  pd               Decimal? @db.Decimal(6, 5)
+  scoreModelVersion String?
+  fusionEngine     String? // thin-file | origination | fused
+  decision         String? // APPROVE | REFER | DECLINE
+  reasonCodes      Json?
+  featuresSnapshot Json? // M-Pesa cashflow features (X)
+  consentId        String?
+  // Consented one-time geo
+  lat             Float?
+  lng             Float?
+  locationType    String?
+  locationAddress String?
+  // Bridged posting
+  postedToServiceSuite Boolean @default(false)
+  serviceSuiteLoanId   String?
+  postError            String?
+  // Outcome label (y) — backfilled by cron
+  outcomeLabel     String? // good | bad | indeterminate
+  outcomeLabeledAt DateTime?
+  decidedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org      Org      @relation(fields: [orgId], references: [id])
+  borrower Borrower @relation(fields: [borrowerId], references: [id])
+  product  Product? @relation(fields: [productId], references: [id])
+  loan     Loan?
+
+  @@index([orgId, status])
+  @@index([orgId, borrowerId])
+}
+
+enum LoanStatus {
+  PENDING_DISBURSEMENT
+  ACTIVE
+  CLEARED
+  WRITTEN_OFF
+  RESTRUCTURED
+}
+
+model Loan {
+  id            String     @id @default(uuid())
+  orgId         String
+  borrowerId    String
+  applicationId String?    @unique
+  productId     String
+  principal     Decimal    @db.Decimal(18, 2)
+  interest      Decimal    @db.Decimal(18, 2)
+  loanAmount    Decimal    @db.Decimal(18, 2) // principal + interest (+fees)
+  balance       Decimal    @db.Decimal(18, 2)
+  status        LoanStatus @default(PENDING_DISBURSEMENT)
+  borrowDate    DateTime   @default(now())
+  expectedClearDate DateTime?
+  disbursedAt   DateTime?
+  clearedAt     DateTime?
+  createdBy     String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  org          Org              @relation(fields: [orgId], references: [id])
+  borrower     Borrower         @relation(fields: [borrowerId], references: [id])
+  product      Product          @relation(fields: [productId], references: [id])
+  application  LoanApplication? @relation(fields: [applicationId], references: [id])
+  installments Installment[]
+  disbursement Disbursement?
+
+  @@index([orgId, status])
+  @@index([orgId, borrowerId])
+}
+
+enum InstallmentStatus {
+  UPCOMING
+  DUE
+  PAID
+  PARTIAL
+  OVERDUE
+}
+
+model Installment {
+  id           String            @id @default(uuid())
+  orgId        String
+  loanId       String
+  seq          Int
+  dueDate      DateTime
+  amountDue    Decimal           @db.Decimal(18, 2)
+  principalDue Decimal           @db.Decimal(18, 2)
+  interestDue  Decimal           @db.Decimal(18, 2)
+  amountPaid   Decimal           @default(0) @db.Decimal(18, 2)
+  penalty      Decimal           @default(0) @db.Decimal(18, 2)
+  status       InstallmentStatus @default(UPCOMING)
+  paidAt       DateTime?
+
+  loan Loan @relation(fields: [loanId], references: [id])
+
+  @@unique([loanId, seq])
+  @@index([orgId, dueDate, status])
+}
+
+// ── Money movement ────────────────────────────────────────────────────────────
+
+enum DisbursementState {
+  PENDING_MAKER
+  PENDING_CHECKER
+  SENDING
+  SENT
+  CONFIRMED
+  FAILED
+  MANUAL_CONFIRMED // fallback mode: paid outside, ref recorded
+}
+
+model Disbursement {
+  id        String            @id @default(uuid())
+  orgId     String
+  loanId    String            @unique
+  amount    Decimal           @db.Decimal(18, 2)
+  phone     String
+  state     DisbursementState @default(PENDING_MAKER)
+  makerId   String?
+  checkerId String?
+  b2cRef    String? // Daraja conversation/originator id
+  receiptRef String? // M-Pesa receipt (or manual ref)
+  raw       Json?
+  failReason String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  loan Loan @relation(fields: [loanId], references: [id])
+
+  @@index([orgId, state])
+}
+
+enum PaymentState {
+  INITIATED
+  PENDING
+  SUCCESS
+  FAILED
+  TIMEOUT
+}
+
+/// STK push attempts (collections).
+model PaymentIntent {
+  id                String       @id @default(uuid())
+  orgId             String
+  loanId            String?
+  phone             String
+  amount            Decimal      @db.Decimal(18, 2)
+  checkoutRequestId String?      @unique
+  merchantRequestId String?
+  state             PaymentState @default(INITIATED)
+  resultCode        String?
+  resultDesc        String?
+  mpesaReceipt      String?
+  raw               Json?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([orgId, state])
+  @@index([orgId, loanId])
+}
+
+/// Paybill C2B confirmations (webhooks) — allocation to schedule is a job.
+model C2BReceipt {
+  id              String   @id @default(uuid())
+  orgId           String
+  transId         String
+  amount          Decimal  @db.Decimal(18, 2)
+  phone           String?
+  billRef         String? // account number the payer typed
+  allocatedLoanId String?
+  allocatedAt     DateTime?
+  raw             Json?
+  createdAt       DateTime @default(now())
+
+  @@unique([orgId, transId])
+  @@index([orgId, allocatedLoanId])
+}
+
+enum FloatEntryKind {
+  TOPUP
+  DISBURSE
+  REVERSAL
+  ADJUSTMENT
+}
+
+model FloatLedger {
+  id           String         @id @default(uuid())
+  orgId        String
+  kind         FloatEntryKind
+  amount       Decimal        @db.Decimal(18, 2) // signed
+  balanceAfter Decimal        @db.Decimal(18, 2)
+  ref          String?
+  note         String?
+  createdBy    String?
+  createdAt    DateTime       @default(now())
+
+  @@index([orgId, createdAt])
+}
+
+// ── Comms ────────────────────────────────────────────────────────────────────
+
+enum SmsState {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+model SmsMessage {
+  id          String   @id @default(uuid())
+  orgId       String
+  phone       String
+  message     String
+  templateKey String? // otp | app_received | approved | disbursed | payment | reminder | arrears
+  state       SmsState @default(QUEUED)
+  provider    String?
+  providerRef String?
+  cost        Decimal? @db.Decimal(9, 4)
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([orgId, state, createdAt])
+}
+
+model SmsTemplate {
+  id        String   @id @default(uuid())
+  orgId     String
+  key       String // event key
+  title     String
+  body      String // with {placeholders}
+  active    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, key])
+}
+
+// ── Intelligence & metering ──────────────────────────────────────────────────
+
+model ScoreSnapshot {
+  id            String   @id @default(uuid())
+  orgId         String
+  borrowerId    String?
+  applicationId String?
+  modelKind     String // thin-file | origination-v2 | pooled-v3 | behavioral-v1 | fused
+  modelVersion  String
+  score         Int?
+  pd            Decimal? @db.Decimal(6, 5)
+  riskBand      String?
+  features      Json?
+  reasons       Json?
+  capturedBy    String? // apply | batch | hook
+  createdAt     DateTime @default(now())
+
+  @@index([orgId, borrowerId])
+  @@index([orgId, modelKind, createdAt])
+}
+
+model GeoPin {
+  id            String   @id @default(uuid())
+  orgId         String
+  borrowerId    String?
+  applicationId String?
+  label         String
+  lat           Float
+  lng           Float
+  accuracyMeters Int?
+  locationType  String? // business | home
+  address       String?
+  source        String   @default("self-onboard") // self-onboard | ro-visit
+  note          String?
+  capturedBy    String?
+  createdAt     DateTime @default(now())
+
+  @@index([orgId])
+}
+
+/// Usage metering for Intelligence Suite billing (per-score, per-statement,
+/// per-document, per-CRB-check, per-verification, Riri seats, SMS).
+model UsageEvent {
+  id        String   @id @default(uuid())
+  orgId     String
+  kind      String // score | statement | document | crb | kyc | riri_query | sms
+  qty       Int      @default(1)
+  unitCost  Decimal? @db.Decimal(9, 4)
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, kind, createdAt])
+}
