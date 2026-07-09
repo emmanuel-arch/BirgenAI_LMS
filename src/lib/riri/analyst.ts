@@ -12,6 +12,8 @@
 // router for an intent classifier and the metric handlers stay identical.
 // ─────────────────────────────────────────────────────────────────────────────
 import { prisma } from "@/lib/prisma";
+import { hasFeature } from "@/lib/billing/entitlements";
+import { cheapestPlanWith } from "@/lib/billing/plans";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
 
 export type MetricChip = { label: string; value: string; sub?: string; tone?: "good" | "warn" | "bad" };
@@ -313,6 +315,15 @@ async function h_scores(orgId: string): Promise<AnalystResult> {
 }
 
 async function h_watchlist(orgId: string): Promise<AnalystResult> {
+  // Riri ships on Advanced, but early-warning is a Premium engine. Asking her
+  // about it must not become a side door around the package the lender bought.
+  if (!(await hasFeature(orgId, "portfolio-scan"))) {
+    const plan = cheapestPlanWith("portfolio-scan");
+    return {
+      kind: "watchlist",
+      answer: `Portfolio early-warning isn't on your package yet. **${plan?.name}** (KES ${plan?.monthlyKes.toLocaleString()}/mo) scores every active loan for the early signs of default. Open **Billing** to add it.`,
+    };
+  }
   const ew = await portfolioEarlyWarning(orgId);
   const top = ew.rows.slice(0, 5);
   const dr = ew.tiles.olb > 0 ? pct(ew.tiles.atRiskValue, ew.tiles.olb) : 0;

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, ShieldCheck, Bot, Package, GitBranch,
+  Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, ShieldCheck, Bot, Package, GitBranch, Crown,
 } from "lucide-react";
 import { SignOutButton } from "./signout";
 
@@ -24,6 +24,7 @@ const MODULES = [
   { icon: MessageSquare, title: "SMS & Comms", desc: "Templates, campaigns, delivery billing", ready: false },
   { icon: Bot, title: "Riri Assistant", desc: "Talk to your book — 3 models: Analyst (live data), Copilot & Max", ready: true, open: "analyst" },
   { icon: FileText, title: "Reports", desc: "Portfolio report & loan statements — print or save as PDF", ready: true, href: "/console/report" },
+  { icon: Crown, title: "Billing & Package", desc: "Your package, usage this month, pay via the BirgenAI wallet", ready: true, href: "/console/billing" },
   { icon: Settings2, title: "Settings & Vault", desc: "Branding, team, roles, integrations (Daraja, SMS, CRB, KYC)", ready: true, href: "/console/settings" },
 ] as const;
 

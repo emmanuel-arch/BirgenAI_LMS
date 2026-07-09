@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { hasFeature } from "@/lib/billing/entitlements";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
 import type { CrbReport } from "@/lib/crb/provider";
 import { Customer360Client } from "./Customer360Client";
@@ -46,13 +47,16 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
   });
   if (!b) redirect("/console/borrowers");
 
+  // Early-warning is a Premium engine — don't even run it for a plan that hasn't
+  // bought it, let alone render its output.
+  const scanEntitled = await hasFeature(orgId, "portfolio-scan");
   const [kyc, scores, crbCheck, ew] = await Promise.all([
     prisma.kycSession.findFirst({ where: { orgId, OR: [{ borrowerId: id }, { phone: b.phone }] }, orderBy: { createdAt: "desc" } }),
     prisma.scoreSnapshot.findMany({ where: { orgId, borrowerId: id }, orderBy: { createdAt: "desc" }, take: 8 }),
     prisma.kycCheck.findFirst({ where: { orgId, borrowerId: id, kind: "CRB" }, orderBy: { createdAt: "desc" } }),
-    portfolioEarlyWarning(orgId),
+    scanEntitled ? portfolioEarlyWarning(orgId) : null,
   ]);
-  const risk = ew.rows.find((r) => r.borrowerId === id) ?? null;
+  const risk = ew?.rows.find((r) => r.borrowerId === id) ?? null;
   const initialCrb = (crbCheck?.payload as unknown as CrbReport) ?? null;
 
   const name = `${b.firstName ?? "Borrower"}${b.otherName ? " " + b.otherName : ""}`.trim();

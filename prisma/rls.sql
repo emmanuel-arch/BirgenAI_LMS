@@ -38,10 +38,10 @@ DO $$
 DECLARE
   t text;
   tables text[] := ARRAY[
-    'OrgIntegration','Branch','Role','StaffUser','FieldVisit','KycSession','OtpChallenge',
-    'AuditLog','Borrower','Consent','KycCheck','Product','Workflow','LoanApplication','Loan',
-    'Installment','Disbursement','PaymentIntent','C2BReceipt','FloatLedger','SmsMessage',
-    'SmsTemplate','ScoreSnapshot','GeoPin','UsageEvent'
+    'OrgIntegration','OrgSubscription','Branch','Role','StaffUser','FieldVisit','KycSession',
+    'OtpChallenge','AuditLog','Borrower','Consent','KycCheck','Product','Workflow',
+    'LoanApplication','Loan','Installment','Disbursement','PaymentIntent','C2BReceipt',
+    'FloatLedger','SmsMessage','SmsTemplate','ScoreSnapshot','GeoPin','UsageEvent'
   ];
 BEGIN
   FOREACH t IN ARRAY tables LOOP

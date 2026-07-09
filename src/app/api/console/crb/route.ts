@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireFeature } from "@/lib/billing/entitlements";
+import { meter } from "@/lib/billing/meter";
 import { runCrbCheck } from "@/lib/crb/provider";
 
 export const runtime = "nodejs";
@@ -13,6 +15,10 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
   const orgId = session.user.orgId;
+
+  // A bureau pull bills us. Gate BEFORE the call, never after.
+  const gated = await requireFeature(orgId, "crb");
+  if (gated) return gated;
 
   let body: { borrowerId?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
@@ -37,7 +43,7 @@ export async function POST(req: NextRequest) {
       payload: report as unknown as Prisma.InputJsonValue,
     },
   });
-  prisma.usageEvent.create({ data: { orgId, kind: "crb", meta: { bureau: report.bureau, mode: report.mode, verdict: report.verdict } } }).catch(() => {});
+  void meter(orgId, "crb", 1, { bureau: report.bureau, verdict: report.verdict, mode: report.mode });
 
   return NextResponse.json({ success: true, report });
 }

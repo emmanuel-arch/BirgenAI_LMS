@@ -7,6 +7,7 @@
 // Sending is best-effort and never throws into a business flow.
 // ─────────────────────────────────────────────────────────────────────────────
 import { prisma } from "@/lib/prisma";
+import { meter } from "@/lib/billing/meter";
 import { getIntegration, type SmsConfig } from "@/lib/vault/integrations";
 import { normalizeMsisdn } from "@/lib/mpesa/daraja";
 
@@ -104,7 +105,11 @@ export async function sendSms(
     });
 
     const cfg = await providerFor(orgId);
-    if (!cfg) return row.id; // stays QUEUED until a provider is configured
+    if (!cfg) return row.id; // stays QUEUED, and unbilled, until a provider exists
+
+    // Metered on dispatch, not on queueing: a message that never left is not a
+    // message the lender should pay for.
+    void meter(orgId, "sms", 1, { templateKey });
 
     try {
       const sent = cfg.provider === "africastalking"

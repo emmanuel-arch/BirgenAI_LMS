@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { readBorrowerSession } from "@/lib/portal/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
+import { requireFeature } from "@/lib/billing/entitlements";
+import { meter } from "@/lib/billing/meter";
 import { extractPdfText, PdfPasswordRequiredError, PdfPasswordIncorrectError } from "@/lib/statement/extract-pdf";
 import { parseMpesaStatement } from "@/lib/statement/mpesa-parser";
 import { crunch } from "@/lib/statement/features";
@@ -38,6 +40,11 @@ export async function POST(req: NextRequest) {
     { name: "crunch:ip", subject: clientIp(req), max: 30, windowSec: 3600 },
   ]);
   if (limited) return limited;
+
+  // Whose plan pays for this? The borrower's lender, or the signed-in staff's org.
+  const orgId = borrower?.orgId ?? staff!.user!.orgId!;
+  const gated = await requireFeature(orgId, "statement-cruncher");
+  if (gated) return gated;
 
   let form: FormData;
   try {
@@ -71,6 +78,10 @@ export async function POST(req: NextRequest) {
 
     const result = crunch(txns);
     const creditScore = scoreThinFileAuto(result.features);
+
+    // Billed only on a statement we actually parsed — a password failure or an
+    // unreadable PDF exits above this line and costs the lender nothing.
+    void meter(orgId, "statement", 1, { transactions: txns.length, months: result.features.monthsCovered });
 
     // Real ledger aggregates — these drive the crunch theatre's posting animation
     // and category columns, so what the borrower watches is their actual data.

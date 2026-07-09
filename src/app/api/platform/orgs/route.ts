@@ -4,8 +4,11 @@
 //   GET  → all orgs with status + counts
 //   POST → { orgId, action: "activate" | "suspend" | "pend" }
 import { NextRequest, NextResponse } from "next/server";
+import type { OrgPlan } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { runAsPlatform } from "@/lib/db/context";
+import { PLAN_ORDER } from "@/lib/billing/plans";
+import { invalidateEntitlements } from "@/lib/billing/entitlements";
 
 export const runtime = "nodejs";
 
@@ -35,11 +38,29 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
 
-  let body: { orgId?: string; action?: string };
+  let body: { orgId?: string; action?: string; plan?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
+  if (!body.orgId) return NextResponse.json({ success: false, message: "orgId is required." }, { status: 400 });
+
+  // Assign a package. Sales negotiates the deal; the Hub still collects the money,
+  // and PAST_DUE still switches the metered features off.
+  if (body.action === "plan") {
+    if (!PLAN_ORDER.includes(body.plan as OrgPlan)) {
+      return NextResponse.json({ success: false, message: `plan must be one of ${PLAN_ORDER.join(", ")}.` }, { status: 400 });
+    }
+    return runAsPlatform(async () => {
+      const org = await prisma.org.update({ where: { id: body.orgId! }, data: { plan: body.plan as OrgPlan } }).catch(() => null);
+      if (!org) return NextResponse.json({ success: false, message: "Org not found." }, { status: 404 });
+      await prisma.auditLog.create({
+        data: { orgId: org.id, actorType: "platform", action: "org.plan", entity: "Org", entityId: org.id, meta: { plan: org.plan } },
+      }).catch(() => {});
+      invalidateEntitlements(org.id);
+      return NextResponse.json({ success: true, slug: org.slug, plan: org.plan });
+    });
+  }
 
   const status = body.action === "activate" ? "ACTIVE" : body.action === "suspend" ? "SUSPENDED" : body.action === "pend" ? "PENDING" : null;
-  if (!body.orgId || !status) return NextResponse.json({ success: false, message: "orgId and a valid action are required." }, { status: 400 });
+  if (!status) return NextResponse.json({ success: false, message: "A valid action is required." }, { status: 400 });
 
   return runAsPlatform(async () => {
     const org = await prisma.org.update({ where: { id: body.orgId! }, data: { status } }).catch(() => null);

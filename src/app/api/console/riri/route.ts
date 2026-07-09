@@ -5,7 +5,8 @@
 // Every query meters a `riri_query` UsageEvent for Intelligence-Suite billing.
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { requireFeature } from "@/lib/billing/entitlements";
+import { meter } from "@/lib/billing/meter";
 import { isRiriModel } from "@/lib/riri/models";
 import { analyze } from "@/lib/riri/analyst";
 import { answerReasoning } from "@/lib/riri/copilot";
@@ -16,6 +17,9 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
   const orgId = session.user.orgId;
+
+  const gated = await requireFeature(orgId, "riri");
+  if (gated) return gated;
 
   let body: { question?: string; model?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
@@ -39,8 +43,7 @@ export async function POST(req: NextRequest) {
       payload = { answer: r.answer, kind: "reasoning" };
     }
 
-    // Meter for Intelligence-Suite billing (best-effort; never blocks the answer).
-    prisma.usageEvent.create({ data: { orgId, kind: "riri_query", meta: { model, mode } } }).catch(() => {});
+    void meter(orgId, "riri_query", 1, { model, mode });
 
     return NextResponse.json({ success: true, model, mode, ...payload });
   } catch (e) {

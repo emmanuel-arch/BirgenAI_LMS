@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Gauge, ShieldAlert } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { hasFeature } from "@/lib/billing/entitlements";
+import { UpgradeCard } from "@/components/billing/UpgradeCard";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
 import { Watchlist } from "./Watchlist";
 
@@ -13,6 +15,25 @@ const fmt = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 export default async function IntelligencePage() {
   const session = await auth();
   if (!session?.user?.orgId) redirect("/login");
+
+  if (!(await hasFeature(session.user.orgId, "portfolio-scan"))) {
+    return (
+      <div className="min-h-screen relative text-zinc-900">
+        <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
+        <main className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 py-10">
+          <Link href="/console" className="mb-6 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
+            <ArrowLeft className="h-4 w-4" /> Console
+          </Link>
+          <UpgradeCard
+            feature="portfolio-scan"
+            title="Credit Intelligence"
+            blurb="Score every active loan for the early signs of default — arrears depth, missed installments, payment trajectory — and act while the money is still recoverable."
+          />
+        </main>
+      </div>
+    );
+  }
+
   const ew = await portfolioEarlyWarning(session.user.orgId);
   const parPct = ew.tiles.olb > 0 ? (ew.tiles.atRiskValue / ew.tiles.olb) * 100 : 0;
 

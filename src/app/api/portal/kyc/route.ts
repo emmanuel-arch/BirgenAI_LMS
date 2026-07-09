@@ -20,6 +20,8 @@ import { resolveOrg } from "@/lib/tenancy";
 import { enterOrg } from "@/lib/db/context";
 import { borrowerFor, otpRequired } from "@/lib/portal/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
+import { requireFeature } from "@/lib/billing/entitlements";
+import { meter } from "@/lib/billing/meter";
 import {
   kycMode, assessIdQuality, extractId, assessLiveness, faceMatch, iprsLookup, portraitIsStandardized,
 } from "@/lib/kyc/provider";
@@ -78,6 +80,11 @@ export async function POST(req: NextRequest) {
     { name: "kyc:ip", subject: clientIp(req), max: 120, windowSec: 3600 },
   ]);
   if (limited) return limited;
+
+  // The licensed identity provider bills the lender's plan. A lender who has not
+  // bought the ID Verifier still gets the funnel — just without this step.
+  const gated = await requireFeature(org.id, "id-verify");
+  if (gated) return gated;
 
   const mode = await kycMode(org.id);
   const session = await getSession(org.id, body.sessionId, phone, body.nationalId, mode);
@@ -192,6 +199,10 @@ export async function POST(req: NextRequest) {
       where: { id: s.id },
       data: { status, riskFlags: flags as unknown as Prisma.InputJsonValue, completedAt: new Date() },
     });
+
+    // One completed session = one identity verification, however many retakes it
+    // took. Charging per capture would bill a lender for their borrower's bad light.
+    void meter(org.id, "kyc", 1, { sessionId: s.id, status, mode });
 
     // A returning borrower already has a record — promote the fresh KYC result
     // onto it right away. New applicants get linked at apply-time instead.

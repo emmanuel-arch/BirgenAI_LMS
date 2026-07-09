@@ -77,8 +77,8 @@ async function main() {
   if (existing) { await wipe(existing.id); }
   const org = await prisma.org.upsert({
     where: { slug: SLUG },
-    update: { status: OrgStatus.ACTIVE, isDemo: true, mode: OrgMode.NATIVE, plan: OrgPlan.ENTERPRISE, name: "BirgenAI Demo Microfinance", accent: "#6d28d9", accentSoft: "rgba(109,40,217,0.12)" },
-    create: { slug: SLUG, name: "BirgenAI Demo Microfinance", mode: OrgMode.NATIVE, status: OrgStatus.ACTIVE, plan: OrgPlan.ENTERPRISE, isDemo: true, accent: "#6d28d9", accentSoft: "rgba(109,40,217,0.12)", tagline: "Credit that understands your cashflow.", blurb: "The BirgenAI guided demo lender" },
+    update: { status: OrgStatus.ACTIVE, isDemo: true, mode: OrgMode.NATIVE, plan: OrgPlan.PREMIUM, name: "BirgenAI Demo Microfinance", accent: "#6d28d9", accentSoft: "rgba(109,40,217,0.12)" },
+    create: { slug: SLUG, name: "BirgenAI Demo Microfinance", mode: OrgMode.NATIVE, status: OrgStatus.ACTIVE, plan: OrgPlan.PREMIUM, isDemo: true, accent: "#6d28d9", accentSoft: "rgba(109,40,217,0.12)", tagline: "Credit that understands your cashflow.", blurb: "The BirgenAI guided demo lender" },
   });
 
   // 2) Branch + roles.

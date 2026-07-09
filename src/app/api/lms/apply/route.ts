@@ -22,6 +22,7 @@ import { resolveOrg } from "@/lib/tenancy";
 import { enterOrg } from "@/lib/db/context";
 import { borrowerFor, otpRequired } from "@/lib/portal/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
+import { meter } from "@/lib/billing/meter";
 import { scoreThinFileAuto } from "@/lib/statement/score-thinfile";
 import type { CashflowFeatures } from "@/lib/statement/features";
 import { LMS_STAGES, stageFromDecision, type LmsStageKey } from "@/lib/lms/workflow";
@@ -292,6 +293,10 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : "Could not save your application.";
     return NextResponse.json({ success: false, message }, { status: 200 });
   }
+
+  // One scored application = one billable score. Metered after the row exists, so
+  // a failed application is never charged for.
+  void meter(orgRow.id, "score", 1, { applicationId: app.id, engine: scored.fusionEngine, decision: scored.decision });
 
   // The applicant verified their identity at /verify while still anonymous, so
   // the KYC session is keyed by phone. Now that the Borrower row exists, promote

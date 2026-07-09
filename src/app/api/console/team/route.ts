@@ -8,6 +8,8 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { auth, hasAdminAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { entitlementsFor } from "@/lib/billing/entitlements";
+import { PLANS, PLAN_ORDER } from "@/lib/billing/plans";
 import { sendEmail } from "@/lib/email/send";
 
 export const runtime = "nodejs";
@@ -51,6 +53,21 @@ export async function POST(req: NextRequest) {
   const orgId = session.user.orgId;
   const exists = await prisma.staffUser.findUnique({ where: { orgId_email: { orgId, email } } });
   if (exists) return NextResponse.json({ success: false, message: "That email is already on the team." }, { status: 409 });
+
+  // Seats are counted on ACTIVE staff, so disabling a leaver frees their seat.
+  const ent = await entitlementsFor(orgId);
+  if (ent.seats != null) {
+    const active = await prisma.staffUser.count({ where: { orgId, status: "ACTIVE" } });
+    if (active >= ent.seats) {
+      const next = PLAN_ORDER.map((p) => PLANS[p]).find((p) => p.seats === null || p.seats > ent.seats!);
+      return NextResponse.json({
+        success: false,
+        upgradeRequired: true,
+        upgradeTo: next?.key ?? null,
+        message: `${ent.plan.name} includes ${ent.seats} seats and all of them are in use.${next ? ` ${next.name} (KES ${next.monthlyKes.toLocaleString()}/mo) raises that to ${next.seats ?? "unlimited"}.` : ""}`,
+      }, { status: 402 });
+    }
+  }
 
   const [first, ...rest] = name.split(/\s+/);
   const tempPassword = randomBytes(6).toString("base64url"); // ~8 chars, emailed once

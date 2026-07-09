@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { hasFeature } from "@/lib/billing/entitlements";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
 import { PrintButton } from "@/components/print/PrintButton";
 
@@ -17,6 +18,10 @@ export default async function PortfolioReport() {
   const session = await auth();
   if (!session?.user?.orgId) redirect("/login");
   const orgId = session.user.orgId;
+
+  // PAR 30 is a standard portfolio metric and stays on every plan. The ranked
+  // watchlist below it is the Premium early-warning engine, and does not.
+  const scanEntitled = await hasFeature(orgId, "portfolio-scan");
 
   const monthStart = new Date(); monthStart.setHours(0, 0, 0, 0); monthStart.setDate(1);
   const par30Cutoff = new Date(Date.now() - 30 * 86400000);
@@ -122,6 +127,7 @@ export default async function PortfolioReport() {
           </table>
         </section>
 
+        {scanEntitled && (
         <section className="mt-6 print-break">
           <h2 className="text-[11px] uppercase tracking-widest text-zinc-500">
             Early-warning watchlist <span className="text-zinc-400">· {ew.rows.length} flagged · projected loss {kes(ew.tiles.projectedLoss)}</span>
@@ -155,6 +161,7 @@ export default async function PortfolioReport() {
             </table>
           )}
         </section>
+        )}
 
         <footer className="mt-8 border-t border-zinc-900/10 pt-3 text-[10px] leading-relaxed text-zinc-500">
           <p>Generated {asOf.toLocaleString("en-GB")} by {session.user.name ?? "staff"}. Figures reflect the loan book at the moment of issue.</p>

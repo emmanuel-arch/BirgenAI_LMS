@@ -45,10 +45,26 @@ enum OrgStatus {
   SUSPENDED
 }
 
+/// The four packages. Prices, features and quotas live in src/lib/billing/plans.ts;
+/// the authoritative charge is always recomputed by the Hub's rate card at payment
+/// time (all platform money moves through the Hub wallet).
+///
+/// NOTE the ladder ascends STARTER → ENTERPRISE → ADVANCED → PREMIUM, so
+/// "Enterprise" is tier 2, not the top. Migrating from the old 3-tier enum
+/// therefore PROMOTED the orgs previously marked ENTERPRISE to PREMIUM
+/// (scripts/migrate-plans.ts), rather than silently demoting them.
 enum OrgPlan {
-  STARTER
-  GROWTH
-  ENTERPRISE
+  STARTER //  KES 10,000/mo
+  ENTERPRISE //  KES 15,000/mo
+  ADVANCED //  KES 20,000/mo
+  PREMIUM //  KES 30,000/mo
+}
+
+enum SubscriptionStatus {
+  TRIALING // full access to the chosen plan, nothing owed yet
+  ACTIVE
+  PAST_DUE // invoices unpaid — metered features stop, the loan book keeps running
+  CANCELED
 }
 
 model Org {
@@ -75,6 +91,7 @@ model Org {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  subscription  OrgSubscription?
   integrations  OrgIntegration[]
   branches      Branch[]
   roles         Role[]
@@ -853,6 +870,35 @@ model UsageEvent {
   org Org @relation(fields: [orgId], references: [id])
 
   @@index([orgId, kind, createdAt])
+}
+
+/// The commercial relationship with one lender.
+///
+/// `Org.plan` names WHICH plan; the plan's features, included quotas and unit
+/// prices live in code (src/lib/billing/plans.ts), not here — a price book is a
+/// deployable, not tenant data. This row holds what is genuinely per-org: the
+/// billing period, whether they are paying, and any commercial overrides a
+/// salesperson negotiated on top of the catalogue.
+model OrgSubscription {
+  id     String             @id @default(uuid())
+  orgId  String             @unique
+  status SubscriptionStatus @default(TRIALING)
+
+  trialEndsAt        DateTime?
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+
+  /// Grant/revoke individual features regardless of plan: { "early_warning": true }
+  featureOverrides Json?
+  /// Raise included monthly quotas: { "crb": 200 }
+  includedOverrides Json?
+  /// Override the plan's staff-seat cap. Null = use the plan's.
+  seatsOverride Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org Org @relation(fields: [orgId], references: [id])
 }
 
 /// Fixed-window request counters (src/lib/ratelimit.ts). One row per
