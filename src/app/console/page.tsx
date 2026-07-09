@@ -22,7 +22,7 @@ const MODULES = [
   { icon: Gauge, title: "Credit Intelligence", desc: "Scorer, statement cruncher, portfolio early-warning", ready: false },
   { icon: MapPin, title: "Field & Routes", desc: "Geo-pinned verifications, nearest-agent allocation, drive routes", ready: true, href: "/console/field" },
   { icon: MessageSquare, title: "SMS & Comms", desc: "Templates, campaigns, delivery billing", ready: false },
-  { icon: Bot, title: "Riri Analytics", desc: "Talk to your portfolio — OLB, PAR, due today", ready: false },
+  { icon: Bot, title: "Riri Assistant", desc: "Talk to your book — 3 models: Analyst (live data), Copilot & Max", ready: true, open: "analyst" },
   { icon: Settings2, title: "Settings & Vault", desc: "Branding, team, roles, integrations (Daraja, SMS, CRB, KYC)", ready: true, href: "/console/settings" },
 ] as const;
 
@@ -120,11 +120,11 @@ export default async function Console() {
                 <p className="mt-1 text-sm leading-relaxed text-zinc-600">{desc}</p>
               </div>
             );
-            return "href" in m && m.href && ready ? (
-              <a key={title} href={m.href}>{card}</a>
-            ) : (
-              <div key={title}>{card}</div>
-            );
+            if ("href" in m && m.href && ready) return <a key={title} href={m.href}>{card}</a>;
+            // Riri opens the floating dock (mounted in the console layout) via a
+            // global [data-riri-open] listener — no client component needed here.
+            if ("open" in m && m.open && ready) return <button key={title} type="button" data-riri-open={m.open} className="text-left w-full">{card}</button>;
+            return <div key={title}>{card}</div>;
           })}
         </div>
       </main>
