@@ -63,39 +63,87 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ success: true, status: "DECLINED" });
   }
 
-  // ── Approve: advance the virtual two-tier workflow ───────────────────────────
-  const stage = app.currentStageId ?? STAGE_OFFICER;
+  // ── Approve: advance the product's workflow (or the virtual two-tier default) ─
+  // Resolve the stage chain: product.newWorkflowId (repeatWorkflowId for repeat
+  // borrowers) → org workflow stages ordered by `order`; no workflow → virtual.
+  type StageDef = { id: string; title: string; accessTier: number; canFinalize: boolean; otpRequired: boolean; maxAmount: number | null };
+  let chain: StageDef[] = [
+    { id: STAGE_OFFICER, title: "Officer Review", accessTier: 1, canFinalize: false, otpRequired: false, maxAmount: null },
+    { id: STAGE_FINAL, title: "Final Approval", accessTier: 3, canFinalize: true, otpRequired: true, maxAmount: null },
+  ];
+  if (app.productId) {
+    const product = await prisma.product.findUnique({
+      where: { id: app.productId },
+      select: { newWorkflowId: true, repeatWorkflowId: true },
+    });
+    const isRepeat = app.graduated || app.priorLoanCount > 0;
+    const workflowId = (isRepeat ? product?.repeatWorkflowId : product?.newWorkflowId) ?? product?.newWorkflowId;
+    if (workflowId) {
+      const stages = await prisma.workflowStage.findMany({
+        where: { workflowId, workflow: { orgId: app.orgId } },
+        orderBy: { order: "asc" },
+      });
+      if (stages.length > 0) {
+        chain = stages.map((s) => ({
+          id: s.id, title: s.title, accessTier: s.accessTier, canFinalize: s.canFinalize,
+          otpRequired: s.otpRequired, maxAmount: s.maxAmount != null ? Number(s.maxAmount) : null,
+        }));
+      }
+    }
+  }
 
-  if (stage === STAGE_OFFICER) {
-    if (!tiers.initiator) {
-      return NextResponse.json({ success: false, message: "Officer review requires the Initiator tier." }, { status: 403 });
+  // Locate the current stage; unknown/stale ids (workflow was edited) restart at stage 1.
+  const idx = Math.max(0, chain.findIndex((s) => s.id === (app.currentStageId ?? chain[0].id)));
+  const stageDef = chain[idx];
+  const stage = stageDef.id;
+
+  const tierOk =
+    (stageDef.accessTier === 1 && tiers.initiator) ||
+    (stageDef.accessTier === 2 && tiers.authorizer) ||
+    (stageDef.accessTier === 3 && tiers.validator);
+  if (!tierOk) {
+    const need = stageDef.accessTier === 1 ? "Initiator" : stageDef.accessTier === 2 ? "Authorizer" : "Validator";
+    return NextResponse.json({ success: false, message: `"${stageDef.title}" requires the ${need} tier.` }, { status: 403 });
+  }
+
+  // Per-stage finalize amount cap (ServiceSuite finalizeamount parity).
+  if (stageDef.canFinalize && stageDef.maxAmount != null && Number(app.amountRequested) > stageDef.maxAmount) {
+    return NextResponse.json(
+      { success: false, message: `This stage can finalize up to KES ${stageDef.maxAmount.toLocaleString()} — the application asks for more.` },
+      { status: 403 },
+    );
+  }
+
+  // Per-stage OTP (always on for finalize in the virtual default).
+  if (stageDef.otpRequired) {
+    const otpPurpose = `application:${app.id}:${stage}`;
+    if (!body.otp) {
+      const { delivered } = await issueOtp(app.orgId, session.user.id, otpPurpose);
+      return NextResponse.json({
+        success: true,
+        otpRequired: true,
+        message: delivered
+          ? "An approval code has been sent to your email — enter it to continue."
+          : "Could not deliver the code (check the org's email/SMS setup).",
+      });
+    }
+    if (!(await verifyOtp(app.orgId, session.user.id, otpPurpose, body.otp))) {
+      return NextResponse.json({ success: false, message: "Invalid or expired approval code." }, { status: 403 });
+    }
+  }
+
+  // Non-final stage: advance to the next one.
+  if (!stageDef.canFinalize) {
+    const next = chain[idx + 1];
+    if (!next) {
+      return NextResponse.json({ success: false, message: "Workflow has no next stage — mark the last stage as finalizing." }, { status: 500 });
     }
     await prisma.loanApplication.update({
       where: { id: app.id },
-      data: { currentStageId: STAGE_FINAL, status: "OFFICER_REVIEW", stageTitle: "Final Approval" },
+      data: { currentStageId: next.id, status: "OFFICER_REVIEW", stageTitle: next.title },
     });
-    await audit("application.approve", { stage, next: STAGE_FINAL, note: body.note ?? null });
-    return NextResponse.json({ success: true, status: "OFFICER_REVIEW", stageTitle: "Final Approval" });
-  }
-
-  // Final stage — validator finalizes, OTP-gated (ServiceSuite parity).
-  if (!tiers.validator) {
-    return NextResponse.json({ success: false, message: "Final approval requires the Validator tier." }, { status: 403 });
-  }
-
-  const otpPurpose = `application:${app.id}:finalize`;
-  if (!body.otp) {
-    const { delivered } = await issueOtp(app.orgId, session.user.id, otpPurpose);
-    return NextResponse.json({
-      success: true,
-      otpRequired: true,
-      message: delivered
-        ? "An approval code has been sent to your email — enter it to finalize."
-        : "Could not deliver the code (check the org's email/SMS setup).",
-    });
-  }
-  if (!(await verifyOtp(app.orgId, session.user.id, otpPurpose, body.otp))) {
-    return NextResponse.json({ success: false, message: "Invalid or expired approval code." }, { status: 403 });
+    await audit("application.approve", { stage, stageTitle: stageDef.title, next: next.id, note: body.note ?? null });
+    return NextResponse.json({ success: true, status: "OFFICER_REVIEW", stageTitle: next.title });
   }
 
   if (app.org.mode === "NATIVE") {

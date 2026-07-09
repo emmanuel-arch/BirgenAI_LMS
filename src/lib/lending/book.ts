@@ -45,34 +45,66 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
 
   const principal = Number(app.amountRequested);
   const rate = Number(app.product.interestRate);
-  const interest = round2(principal * (rate / 100)); // flat; TODO reducing-balance engine
-  const loanAmount = round2(principal + interest);
   const count = Math.max(1, app.product.repaymentPeriod);
   const unit = app.product.repaymentPeriodUnit;
+  const reducing = app.product.interestMethod === "reducing";
 
   const borrowDate = new Date();
   const graceDays = app.product.gracePeriodDays ?? 0;
   const scheduleStart = new Date(borrowDate.getTime() + graceDays * 86400000);
 
-  // Equal installments; the LAST one absorbs rounding remainders so the sum is exact.
-  const perAmount = round2(loanAmount / count);
-  const perPrincipal = round2(principal / count);
   const rows: { seq: number; dueDate: Date; amountDue: number; principalDue: number; interestDue: number }[] = [];
-  let amtAcc = 0, prinAcc = 0;
-  for (let i = 1; i <= count; i++) {
-    const last = i === count;
-    const amountDue = last ? round2(loanAmount - amtAcc) : perAmount;
-    const principalDue = last ? round2(principal - prinAcc) : perPrincipal;
-    rows.push({
-      seq: i,
-      dueDate: stepDate(scheduleStart, unit, i),
-      amountDue,
-      principalDue,
-      interestDue: round2(amountDue - principalDue),
-    });
-    amtAcc = round2(amtAcc + amountDue);
-    prinAcc = round2(prinAcc + principalDue);
+  let interest: number;
+
+  if (reducing) {
+    // REDUCING BALANCE: equal principal, interest on the outstanding balance.
+    // The product rate is the rate for the FULL term, spread per period —
+    // total interest = P × rate% × (n+1)/(2n), always ≤ the flat equivalent.
+    const periodicRate = rate / 100 / count;
+    const perPrincipal = round2(principal / count);
+    let outstanding = principal;
+    let prinAcc = 0, intAcc = 0;
+    for (let i = 1; i <= count; i++) {
+      const last = i === count;
+      const principalDue = last ? round2(principal - prinAcc) : perPrincipal;
+      const interestDue = round2(outstanding * periodicRate);
+      rows.push({
+        seq: i,
+        dueDate: stepDate(scheduleStart, unit, i),
+        amountDue: round2(principalDue + interestDue),
+        principalDue,
+        interestDue,
+      });
+      prinAcc = round2(prinAcc + principalDue);
+      intAcc = round2(intAcc + interestDue);
+      outstanding = round2(outstanding - principalDue);
+    }
+    interest = intAcc;
+  } else {
+    // FLAT: interest = principal × rate%, equal installments; the LAST row
+    // absorbs rounding remainders so the schedule sums exactly.
+    interest = round2(principal * (rate / 100));
+    const total = round2(principal + interest);
+    const perAmount = round2(total / count);
+    const perPrincipal = round2(principal / count);
+    let amtAcc = 0, prinAcc = 0;
+    for (let i = 1; i <= count; i++) {
+      const last = i === count;
+      const amountDue = last ? round2(total - amtAcc) : perAmount;
+      const principalDue = last ? round2(principal - prinAcc) : perPrincipal;
+      rows.push({
+        seq: i,
+        dueDate: stepDate(scheduleStart, unit, i),
+        amountDue,
+        principalDue,
+        interestDue: round2(amountDue - principalDue),
+      });
+      amtAcc = round2(amtAcc + amountDue);
+      prinAcc = round2(prinAcc + principalDue);
+    }
   }
+
+  const loanAmount = round2(principal + interest);
   const expectedClearDate = rows[rows.length - 1].dueDate;
 
   const result = await prisma.$transaction(async (tx) => {

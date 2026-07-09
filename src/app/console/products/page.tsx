@@ -19,18 +19,21 @@ export default function ProductsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [workflows, setWorkflows] = useState<{ id: string; title: string }[]>([]);
   const [form, setForm] = useState({
     name: "", description: "", minPrincipal: "1000", maxPrincipal: "50000", interestRate: "12",
     interestMethod: "flat", repaymentPeriod: "8", repaymentPeriodUnit: "week", gracePeriodDays: "0",
-    disbursementMode: "B2C_MPESA",
+    disbursementMode: "B2C_MPESA", newWorkflowId: "",
   });
 
   const load = async () => {
     try {
-      const res = await fetch("/api/console/products");
-      const data = await res.json();
+      const [pRes, wRes] = await Promise.all([fetch("/api/console/products"), fetch("/api/console/workflows")]);
+      const data = await pRes.json();
       if (!data.success) { setError(data.message || "Could not load products."); return; }
       setProducts(data.products);
+      const wData = await wRes.json();
+      if (wData.success) setWorkflows(wData.workflows.map((w: { id: string; title: string }) => ({ id: w.id, title: w.title })));
     } catch { setError("Could not load products."); }
   };
   useEffect(() => { load(); }, []);
@@ -45,6 +48,7 @@ export default function ProductsPage() {
           minPrincipal: Number(form.minPrincipal), maxPrincipal: Number(form.maxPrincipal),
           interestRate: Number(form.interestRate), repaymentPeriod: Number(form.repaymentPeriod),
           gracePeriodDays: Number(form.gracePeriodDays),
+          newWorkflowId: form.newWorkflowId || null, repeatWorkflowId: form.newWorkflowId || null,
         }),
       });
       const data = await res.json();
@@ -116,6 +120,13 @@ export default function ProductsPage() {
                   <option value="B2C_MPESA">M-Pesa B2C</option>
                   <option value="MANUAL">Manual (record ref)</option>
                   <option value="TO_THIRD_PARTY">Third party (e.g. school)</option>
+                </select>
+              </div>
+              <div className={`${field} sm:col-span-2`}>
+                <span className="text-xs text-zinc-400 shrink-0">Approval workflow</span>
+                <select className={`${input} appearance-none`} value={form.newWorkflowId} onChange={set("newWorkflowId")}>
+                  <option value="">Default (two-tier: Officer → Final)</option>
+                  {workflows.map((w) => <option key={w.id} value={w.id}>{w.title}</option>)}
                 </select>
               </div>
             </div>

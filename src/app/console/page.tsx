@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, ShieldCheck, Bot, Package,
+  Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, ShieldCheck, Bot, Package, GitBranch,
 } from "lucide-react";
 import { SignOutButton } from "./signout";
 
@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 const MODULES = [
   { icon: FileText, title: "Applications", desc: "AI pre-screened queue, SHAP reasons, two-tier approvals", ready: true, href: "/console/applications" },
   { icon: Package, title: "Products", desc: "Loan products: limits, interest, schedule, disbursement mode", ready: true, href: "/console/products" },
+  { icon: GitBranch, title: "Workflows", desc: "Approval stage chains: tiers, OTP, finalize amount caps", ready: true, href: "/console/workflows" },
   { icon: Users, title: "Borrowers", desc: "The borrower book: KYC status, scores, OLB, graduation", ready: true, href: "/console/borrowers" },
   { icon: Users, title: "Team & Roles", desc: "Invite staff, approval tiers (INIT/AUTH/VALID), access", ready: true, href: "/console/team" },
   { icon: Banknote, title: "Loans & Disbursement", desc: "Maker-checker B2C queue, manual confirm, float ledger", ready: true, href: "/console/disbursements" },
@@ -28,12 +29,43 @@ const MODULES = [
 export default async function Console() {
   const session = await auth();
   if (!session?.user?.orgId) redirect("/login");
+  const orgId = session.user.orgId;
 
   const org = await prisma.org.findUnique({
-    where: { id: session.user.orgId },
+    where: { id: orgId },
     select: { name: true, slug: true, status: true, mode: true, accent: true, accentSoft: true },
   });
   if (!org) redirect("/login");
+
+  // Portfolio pulse — the semantic-metric-layer seeds (OLB, PAR30, today's flows).
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const par30Cutoff = new Date(Date.now() - 30 * 86400000);
+  const [olbAgg, activeCount, par30Agg, disbToday, collToday, liveApps, pendingDisb] = await Promise.all([
+    prisma.loan.aggregate({ where: { orgId, status: "ACTIVE" }, _sum: { balance: true } }),
+    prisma.loan.count({ where: { orgId, status: "ACTIVE" } }),
+    prisma.loan.aggregate({
+      where: { orgId, status: "ACTIVE", installments: { some: { status: "OVERDUE", dueDate: { lt: par30Cutoff } } } },
+      _sum: { balance: true },
+    }),
+    prisma.disbursement.aggregate({
+      where: { orgId, state: { in: ["CONFIRMED", "MANUAL_CONFIRMED"] }, updatedAt: { gte: today } },
+      _sum: { amount: true },
+    }),
+    prisma.c2BReceipt.aggregate({ where: { orgId, createdAt: { gte: today } }, _sum: { amount: true } }),
+    prisma.loanApplication.count({ where: { orgId, status: { in: ["SUBMITTED", "AI_PRESCREEN", "OFFICER_REVIEW", "REFERRED"] } } }),
+    prisma.disbursement.count({ where: { orgId, state: { in: ["PENDING_MAKER", "PENDING_CHECKER"] } } }),
+  ]);
+  const olb = Number(olbAgg._sum.balance ?? 0);
+  const par30 = Number(par30Agg._sum.balance ?? 0);
+  const fmt = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
+  const TILES = [
+    { label: "Outstanding loan book", value: fmt(olb), sub: `${activeCount} active loan${activeCount === 1 ? "" : "s"}` },
+    { label: "PAR 30", value: olb > 0 ? `${((par30 / olb) * 100).toFixed(1)}%` : "0.0%", sub: fmt(par30) },
+    { label: "Disbursed today", value: fmt(Number(disbToday._sum.amount ?? 0)), sub: null },
+    { label: "Collected today", value: fmt(Number(collToday._sum.amount ?? 0)), sub: null },
+    { label: "Applications waiting", value: String(liveApps), sub: null },
+    { label: "Disbursements queued", value: String(pendingDisb), sub: null },
+  ];
 
   return (
     <div className="min-h-screen relative text-zinc-900" style={{ ["--brand" as never]: org.accent, ["--brand-soft" as never]: org.accentSoft }}>
@@ -64,7 +96,17 @@ export default async function Console() {
 
       <main className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 py-8">
         <h1 className="text-xl font-bold">Console</h1>
-        <p className="mt-1 text-sm text-zinc-500">Your lending operation, org-scoped and isolated. Modules light up as they ship.</p>
+        <p className="mt-1 text-sm text-zinc-500">Your lending operation, org-scoped and isolated.</p>
+
+        <div className="mt-5 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+          {TILES.map((t) => (
+            <div key={t.label} className="glass p-3.5">
+              <p className="text-[10px] uppercase tracking-wide text-zinc-500">{t.label}</p>
+              <p className="mt-1 text-base font-bold leading-tight" style={{ color: "var(--brand)" }}>{t.value}</p>
+              {t.sub && <p className="mt-0.5 text-[10px] text-zinc-500">{t.sub}</p>}
+            </div>
+          ))}
+        </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {MODULES.map(({ icon: Icon, title, desc, ready, ...m }) => {

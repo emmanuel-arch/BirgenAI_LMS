@@ -25,6 +25,8 @@ type Body = {
   minCreditScore?: number;
   disbursementMode?: "B2C_MPESA" | "MANUAL" | "TO_THIRD_PARTY" | "LENDER_SIDE";
   isActive?: boolean;
+  newWorkflowId?: string | null;
+  repeatWorkflowId?: string | null;
 };
 
 export async function GET() {
@@ -77,6 +79,8 @@ export async function POST(req: NextRequest) {
       minCreditScore: Number.isInteger(body.minCreditScore) ? body.minCreditScore! : null,
       disbursementMode: body.disbursementMode ?? "B2C_MPESA",
       isActive: body.isActive ?? true,
+      newWorkflowId: body.newWorkflowId || null,
+      repeatWorkflowId: body.repeatWorkflowId || null,
     },
   });
   await prisma.auditLog.create({
@@ -116,6 +120,8 @@ export async function PUT(req: NextRequest) {
       minCreditScore: body.minCreditScore !== undefined ? body.minCreditScore : undefined,
       disbursementMode: body.disbursementMode ?? undefined,
       isActive: body.isActive ?? undefined,
+      newWorkflowId: body.newWorkflowId !== undefined ? body.newWorkflowId || null : undefined,
+      repeatWorkflowId: body.repeatWorkflowId !== undefined ? body.repeatWorkflowId || null : undefined,
     },
   });
   await prisma.auditLog.create({
