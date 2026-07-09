@@ -48,7 +48,7 @@ export default function BorrowersPage() {
 
         <div className="mt-5 space-y-2">
           {rows?.map((b) => (
-            <div key={b.id} className="glass p-4">
+            <Link key={b.id} href={`/console/borrowers/${b.id}`} className="glass p-4 block hover:bg-white/80 transition-colors">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0 flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white shrink-0" style={{ backgroundColor: "var(--brand)" }}>
@@ -72,7 +72,7 @@ export default function BorrowersPage() {
                   <div className="hidden sm:block"><p className="text-[10px] uppercase text-zinc-500">Borrowed</p><p className="text-sm font-bold">{fmtKES(b.totalBorrowed)}</p></div>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </main>
