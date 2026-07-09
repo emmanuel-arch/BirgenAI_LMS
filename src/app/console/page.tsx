@@ -19,7 +19,7 @@ const MODULES = [
   { icon: Users, title: "Team & Roles", desc: "Invite staff, approval tiers (INIT/AUTH/VALID), access", ready: true, href: "/console/team" },
   { icon: Banknote, title: "Loans & Disbursement", desc: "Maker-checker B2C queue, manual confirm, float ledger", ready: true, href: "/console/disbursements" },
   { icon: Landmark, title: "Repayments", desc: "STK requests, C2B receipts, unallocated exceptions", ready: true, href: "/console/repayments" },
-  { icon: Gauge, title: "Credit Intelligence", desc: "Scorer, statement cruncher, portfolio early-warning", ready: false },
+  { icon: Gauge, title: "Credit Intelligence", desc: "Portfolio early-warning watchlist, risk scores, one-tap recovery", ready: true, href: "/console/intelligence" },
   { icon: MapPin, title: "Field & Routes", desc: "Geo-pinned verifications, nearest-agent allocation, drive routes", ready: true, href: "/console/field" },
   { icon: MessageSquare, title: "SMS & Comms", desc: "Templates, campaigns, delivery billing", ready: false },
   { icon: Bot, title: "Riri Assistant", desc: "Talk to your book — 3 models: Analyst (live data), Copilot & Max", ready: true, open: "analyst" },

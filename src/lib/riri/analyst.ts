@@ -12,6 +12,7 @@
 // router for an intent classifier and the metric handlers stay identical.
 // ─────────────────────────────────────────────────────────────────────────────
 import { prisma } from "@/lib/prisma";
+import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
 
 export type MetricChip = { label: string; value: string; sub?: string; tone?: "good" | "warn" | "bad" };
 export type Series = { unit: "KES" | "count"; points: { x: string; y: number }[] };
@@ -311,6 +312,25 @@ async function h_scores(orgId: string): Promise<AnalystResult> {
   };
 }
 
+async function h_watchlist(orgId: string): Promise<AnalystResult> {
+  const ew = await portfolioEarlyWarning(orgId);
+  const top = ew.rows.slice(0, 5);
+  const dr = ew.tiles.olb > 0 ? pct(ew.tiles.atRiskValue, ew.tiles.olb) : 0;
+  return {
+    kind: "watchlist",
+    answer: ew.rows.length === 0
+      ? `Nothing on the early-warning watchlist right now — every active loan is behaving. I'll flag them the moment they start to slip.`
+      : `**${ew.rows.length}** borrower${ew.rows.length === 1 ? "" : "s"} on the early-warning watchlist — ${ew.tiles.high} high-risk, ${kesShort(ew.tiles.atRiskValue)} at risk (${dr.toFixed(0)}% of book), ~${kesShort(ew.tiles.projectedLoss)} projected loss. Open **Credit Intelligence** to act on them.`,
+    chips: [
+      { label: "Watchlist", value: String(ew.rows.length), tone: ew.rows.length > 0 ? "warn" : "good" },
+      { label: "High risk", value: String(ew.tiles.high), tone: ew.tiles.high > 0 ? "bad" : "good" },
+      { label: "Value at risk", value: kesShort(ew.tiles.atRiskValue) },
+      { label: "Projected loss", value: kesShort(ew.tiles.projectedLoss), tone: "bad" },
+    ],
+    table: top.length ? { head: ["Borrower", "DPD", "Risk", "Balance"], rows: top.map((r) => [r.name, String(r.dpd), r.band, kesShort(r.balance)]) } : undefined,
+  };
+}
+
 async function h_help(orgId: string): Promise<AnalystResult> {
   const p = await pulse(orgId);
   return {
@@ -328,6 +348,7 @@ async function h_help(orgId: string): Promise<AnalystResult> {
 // ── Router (the LLM/text-to-SQL seam) ─────────────────────────────────────────
 type Intent = { id: string; keys: RegExp; run: (orgId: string, q: string) => Promise<AnalystResult> };
 const INTENTS: Intent[] = [
+  { id: "watchlist", keys: /watchlist|early warning|who.*(default|risk|slip)|going to default|might default|about to default|risky borrower|flight risk|who owes/, run: (o) => h_watchlist(o) },
   { id: "par", keys: /\bpar\b|arrears|overdue|at risk|delinquen|non[- ]?performing|npl/, run: (o) => h_par(o) },
   { id: "outcomes", keys: /default rate|defaults?|repaid|repayment rate|write[- ]?off|charge[- ]?off|outcome/, run: (o) => h_outcomes(o) },
   { id: "disbursed", keys: /disburs|paid out|lent|loaned out|payout|booked/, run: (o, q) => h_disbursed(o, q) },
