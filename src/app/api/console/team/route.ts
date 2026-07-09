@@ -24,7 +24,8 @@ export async function GET() {
       orderBy: { createdAt: "asc" },
       select: {
         id: true, email: true, phone: true, firstName: true, otherName: true, status: true,
-        isInitiator: true, isAuthorizer: true, isValidator: true, lastLoginAt: true,
+        isInitiator: true, isAuthorizer: true, isValidator: true, isFieldAgent: true,
+        title: true, lat: true, lng: true, lastLoginAt: true,
         role: { select: { id: true, title: true } }, branch: { select: { id: true, name: true } },
       },
     }),
@@ -92,7 +93,7 @@ export async function PUT(req: NextRequest) {
   if (!session?.user?.orgId || !hasAdminAccess(session)) {
     return NextResponse.json({ success: false, message: "Admin sign-in required." }, { status: 401 });
   }
-  let body: { id?: string; roleId?: string | null; branchId?: string | null; status?: "ACTIVE" | "LOCKED" | "DISABLED"; tiers?: { initiator?: boolean; authorizer?: boolean; validator?: boolean } };
+  let body: { id?: string; roleId?: string | null; branchId?: string | null; status?: "ACTIVE" | "LOCKED" | "DISABLED"; tiers?: { initiator?: boolean; authorizer?: boolean; validator?: boolean }; isFieldAgent?: boolean; title?: string; lat?: number; lng?: number };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
   if (!body.id) return NextResponse.json({ success: false, message: "Staff id required." }, { status: 400 });
 
@@ -103,6 +104,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const t = body.tiers;
+  const hasGeo = Number.isFinite(Number(body.lat)) && Number.isFinite(Number(body.lng));
   const staff = await prisma.staffUser.update({
     where: { id: target.id },
     data: {
@@ -112,6 +114,11 @@ export async function PUT(req: NextRequest) {
       isInitiator: t?.initiator ?? undefined,
       isAuthorizer: t?.authorizer ?? undefined,
       isValidator: t?.validator ?? undefined,
+      isFieldAgent: body.isFieldAgent ?? undefined,
+      title: body.title ?? undefined,
+      lat: hasGeo ? Number(body.lat) : undefined,
+      lng: hasGeo ? Number(body.lng) : undefined,
+      lastLocationAt: hasGeo ? new Date() : undefined,
     },
   });
   await prisma.auditLog.create({

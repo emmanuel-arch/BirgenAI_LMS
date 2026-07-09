@@ -81,7 +81,22 @@ export const DEFAULT_BRAND: LenderBrand = {
   fallbackLogo: "/images/BirgenAI-logo.png",
 };
 
+// Guided-demo brand (violet) — resolvable by getBrand("demo") but kept OUT of
+// the production lender chooser (BRANDED_LENDERS below).
+export const DEMO_BRAND: LenderBrand = {
+  slug: "demo",
+  name: "Demo Microfinance",
+  logo: "/images/BirgenAI-logo.png",
+  hero: null,
+  accent: "#6d28d9",
+  accentSoft: "rgba(109,40,217,0.12)",
+  tagline: "Credit that understands your cashflow.",
+  blurb: "BirgenAI guided demo lender",
+  fallbackLogo: "/images/BirgenAI-logo.png",
+};
+
 export function getBrand(slug?: string | null): LenderBrand {
+  if (slug === "demo") return DEMO_BRAND;
   if (slug && LENDER_BRANDS[slug]) return LENDER_BRANDS[slug];
   return DEFAULT_BRAND;
 }

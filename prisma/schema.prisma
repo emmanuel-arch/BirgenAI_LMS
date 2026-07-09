@@ -58,6 +58,8 @@ model Org {
   heroUrl    String?
   // Bridged-mode link
   serviceSuiteEntityId Int?
+  // Demo orgs power the guided showcase (test accounts, seeded lifecycle).
+  isDemo    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -71,6 +73,7 @@ model Org {
   applications  LoanApplication[]
   loans         Loan[]
   usageEvents   UsageEvent[]
+  fieldVisits   FieldVisit[]
 }
 
 enum IntegrationKind {
@@ -172,18 +175,110 @@ model StaffUser {
   isInitiator  Boolean     @default(false)
   isAuthorizer Boolean     @default(false)
   isValidator  Boolean     @default(false)
+  // Field ops — relationship officers/agents get geolocated for nearest-agent
+  // routing. lat/lng is their last known base (branch or live check-in).
+  isFieldAgent    Boolean   @default(false)
+  lat             Float?
+  lng             Float?
+  lastLocationAt  DateTime?
   status       StaffStatus @default(INVITED)
   lastLoginAt  DateTime?
   otpSecret    String?
+  avatarSeed   String? // deterministic avatar for demo/console polish
+  title        String? // display job title (e.g. "Relationship Officer")
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
   org    Org     @relation(fields: [orgId], references: [id])
   role   Role?   @relation(fields: [roleId], references: [id])
   branch Branch? @relation(fields: [branchId], references: [id])
+  visitsAssigned FieldVisit[] @relation("VisitAgent")
 
   @@unique([orgId, email])
   @@index([orgId])
+  @@index([orgId, isFieldAgent])
+}
+
+enum FieldVisitStatus {
+  QUEUED // created, awaiting allocation
+  ALLOCATED // nearest agent assigned
+  EN_ROUTE
+  ARRIVED
+  VERIFIED // agent confirmed the physical reality (shop/home exists)
+  FAILED // could not verify
+  CANCELLED
+}
+
+enum FieldVisitKind {
+  BUSINESS_VERIFICATION // SME: confirm the shop/stock exists
+  HOME_VERIFICATION
+  COLLECTION_VISIT
+  KYC_ASSIST
+}
+
+/// A geolocated field task. The "RO becomes an API": software schedules the one
+/// thing it can't confirm remotely, and the nearest available agent is allocated
+/// automatically (Haversine) and submits the verification from the field.
+model FieldVisit {
+  id            String           @id @default(uuid())
+  orgId         String
+  borrowerId    String?
+  applicationId String?
+  kind          FieldVisitKind   @default(BUSINESS_VERIFICATION)
+  status        FieldVisitStatus @default(QUEUED)
+  label         String
+  address       String?
+  lat           Float
+  lng           Float
+  agentId       String?
+  allocatedAt   DateTime?
+  distanceKm    Float? // agent→target at allocation time
+  visitedAt     DateTime?
+  outcome       String?
+  notes         String?
+  photoKey      String?
+  createdBy     String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  org      Org        @relation(fields: [orgId], references: [id])
+  borrower Borrower?  @relation(fields: [borrowerId], references: [id])
+  agent    StaffUser? @relation("VisitAgent", fields: [agentId], references: [id])
+
+  @@index([orgId, status])
+  @@index([agentId, status])
+}
+
+/// A borrower KYC verification session — the elite onboarding funnel's spine.
+/// Each step writes a KycCheck; this row rolls them up into one live status the
+/// wizard and officers watch. `provider` = "simulation" until real creds are in
+/// the vault (Smile ID), then "smile-id".
+model KycSession {
+  id             String    @id @default(uuid())
+  orgId          String
+  borrowerId     String?
+  phone          String
+  nationalId     String?
+  provider       String    @default("simulation")
+  // step results (0..100 confidence where applicable)
+  idQualityScore    Int?
+  idOcrName         String?
+  idOcrNumber       String?
+  idOcrDob          String?
+  livenessScore     Int?
+  livenessPassed    Boolean?
+  faceMatchScore    Int?
+  iprsMatched       Boolean?
+  iprsName          String?
+  portraitKey       String?
+  // rollup
+  status         String    @default("IN_PROGRESS") // IN_PROGRESS | PENDING_REVIEW | VERIFIED | FAILED
+  riskFlags      Json?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([orgId, phone])
 }
 
 /// One-time codes for sensitive staff actions (final approvals, big
@@ -270,6 +365,7 @@ model Borrower {
   kycChecks    KycCheck[]
   applications LoanApplication[]
   loans        Loan[]
+  fieldVisits  FieldVisit[]
 
   @@unique([orgId, phone])
   @@index([orgId, nationalId])
@@ -303,7 +399,10 @@ enum KycCheckKind {
 model KycCheck {
   id         String       @id @default(uuid())
   orgId      String
-  borrowerId String
+  // Optional: KYC checks run DURING onboarding, before a Borrower row exists;
+  // the KycSession links them and they attach to the borrower once created.
+  borrowerId String?
+  sessionId  String?
   kind       KycCheckKind
   passed     Boolean?
   score      Float?
@@ -311,9 +410,10 @@ model KycCheck {
   payload    Json?
   createdAt  DateTime     @default(now())
 
-  borrower Borrower @relation(fields: [borrowerId], references: [id])
+  borrower Borrower? @relation(fields: [borrowerId], references: [id])
 
   @@index([orgId, borrowerId, kind])
+  @@index([sessionId])
 }
 
 // ── Products & workflows ──────────────────────────────────────────────────────

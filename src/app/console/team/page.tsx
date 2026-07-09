@@ -6,7 +6,8 @@ import { ArrowLeft, Loader2, AlertTriangle, CheckCircle2, Users, Plus } from "lu
 
 type Staff = {
   id: string; email: string; phone: string | null; firstName: string; otherName: string | null; status: string;
-  isInitiator: boolean; isAuthorizer: boolean; isValidator: boolean; lastLoginAt: string | null;
+  isInitiator: boolean; isAuthorizer: boolean; isValidator: boolean; isFieldAgent: boolean;
+  title: string | null; lat: number | null; lng: number | null; lastLoginAt: string | null;
   role: { id: string; title: string } | null; branch: { id: string; name: string } | null;
 };
 
@@ -59,6 +60,14 @@ export default function TeamPage() {
     await fetch("/api/console/team", {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: s.id, status: s.status === "ACTIVE" ? "DISABLED" : "ACTIVE" }),
+    });
+    await load();
+  };
+
+  const toggleField = async (s: Staff) => {
+    await fetch("/api/console/team", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: s.id, isFieldAgent: !s.isFieldAgent }),
     });
     await load();
   };
@@ -124,6 +133,7 @@ export default function TeamPage() {
                 <Tier on={s.isInitiator} label="INIT" onClick={() => toggleTier(s, "initiator")} />
                 <Tier on={s.isAuthorizer} label="AUTH" onClick={() => toggleTier(s, "authorizer")} />
                 <Tier on={s.isValidator} label="VALID" onClick={() => toggleTier(s, "validator")} />
+                <Tier on={s.isFieldAgent} label="FIELD" onClick={() => toggleField(s)} />
                 <button onClick={() => toggleStatus(s)}
                   className={`ml-1 rounded-md px-2 py-1 text-[11px] font-semibold ${s.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
                   {s.status}

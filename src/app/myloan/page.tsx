@@ -34,7 +34,7 @@ export default function MyLoanPage() {
   const [payAmount, setPayAmount] = useState("");
 
   useEffect(() => { setLender(lenderFromLocation() ?? "hub"); }, []);
-  const brand = getBrand(BRANDED_LENDERS.some((l) => l.slug === lender) ? lender : undefined);
+  const brand = getBrand(lender);
 
   const lookup = async () => {
     setError(null); setNotice(null); setResult(null);
