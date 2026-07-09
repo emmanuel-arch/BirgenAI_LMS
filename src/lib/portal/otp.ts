@@ -18,7 +18,18 @@ import { sendSms, hasSmsProvider } from "@/lib/sms/send";
 
 export const OTP_TTL_SEC = 5 * 60;
 const MAX_ATTEMPTS = 5;
-const PURPOSE = "borrower:verify";
+
+/**
+ * Purposes are separate namespaces. A code sent to prove "this is my phone" must
+ * not be replayable to sign a credit agreement, so signing carries the offer's id:
+ * a challenge issued for one offer cannot accept another.
+ */
+export const PURPOSE_VERIFY = "borrower:verify";
+export const signPurpose = (offerId: string) => `offer:${offerId}:sign`;
+
+/** The SMS the borrower gets. Signing says what is being signed, and for how much. */
+const TEMPLATE: Record<string, string> = { [PURPOSE_VERIFY]: "verify" };
+const templateFor = (purpose: string) => TEMPLATE[purpose] ?? "offer_sign";
 
 export type IssueResult = {
   /** An SMS provider accepted the message. False → the borrower cannot receive it. */
@@ -28,22 +39,32 @@ export type IssueResult = {
 };
 
 export type VerifyResult =
-  | { ok: true }
+  /** `challengeId` is the evidence trail — an offer records which challenge signed it. */
+  | { ok: true; challengeId: string }
   | { ok: false; reason: "invalid" | "expired" | "locked" };
 
-/** Create + deliver a challenge for this phone. Previous live codes are voided. */
-export async function issueBorrowerOtp(orgId: string, orgName: string, msisdn: string): Promise<IssueResult> {
+/**
+ * Create + deliver a challenge for this phone. Previous live codes for the same
+ * purpose are voided. `vars` decorate the SMS (the amount being signed for, etc.).
+ */
+export async function issueBorrowerOtp(
+  orgId: string,
+  orgName: string,
+  msisdn: string,
+  purpose: string = PURPOSE_VERIFY,
+  vars: Record<string, string | number> = {},
+): Promise<IssueResult> {
   // randomInt is CSPRNG-backed; Math.random is not, and this guards a loan book.
   const code = String(randomInt(100000, 1000000));
   const codeHash = await bcrypt.hash(code, 8);
 
-  await prisma.otpChallenge.deleteMany({ where: { orgId, phone: msisdn, purpose: PURPOSE, usedAt: null } });
+  await prisma.otpChallenge.deleteMany({ where: { orgId, phone: msisdn, purpose, usedAt: null } });
   await prisma.otpChallenge.create({
-    data: { orgId, phone: msisdn, purpose: PURPOSE, codeHash, expiresAt: new Date(Date.now() + OTP_TTL_SEC * 1000) },
+    data: { orgId, phone: msisdn, purpose, codeHash, expiresAt: new Date(Date.now() + OTP_TTL_SEC * 1000) },
   });
 
   const delivered = await hasSmsProvider(orgId);
-  await sendSms(orgId, msisdn, "verify", { code, org: orgName });
+  await sendSms(orgId, msisdn, templateFor(purpose), { code, org: orgName, ...vars });
 
   if (delivered) return { delivered: true };
 
@@ -59,9 +80,14 @@ export async function issueBorrowerOtp(orgId: string, orgName: string, msisdn: s
 }
 
 /** Verify + consume. Wrong guesses count; MAX_ATTEMPTS of them burn the challenge. */
-export async function verifyBorrowerOtp(orgId: string, msisdn: string, code: string): Promise<VerifyResult> {
+export async function verifyBorrowerOtp(
+  orgId: string,
+  msisdn: string,
+  code: string,
+  purpose: string = PURPOSE_VERIFY,
+): Promise<VerifyResult> {
   const challenge = await prisma.otpChallenge.findFirst({
-    where: { orgId, phone: msisdn, purpose: PURPOSE, usedAt: null },
+    where: { orgId, phone: msisdn, purpose, usedAt: null },
     orderBy: { createdAt: "desc" },
   });
   if (!challenge) return { ok: false, reason: "expired" };
@@ -80,5 +106,5 @@ export async function verifyBorrowerOtp(orgId: string, msisdn: string, code: str
   }
 
   await prisma.otpChallenge.update({ where: { id: challenge.id }, data: { usedAt: new Date() } });
-  return { ok: true };
+  return { ok: true, challengeId: challenge.id };
 }

@@ -23,6 +23,7 @@ import { enterOrg } from "@/lib/db/context";
 import { borrowerFor, otpRequired } from "@/lib/portal/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { meter } from "@/lib/billing/meter";
+import { createOfferForApplication } from "@/lib/lending/offer";
 import { scoreThinFileAuto } from "@/lib/statement/score-thinfile";
 import type { CashflowFeatures } from "@/lib/statement/features";
 import { LMS_STAGES, stageFromDecision, type LmsStageKey } from "@/lib/lms/workflow";
@@ -298,6 +299,20 @@ export async function POST(req: NextRequest) {
   // a failed application is never charged for.
   void meter(orgRow.id, "score", 1, { applicationId: app.id, engine: scored.fusionEngine, decision: scored.decision });
 
+  // Draft the credit agreement. The borrower must read it and sign it with a code
+  // before anything can be booked (§5.1.13) — a declined application gets no offer,
+  // and a referred one waits for a human before the terms are put in front of anyone.
+  let offerId: string | null = null;
+  if (scored.decision === "APPROVE") {
+    try {
+      offerId = (await createOfferForApplication(app.id))?.id ?? null;
+    } catch (err) {
+      // An application that scored must survive a failure to draft its paperwork;
+      // staff can re-issue the offer from the console.
+      console.error("[apply] offer draft failed:", err);
+    }
+  }
+
   // The applicant verified their identity at /verify while still anonymous, so
   // the KYC session is keyed by phone. Now that the Borrower row exists, promote
   // the verified artifacts onto it and link the audit trail. Best-effort: a
@@ -404,6 +419,8 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     success: true,
     applicationId: app.id,
+    // Present ⇒ the funnel shows the agreement and asks for a signature.
+    offerId,
     status: posting.ok ? "OFFICER_REVIEW" : stageKey,
     stageTitle: posting.ok ? LMS_STAGES.OFFICER_REVIEW.title : stage.title,
     decision: scored.decision,

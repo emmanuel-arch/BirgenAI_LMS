@@ -10,6 +10,7 @@ import {
 import { getBrand, BRANDED_LENDERS } from "@/lib/lms/branding";
 import CrunchTheatre, { type CrunchData } from "@/components/statement/CrunchTheatre";
 import OtpCard, { type OtpIssue } from "@/components/portal/OtpCard";
+import { OfferCard } from "@/components/portal/OfferCard";
 
 const LENDERS = BRANDED_LENDERS;
 
@@ -48,7 +49,7 @@ type Customer = {
   loansCount: number; totalBorrowed: number; olb: number; clearedLoans: number; activeLoans: number;
 };
 type ScorePreview = { score: number; band: string; tone: "good" | "warn" | "high" | "bad" };
-type Submitted = { applicationId: string; status: string; stageTitle: string; decision: string; score: number; band: string; posting?: { attempted: boolean; ok: boolean; message: string } };
+type Submitted = { applicationId: string; offerId?: string | null; status: string; stageTitle: string; decision: string; score: number; band: string; posting?: { attempted: boolean; ok: boolean; message: string } };
 type Product = {
   id: number; name: string; description: string | null;
   minPrincipal: number | null; maxPrincipal: number | null;
@@ -116,6 +117,7 @@ export default function LmsPortal() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoaded, setProductsLoaded] = useState(false);
   const [submitted, setSubmitted] = useState<Submitted | null>(null);
+  const [offerSigned, setOfferSigned] = useState(false);
 
   // Geo capture — one-time, consented location for loan verification (never tracked).
   const [geoConsent, setGeoConsent] = useState(false);
@@ -749,13 +751,25 @@ export default function LmsPortal() {
               </motion.div>
             )}
 
-            {/* STEP 6 — result */}
-            {step === 6 && submitted && (
+            {/* STEP 6a — the offer. Nothing is booked until this is signed. */}
+            {step === 6 && submitted?.offerId && !offerSigned && (
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className={`${GLASS} p-6 sm:p-8`}>
+                <OfferCard
+                  offerId={submitted.offerId}
+                  lenderSlug={lender}
+                  phone={phone}
+                  onAccepted={() => setOfferSigned(true)}
+                />
+              </motion.div>
+            )}
+
+            {/* STEP 6b — result */}
+            {step === 6 && submitted && (!submitted.offerId || offerSigned) && (
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className={`${GLASS} p-6 sm:p-8 text-center`}>
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 mb-4">
                   <CheckCircle2 className="h-8 w-8 text-emerald-600" />
                 </div>
-                <h1 className="text-2xl font-bold">Application received</h1>
+                <h1 className="text-2xl font-bold">{offerSigned ? "Agreement signed" : "Application received"}</h1>
                 <p className="mt-2 text-sm text-zinc-600">{submitted.stageTitle} — your reference is <span className="text-zinc-900 font-mono">{submitted.applicationId.slice(-8)}</span>.</p>
                 <div className="mt-5 rounded-2xl border border-zinc-900/10 bg-white/70 p-5 text-left">
                   <div className="flex items-center justify-between"><span className="text-sm text-zinc-500">{scoped ? "Credit score" : "BirgenAI score"}</span><span className="font-semibold">{submitted.score} / 900 · {submitted.band}</span></div>

@@ -100,6 +100,7 @@ model Org {
   products      Product[]
   workflows     Workflow[]
   applications  LoanApplication[]
+  offers        LoanOffer[]
   loans         Loan[]
   usageEvents   UsageEvent[]
   fieldVisits   FieldVisit[]
@@ -406,6 +407,7 @@ model Borrower {
   consents     Consent[]
   kycChecks    KycCheck[]
   applications LoanApplication[]
+  offers       LoanOffer[]
   loans        Loan[]
   fieldVisits  FieldVisit[]
 
@@ -595,14 +597,88 @@ model LoanApplication {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  org      Org      @relation(fields: [orgId], references: [id])
-  borrower Borrower @relation(fields: [borrowerId], references: [id])
-  product  Product? @relation(fields: [productId], references: [id])
+  org      Org        @relation(fields: [orgId], references: [id])
+  borrower Borrower   @relation(fields: [borrowerId], references: [id])
+  product  Product?   @relation(fields: [productId], references: [id])
   loan     Loan?
+  offer    LoanOffer?
 
   @@index([orgId, status])
   @@index([orgId, borrowerId])
   @@index([orgId, outcome])
+}
+
+enum OfferStatus {
+  OFFERED
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum OfferChannel {
+  PORTAL // the borrower signed it themselves, with an SMS one-time code
+  BRANCH // staff recorded a signature taken in person
+}
+
+/// The credit agreement, as presented to the borrower and as accepted by them.
+///
+/// A native loan may not be booked without an ACCEPTED offer. This row is the legal
+/// artifact: the exact terms shown, the exact schedule read, a hash over those terms,
+/// and how the acceptance was obtained. When a lender is asked "what did this person
+/// agree to, and how do you know?", the answer should be one row.
+///
+/// Terms are stored, never re-derived: a product's rate may change after an offer
+/// goes out, and the borrower agreed to the number they saw. Booking regenerates the
+/// schedule from these stored terms with the same `buildSchedule` that produced them
+/// and refuses to book if the totals disagree.
+model LoanOffer {
+  id            String @id @default(uuid())
+  orgId         String
+  applicationId String @unique
+  borrowerId    String
+  productId     String
+
+  principal      Decimal @db.Decimal(18, 2)
+  interestRate   Decimal @db.Decimal(9, 4)
+  interestMethod String // flat | reducing
+  termCount      Int
+  termUnit       String
+  graceDays      Int     @default(0)
+  totalInterest  Decimal @db.Decimal(18, 2)
+  totalRepayable Decimal @db.Decimal(18, 2)
+
+  borrowDate        DateTime
+  firstDueDate      DateTime
+  expectedClearDate DateTime
+  /// The installment rows the borrower actually read.
+  schedule          Json
+  /// sha256 over the canonical terms — what was signed.
+  termsHash         String
+
+  status    OfferStatus @default(OFFERED)
+  expiresAt DateTime
+
+  acceptedAt DateTime?
+  declinedAt DateTime?
+  channel    OfferChannel?
+  /// Evidence of the e-signature: where from, on what, and which challenge proved possession.
+  acceptedIp        String?
+  acceptedUserAgent String?
+  otpChallengeId    String?
+  /// Staff who recorded an in-person acceptance (BRANCH channel only).
+  recordedBy        String?
+  branchNote        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org         Org             @relation(fields: [orgId], references: [id])
+  application LoanApplication @relation(fields: [applicationId], references: [id])
+  borrower    Borrower        @relation(fields: [borrowerId], references: [id])
+
+  @@index([orgId, status])
+  @@index([orgId, borrowerId])
+  @@index([expiresAt])
 }
 
 enum LoanStatus {

@@ -4,24 +4,17 @@
 // Books the loan the way ServiceSuite's finalize stage does, but with the money
 // rail queued in-platform: Loan (PENDING_DISBURSEMENT) + full installment
 // schedule + a Disbursement row awaiting maker-checker. Money only moves when
-// Finance actions the queue (Daraja B2C — next slice) or records a manual ref.
+// Finance actions the queue (Daraja B2C) or records a manual ref.
 //
-// Interest (Phase 2): FLAT — interest = principal × rate%. Reducing-balance
-// products still book flat with a TODO until the reducing engine lands.
+// NOTHING BOOKS WITHOUT A SIGNED OFFER. The schedule is not recomputed from the
+// product here — it is regenerated from the terms the borrower accepted, and the
+// two are checked against each other. A product repriced between offer and
+// approval therefore cannot change what the borrower owes. See lending/offer.ts.
 // ─────────────────────────────────────────────────────────────────────────────
 import { Prisma } from "@prisma/client";
 import { prisma, orgTx } from "@/lib/prisma";
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
-function stepDate(from: Date, unit: string, count: number): Date {
-  const d = new Date(from);
-  const u = unit.toLowerCase();
-  if (u.startsWith("month")) d.setMonth(d.getMonth() + count);
-  else if (u.startsWith("week")) d.setDate(d.getDate() + 7 * count);
-  else d.setDate(d.getDate() + count); // day
-  return d;
-}
+import { buildSchedule } from "./schedule";
+import { effectiveStatus, hashTerms, termsOf } from "./offer";
 
 export type BookResult = {
   loanId: string;
@@ -33,79 +26,74 @@ export type BookResult = {
   disbursementId: string;
 };
 
-/** Book an APPROVED native application into the org's loan book (one transaction). */
+/**
+ * Book an ACCEPTED native application into the org's loan book (one transaction).
+ *
+ * Refuses without a signed offer. The schedule comes from the offer's frozen terms,
+ * not from the product as it stands today, and the terms are re-hashed on the way in
+ * — a booked loan therefore always matches the agreement the borrower put their
+ * one-time code against.
+ */
 export async function bookLoanFromApplication(applicationId: string, actorStaffId: string): Promise<BookResult> {
   const app = await prisma.loanApplication.findUnique({
     where: { id: applicationId },
-    include: { product: true, borrower: { select: { id: true, phone: true } }, loan: { select: { id: true } } },
+    include: {
+      product: true,
+      borrower: { select: { id: true, phone: true } },
+      loan: { select: { id: true } },
+      offer: true,
+    },
   });
   if (!app) throw new Error("Application not found.");
   if (app.loan) throw new Error("This application already has a loan."); // double-safe: Loan.applicationId is unique
   if (!app.product) throw new Error("Assign a product to this application before final approval.");
 
-  const principal = Number(app.amountRequested);
-  const rate = Number(app.product.interestRate);
-  const count = Math.max(1, app.product.repaymentPeriod);
-  const unit = app.product.repaymentPeriodUnit;
-  const reducing = app.product.interestMethod === "reducing";
-
-  const borrowDate = new Date();
-  const graceDays = app.product.gracePeriodDays ?? 0;
-  const scheduleStart = new Date(borrowDate.getTime() + graceDays * 86400000);
-
-  const rows: { seq: number; dueDate: Date; amountDue: number; principalDue: number; interestDue: number }[] = [];
-  let interest: number;
-
-  if (reducing) {
-    // REDUCING BALANCE: equal principal, interest on the outstanding balance.
-    // The product rate is the rate for the FULL term, spread per period —
-    // total interest = P × rate% × (n+1)/(2n), always ≤ the flat equivalent.
-    const periodicRate = rate / 100 / count;
-    const perPrincipal = round2(principal / count);
-    let outstanding = principal;
-    let prinAcc = 0, intAcc = 0;
-    for (let i = 1; i <= count; i++) {
-      const last = i === count;
-      const principalDue = last ? round2(principal - prinAcc) : perPrincipal;
-      const interestDue = round2(outstanding * periodicRate);
-      rows.push({
-        seq: i,
-        dueDate: stepDate(scheduleStart, unit, i),
-        amountDue: round2(principalDue + interestDue),
-        principalDue,
-        interestDue,
-      });
-      prinAcc = round2(prinAcc + principalDue);
-      intAcc = round2(intAcc + interestDue);
-      outstanding = round2(outstanding - principalDue);
-    }
-    interest = intAcc;
-  } else {
-    // FLAT: interest = principal × rate%, equal installments; the LAST row
-    // absorbs rounding remainders so the schedule sums exactly.
-    interest = round2(principal * (rate / 100));
-    const total = round2(principal + interest);
-    const perAmount = round2(total / count);
-    const perPrincipal = round2(principal / count);
-    let amtAcc = 0, prinAcc = 0;
-    for (let i = 1; i <= count; i++) {
-      const last = i === count;
-      const amountDue = last ? round2(total - amtAcc) : perAmount;
-      const principalDue = last ? round2(principal - prinAcc) : perPrincipal;
-      rows.push({
-        seq: i,
-        dueDate: stepDate(scheduleStart, unit, i),
-        amountDue,
-        principalDue,
-        interestDue: round2(amountDue - principalDue),
-      });
-      amtAcc = round2(amtAcc + amountDue);
-      prinAcc = round2(prinAcc + principalDue);
-    }
+  // ── The consent gate ────────────────────────────────────────────────────────
+  const offer = app.offer;
+  if (!offer) throw new Error("No offer has been made to this borrower yet.");
+  const status = effectiveStatus(offer);
+  if (status !== "ACCEPTED") {
+    throw new Error(
+      status === "EXPIRED"
+        ? "The borrower's offer expired before they accepted it. Issue a new one."
+        : status === "DECLINED"
+          ? "The borrower declined this offer."
+          : "The borrower has not accepted the offer yet.",
+    );
   }
 
-  const loanAmount = round2(principal + interest);
-  const expectedClearDate = rows[rows.length - 1].dueDate;
+  // Terms are the offer's, never the product's — a rate edited after the offer went
+  // out must not reach into a signed agreement.
+  const terms = termsOf(offer);
+  if (hashTerms(terms) !== offer.termsHash) {
+    throw new Error("This offer's terms do not match its signature. Booking is blocked.");
+  }
+
+  const principal = terms.principal;
+  const count = terms.termCount;
+  const borrowDate = terms.borrowDate;
+
+  const sched = buildSchedule({
+    principal,
+    rate: terms.interestRate,
+    count,
+    unit: terms.termUnit,
+    method: terms.interestMethod,
+    graceDays: terms.graceDays,
+    borrowDate,
+  });
+
+  // Belt and braces: the totals we are about to write must equal the totals the
+  // borrower read. If this ever fires, the schedule generator changed under a live
+  // offer and we would rather fail loudly than quietly book different money.
+  if (sched.interest !== terms.totalInterest || sched.loanAmount !== terms.totalRepayable) {
+    throw new Error("The schedule no longer reproduces the accepted offer. Booking is blocked.");
+  }
+
+  const rows = sched.rows;
+  const interest = sched.interest;
+  const loanAmount = sched.loanAmount;
+  const expectedClearDate = sched.expectedClearDate;
 
   const result = await orgTx(async (tx) => {
     const loan = await tx.loan.create({
@@ -156,7 +144,12 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
         action: "loan.book",
         entity: "Loan",
         entityId: loan.id,
-        meta: { applicationId: app.id, principal, interest, loanAmount, installments: count },
+        // The signature travels with the booking record: which agreement, and how signed.
+        meta: {
+          applicationId: app.id, principal, interest, loanAmount, installments: count,
+          offerId: offer.id, termsHash: offer.termsHash,
+          acceptedVia: offer.channel, acceptedAt: offer.acceptedAt?.toISOString() ?? null,
+        },
       },
     });
     return { loan, disb };

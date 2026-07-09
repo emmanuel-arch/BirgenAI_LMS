@@ -21,6 +21,9 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
   declined: "{org}: We could not approve your application this time. Reply HELP for the reasons and how to appeal.",
   otp: "Your approval code is {code}. It expires in 10 minutes. Never share it.",
   verify: "{code} is your {org} verification code. It expires in 5 minutes. Never share it — {org} will never ask you for this code.",
+  // A signing code must name what it signs. A borrower who receives "your code is
+  // 123456" cannot tell an identity check from a credit agreement worth KES 50,000.
+  offer_sign: "{code} is your code to SIGN and accept a loan of KES {principal} from {org}, repaying KES {repayable} by {clearDate}. Only enter it if you agree. Expires in 5 minutes.",
   reminder: "{org}: A friendly reminder — KES {amount} is due on {date}. Pay early, pay less. Dial your paybill or use Pay Now.",
   due_today: "{org}: KES {amount} is due TODAY on loan {ref}. Pay via your paybill or the Pay Now link to stay on track.",
   arrears: "{org}: Your installment of KES {amount} on loan {ref} is overdue. Please pay today to avoid penalties and protect your limit.",

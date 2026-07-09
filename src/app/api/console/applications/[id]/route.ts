@@ -156,8 +156,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       await audit("application.finalize", { stage, note: body.note ?? null, loanId: booked.loanId });
       return NextResponse.json({ success: true, status: "APPROVED", booked });
     } catch (err) {
+      // The commonest failure here is now the consent gate — no signed agreement.
+      // Say so plainly; the offer panel above the button is where it gets fixed.
       const message = err instanceof Error ? err.message : "Could not book the loan.";
-      return NextResponse.json({ success: false, message }, { status: 400 });
+      return NextResponse.json({ success: false, message, ...(/offer/i.test(message) ? { needsOffer: true } : {}) }, { status: 400 });
     }
   }
 

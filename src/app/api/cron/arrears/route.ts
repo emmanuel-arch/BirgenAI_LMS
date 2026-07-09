@@ -11,6 +11,7 @@ import { prisma, orgTx } from "@/lib/prisma";
 import { runAsPlatform } from "@/lib/db/context";
 import { sendSms } from "@/lib/sms/send";
 import { sweepRateLimits } from "@/lib/ratelimit";
+import { expireStaleOffers } from "@/lib/lending/offer";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -29,11 +30,15 @@ function authorized(req: NextRequest): boolean {
 async function run() {
   const today = dayStart(new Date());
   const tomorrow2 = new Date(today.getTime() + 2 * 86400000);
-  const stats = { overdueMarked: 0, penaltiesApplied: 0, penaltyTotal: 0, dueToday: 0, reminders: 0, rateLimitsSwept: 0 };
+  const stats = { overdueMarked: 0, penaltiesApplied: 0, penaltyTotal: 0, dueToday: 0, reminders: 0, rateLimitsSwept: 0, offersExpired: 0 };
 
   // Housekeeping: closed rate-limit windows. Counters reset themselves in place,
   // so this only reclaims rows for subjects that never came back.
   stats.rateLimitsSwept = await sweepRateLimits();
+
+  // Offers nobody signed. Booking already reads a lapsed offer as EXPIRED whether
+  // or not this ran, so the sweep is tidiness, never the gate.
+  stats.offersExpired = await runAsPlatform(() => expireStaleOffers());
 
   // 1) OVERDUE + one-time penalties (loans ACTIVE only; penalty once per installment).
   const overdue = await prisma.installment.findMany({

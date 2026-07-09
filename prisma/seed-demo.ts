@@ -15,6 +15,8 @@ import "dotenv/config";
 import { OrgMode, OrgStatus, OrgPlan } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { platformPrisma } from "./seed-client";
+import { buildSchedule } from "../src/lib/lending/schedule";
+import { hashTerms } from "../src/lib/lending/terms";
 
 // Seeds write across orgs, so they connect platform-scoped (see seed-client.ts).
 const prisma = platformPrisma();
@@ -190,6 +192,46 @@ async function main() {
       return app;
     };
 
+    // A signed credit agreement, built by the SAME code the live path uses — so the
+    // demo's terms hash and reproduce exactly the way a real borrower's would, and
+    // final approval passes the consent gate in book.ts rather than working around it.
+    const makeAcceptedOffer = async (
+      applicationId: string, borrowerId: string, product: typeof bizProduct,
+      amount: number, daysAgo: number, recordedBy: string,
+    ) => {
+      const borrowDate = D(daysAgo);
+      const method = product.interestMethod === "reducing" ? "reducing" : "flat";
+      const sched = buildSchedule({
+        principal: amount, rate: Number(product.interestRate),
+        count: product.repaymentPeriod, unit: product.repaymentPeriodUnit,
+        method, graceDays: product.gracePeriodDays ?? 0, borrowDate,
+      });
+      const terms = {
+        principal: amount, interestRate: Number(product.interestRate), interestMethod: method as "flat" | "reducing",
+        termCount: product.repaymentPeriod, termUnit: product.repaymentPeriodUnit,
+        graceDays: product.gracePeriodDays ?? 0,
+        totalInterest: sched.interest, totalRepayable: sched.loanAmount, borrowDate,
+      };
+      return prisma.loanOffer.create({
+        data: {
+          orgId: org.id, applicationId, borrowerId, productId: product.id,
+          principal: amount, interestRate: Number(product.interestRate), interestMethod: method,
+          termCount: product.repaymentPeriod, termUnit: product.repaymentPeriodUnit,
+          graceDays: product.gracePeriodDays ?? 0,
+          totalInterest: sched.interest, totalRepayable: sched.loanAmount,
+          borrowDate, firstDueDate: sched.firstDueDate, expectedClearDate: sched.expectedClearDate,
+          schedule: sched.rows.map((r) => ({
+            seq: r.seq, dueDate: r.dueDate.toISOString(),
+            amountDue: r.amountDue, principalDue: r.principalDue, interestDue: r.interestDue,
+          })),
+          termsHash: hashTerms(terms),
+          status: "ACCEPTED", acceptedAt: borrowDate, channel: "BRANCH",
+          recordedBy, branchNote: "Signed in person at the demo branch; national ID sighted.",
+          expiresAt: new Date(borrowDate.getTime() + 7 * 86400000),
+        },
+      });
+    };
+
     // Book a native loan with schedule (reducing or flat) + disbursement.
     const bookLoan = async (app: { id: string }, product: typeof bizProduct, amount: number, daysAgo: number, state: "active" | "cleared" | "arrears") => {
       const rate = Number(product.interestRate); const n = product.repaymentPeriod; const reducing = product.interestMethod === "reducing";
@@ -247,6 +289,10 @@ async function main() {
     }
     if (b.loans === "pending") {
       const app = await makeApp({ amount: 35000, product: bizProduct, status: "OFFICER_REVIEW", decision: "REFER", score: b.score, pd: 0.28, outcome: "PENDING", daysAgo: 2 });
+      // Nothing books without a signed agreement, so the approval queue needs one
+      // or the demo dead-ends at final approval. This borrower signed at a counter;
+      // the portal e-signature path is what a walk-through of the funnel exercises.
+      await makeAcceptedOffer(app.id, borrower.id, bizProduct, 35000, 2, officerId);
       // A field verification visit auto-created for the SME (nearest agent).
       const agents = await prisma.staffUser.findMany({ where: { orgId: org.id, isFieldAgent: true, lat: { not: null } } });
       let best = agents[0], bestKm = Infinity;

@@ -21,6 +21,9 @@ export default function OtpCard({
   issue,
   onVerified,
   onChangeNumber,
+  title,
+  verifyCode,
+  resendCode,
 }: {
   lenderSlug: string;
   /** As the borrower typed it — display only. The server works in msisdn. */
@@ -29,6 +32,16 @@ export default function OtpCard({
   issue: OtpIssue;
   onVerified: () => void;
   onChangeNumber: () => void;
+  title?: string;
+  /**
+   * Where the code goes. Defaults to exchanging it for a borrower session. Signing a
+   * loan offer passes its own verifier, so the same six boxes — with their paste
+   * handling, auto-submit and burn-aware errors — serve both purposes and neither
+   * grows a second, less-tested copy. Reject with a message to show it under the boxes.
+   */
+  verifyCode?: (code: string) => Promise<void>;
+  /** Where a resend goes. Defaults to re-issuing an identity code. */
+  resendCode?: () => Promise<OtpIssue | void>;
 }) {
   const [digits, setDigits] = useState<string[]>(Array(LEN).fill(""));
   const [busy, setBusy] = useState(false);
@@ -45,10 +58,20 @@ export default function OtpCard({
     return () => clearTimeout(t);
   }, [cooldown]);
 
+  const clearBoxes = () => {
+    setDigits(Array(LEN).fill(""));
+    boxes.current[0]?.focus();
+  };
+
   const submit = async (value: string) => {
     setBusy(true);
     setError(null);
     try {
+      if (verifyCode) {
+        await verifyCode(value);
+        onVerified();
+        return;
+      }
       const res = await fetch("/api/portal/otp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -57,13 +80,13 @@ export default function OtpCard({
       const data = await res.json();
       if (!data.success) {
         setError(data.message || "That code isn't right.");
-        setDigits(Array(LEN).fill(""));
-        boxes.current[0]?.focus();
+        clearBoxes();
         return;
       }
       onVerified();
-    } catch {
-      setError("Couldn't verify the code. Check your connection and try again.");
+    } catch (err) {
+      setError(err instanceof Error && verifyCode ? err.message : "Couldn't verify the code. Check your connection and try again.");
+      if (verifyCode) clearBoxes();
     } finally {
       setBusy(false);
     }
@@ -106,16 +129,20 @@ export default function OtpCard({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/portal/otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lenderSlug, phone }),
-      });
-      const data = await res.json();
-      if (!data.success) { setError(data.message || "Couldn't resend the code."); return; }
-      setDevCode(data.devCode ?? null);
-      setDigits(Array(LEN).fill(""));
-      boxes.current[0]?.focus();
+      if (resendCode) {
+        const issued = await resendCode();
+        setDevCode(issued?.devCode ?? null);
+      } else {
+        const res = await fetch("/api/portal/otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lenderSlug, phone }),
+        });
+        const data = await res.json();
+        if (!data.success) { setError(data.message || "Couldn't resend the code."); return; }
+        setDevCode(data.devCode ?? null);
+      }
+      clearBoxes();
       setCooldown(RESEND_COOLDOWN_S);
     } catch {
       setError("Couldn't resend the code.");
@@ -131,7 +158,7 @@ export default function OtpCard({
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: "var(--brand-soft, #f4f4f5)" }}>
           <MessageSquare className="h-7 w-7" style={{ color: "var(--brand, #18181b)" }} />
         </div>
-        <h1 className="mt-4 text-2xl font-bold">Enter your code</h1>
+        <h1 className="mt-4 text-2xl font-bold">{title ?? "Enter your code"}</h1>
         <p className="mt-2 text-sm text-zinc-500">
           {issue.delivered ? "We sent a 6-digit code to" : "Verification code for"}{" "}
           <span className="font-semibold text-zinc-900">{phone}</span>

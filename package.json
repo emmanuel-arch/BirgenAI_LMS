@@ -13,6 +13,7 @@
     "test:portal": "tsx scripts/verify-portal-auth.ts",
     "test:storage": "tsx scripts/verify-storage.ts",
     "test:billing": "tsx scripts/verify-billing.ts",
+    "test:offer": "tsx scripts/verify-offer.ts",
     "db:app-role": "tsx scripts/create-app-role.ts",
     "storage:init": "tsx scripts/init-storage.ts",
     "db:migrate:plans": "tsx scripts/migrate-plans.ts",
