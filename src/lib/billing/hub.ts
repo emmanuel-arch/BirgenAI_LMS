@@ -12,49 +12,86 @@
 // has nothing to do with what the lender owes BirgenAI. The two never touch.
 //
 // How a lender pays for BirgenAI_LMS:
-//   1. the console sends their billing admin to the Hub's checkout
-//      (`/transact?lms=<slug>&plan=<PLAN>&return=<back here>`), the same deep-link
-//      the Movies app uses for its upgrades;
-//   2. the Hub recomputes the amount from ITS rate card — never from anything we
-//      send — opens a PaymentIntent with purpose SUBSCRIPTION, and STK-pushes to
-//      the Till;
+//   1. this console verifies the signed-in staffer administers the org, then MINTS a
+//      short-lived HMAC token over {org, plan, exp} and sends them to the Hub's
+//      checkout (`/transact?lms=<slug>&plan=<PLAN>&t=<token>&return=<back here>`),
+//      the same deep-link the Movies app uses for its upgrades;
+//   2. the Hub verifies the signature, prices the package from ITS rate card — never
+//      from anything in the query string — opens a PaymentIntent with purpose
+//      SUBSCRIPTION, and STK-pushes to the Till;
 //   3. its callback settles the intent through `lib/wallet.ts` and marks the org
 //      paid through +30 days;
 //   4. we read that state back here and mirror it onto OrgSubscription.
 //
-// Step 4 is the only coupling, and it is read-only: the Hub is the source of truth
-// for whether an invoice is paid, and this app never asserts otherwise.
+// The token exists because the Hub CANNOT answer "may this person pay for lender X?"
+// — an LMS org's staff live in this database, not the Hub's. Without it, a bare
+// `/transact?lms=micromart&plan=STARTER` would let any signed-in stranger pay KES
+// 10,000 and downgrade a Premium lender from 30,000. We vouch; the Hub verifies.
 //
-// SIMULATION-FIRST, like every other provider seam here. With no HUB_BILLING_SECRET
-// the sync is a no-op and local OrgSubscription state stands, so the demo org and
-// local development keep working with no Hub running.
+// Step 4 is the only other coupling, and it is read-only: the Hub is the source of
+// truth for whether an invoice is paid, and this app never asserts otherwise.
+//
+// SIMULATION-FIRST, like every other provider seam here. With no LMS_BILLING_SECRET
+// no token can be signed, checkout is unavailable, the sync is a no-op and local
+// OrgSubscription state stands — so the demo org and local development keep working
+// with no Hub running.
 // ─────────────────────────────────────────────────────────────────────────────
+import { createHmac } from "node:crypto";
 import type { OrgPlan } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { runWithOrg } from "@/lib/db/context";
 import { invalidateEntitlements } from "./entitlements";
+import { PLAN_ORDER } from "./plans";
 
 export type HubBillingMode = "simulation" | "live";
 
 const DEFAULT_HUB = "https://birgenai.com";
 
+/** How long a minted checkout token stays valid. The Hub rejects anything longer. */
+const CHECKOUT_TTL_SEC = 15 * 60;
+
 export function hubUrl(): string {
   return (process.env.HUB_BILLING_URL || process.env.NEXT_PUBLIC_HUB_URL || DEFAULT_HUB).replace(/\/$/, "");
 }
 
+/** Shared with the Hub deployment under the same name. */
+function billingSecret(): string | null {
+  const s = process.env.LMS_BILLING_SECRET?.trim();
+  return s ? s : null;
+}
+
 export function hubBillingMode(): HubBillingMode {
-  return process.env.HUB_BILLING_SECRET?.trim() ? "live" : "simulation";
+  return billingSecret() ? "live" : "simulation";
 }
 
 /**
- * Where to send a billing admin to pay. The plan is a HINT for pre-selection; the
- * Hub reads the authoritative plan and price from its own records, so a tampered
- * query string buys nothing.
+ * Vouch, cryptographically, that this org may be charged for this package.
+ *
+ * The caller MUST have established that the actor administers `orgSlug` — this
+ * function does not check, it only signs. Returns null in simulation, which is why
+ * checkout is disabled rather than silently unauthenticated when the secret is unset.
  */
-export function hubCheckoutUrl(orgSlug: string, plan: OrgPlan, returnTo: string): string {
+export function signCheckout(orgSlug: string, plan: OrgPlan): string | null {
+  const secret = billingSecret();
+  if (!secret) return null;
+  const claims = { org: orgSlug, plan, exp: Math.floor(Date.now() / 1000) + CHECKOUT_TTL_SEC };
+  const payload = Buffer.from(JSON.stringify(claims), "utf8").toString("base64url");
+  const signature = createHmac("sha256", secret).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+/**
+ * Where to send a billing admin to pay. `plan` in the query string is a display hint
+ * only — the Hub takes the plan it charges for out of the signed token, so a tampered
+ * URL buys nothing. Null when we cannot sign (no Hub connection configured).
+ */
+export function hubCheckoutUrl(orgSlug: string, plan: OrgPlan, returnTo: string): string | null {
+  const token = signCheckout(orgSlug, plan);
+  if (!token) return null;
   const u = new URL(`${hubUrl()}/transact`);
   u.searchParams.set("lms", orgSlug);
   u.searchParams.set("plan", plan);
+  u.searchParams.set("t", token);
   u.searchParams.set("return", returnTo);
   return u.toString();
 }
@@ -69,7 +106,7 @@ export type HubSubscription = {
 
 /** Ask the Hub what this org has actually paid for. Null when unreachable/simulated. */
 export async function fetchHubSubscription(orgSlug: string): Promise<HubSubscription | null> {
-  const secret = process.env.HUB_BILLING_SECRET?.trim();
+  const secret = billingSecret();
   if (!secret) return null;
   try {
     const res = await fetch(`${hubUrl()}/api/lms/subscription?orgSlug=${encodeURIComponent(orgSlug)}`, {
@@ -99,8 +136,13 @@ export async function syncSubscriptionFromHub(orgId: string, orgSlug: string): P
   const paidThrough = hub.paidThroughAt ? new Date(hub.paidThroughAt) : null;
   const paid = hub.active && !!paidThrough && paidThrough > new Date();
 
+  // The Hub stores the package as a plain string. Validate it before it reaches an
+  // enum column — an unrecognised value should cost us the plan update, not the
+  // whole sync, and certainly not an unhandled Prisma error on a billing page.
+  const plan = (PLAN_ORDER as string[]).includes(hub.plan) ? (hub.plan as OrgPlan) : null;
+
   await runWithOrg(orgId, async () => {
-    await prisma.org.update({ where: { id: orgId }, data: { plan: hub.plan } });
+    if (plan) await prisma.org.update({ where: { id: orgId }, data: { plan } });
     await prisma.orgSubscription.update({
       where: { orgId },
       data: {

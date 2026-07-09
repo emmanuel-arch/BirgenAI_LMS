@@ -70,14 +70,24 @@ export async function POST(req: NextRequest) {
   }
 
   if (body.action === "checkout") {
-    // Only a billing admin sends the company to a payment page.
+    // Only a billing admin sends the company to a payment page. This check is what
+    // the signed token vouches for — the Hub has no way to make it itself.
     if (!hasAdminAccess(session)) {
       return NextResponse.json({ success: false, message: "Only an admin can start a payment." }, { status: 403 });
     }
     const ent = await entitlementsFor(orgId);
     const plan = PLAN_ORDER.includes(body.plan as never) ? (body.plan as keyof typeof PLANS) : ent.plan.key;
     const returnTo = body.returnTo?.startsWith("http") ? body.returnTo : `${req.nextUrl.origin}/console/billing`;
-    return NextResponse.json({ success: true, url: hubCheckoutUrl(ent.orgSlug, plan, returnTo) });
+    const url = hubCheckoutUrl(ent.orgSlug, plan, returnTo);
+    if (!url) {
+      // No shared secret ⇒ we cannot vouch for this org, so we do not hand out a link
+      // the Hub would refuse anyway.
+      return NextResponse.json(
+        { success: false, message: "The BirgenAI wallet is not connected to this deployment yet." },
+        { status: 503 },
+      );
+    }
+    return NextResponse.json({ success: true, url });
   }
 
   return NextResponse.json({ success: false, message: "Unknown action." }, { status: 400 });

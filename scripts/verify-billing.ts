@@ -8,6 +8,7 @@
 //   • a usage event freezes the price it was charged at, so an invoice computed
 //     from history never moves when the catalogue does
 import "dotenv/config";
+import { createHmac } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { runAsPlatform, runWithOrg } from "@/lib/db/context";
@@ -110,11 +111,54 @@ async function main() {
     ok("a kind with an allowance still bills only the excess", noAllowance.overage === Math.max(0, 10 - (ent.included.document ?? 0)));
 
     console.log("\n8. Money leaves through the Hub, and only the Hub");
-    const url = hubCheckoutUrl(slug, "ADVANCED", "https://lms.birgenai.com/console/billing");
+    const secretWasSet = process.env.LMS_BILLING_SECRET;
+    delete process.env.LMS_BILLING_SECRET;
+    ok("no shared secret ⇒ simulation, not a silent failure", hubBillingMode() === "simulation");
+    ok("and NO checkout link is handed out unsigned",
+      hubCheckoutUrl(slug, "ADVANCED", "https://lms.birgenai.com/console/billing") === null);
+
+    process.env.LMS_BILLING_SECRET = "test-secret-not-a-real-one";
+    ok("a shared secret ⇒ live", hubBillingMode() === "live");
+
+    const url = hubCheckoutUrl(slug, "ADVANCED", "https://lms.birgenai.com/console/billing")!;
     ok("checkout points at the Hub's /transact", url.includes("/transact"), url);
+    ok("it never points at Daraja", !/safaricom|daraja|stkpush/i.test(url));
     ok("it carries the org slug and plan", url.includes(`lms=${slug}`) && url.includes("plan=ADVANCED"));
     ok("it carries a return URL", url.includes("return="));
-    ok("no HUB_BILLING_SECRET ⇒ simulation, not a silent failure", hubBillingMode() === (process.env.HUB_BILLING_SECRET ? "live" : "simulation"));
+
+    // The token is what the Hub trusts. Re-verify it exactly as the Hub does, then
+    // prove the attack it exists to stop: paying STARTER for a Premium lender.
+    const token = new URL(url).searchParams.get("t") ?? "";
+    ok("it carries a signed token", token.includes("."));
+
+    const verify = (t: string, secret: string) => {
+      const [payload, sig] = t.split(".");
+      const expect = createHmac("sha256", secret).update(payload ?? "").digest("base64url");
+      if (sig !== expect) return null;
+      return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { org: string; plan: string; exp: number };
+    };
+
+    const claims = verify(token, "test-secret-not-a-real-one");
+    ok("the signature verifies with the shared secret", !!claims);
+    ok("the token names the paying org", claims?.org === slug);
+    ok("the token names the package being bought", claims?.plan === "ADVANCED");
+    const ttl = (claims!.exp * 1000 - Date.now()) / 1000;
+    ok("it expires inside 15 minutes", ttl > 0 && ttl <= 15 * 60, `${Math.round(ttl)}s`);
+    ok("it does NOT verify under a different secret", verify(token, "some-other-secret") === null);
+
+    // Swap the plan in the query string: the Hub reads the token, not the URL.
+    const tampered = new URL(url);
+    tampered.searchParams.set("plan", "STARTER");
+    const stillClaims = verify(tampered.searchParams.get("t")!, "test-secret-not-a-real-one");
+    ok("tampering with ?plan= cannot downgrade the org — the token still says ADVANCED",
+      stillClaims?.plan === "ADVANCED");
+
+    // Forge a cheaper package inside the payload: the signature must break.
+    const forged = Buffer.from(JSON.stringify({ ...claims, plan: "STARTER" }), "utf8").toString("base64url");
+    ok("a forged payload fails the signature", verify(`${forged}.${token.split(".")[1]}`, "test-secret-not-a-real-one") === null);
+
+    if (secretWasSet === undefined) delete process.env.LMS_BILLING_SECRET;
+    else process.env.LMS_BILLING_SECRET = secretWasSet;
   } finally {
     await runAsPlatform(async () => {
       await prisma.usageEvent.deleteMany({ where: { orgId: org.id } });
