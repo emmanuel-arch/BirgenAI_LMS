@@ -8,6 +8,7 @@ import {
   Lock, AlertTriangle, Phone, Banknote, HelpCircle, ChevronDown, MapPin, Crosshair,
 } from "lucide-react";
 import { getBrand, BRANDED_LENDERS } from "@/lib/lms/branding";
+import CrunchTheatre, { type CrunchData } from "@/components/statement/CrunchTheatre";
 
 const LENDERS = BRANDED_LENDERS;
 
@@ -102,6 +103,7 @@ export default function LmsPortal() {
   const [consent, setConsent] = useState<Record<string, boolean>>({});
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
+  const [crunching, setCrunching] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [features, setFeatures] = useState<Features | null>(null);
   const [scorePreview, setScorePreview] = useState<ScorePreview | null>(null);
@@ -182,22 +184,20 @@ export default function LmsPortal() {
     } catch { setError("Could not run the check."); } finally { setLoading(false); }
   };
 
-  const runStatement = async () => {
+  // The crunch itself runs inside the theatre overlay — it owns the upload and
+  // the staged reveal (decrypt → parse → extract → ledger → audit → score).
+  // We only gate on a file and take the finished result.
+  const startCrunch = () => {
     setError(null);
     if (!file) { setError("Upload your M-PESA statement PDF."); return; }
-    setLoading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      if (password) fd.append("password", password);
-      if (elig?.borrowerName) fd.append("borrowerName", elig.borrowerName);
-      const res = await fetch("/api/enterprise/statement-cruncher", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!data.success) { setError(data.message || "Could not read the statement."); return; }
-      setFeatures(data.features);
-      setScorePreview({ score: data.creditScore.score, band: data.creditScore.band, tone: data.creditScore.tone });
-      next();
-    } catch { setError("Upload failed."); } finally { setLoading(false); }
+    setCrunching(true);
+  };
+
+  const onCrunchComplete = (data: CrunchData) => {
+    setFeatures(data.features);
+    setScorePreview({ score: data.creditScore.score, band: data.creditScore.band, tone: data.creditScore.tone });
+    setCrunching(false);
+    next();
   };
 
   // Load the lender's products once the borrower reaches the amount step.
@@ -613,8 +613,8 @@ export default function LmsPortal() {
 
                 <div className="mt-6 flex gap-2">
                   <button onClick={back} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 px-4 py-3 text-sm text-zinc-600 hover:bg-zinc-900/5"><ArrowLeft className="h-4 w-4" /></button>
-                  <button onClick={runStatement} disabled={loading} className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gauge className="h-4 w-4" />} {loading ? "Checking…" : "Check affordability"}
+                  <button onClick={startCrunch} className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800">
+                    <Gauge className="h-4 w-4" /> Check affordability
                   </button>
                 </div>
               </motion.div>
@@ -718,6 +718,17 @@ export default function LmsPortal() {
           </div>
         </main>
       </div>
+
+      {/* The M-PESA crunch theatre owns the upload, the staging and the reveal. */}
+      {crunching && file && (
+        <CrunchTheatre
+          file={file}
+          password={password || undefined}
+          borrowerName={elig?.borrowerName ?? null}
+          onComplete={onCrunchComplete}
+          onFail={(message) => { setCrunching(false); setError(message); }}
+        />
+      )}
     </div>
   );
 }

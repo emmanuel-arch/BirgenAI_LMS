@@ -1,11 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // PDF → text extraction for the M-Pesa Statement Cruncher.
 //
-// Official M-Pesa statements (emailed by Safaricom) are PASSWORD-PROTECTED, which
-// pdf-parse cannot open. Strategy:
-//   1. Try pdf-parse (fast, proven here) — handles already-unlocked PDFs.
-//   2. On an encryption error, fall back to pdfjs-dist (legacy Node build), which
-//      accepts a user password.
+// Official M-Pesa statements (emailed by Safaricom) are PASSWORD-PROTECTED. We
+// use pdfjs-dist (legacy Node build) exclusively: it opens both encrypted and
+// plain PDFs and reports password state precisely via PasswordException.
+//
+// NOTE: pdfjs-dist MUST stay out of the bundle (`serverExternalPackages` in
+// next.config.ts). It resolves its worker with a runtime dynamic import; if the
+// bundler rewrites that, pdfjs falls back to a "fake worker" and throws
+// `Setting up fake worker failed`, which used to surface here as the misleading
+// "Could not read this PDF" message.
+//
 // Server-only (Node runtime). Throws typed errors the route maps to friendly text.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -22,37 +27,39 @@ export class PdfPasswordIncorrectError extends Error {
   }
 }
 
-function looksEncrypted(err: unknown): boolean {
-  const m = (err instanceof Error ? err.message : String(err)).toLowerCase();
-  return m.includes("password") || m.includes("encrypt");
-}
+// pdfjs PasswordResponses: NEED_PASSWORD = 1, INCORRECT_PASSWORD = 2
+const NEED_PASSWORD = 1;
+const INCORRECT_PASSWORD = 2;
 
-/** Extract plain text from a PDF buffer. `password` is used only if needed. */
+type PdfTextItem = { str: string; transform: number[] };
+
+/** Extract plain text from a PDF buffer. `password` unlocks encrypted statements. */
 export async function extractPdfText(buffer: Buffer, password?: string): Promise<string> {
-  // 1. pdf-parse (no password support) — works for unlocked statements.
-  if (!password) {
-    try {
-      const pdf = (await import("pdf-parse")).default;
-      const data = await pdf(buffer);
-      if (data.text && data.text.trim().length > 0) return data.text;
-    } catch (err) {
-      if (looksEncrypted(err)) throw new PdfPasswordRequiredError();
-      // otherwise fall through to pdfjs (some PDFs just parse better there)
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    password: password || undefined,
+    isEvalSupported: false,
+    useSystemFonts: true,
+    // No worker in Node — pdfjs runs on the main thread for text extraction.
+  });
+
+  let doc;
+  try {
+    doc = await loadingTask.promise;
+  } catch (err) {
+    const e = err as { name?: string; code?: number; message?: string };
+    if (e?.name === "PasswordException") {
+      if (e.code === INCORRECT_PASSWORD) throw new PdfPasswordIncorrectError();
+      if (e.code === NEED_PASSWORD) throw new PdfPasswordRequiredError();
+      throw password ? new PdfPasswordIncorrectError() : new PdfPasswordRequiredError();
     }
+    console.error("[extract-pdf] could not open PDF:", err);
+    throw new Error("Could not read this PDF. Make sure it's a valid M-Pesa statement.", { cause: err });
   }
 
-  // 2. pdfjs-dist legacy — supports a user password.
   try {
-    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const loadingTask = pdfjs.getDocument({
-      data: new Uint8Array(buffer),
-      password: password || undefined,
-      isEvalSupported: false,
-      useSystemFonts: true,
-      // No worker in Node — pdfjs runs on the main thread for text extraction.
-    });
-    const doc = await loadingTask.promise;
-
     let text = "";
     for (let i = 1; i <= doc.numPages; i++) {
       const page = await doc.getPage(i);
@@ -60,7 +67,7 @@ export async function extractPdfText(buffer: Buffer, password?: string): Promise
       // Reconstruct rough lines: insert a newline when the y-position drops.
       let lastY: number | null = null;
       let line = "";
-      for (const item of content.items as Array<{ str: string; transform: number[] }>) {
+      for (const item of content.items as PdfTextItem[]) {
         const y = item.transform?.[5];
         if (lastY !== null && y !== undefined && Math.abs(y - lastY) > 2) {
           text += line.trimEnd() + "\n";
@@ -72,17 +79,11 @@ export async function extractPdfText(buffer: Buffer, password?: string): Promise
       if (line.trim()) text += line.trimEnd() + "\n";
       text += "\n";
     }
-    return text;
-  } catch (err) {
-    const name = err instanceof Error ? err.name : "";
-    const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
-    if (name === "PasswordException" || msg.includes("password")) {
-      if (password) throw new PdfPasswordIncorrectError();
-      throw new PdfPasswordRequiredError();
+    if (!text.trim()) {
+      throw new Error("This PDF has no readable text (it may be a scan). Upload the statement Safaricom emailed you.");
     }
-    // Surface the real failure in server logs — bundler/module-load errors land
-    // here too (not just corrupt PDFs) and the friendly message hides them.
-    console.error("[extract-pdf] pdfjs extraction failed:", err);
-    throw new Error("Could not read this PDF. Make sure it's a valid M-Pesa statement.", { cause: err });
+    return text;
+  } finally {
+    await loadingTask.destroy().catch(() => {});
   }
 }

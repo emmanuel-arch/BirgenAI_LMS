@@ -56,14 +56,32 @@ export async function POST(req: NextRequest) {
     const result = crunch(txns);
     const creditScore = scoreThinFileAuto(result.features);
 
+    // Real ledger aggregates — these drive the crunch theatre's posting animation
+    // and category columns, so what the borrower watches is their actual data.
+    const buckets = new Map<string, { count: number; amount: number; inAmt: number; outAmt: number }>();
+    let paidIn = 0, paidOut = 0;
+    for (const t of txns) {
+      const b = buckets.get(t.category) ?? { count: 0, amount: 0, inAmt: 0, outAmt: 0 };
+      b.count++; b.amount += t.amount;
+      if (t.direction === "in") { b.inAmt += t.amount; paidIn += t.amount; }
+      else { b.outAmt += t.amount; paidOut += t.amount; }
+      buckets.set(t.category, b);
+    }
+    const categories = [...buckets.entries()]
+      .map(([category, v]) => ({ category, count: v.count, amount: Math.round(v.amount), inAmt: Math.round(v.inAmt), outAmt: Math.round(v.outAmt) }))
+      .sort((a, b) => b.count - a.count);
+
     return NextResponse.json({
       success: true,
       borrowerName: ((form.get("borrowerName") as string) || "").trim() || null,
       transactionCount: txns.length,
       creditScore,
       ...result,
-      // a small sample for display/debugging (not the full ledger)
-      sample: txns.slice(0, 8).map((t) => ({
+      categories,
+      paidIn: Math.round(paidIn),
+      paidOut: Math.round(paidOut),
+      // A real slice of the ledger for the posting animation (not the full book).
+      sample: txns.slice(0, 40).map((t) => ({
         date: t.date,
         details: t.details.slice(0, 48),
         direction: t.direction,
