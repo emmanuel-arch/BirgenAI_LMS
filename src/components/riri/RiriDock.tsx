@@ -238,7 +238,7 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
             transition={{ type: "spring", stiffness: 400, damping: 28 }}
             onClick={() => { setOpen(true); dismissGreet(); }}
             style={{ ...sideStyle, bottom: panelBottom }}
-            className="fixed z-[9998] max-w-[240px] glass rounded-2xl bg-white/85 px-3.5 py-2.5 text-left shadow-xl"
+            className="no-print fixed z-[9998] max-w-[240px] glass rounded-2xl bg-white/85 px-3.5 py-2.5 text-left shadow-xl"
           >
             <p className="text-[13px] font-semibold text-zinc-900">Hi{userName ? `, ${userName.split(" ")[0]}` : ""} 👋 I&apos;m Riri</p>
             <p className="mt-0.5 text-[11px] text-zinc-500 leading-snug">Ask me anything about {orgName}&apos;s book — or how to run it.</p>
@@ -256,7 +256,7 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
             role="dialog" aria-label="Riri assistant"
             style={{ ...sideStyle, bottom: panelBottom, transformOrigin: corner === "br" ? "bottom right" : "bottom left", width: "min(384px, calc(100vw - 24px))", maxHeight: "min(600px, calc(100vh - 120px))" }}
-            className="fixed z-[9998] flex flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/85 shadow-2xl backdrop-blur-2xl"
+            className="no-print fixed z-[9998] flex flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/85 shadow-2xl backdrop-blur-2xl"
           >
             {/* Header */}
             <div className="relative shrink-0 px-4 pt-3.5 pb-3" style={{ background: "linear-gradient(135deg, var(--brand-soft), transparent)" }}>
@@ -368,7 +368,7 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
       <div
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
         style={{ ...pos, width: SIZE, height: SIZE, touchAction: "none", transition: drag ? "none" : "left .38s cubic-bezier(.22,1,.36,1), top .38s cubic-bezier(.22,1,.36,1)" }}
-        className="fixed z-[9999] cursor-grab active:cursor-grabbing select-none"
+        className="no-print fixed z-[9999] cursor-grab active:cursor-grabbing select-none"
         title={open ? "Close Riri" : "Ask Riri"}
       >
         {!open && <span className="pointer-events-none absolute inset-0 rounded-full riri-halo" style={{ background: "var(--brand)", opacity: 0.25 }} />}

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, ScanFace, ShieldCheck, ShieldAlert, Gauge, Landmark, MapPin, History, CheckCircle2, XCircle, Clock,
+  ArrowLeft, ScanFace, ShieldAlert, Landmark, MapPin, History, CheckCircle2, XCircle, Clock, FileText,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -149,6 +149,9 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
                       <span>{fmtKES(num(l.loanAmount))} · {paid}/{total} paid</span>
                       <span className="font-semibold" style={{ color: "var(--brand)" }}>{fmtKES(num(l.balance))}</span>
                     </div>
+                    <Link href={`/console/loans/${l.id}/statement`} className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium hover:underline" style={{ color: "var(--brand)" }}>
+                      <FileText className="h-3 w-3" /> Statement
+                    </Link>
                   </div>
                 );
               })}

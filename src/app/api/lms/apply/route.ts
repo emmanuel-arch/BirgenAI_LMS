@@ -18,6 +18,7 @@ import { postLoan, isPostingEnabled, checkGraduation } from "@/lib/lms/servicesu
 import { scoreBorrowerBehavioral } from "@/lib/scoring/behavioral";
 import { scoreOrigination, isOriginationConfigured } from "@/lib/scoring/origination";
 import { fuseScores } from "@/lib/scoring/fusion";
+import { attachKycSession } from "@/lib/kyc/attach";
 
 export const runtime = "nodejs";
 
@@ -233,6 +234,18 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Could not save your application.";
     return NextResponse.json({ success: false, message }, { status: 200 });
+  }
+
+  // The applicant verified their identity at /verify while still anonymous, so
+  // the KYC session is keyed by phone. Now that the Borrower row exists, promote
+  // the verified artifacts onto it and link the audit trail. Best-effort: a
+  // reconciliation hiccup must never sink a submitted application.
+  if (borrowerRowId) {
+    try {
+      await attachKycSession(orgRow.id, borrowerRowId, phone, body.nationalId?.trim() || null);
+    } catch (err) {
+      console.error("[apply] KYC attach failed:", err);
+    }
   }
 
   // Consented location → a geotag the lender's officers can route to (RO Route

@@ -23,6 +23,7 @@ const MODULES = [
   { icon: MapPin, title: "Field & Routes", desc: "Geo-pinned verifications, nearest-agent allocation, drive routes", ready: true, href: "/console/field" },
   { icon: MessageSquare, title: "SMS & Comms", desc: "Templates, campaigns, delivery billing", ready: false },
   { icon: Bot, title: "Riri Assistant", desc: "Talk to your book — 3 models: Analyst (live data), Copilot & Max", ready: true, open: "analyst" },
+  { icon: FileText, title: "Reports", desc: "Portfolio report & loan statements — print or save as PDF", ready: true, href: "/console/report" },
   { icon: Settings2, title: "Settings & Vault", desc: "Branding, team, roles, integrations (Daraja, SMS, CRB, KYC)", ready: true, href: "/console/settings" },
 ] as const;
 

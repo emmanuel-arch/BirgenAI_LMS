@@ -11,6 +11,7 @@ import { resolveOrg } from "@/lib/tenancy";
 import {
   kycMode, assessIdQuality, extractId, assessLiveness, faceMatch, iprsLookup, portraitKeyFrom,
 } from "@/lib/kyc/provider";
+import { attachKycSession } from "@/lib/kyc/attach";
 
 export const runtime = "nodejs";
 
@@ -123,6 +124,18 @@ export async function POST(req: NextRequest) {
       where: { id: s.id },
       data: { status, riskFlags: flags as unknown as Prisma.InputJsonValue, completedAt: new Date() },
     });
+
+    // A returning borrower already has a record — promote the fresh KYC result
+    // onto it right away. New applicants get linked at apply-time instead.
+    const last9 = phone.slice(-9);
+    const existing = last9.length === 9
+      ? await prisma.borrower.findFirst({ where: { orgId: org.id, phone: { endsWith: last9 } }, select: { id: true } })
+      : null;
+    if (existing) {
+      try { await attachKycSession(org.id, existing.id, phone, s.nationalId); }
+      catch (err) { console.error("[kyc] attach failed:", err); }
+    }
+
     return NextResponse.json({ success: true, sessionId: s.id, mode, step, status, flags, session: updated });
   }
 

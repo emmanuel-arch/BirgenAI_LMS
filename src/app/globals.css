@@ -42,6 +42,55 @@ body {
   box-shadow: var(--glass-shadow);
 }
 
+/* ── Print documents (statements & reports) ──────────────────────────────────
+   Statements and reports are real documents, not screenshots of a web app. They
+   render as A4 pages with the chrome stripped and colours preserved, so the
+   browser's native "Save as PDF" produces something a lender can email or file.
+   Mark chrome with .no-print and each page/section with .print-page. */
+
+.print-doc {
+  --doc-ink: #18181b;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+  html, body {
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  /* Glass surfaces become plain paper. */
+  .glass, .print-surface {
+    background: #fff !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+  /* Keep brand tints and status colours on paper. */
+  .print-exact, .print-exact * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .print-page-break {
+    break-before: page;
+    page-break-before: always;
+  }
+  thead {
+    display: table-header-group;
+  }
+  tr {
+    break-inside: avoid;
+  }
+}
+
 /* ── Riri assistant — the floating AI companion ──────────────────────────────
    Riri is the face of the platform's intelligence. Her avatar breathes and
    blinks so she feels alive; the launcher haloes when she's online and pulses
