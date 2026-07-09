@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
 import type { CrbReport } from "@/lib/crb/provider";
 import { Customer360Client } from "./Customer360Client";
+import KycGallery from "./KycGallery";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -124,6 +125,14 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
                 <div className="col-span-2 sm:col-span-4 text-xs text-zinc-500">
                   Session <span className="font-semibold">{kyc.status}</span> · {kyc.provider} · {dateFmt(kyc.createdAt)}
                   {kyc.iprsName ? ` · registry: ${kyc.iprsName}` : ""}
+                </div>
+                {/* Keys only — the images come from signed URLs, on demand. */}
+                <div className="col-span-2 sm:col-span-4">
+                  <KycGallery
+                    portraitKey={b.portraitKey ?? kyc.portraitKey}
+                    idFrontKey={b.idFrontKey ?? kyc.idFrontKey}
+                    selfieKey={b.selfieKey ?? kyc.selfieKey}
+                  />
                 </div>
               </div>
             ) : (

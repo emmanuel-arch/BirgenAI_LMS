@@ -9,6 +9,10 @@
 // "this face, this ID and this phone are one person", and it is later promoted
 // onto a Borrower row. Letting the caller name the phone would let them attach
 // their own verified identity to someone else's number.
+//
+// The captured images are uploaded to a PRIVATE bucket and only their keys are
+// stored. They are written only once a step passes its quality gate: a rejected,
+// blurry photo of someone's national ID is PII we gain nothing by keeping.
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -17,8 +21,9 @@ import { enterOrg } from "@/lib/db/context";
 import { borrowerFor, otpRequired } from "@/lib/portal/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import {
-  kycMode, assessIdQuality, extractId, assessLiveness, faceMatch, iprsLookup, portraitKeyFrom,
+  kycMode, assessIdQuality, extractId, assessLiveness, faceMatch, iprsLookup, portraitIsStandardized,
 } from "@/lib/kyc/provider";
+import { putKycObject, storageMode, InvalidImageError, MAX_IMAGE_BYTES, type KycAssetKind } from "@/lib/storage/provider";
 import { attachKycSession } from "@/lib/kyc/attach";
 
 export const runtime = "nodejs";
@@ -40,10 +45,20 @@ async function getSession(orgId: string, sessionId: string | undefined, phone: s
   });
 }
 
+/** base64 inflates by 4/3; leave room for the rest of the JSON envelope. */
+const MAX_BODY_BYTES = Math.ceil(MAX_IMAGE_BYTES * 1.4);
+
 export async function POST(req: NextRequest) {
+  // Reject an oversized body before req.json() buffers the whole thing.
+  const declared = Number(req.headers.get("content-length") ?? 0);
+  if (declared > MAX_BODY_BYTES) {
+    return NextResponse.json({ success: false, message: "That image is too large — retake it." }, { status: 413 });
+  }
+
   let body: {
     lenderSlug?: string; nationalId?: string; step?: Step; sessionId?: string;
-    payload?: { bytes?: number; brightness?: number; blurVar?: number; imageKey?: string };
+    /** `image` is a base64 data URL from the camera/upload surface. */
+    payload?: { bytes?: number; brightness?: number; blurVar?: number; image?: string };
   };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
@@ -79,57 +94,86 @@ export async function POST(req: NextRequest) {
       },
     }).catch(() => {});
 
+  /**
+   * Persist the step's image to the private bucket. Called only AFTER the step
+   * passes, so failed retakes leave no trace. Returns null when the client sent
+   * nothing (older clients, or a browser that could not read the camera).
+   */
+  const store = async (kind: KycAssetKind): Promise<string | null> => {
+    if (!p.image) return null;
+    return putKycObject(org.id, session.id, kind, p.image);
+  };
+
   const step = body.step;
 
-  if (step === "id") {
-    const quality = assessIdQuality(seed, bytes, { brightness: p.brightness, blurVar: p.blurVar });
-    await writeCheck("ID_QUALITY", quality.passed, quality.score, quality);
-    if (!quality.passed) {
-      return NextResponse.json({ success: true, sessionId: session.id, mode, step, quality, retake: true });
+  try {
+    if (step === "id") {
+      const quality = assessIdQuality(seed, bytes, { brightness: p.brightness, blurVar: p.blurVar });
+      await writeCheck("ID_QUALITY", quality.passed, quality.score, quality);
+      if (!quality.passed) {
+        return NextResponse.json({ success: true, sessionId: session.id, mode, step, quality, retake: true });
+      }
+      const idFrontKey = await store("id-front");
+      const ocr = extractId(seed, body.nationalId);
+      await writeCheck("ID_OCR", true, ocr.confidence, ocr);
+      // Cross-check typed ID vs OCR when the borrower entered one.
+      const typedId = (body.nationalId || "").replace(/\D/g, "");
+      const idMismatch = typedId && ocr.idNumber && typedId !== ocr.idNumber.replace(/\D/g, "");
+      const updated = await prisma.kycSession.update({
+        where: { id: session.id },
+        data: {
+          idQualityScore: quality.score, idOcrName: ocr.fullName, idOcrNumber: ocr.idNumber, idOcrDob: ocr.dob,
+          ...(idFrontKey ? { idFrontKey } : {}),
+        },
+      }).catch(() => session);
+      return NextResponse.json({ success: true, sessionId: session.id, mode, step, quality, ocr, idMismatch: !!idMismatch, session: updated });
     }
-    const ocr = extractId(seed, body.nationalId);
-    await writeCheck("ID_OCR", true, ocr.confidence, ocr);
-    // Cross-check typed ID vs OCR when the borrower entered one.
-    const typedId = (body.nationalId || "").replace(/\D/g, "");
-    const idMismatch = typedId && ocr.idNumber && typedId !== ocr.idNumber.replace(/\D/g, "");
-    const updated = await prisma.kycSession.update({
-      where: { id: session.id },
-      data: { idQualityScore: quality.score, idOcrName: ocr.fullName, idOcrNumber: ocr.idNumber, idOcrDob: ocr.dob },
-    }).catch(() => session);
-    return NextResponse.json({ success: true, sessionId: session.id, mode, step, quality, ocr, idMismatch: !!idMismatch, session: updated });
-  }
 
-  if (step === "liveness") {
-    const liveness = assessLiveness(seed, bytes);
-    await writeCheck("LIVENESS", liveness.passed, liveness.score, liveness);
-    await prisma.kycSession.update({
-      where: { id: session.id },
-      data: { livenessScore: liveness.score, livenessPassed: liveness.passed },
-    });
-    return NextResponse.json({ success: true, sessionId: session.id, mode, step, liveness, retake: !liveness.passed });
-  }
+    if (step === "liveness") {
+      const liveness = assessLiveness(seed, bytes);
+      await writeCheck("LIVENESS", liveness.passed, liveness.score, liveness);
+      const selfieKey = liveness.passed ? await store("selfie") : null;
+      await prisma.kycSession.update({
+        where: { id: session.id },
+        data: { livenessScore: liveness.score, livenessPassed: liveness.passed, ...(selfieKey ? { selfieKey } : {}) },
+      });
+      return NextResponse.json({ success: true, sessionId: session.id, mode, step, liveness, retake: !liveness.passed });
+    }
 
-  if (step === "facematch") {
-    const fm = faceMatch(seed);
-    await writeCheck("FACE_MATCH", fm.passed, fm.score, fm);
-    const portraitKey = portraitKeyFrom(p.imageKey ?? `selfie/${session.id}`);
-    await writeCheck("PORTRAIT_STANDARDIZE", true, null, { portraitKey, whiteBackground: true });
-    await prisma.kycSession.update({
-      where: { id: session.id },
-      data: { faceMatchScore: fm.score, portraitKey },
-    });
-    return NextResponse.json({ success: true, sessionId: session.id, mode, step, faceMatch: fm, portraitKey });
-  }
+    if (step === "facematch") {
+      const fm = faceMatch(seed);
+      await writeCheck("FACE_MATCH", fm.passed, fm.score, fm);
 
-  if (step === "iprs") {
-    const nid = body.nationalId || session.idOcrNumber || "";
-    const iprs = iprsLookup(seed, nid, session.idOcrName);
-    await writeCheck("IPRS", iprs.matched, iprs.matched ? 100 : 0, iprs);
-    await prisma.kycSession.update({
-      where: { id: session.id },
-      data: { iprsMatched: iprs.matched, iprsName: iprs.name, nationalId: nid.replace(/\D/g, "") || undefined },
-    });
-    return NextResponse.json({ success: true, sessionId: session.id, mode, step, iprs });
+      // The canonical portrait. Real bytes either way; only a live provider can
+      // actually strip the background, so say plainly which one this is.
+      const portraitKey = await store("portrait");
+      const standardized = portraitIsStandardized(mode);
+      await writeCheck("PORTRAIT_STANDARDIZE", true, null, {
+        portraitKey, whiteBackground: standardized, stored: storageMode(),
+      });
+      await prisma.kycSession.update({
+        where: { id: session.id },
+        data: { faceMatchScore: fm.score, ...(portraitKey ? { portraitKey } : {}) },
+      });
+      return NextResponse.json({ success: true, sessionId: session.id, mode, step, faceMatch: fm, standardized });
+    }
+
+    if (step === "iprs") {
+      const nid = body.nationalId || session.idOcrNumber || "";
+      const iprs = iprsLookup(seed, nid, session.idOcrName);
+      await writeCheck("IPRS", iprs.matched, iprs.matched ? 100 : 0, iprs);
+      await prisma.kycSession.update({
+        where: { id: session.id },
+        data: { iprsMatched: iprs.matched, iprsName: iprs.name, nationalId: nid.replace(/\D/g, "") || undefined },
+      });
+      return NextResponse.json({ success: true, sessionId: session.id, mode, step, iprs });
+    }
+  } catch (err) {
+    if (err instanceof InvalidImageError) {
+      return NextResponse.json({ success: true, sessionId: session.id, mode, step, retake: true, message: err.message });
+    }
+    console.error("[kyc] step failed:", err);
+    return NextResponse.json({ success: false, message: "That step could not be completed. Please try again." }, { status: 500 });
   }
 
   if (step === "finalize") {

@@ -10,6 +10,7 @@
 //   • a session for org A grants nothing at org B
 //   • the phone is taken from the cookie, not the body (spoofing is inert)
 //   • OTP issuance is rate-limited per phone
+//   • the KYC image endpoint is not a file oracle (see also: npm run test:storage)
 //
 // Codes are read by calling issueBorrowerOtp() in-process (NODE_ENV is not
 // "production" here, so it hands back the code it could not SMS); everything
@@ -22,6 +23,8 @@ import { issueBorrowerOtp } from "@/lib/portal/otp";
 const BASE = process.env.TEST_BASE_URL || "http://127.0.0.1:3100";
 const ORG_A = "demo";
 const ORG_B = "hub";
+/** Seeded by `npm run db:seed:demo`. */
+const STAFF = { email: "admin@demo.birgenai.com", password: "Demo1234!", orgSlug: ORG_A };
 
 let pass = 0, fail = 0;
 const ok = (name: string, cond: boolean, extra = "") => {
@@ -52,10 +55,26 @@ async function get(path: string, cookie?: string): Promise<Res> {
   return { status: res.status, body: (await res.json().catch(() => ({}))) as Record<string, unknown>, setCookie: null };
 }
 
-/** Pull `lms_borrower=...` out of a Set-Cookie header. */
-function borrowerCookie(setCookie: string | null): string | null {
-  const m = setCookie?.match(/lms_borrower=([^;]+)/);
-  return m ? `lms_borrower=${m[1]}` : null;
+/** Pull a named cookie out of a Set-Cookie header. */
+function cookieFrom(setCookie: string | null, name: string): string | null {
+  const m = setCookie?.match(new RegExp(`${name}=([^;]+)`));
+  return m ? `${name}=${m[1]}` : null;
+}
+const borrowerCookie = (sc: string | null) => cookieFrom(sc, "lms_borrower");
+
+/**
+ * Sign in as demo staff. Note we replay the cookie by hand: it is `Secure` in a
+ * production build and a cookie jar would silently drop it over plain http.
+ */
+async function staffCookie(): Promise<string> {
+  const res = await fetch(`${BASE}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(STAFF),
+  });
+  const c = cookieFrom(res.headers.get("set-cookie"), "lms_session");
+  if (!c) throw new Error("staff login failed — is the demo org seeded?");
+  return c;
 }
 
 async function main() {
@@ -70,6 +89,9 @@ async function main() {
   console.log(`server ${BASE}  ·  org A=${ORG_A}  org B=${ORG_B}  ·  test phone ${phone}\n`);
 
   const cleanup: string[] = [phone, victim];
+  const kycSessions: string[] = [];
+  // Audit rows are evidence. Only ever remove the ones THIS run created.
+  const startedAt = new Date();
 
   try {
     console.log("1. Anonymous callers are refused everywhere PII lives");
@@ -139,10 +161,37 @@ async function main() {
       codes.push(r.status);
     }
     ok("4th code request in 15 min → 429", codes.slice(0, 3).every((s) => s === 200) && codes[3] === 429, codes.join(","));
+
+    console.log("\n8. The KYC image endpoint is not a file oracle");
+    // A real session row, so the "is this key referenced?" check has something to
+    // find. The `sim/` key means no bucket is needed to test authorization.
+    const kycSession = await runWithOrg(orgA.id, () =>
+      prisma.kycSession.create({ data: { orgId: orgA.id, phone, idFrontKey: `sim/${orgA.id}/probe/id-front-x.jpg` } }),
+    );
+    kycSessions.push(kycSession.id);
+    const asset = (key: string, cookie?: string) =>
+      fetch(`${BASE}/api/console/kyc/asset?key=${encodeURIComponent(key)}`, { headers: cookie ? { Cookie: cookie } : {} });
+
+    const staff = await staffCookie();
+    ok("anonymous → 401", (await asset(kycSession.idFrontKey!)).status === 401);
+    const mine = await asset(kycSession.idFrontKey!, staff);
+    ok("own org's referenced key → 200", mine.status === 200, `${mine.status}`);
+    const cross = await asset(`${orgB.id}/probe/id-front-x.jpg`, staff);
+    ok("another org's key → 404", cross.status === 404, `${cross.status}`);
+    const unref = await asset(`${orgA.id}/probe/id-front-not-a-real-object.jpg`, staff);
+    ok("own-org key that no row references → 404", unref.status === 404, `${unref.status}`);
+    const traversal = await asset(`${orgA.id}/../${orgB.id}/x.jpg`, staff);
+    ok("path traversal → 404", traversal.status === 404, `${traversal.status}`);
   } finally {
     await runAsPlatform(async () => {
       await prisma.otpChallenge.deleteMany({ where: { phone: { in: cleanup } } });
       await prisma.borrower.deleteMany({ where: { phone: { in: cleanup } } });
+      if (kycSessions.length) {
+        await prisma.auditLog.deleteMany({
+          where: { orgId: orgA.id, action: "kyc.asset.view", createdAt: { gte: startedAt } },
+        });
+        await prisma.kycSession.deleteMany({ where: { id: { in: kycSessions } } });
+      }
     });
     console.log(`\n${pass} passed, ${fail} failed`);
   }

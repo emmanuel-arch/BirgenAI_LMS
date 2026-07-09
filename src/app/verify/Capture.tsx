@@ -63,16 +63,27 @@ export function Capture({
     onCapture({ bytes: Math.round(dataUrl.length * 0.75), dataUrl, ...sig });
   };
 
+  // A phone camera roll photo is easily 12 MP / 5 MB, and it is about to be
+  // base64'd into a JSON body. Downscale to the long edge below and re-encode as
+  // JPEG — the quality gates and the officer both work fine at this size.
+  const MAX_EDGE = 1600;
+
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]; if (!f) return;
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
       img.onload = () => {
-        const canvas = canvasRef.current!; canvas.width = img.width; canvas.height = img.height;
-        canvas.getContext("2d")?.drawImage(img, 0, 0);
+        const scale = Math.min(1, MAX_EDGE / Math.max(img.width, img.height));
+        const canvas = canvasRef.current!;
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
         const sig = analyze(canvas);
-        onCapture({ bytes: f.size, dataUrl: String(reader.result), ...sig });
+        // Report the ORIGINAL byte size: it is the resolution proxy the quality
+        // gate reads, and re-encoding must not make a bad photo look acceptable.
+        onCapture({ bytes: f.size, dataUrl, ...sig });
       };
       img.src = String(reader.result);
     };

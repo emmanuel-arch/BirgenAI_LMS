@@ -11,7 +11,9 @@
     "db:rls": "tsx scripts/apply-rls.ts",
     "db:rls:verify": "tsx scripts/verify-rls.ts",
     "test:portal": "tsx scripts/verify-portal-auth.ts",
+    "test:storage": "tsx scripts/verify-storage.ts",
     "db:app-role": "tsx scripts/create-app-role.ts",
+    "storage:init": "tsx scripts/init-storage.ts",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:seed:demo": "tsx prisma/seed-demo.ts"

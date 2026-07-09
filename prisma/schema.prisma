@@ -282,6 +282,12 @@ model KycSession {
   faceMatchScore    Int?
   iprsMatched       Boolean?
   iprsName          String?
+  // Private-bucket object keys (src/lib/storage/provider.ts), never public URLs.
+  // Read only through a short-lived signed URL. A `sim/` prefix means storage was
+  // in simulation and no bytes were ever written.
+  idFrontKey        String?
+  idBackKey         String?
+  selfieKey         String?
   portraitKey       String?
   // rollup
   status         String    @default("IN_PROGRESS") // IN_PROGRESS | PENDING_REVIEW | VERIFIED | FAILED

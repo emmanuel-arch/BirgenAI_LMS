@@ -64,7 +64,12 @@ export async function attachKycSession(
       ...(s.faceMatchScore != null ? { faceMatchScore: s.faceMatchScore } : {}),
       ...(s.livenessPassed != null ? { livenessPassed: s.livenessPassed } : {}),
       ...(s.iprsMatched != null ? { iprsVerified: s.iprsMatched } : {}),
+      // Private-bucket object keys, not URLs. The images themselves stay behind
+      // signed URLs minted per view (GET /api/console/kyc/asset).
       ...(s.portraitKey ? { portraitKey: s.portraitKey } : {}),
+      ...(s.idFrontKey ? { idFrontKey: s.idFrontKey } : {}),
+      ...(s.idBackKey ? { idBackKey: s.idBackKey } : {}),
+      ...(s.selfieKey ? { selfieKey: s.selfieKey } : {}),
       ...(!existing?.nationalId && (nationalId || s.idOcrNumber) ? { nationalId: nationalId || s.idOcrNumber } : {}),
       ...(!existing?.firstName && ocrNames.length
         ? { firstName: ocrNames[0], otherName: ocrNames.slice(1).join(" ") || null }

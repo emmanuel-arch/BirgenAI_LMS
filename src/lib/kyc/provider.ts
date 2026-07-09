@@ -129,8 +129,17 @@ export function iprsLookup(seed: string, nationalId: string, ocrName?: string | 
   };
 }
 
-/** A synthetic "white background portrait" key — in live mode this is produced
- *  by the background-removal service; in sim we just tag the selfie key. */
-export function portraitKeyFrom(selfieKey: string | null): string | null {
-  return selfieKey ? `portrait/${selfieKey.replace(/^selfie\//, "")}` : null;
+// ── Portrait standardisation ──────────────────────────────────────────────────
+/**
+ * Whether the canonical portrait has actually had its background removed.
+ *
+ * The blueprint's step 7 turns the selfie into "one clean passport photo on a
+ * universal white background". Removing the background needs the same provider
+ * that does liveness and face match, so until a KYC key exists the stored
+ * portrait IS the selfie — real bytes, real key, but the white background is not
+ * yet true. The KycCheck payload records which of the two it is, so nobody later
+ * mistakes an unprocessed selfie for a standardised portrait.
+ */
+export function portraitIsStandardized(mode: KycMode): boolean {
+  return mode === "live";
 }

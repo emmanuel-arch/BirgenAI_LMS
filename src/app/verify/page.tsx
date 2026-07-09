@@ -90,7 +90,10 @@ export default function VerifyPage() {
     // Deliberate ~1.4s dwell so the scan animation reads as "analysing", not instant.
     await new Promise((r) => setTimeout(r, 1400));
     try {
-      const data = await call(stepKey, { bytes: sig.bytes, brightness: sig.brightness, blurVar: sig.blurVar, imageKey: `${stepKey}/${Date.now()}` });
+      // The image itself now goes to the server, which stores it in a private
+      // bucket once the step passes. Previously only the metrics were sent and
+      // the photo died in the browser.
+      const data = await call(stepKey, { bytes: sig.bytes, brightness: sig.brightness, blurVar: sig.blurVar, image: sig.dataUrl });
       if (data.needsOtp) { setStep("intro"); setOtpIssue(null); setError("Your session expired — verify your number again."); return; }
       if (!data.success) { setError(data.message || "Check failed."); return; }
       setSessionId(data.sessionId); setMode(data.mode);
