@@ -14,7 +14,10 @@ import { prisma } from "@/lib/prisma";
 import { runAsPlatform, runWithOrg } from "@/lib/db/context";
 import { entitlementsFor, invalidateEntitlements, overageFor } from "@/lib/billing/entitlements";
 import { meter, usageBetween } from "@/lib/billing/meter";
-import { PLANS, UNIT_PRICE_KES, cheapestPlanWith } from "@/lib/billing/plans";
+import {
+  PLANS, PLAN_ORDER, USAGE_KINDS, KIND_FEATURE, UNIT_PRICE_KES,
+  cheapestPlanWith, isAvailable, isBillableKind,
+} from "@/lib/billing/plans";
 import { hubCheckoutUrl, hubBillingMode } from "@/lib/billing/hub";
 
 let pass = 0, fail = 0;
@@ -40,19 +43,42 @@ async function main() {
     ok("cheapestPlanWith('portfolio-scan') is Premium", cheapestPlanWith("portfolio-scan")?.key === "PREMIUM");
     ok("only Premium has unlimited seats", PLANS.PREMIUM.seats === null && PLANS.ADVANCED.seats !== null);
 
+    console.log("\n1b. We never sell what we have not built");
+    // The catalogue and the code drifted once: three features were priced into the
+    // packages before anything implemented them, and Advanced charged 20k for a route
+    // planner Starter already had. These assertions are what stop that recurring.
+    for (const key of PLAN_ORDER) {
+      const sold = PLANS[key].features.filter((f) => !isAvailable(f));
+      ok(`${PLANS[key].name} sells only built features`, sold.length === 0, sold.join(", ") || "clean");
+    }
+    ok("a roadmap feature has no price — cheapestPlanWith returns null",
+      cheapestPlanWith("document-parser") === null && cheapestPlanWith("model-tuning") === null);
+    ok("an unbuilt tool is never billable", !isBillableKind("document"));
+    ok("every billable kind maps to a built feature or to none",
+      USAGE_KINDS.filter(isBillableKind).every((k) => KIND_FEATURE[k] === null || isAvailable(KIND_FEATURE[k]!)));
+    ok("route-planner IS built, so Advanced may charge for it",
+      isAvailable("route-planner") && cheapestPlanWith("route-planner")?.key === "ADVANCED");
+
     console.log("\n2. A Starter org gets Starter, and nothing more");
     let ent = await entitlementsFor(org.id);
     ok("has the cruncher", ent.features.has("statement-cruncher"));
     ok("does NOT have CRB", !ent.features.has("crb"));
     ok("does NOT have Riri", !ent.features.has("riri"));
+    ok("does NOT have the route planner", !ent.features.has("route-planner"));
     ok("does NOT have early-warning", !ent.features.has("portfolio-scan"));
+    ok("is never granted an unbuilt feature, even though the plan lists it",
+      !ent.features.has("document-parser"));
     ok("starts on a trial, so onboarding never hits a paywall", ent.status === "TRIALING" && ent.paying);
     ok("seats come from the plan", ent.seats === PLANS.STARTER.seats);
 
     console.log("\n3. A negotiated override bends the plan");
     await runWithOrg(org.id, () => prisma.orgSubscription.update({
       where: { orgId: org.id },
-      data: { featureOverrides: { crb: true } as Prisma.InputJsonValue, includedOverrides: { crb: 250 } as Prisma.InputJsonValue, seatsOverride: 12 },
+      data: {
+        featureOverrides: { crb: true, "model-tuning": true } as Prisma.InputJsonValue,
+        includedOverrides: { crb: 250 } as Prisma.InputJsonValue,
+        seatsOverride: 12,
+      },
     }));
     invalidateEntitlements(org.id);
     ent = await entitlementsFor(org.id);
@@ -60,6 +86,8 @@ async function main() {
     ok("raised the CRB allowance to 250", ent.included.crb === 250);
     ok("seat override wins over the plan", ent.seats === 12);
     ok("the override did NOT leak other features", !ent.features.has("riri"));
+    ok("a salesperson cannot promise an unbuilt feature into existence",
+      !ent.features.has("model-tuning"));
 
     console.log("\n4. A lapsed subscription revokes metered features — never the loan book");
     await runWithOrg(org.id, () => prisma.org.update({ where: { id: org.id }, data: { plan: "PREMIUM" } }));

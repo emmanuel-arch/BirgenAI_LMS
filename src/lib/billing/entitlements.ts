@@ -24,7 +24,7 @@ import type { OrgPlan, SubscriptionStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { runWithOrg } from "@/lib/db/context";
 import {
-  planFor, cheapestPlanWith, UNIT_PRICE_KES,
+  planFor, cheapestPlanWith, deliverableFeatures, isAvailable, UNIT_PRICE_KES,
   type Feature, type UsageKind, type PlanDef,
 } from "./plans";
 
@@ -99,10 +99,13 @@ async function resolve(orgId: string): Promise<Entitlements> {
     const plan = planFor(org.plan as OrgPlan);
     const overrides = (sub.featureOverrides ?? {}) as Partial<Record<Feature, boolean>>;
 
-    const features = new Set<Feature>(plan.features);
+    // Only what we have actually built. A roadmap feature cannot be granted by the
+    // plan, and cannot be granted by a salesperson's override either — an org that
+    // was promised something unbuilt should hit "not available", not a broken page.
+    const features = new Set<Feature>(deliverableFeatures(plan));
     for (const [f, on] of Object.entries(overrides)) {
-      if (on) features.add(f as Feature);
-      else features.delete(f as Feature);
+      if (on && isAvailable(f as Feature)) features.add(f as Feature);
+      else if (!on) features.delete(f as Feature);
     }
     // Lapsed: keep the loan book, drop the things that bill us per call.
     if (!paying) for (const f of METERED_FEATURES) features.delete(f);
@@ -150,6 +153,15 @@ export async function hasFeature(orgId: string, feature: Feature): Promise<boole
 export async function requireFeature(orgId: string, feature: Feature): Promise<NextResponse | null> {
   const ent = await entitlementsFor(orgId);
   if (ent.features.has(feature)) return null;
+
+  // Not built yet. Don't dangle an upgrade that would not deliver it — 501, not 402,
+  // because no amount of money fixes this one.
+  if (!isAvailable(feature)) {
+    return NextResponse.json(
+      { success: false, unavailable: true, feature, message: "This tool isn't available yet." },
+      { status: 501 },
+    );
+  }
 
   const upgrade = cheapestPlanWith(feature);
   const lapsed = !ent.paying && (upgrade ? ent.plan.features.includes(feature) : false);

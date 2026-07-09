@@ -11,7 +11,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth, hasAdminAccess } from "@/lib/auth";
 import { entitlementsFor, overageFor, currentPeriod, invalidateEntitlements } from "@/lib/billing/entitlements";
 import { usageBetween } from "@/lib/billing/meter";
-import { PLANS, PLAN_ORDER, USAGE_KINDS, USAGE_LABEL, UNIT_PRICE_KES } from "@/lib/billing/plans";
+import {
+  PLANS, PLAN_ORDER, USAGE_KINDS, USAGE_LABEL, UNIT_PRICE_KES,
+  deliverableFeatures, isBillableKind,
+} from "@/lib/billing/plans";
 import { hubCheckoutUrl, hubBillingMode, syncSubscriptionFromHub } from "@/lib/billing/hub";
 
 export const runtime = "nodejs";
@@ -25,17 +28,21 @@ export async function GET() {
   const { start, end } = currentPeriod();
   const used = await usageBetween(orgId, start, end);
 
-  const lines = USAGE_KINDS.map((kind) => {
-    const qty = used[kind] ?? 0;
-    const { included, overage, costKes } = overageFor(ent, kind, qty);
-    return { kind, label: USAGE_LABEL[kind], used: qty, included, overage, unitPriceKes: UNIT_PRICE_KES[kind], costKes };
-  }).filter((l) => l.used > 0 || l.included > 0);
+  // Only meters whose tool exists. Otherwise the page advertises an allowance for
+  // something the lender cannot use ("Documents parsed 0 / 100 included").
+  const lines = USAGE_KINDS.filter(isBillableKind)
+    .map((kind) => {
+      const qty = used[kind] ?? 0;
+      const { included, overage, costKes } = overageFor(ent, kind, qty);
+      return { kind, label: USAGE_LABEL[kind], used: qty, included, overage, unitPriceKes: UNIT_PRICE_KES[kind], costKes };
+    })
+    .filter((l) => l.used > 0 || l.included > 0);
 
   const overageKes = lines.reduce((s, l) => s + l.costKes, 0);
 
   return NextResponse.json({
     success: true,
-    plan: { ...ent.plan, features: ent.plan.features },
+    plan: { ...ent.plan, features: deliverableFeatures(ent.plan) },
     features: [...ent.features],
     status: ent.status,
     paying: ent.paying,
@@ -44,7 +51,7 @@ export async function GET() {
     seats: ent.seats,
     lines,
     estimate: { baseKes: ent.plan.monthlyKes, overageKes, totalKes: ent.plan.monthlyKes + overageKes },
-    catalogue: PLAN_ORDER.map((k) => PLANS[k]),
+    catalogue: PLAN_ORDER.map((k) => ({ ...PLANS[k], features: deliverableFeatures(PLANS[k]) })),
     payment: { via: "hub-wallet", mode: hubBillingMode() },
     canPay: hasAdminAccess(session),
   });

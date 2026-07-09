@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireFeature } from "@/lib/billing/entitlements";
 import { rankAgents, routeOrder } from "@/lib/field/allocate";
 
 export const runtime = "nodejs";
@@ -13,6 +14,9 @@ export async function GET() {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
   const orgId = session.user.orgId;
+
+  const gate = await requireFeature(orgId, "route-planner");
+  if (gate) return gate;
 
   const [visits, agents] = await Promise.all([
     prisma.fieldVisit.findMany({
@@ -63,6 +67,11 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+
+  // Auto-allocating the nearest officer IS the route planner — the Customer-360 and
+  // watchlist "Dispatch agent" buttons land here too, and must obey the same gate.
+  const gate = await requireFeature(session.user.orgId, "route-planner");
+  if (gate) return gate;
 
   let body: { label?: string; lat?: number; lng?: number; kind?: string; borrowerId?: string; applicationId?: string; address?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }

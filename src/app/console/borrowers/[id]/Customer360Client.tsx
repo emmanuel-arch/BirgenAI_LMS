@@ -14,9 +14,11 @@ const VERDICT: Record<CrbReport["verdict"], { text: string; cls: string }> = {
 };
 
 export function Customer360Client({
-  borrowerId, activeLoanId, phone, lat, lng, name, initialCrb,
+  borrowerId, activeLoanId, phone, lat, lng, name, initialCrb, fieldEntitled,
 }: {
   borrowerId: string; activeLoanId: string | null; phone: string; lat: number | null; lng: number | null; name: string; initialCrb: CrbReport | null;
+  /** Dispatching allocates the nearest officer — that is the route planner, so it is gated. */
+  fieldEntitled: boolean;
 }) {
   const [report, setReport] = useState<CrbReport | null>(initialCrb);
   const [crbBusy, setCrbBusy] = useState(false);
@@ -122,7 +124,7 @@ export function Customer360Client({
           className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40" style={{ backgroundColor: "var(--brand)" }}>
           {act.busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />} Request payment
         </button>
-        {hasGeo && (
+        {hasGeo && fieldEntitled && (
           <button onClick={dispatch} disabled={act.busy} className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/5 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-900/10 disabled:opacity-40">
             {act.busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />} Dispatch agent
           </button>

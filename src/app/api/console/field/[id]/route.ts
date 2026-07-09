@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireFeature } from "@/lib/billing/entitlements";
 import { rankAgents } from "@/lib/field/allocate";
 
 export const runtime = "nodejs";
@@ -12,6 +13,10 @@ const NEXT: Record<string, string> = { en_route: "EN_ROUTE", arrived: "ARRIVED",
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+
+  const gate = await requireFeature(session.user.orgId, "route-planner");
+  if (gate) return gate;
+
   const { id } = await ctx.params;
 
   let body: { action?: string; outcome?: string; notes?: string };

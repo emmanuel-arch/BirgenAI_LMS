@@ -49,7 +49,10 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
 
   // Early-warning is a Premium engine — don't even run it for a plan that hasn't
   // bought it, let alone render its output.
-  const scanEntitled = await hasFeature(orgId, "portfolio-scan");
+  const [scanEntitled, fieldEntitled] = await Promise.all([
+    hasFeature(orgId, "portfolio-scan"),
+    hasFeature(orgId, "route-planner"),
+  ]);
   const [kyc, scores, crbCheck, ew] = await Promise.all([
     prisma.kycSession.findFirst({ where: { orgId, OR: [{ borrowerId: id }, { phone: b.phone }] }, orderBy: { createdAt: "desc" } }),
     prisma.scoreSnapshot.findMany({ where: { orgId, borrowerId: id }, orderBy: { createdAt: "desc" }, take: 8 }),
@@ -216,6 +219,7 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
             lng={b.lng}
             name={name}
             initialCrb={initialCrb}
+            fieldEntitled={fieldEntitled}
           />
         </div>
       </main>

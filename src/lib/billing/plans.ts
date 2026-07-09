@@ -35,6 +35,33 @@ export type Feature =
   | "portfolio-scan" // portfolio early-warning
   | "model-tuning"; // per-lender model calibration
 
+/**
+ * What we have actually BUILT. A feature absent from this list is on the roadmap:
+ * it is never granted, never gated, never metered, and never sold.
+ *
+ * This exists because the catalogue and the code drifted once already — three
+ * features were priced into the packages before anything implemented them, and a
+ * lender on Advanced was paying 20,000 for a route planner that Starter also had.
+ * Selling a capability we cannot deliver is worse than not offering it, so the
+ * ladder is filtered through this list rather than trusted. Add a feature here in
+ * the same commit that makes it real; `verify-billing` fails if a plan sells
+ * anything this list does not name.
+ */
+export const AVAILABLE_FEATURES: Feature[] = [
+  "credit-score",
+  "statement-cruncher",
+  "crb",
+  "id-verify",
+  "riri",
+  "route-planner",
+  "portfolio-scan",
+  // "document-parser" — the ID OCR step exists inside the KYC pipeline, but there
+  //   is no standalone parser for fee structures, invoices, permits or statements.
+  // "model-tuning"   — the early-warning weights are the tuning surface; no UI yet.
+];
+
+export const isAvailable = (f: Feature): boolean => AVAILABLE_FEATURES.includes(f);
+
 /** Everything we meter. Must match the strings written to UsageEvent.kind. */
 export type UsageKind = "score" | "statement" | "document" | "crb" | "kyc" | "riri_query" | "sms";
 
@@ -79,17 +106,21 @@ export type PlanDef = {
 
 // The ladder ascends by price. Note "Enterprise" sits at tier 2 by the founder's
 // naming, so it is NOT the top package — Premium is.
-const STARTER_FEATURES: Feature[] = ["credit-score", "statement-cruncher", "document-parser"];
+//
+// Add "document-parser" to Starter and "model-tuning" to Premium in the same commit
+// that builds them and lists them in AVAILABLE_FEATURES. Until then they are not for
+// sale, and `verify-billing` enforces that.
+const STARTER_FEATURES: Feature[] = ["credit-score", "statement-cruncher"];
 const ENTERPRISE_FEATURES: Feature[] = [...STARTER_FEATURES, "crb", "id-verify"];
 const ADVANCED_FEATURES: Feature[] = [...ENTERPRISE_FEATURES, "riri", "route-planner"];
-const PREMIUM_FEATURES: Feature[] = [...ADVANCED_FEATURES, "portfolio-scan", "model-tuning"];
+const PREMIUM_FEATURES: Feature[] = [...ADVANCED_FEATURES, "portfolio-scan"];
 
 export const PLANS: Record<OrgPlan, PlanDef> = {
   STARTER: {
     key: "STARTER",
     name: "Starter",
     monthlyKes: 10_000,
-    blurb: "Lend on our rails. Scoring, the M-Pesa cruncher and the document parser.",
+    blurb: "Lend on our rails. The full loan book, real-time credit scoring and the M-Pesa statement cruncher.",
     features: STARTER_FEATURES,
     included: { score: 300, statement: 150, document: 100, sms: 500 },
     seats: 5,
@@ -116,7 +147,7 @@ export const PLANS: Record<OrgPlan, PlanDef> = {
     key: "PREMIUM",
     name: "Premium",
     monthlyKes: 30_000,
-    blurb: "See defaults coming. Adds portfolio early-warning, model tuning and unlimited seats.",
+    blurb: "See defaults coming. Adds portfolio early-warning and unlimited seats.",
     features: PREMIUM_FEATURES,
     included: { score: 10_000, statement: 5_000, document: 3_000, crb: 1_000, kyc: 1_500, riri_query: 10_000, sms: 5_000 },
     seats: null,
@@ -128,12 +159,27 @@ export const PLAN_ORDER: OrgPlan[] = ["STARTER", "ENTERPRISE", "ADVANCED", "PREM
 
 export const planFor = (plan: OrgPlan): PlanDef => PLANS[plan] ?? PLANS.STARTER;
 
-/** The cheapest plan that includes `feature` — what an upgrade prompt should offer. */
+/**
+ * The cheapest plan that includes `feature` — what an upgrade prompt should offer.
+ * Null for a roadmap feature: there is no price at which we can sell it today.
+ */
 export function cheapestPlanWith(feature: Feature): PlanDef | null {
+  if (!isAvailable(feature)) return null;
   for (const key of PLAN_ORDER) {
     if (PLANS[key].features.includes(feature)) return PLANS[key];
   }
   return null;
+}
+
+/** The features a plan actually delivers today. */
+export function deliverableFeatures(plan: PlanDef): Feature[] {
+  return plan.features.filter(isAvailable);
+}
+
+/** A metered kind is billable only if the feature behind it exists. */
+export function isBillableKind(kind: UsageKind): boolean {
+  const feature = KIND_FEATURE[kind];
+  return feature === null || isAvailable(feature);
 }
 
 /** Which feature does this metered kind belong to? Used to gate before metering. */
