@@ -19,6 +19,7 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
   cleared: "{org}: Your loan is fully repaid. Thank you — your limit grows with every on-time loan!",
   declined: "{org}: We could not approve your application this time. Reply HELP for the reasons and how to appeal.",
   otp: "Your approval code is {code}. It expires in 10 minutes. Never share it.",
+  verify: "{code} is your {org} verification code. It expires in 5 minutes. Never share it — {org} will never ask you for this code.",
   reminder: "{org}: A friendly reminder — KES {amount} is due on {date}. Pay early, pay less. Dial your paybill or use Pay Now.",
   due_today: "{org}: KES {amount} is due TODAY on loan {ref}. Pay via your paybill or the Pay Now link to stay on track.",
   arrears: "{org}: Your installment of KES {amount} on loan {ref} is overdue. Please pay today to avoid penalties and protect your limit.",
@@ -37,6 +38,19 @@ async function providerFor(orgId: string): Promise<SmsConfig | null> {
     return { provider: "africastalking", apiKey, username, senderId: process.env.AFRICASTALKING_SENDER_ID?.trim() };
   }
   return null;
+}
+
+/**
+ * Can this org actually deliver an SMS right now? Callers that depend on
+ * delivery (borrower OTP) must know the difference between "queued" and "sent" —
+ * sendSms() returns a row id either way.
+ */
+export async function hasSmsProvider(orgId: string): Promise<boolean> {
+  try {
+    return !!(await providerFor(orgId));
+  } catch {
+    return false;
+  }
 }
 
 async function sendViaAfricasTalking(cfg: SmsConfig, phone: string, message: string) {

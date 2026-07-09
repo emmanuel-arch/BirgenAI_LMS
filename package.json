@@ -10,6 +10,7 @@
     "db:push": "prisma db push",
     "db:rls": "tsx scripts/apply-rls.ts",
     "db:rls:verify": "tsx scripts/verify-rls.ts",
+    "test:portal": "tsx scripts/verify-portal-auth.ts",
     "db:app-role": "tsx scripts/create-app-role.ts",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",

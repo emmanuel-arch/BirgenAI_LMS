@@ -5,6 +5,14 @@
 // thin-file score is recomputed SERVER-SIDE (never trusted from the client).
 // If posting is enabled and the borrower is graduated, the loan is posted to
 // ServiceSuite via sp_InsertLoan into the BirgenAI workflow.
+//
+// IDENTITY IS SERVER-AUTHORITATIVE. The borrower's phone comes from the OTP
+// session cookie, and every fact the credit decision leans on — who they are at
+// the lender, whether they have graduated, how many loans they have cleared — is
+// re-derived from that phone here. The client used to assert all of it, which
+// meant a borrower could hand us any `serviceSuiteBorrowerId` they liked and
+// have a stranger's repayment history fused into their own probability of
+// default (and, at the far end of this route, a loan posted under that id).
 
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
@@ -12,10 +20,12 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveOrg } from "@/lib/tenancy";
 import { enterOrg } from "@/lib/db/context";
+import { borrowerFor, otpRequired } from "@/lib/portal/session";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { scoreThinFileAuto } from "@/lib/statement/score-thinfile";
 import type { CashflowFeatures } from "@/lib/statement/features";
 import { LMS_STAGES, stageFromDecision, type LmsStageKey } from "@/lib/lms/workflow";
-import { postLoan, isPostingEnabled, checkGraduation } from "@/lib/lms/servicesuite";
+import { postLoan, isPostingEnabled, checkGraduation, type Graduation } from "@/lib/lms/servicesuite";
 import { scoreBorrowerBehavioral } from "@/lib/scoring/behavioral";
 import { scoreOrigination, isOriginationConfigured } from "@/lib/scoring/origination";
 import { fuseScores } from "@/lib/scoring/fusion";
@@ -27,12 +37,10 @@ const CONSENT_VERSION = "2026-06-30";
 
 type Body = {
   lenderSlug?: string;
-  phone?: string;
+  /** Self-declared, stored as a claim for KYC to verify. Never a lookup key. */
   nationalId?: string;
+  /** Only used for a brand-new applicant the lender has never seen. */
   borrowerName?: string;
-  serviceSuiteBorrowerId?: number;
-  graduated?: boolean;
-  priorLoanCount?: number;
   productRef?: string;
   productName?: string;
   amountRequested?: number;
@@ -55,10 +63,8 @@ const validCoord = (lat: unknown, lng: unknown): lat is number =>
   Number.isFinite(lat) && Math.abs(lat as number) <= 90 && Number.isFinite(lng) && Math.abs(lng as number) <= 180;
 
 export async function POST(req: NextRequest) {
-  // Session is OPTIONAL: white-label subdomain borrowers apply with phone +
-  // national ID as their identity (userId stays null). Every loan-book write
-  // below is already server-authoritative (re-matched + re-verified in the
-  // lender's DB), so an anonymous application can never post on claimed facts.
+  // A staff session is optional and incidental here (it only records who was
+  // signed in). The borrower's identity comes from the OTP cookie below.
   const session = await auth();
 
   let body: Body;
@@ -73,9 +79,19 @@ export async function POST(req: NextRequest) {
   if (org) enterOrg(org.id);
   if (!org) return NextResponse.json({ success: false, message: "Choose a lender." }, { status: 400 });
 
-  const phone = (body.phone ?? "").trim();
+  const portal = await borrowerFor(org.id);
+  if (!portal) return otpRequired();
+  const phone = portal.phone; // verified msisdn — the only identity we trust
+
+  // An application costs a credit decision, a CRB pull and an officer's queue
+  // slot. One borrower does not need more than a handful an hour.
+  const limited = await rateLimit([
+    { name: "apply:phone", subject: `${org.id}:${phone}`, max: 5, windowSec: 3600 },
+    { name: "apply:ip", subject: clientIp(req), max: 20, windowSec: 3600 },
+  ]);
+  if (limited) return limited;
+
   const amount = Number(body.amountRequested);
-  if (!phone) return NextResponse.json({ success: false, message: "Phone number is required." }, { status: 400 });
   if (!Number.isFinite(amount) || amount <= 0) return NextResponse.json({ success: false, message: "Enter a valid amount." }, { status: 400 });
 
   // Consent gate (DPA): the core processing consents are mandatory.
@@ -91,6 +107,45 @@ export async function POST(req: NextRequest) {
   const thinFile = scoreThinFileAuto(body.features);
   const entityId = org.entityId;
   const orgRow = { id: org.id };
+
+  // ── Identity, re-derived from the verified phone ───────────────────────────
+  // One lookup, used for the fusion score AND the posting gate at the far end of
+  // this route. Bridged orgs answer from the lender's own book; native orgs from
+  // ours. A borrower the lender has never seen resolves to nothing, which is the
+  // correct answer: they are new, thin-file only, and cannot be posted.
+  let grad: Graduation | null = null;
+  if (org.bridgedReady && org.registry) {
+    try {
+      grad = await checkGraduation(org.registry, entityId, phone);
+    } catch {
+      /* lender DB unreachable — treat as a new applicant, thin-file only */
+    }
+  }
+
+  let graduated = grad?.graduated ?? false;
+  let priorLoanCount = grad?.clearedLoans ?? 0;
+  let knownName: string | null = grad?.borrowerName?.trim() || null;
+  const ssBorrowerId = grad?.borrowerId ?? null;
+
+  if (!grad && org.mode === "NATIVE") {
+    const known = await prisma.borrower.findFirst({
+      where: { orgId: orgRow.id, phone: { endsWith: phone.slice(-9) } },
+      select: { id: true, firstName: true, otherName: true },
+    });
+    if (known) {
+      const [cleared, active] = await Promise.all([
+        prisma.loan.count({ where: { orgId: orgRow.id, borrowerId: known.id, status: "CLEARED" } }),
+        prisma.loan.count({ where: { orgId: orgRow.id, borrowerId: known.id, status: { in: ["ACTIVE", "PENDING_DISBURSEMENT"] } } }),
+      ]);
+      graduated = cleared >= 5 && active === 0;
+      priorLoanCount = cleared;
+      knownName = `${known.firstName ?? ""} ${known.otherName ?? ""}`.trim() || null;
+    }
+  }
+
+  // A returning borrower's name is whatever the lender already has on file. Only
+  // a genuinely new applicant gets to introduce themselves.
+  const borrowerName = knownName ?? (body.borrowerName?.trim() || session?.user?.name || null);
 
   // NATIVE orgs: resolve the chosen product from OUR product table (uuid ref)
   // so the application carries productId and booking can generate the schedule.
@@ -113,11 +168,12 @@ export async function POST(req: NextRequest) {
   // FUSION: a matched ServiceSuite borrower (returning/graduated) also has a repayment
   // track record + the lender's product/agent as-of signal — blend it with cashflow for
   // a stronger decision. Brand-new applicants (no borrower id) stay on thin-file only.
+  // The borrower id is the one we just resolved from the verified phone.
   let originationPd: number | null = null;
-  let hasHistory = !!body.graduated || (Number.isInteger(body.priorLoanCount) && (body.priorLoanCount ?? 0) > 0);
-  if (Number.isInteger(body.serviceSuiteBorrowerId) && isOriginationConfigured() && org.bridgedReady && org.registry) {
+  let hasHistory = graduated || priorLoanCount > 0;
+  if (ssBorrowerId != null && isOriginationConfigured() && org.bridgedReady && org.registry) {
     try {
-      const o = await scoreOrigination(org.registry, entityId, body.serviceSuiteBorrowerId!, { loanAmount: amount });
+      const o = await scoreOrigination(org.registry, entityId, ssBorrowerId, { loanAmount: amount });
       originationPd = o.pd;
       hasHistory = o.hasHistory;
     } catch { /* best-effort — fall back to thin-file only */ }
@@ -151,14 +207,12 @@ export async function POST(req: NextRequest) {
   const stage = LMS_STAGES[stageKey];
 
   // Record borrower + consent + application (the application is the training row).
-  const phoneKey = phone.replace(/\D/g, "");
-  const nameParts = (body.borrowerName?.trim() || session?.user?.name || "").split(/\s+/).filter(Boolean);
-  const ssBorrowerId = Number.isInteger(body.serviceSuiteBorrowerId) ? body.serviceSuiteBorrowerId! : null;
+  const nameParts = (borrowerName ?? "").split(/\s+/).filter(Boolean);
   let app;
   let borrowerRowId: string | null = null;
   try {
     const borrower = await prisma.borrower.upsert({
-      where: { orgId_phone: { orgId: orgRow.id, phone: phoneKey } },
+      where: { orgId_phone: { orgId: orgRow.id, phone } },
       update: {
         nationalId: body.nationalId?.trim() || undefined,
         firstName: nameParts[0] || undefined,
@@ -172,7 +226,7 @@ export async function POST(req: NextRequest) {
       },
       create: {
         orgId: orgRow.id,
-        phone: phoneKey,
+        phone,
         nationalId: body.nationalId?.trim() || null,
         firstName: nameParts[0] || null,
         otherName: nameParts.slice(1).join(" ") || null,
@@ -205,9 +259,9 @@ export async function POST(req: NextRequest) {
         phone,
         nationalId: body.nationalId?.trim() || null,
         serviceSuiteBorrowerId: ssBorrowerId,
-        borrowerName: body.borrowerName?.trim() || session?.user?.name || null,
-        graduated: !!body.graduated,
-        priorLoanCount: Number.isInteger(body.priorLoanCount) ? body.priorLoanCount! : 0,
+        borrowerName,
+        graduated,
+        priorLoanCount,
         productRef: body.productRef || null,
         productName: body.productName || null,
         amountRequested: new Prisma.Decimal(amount),
@@ -260,7 +314,7 @@ export async function POST(req: NextRequest) {
           orgId: orgRow.id,
           borrowerId: borrowerRowId,
           applicationId: app.id,
-          label: (body.borrowerName?.trim() || phone) + (locationType ? ` (${locationType})` : ""),
+          label: (borrowerName || phone) + (locationType ? ` (${locationType})` : ""),
           address: locationAddress,
           lat: lat!,
           lng: lng!,
@@ -279,15 +333,15 @@ export async function POST(req: NextRequest) {
 
   // Repeat/graduated borrower: also capture a BEHAVIOURAL score snapshot (training
   // datapoint from internal repayment history). Non-fatal — best effort.
-  if (Number.isInteger(body.serviceSuiteBorrowerId) && org.bridgedReady && org.registry) {
+  if (ssBorrowerId != null && org.bridgedReady && org.registry) {
     try {
-      const beh = await scoreBorrowerBehavioral(org.registry, entityId, body.serviceSuiteBorrowerId!);
+      const beh = await scoreBorrowerBehavioral(org.registry, entityId, ssBorrowerId);
       await prisma.scoreSnapshot.create({
         data: {
           orgId: orgRow.id,
           borrowerId: borrowerRowId,
           applicationId: app.id,
-          serviceSuiteBorrowerId: body.serviceSuiteBorrowerId!,
+          serviceSuiteBorrowerId: ssBorrowerId,
           modelKind: "behavioral",
           modelVersion: beh.modelVersion,
           score: beh.score,
@@ -308,9 +362,9 @@ export async function POST(req: NextRequest) {
   // id and product, and only when posting is enabled. Otherwise it stays in
   // BirgenAI's pipeline for an officer to action and the lender to enable later.
   //
-  // SERVER-AUTHORITATIVE: a loan-book write never trusts the client's graduated
-  // flag or borrower id — the borrower is re-matched by phone/ID in the lender's
-  // DB and graduation recomputed there, right before posting.
+  // SERVER-AUTHORITATIVE: `grad` was resolved at the top of this request from the
+  // OTP-verified phone, in the lender's own database. Nothing the client sent can
+  // reach `postLoan` — not the borrower id, not the graduated flag.
   const posting: { attempted: boolean; ok: boolean; message: string } = { attempted: false, ok: false, message: "" };
   const wantsPost =
     isPostingEnabled() &&
@@ -318,24 +372,16 @@ export async function POST(req: NextRequest) {
     !!body.productRef &&
     (scored.decision === "APPROVE" || scored.decision === "REFER");
 
-  let verified: Awaited<ReturnType<typeof checkGraduation>> = null;
-  if (wantsPost) {
-    try {
-      verified = await checkGraduation(org.registry!, entityId, phone, body.nationalId?.trim() || undefined);
-    } catch {
-      /* lender DB unreachable — application stays in the BirgenAI pipeline */
-    }
-    if (!verified?.graduated) {
-      posting.message = verified
-        ? "Not yet eligible for direct posting (needs 5+ cleared loans and no active loan) — an officer will review."
-        : "No matching borrower record at the lender — an officer will review.";
-    }
+  if (wantsPost && !grad?.graduated) {
+    posting.message = grad
+      ? "Not yet eligible for direct posting (needs 5+ cleared loans and no active loan) — an officer will review."
+      : "No matching borrower record at the lender — an officer will review.";
   }
 
-  if (wantsPost && verified?.graduated) {
+  if (wantsPost && grad?.graduated) {
     posting.attempted = true;
     const res = await postLoan(org.registry!, {
-      borrowerId: verified.borrowerId,
+      borrowerId: grad.borrowerId,
       principal: amount,
       productId: Number(body.productRef),
       applicationId: app.id,

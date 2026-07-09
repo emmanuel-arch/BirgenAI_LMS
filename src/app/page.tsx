@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { getBrand, BRANDED_LENDERS } from "@/lib/lms/branding";
 import CrunchTheatre, { type CrunchData } from "@/components/statement/CrunchTheatre";
+import OtpCard, { type OtpIssue } from "@/components/portal/OtpCard";
 
 const LENDERS = BRANDED_LENDERS;
 
@@ -34,7 +35,9 @@ const CONSENTS = [
 ] as const;
 
 type Features = Record<string, unknown> & { avgMonthlyIncome?: number; avgMonthlyNet?: number; gamblingRatio?: number };
-type Elig = { graduated: boolean; found?: boolean; clearedLoans?: number; borrowerName?: string; serviceSuiteBorrowerId?: number; available?: boolean };
+// No serviceSuiteBorrowerId: the lender's internal id never leaves the server —
+// /api/lms/apply re-derives it from the OTP-verified phone.
+type Elig = { graduated: boolean; found?: boolean; clearedLoans?: number; borrowerName?: string; available?: boolean };
 type Customer = {
   name: string; accountNo: string | null; nationalId: string | null; phone: string | null;
   email: string | null; age: number | null; gender: string | null; status: string;
@@ -97,6 +100,7 @@ export default function LmsPortal() {
   const [step, setStep] = useState(0);
   const [lender, setLender] = useState("micromart");
   const [phone, setPhone] = useState("");
+  const [otpIssue, setOtpIssue] = useState<OtpIssue | null>(null);
   const [elig, setElig] = useState<Elig | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [photoErr, setPhotoErr] = useState(false);
@@ -149,16 +153,43 @@ export default function LmsPortal() {
   const next = () => setStep((s) => s + 1);
   const back = () => setStep((s) => Math.max(0, s - 1));
 
-  const runEligibility = async () => {
+  // Step 0 → 1. Nothing about this borrower is looked up until they prove the
+  // number is theirs — eligibility and the Customer-360 both return real PII.
+  const requestOtp = async () => {
     setError(null);
     if (!phone.trim()) { setError("Enter your phone number."); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/lms/eligibility", {
+      // Already verified this number with this lender (reload, back-navigation)?
+      // Don't spend another SMS — or another slot in their OTP budget.
+      try {
+        const s = await fetch(`/api/portal/session?phone=${encodeURIComponent(phone.trim())}`).then((r) => r.json());
+        if (s?.authenticated && s.lenderSlug === lender && s.matchesPhone) { await runEligibility(); return; }
+      } catch { /* no session — issue a code as normal */ }
+
+      const res = await fetch("/api/portal/otp", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lenderSlug: lender, phone: phone.trim() }),
       });
       const data = await res.json();
+      if (!data.success) { setError(data.message || "Could not send a code."); return; }
+      setOtpIssue({ delivered: !!data.delivered, devCode: data.devCode });
+      setStep(1);
+    } catch { setError("Could not send a code."); } finally { setLoading(false); }
+  };
+
+  // Runs once the phone is verified. The server reads it from the session
+  // cookie, so neither call sends a phone number any more.
+  const runEligibility = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/lms/eligibility", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lenderSlug: lender }),
+      });
+      const data = await res.json();
+      if (data.needsOtp) { setStep(0); setError("Your session expired — verify your number again."); return; }
       if (!data.success) { setError(data.message || "Check failed."); return; }
       setElig(data);
       // Known customer → show their own Customer-360 profile (the trust step:
@@ -168,7 +199,7 @@ export default function LmsPortal() {
         try {
           const ciRes = await fetch("/api/lms/customer-info", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lenderSlug: lender, phone: phone.trim() }),
+            body: JSON.stringify({ lenderSlug: lender }),
           });
           const ci = await ciRes.json();
           if (ci?.success && ci.found && ci.customer) {
@@ -182,6 +213,12 @@ export default function LmsPortal() {
       setCustomer(null);
       setStep(3);
     } catch { setError("Could not run the check."); } finally { setLoading(false); }
+  };
+
+  // "Not me" — drop the verified session before handing the phone back.
+  const signOutBorrower = async () => {
+    try { await fetch("/api/portal/session", { method: "DELETE" }); } catch { /* best-effort */ }
+    setCustomer(null); setElig(null); setPhone(""); setOtpIssue(null); setStep(0);
   };
 
   // The crunch itself runs inside the theatre overlay — it owns the upload and
@@ -271,9 +308,10 @@ export default function LmsPortal() {
       const res = await fetch("/api/lms/apply", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lenderSlug: lender, phone: phone.trim(),
-          borrowerName: elig?.borrowerName, serviceSuiteBorrowerId: elig?.serviceSuiteBorrowerId,
-          graduated: elig?.graduated, priorLoanCount: elig?.clearedLoans,
+          // No phone, no borrower id, no graduated flag: the server derives all
+          // of it from the verified session. Only a new applicant's own name.
+          lenderSlug: lender,
+          borrowerName: elig?.found ? undefined : elig?.borrowerName,
           productRef: productRef.trim() || undefined, amountRequested: Number(amount),
           features,
           consent: { ...consent, geoTagging: geoConsent || !!location || manualAddress.trim().length > 0 },
@@ -283,6 +321,7 @@ export default function LmsPortal() {
         }),
       });
       const data = await res.json();
+      if (data.needsOtp) { setStep(0); setError("Your session expired — verify your number again."); return; }
       if (!data.success) { setError(data.message || "Could not submit."); return; }
       setSubmitted(data);
       next();
@@ -409,12 +448,29 @@ export default function LmsPortal() {
                       className="flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-zinc-400" />
                   </div>
 
-                  <button onClick={runEligibility} disabled={loading}
+                  <button onClick={requestOtp} disabled={loading}
                     className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Continue <ArrowRight className="h-4 w-4" />
                   </button>
+                  <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-400">
+                    <Lock className="h-3 w-3" /> We&apos;ll text you a code to confirm it&apos;s you
+                  </p>
                 </div>
               </motion.div>
+            )}
+
+            {/* STEP 1 — prove the number is yours. Everything past this point
+                (profile, limits, balances, an application) is real PII. */}
+            {step === 1 && otpIssue && (
+              <div className="min-h-[55vh] flex items-center justify-center">
+                <OtpCard
+                  lenderSlug={lender}
+                  phone={phone.trim()}
+                  issue={otpIssue}
+                  onVerified={runEligibility}
+                  onChangeNumber={() => { setOtpIssue(null); setError(null); setStep(0); }}
+                />
+              </div>
             )}
 
             {/* STEP 2 — Customer 360: the borrower's own profile as the lender's
@@ -492,7 +548,7 @@ export default function LmsPortal() {
                 </p>
 
                 <div className="mt-5 flex gap-2">
-                  <button onClick={() => { setCustomer(null); setStep(0); }}
+                  <button onClick={signOutBorrower}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 px-4 py-3 text-sm text-zinc-600 hover:bg-zinc-900/5">
                     Not me
                   </button>

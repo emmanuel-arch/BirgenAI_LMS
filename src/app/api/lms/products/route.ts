@@ -9,12 +9,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveOrg } from "@/lib/tenancy";
 import { enterOrg } from "@/lib/db/context";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { listProducts } from "@/lib/lms/servicesuite";
 
 export const runtime = "nodejs";
 
 // No auth: a lender's product catalogue is public marketing info, and borrowers
-// on the white-label subdomains don't have accounts.
+// on the white-label subdomains don't have accounts. Throttled anyway — for
+// bridged orgs this reaches into the lender's own SQL Server.
 export async function POST(req: NextRequest) {
   let body: { lenderSlug?: string };
   try {
@@ -22,6 +24,9 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 });
   }
+
+  const limited = await rateLimit([{ name: "products:ip", subject: clientIp(req), max: 60, windowSec: 3600 }]);
+  if (limited) return limited;
 
   const org = await resolveOrg(body.lenderSlug ?? "");
   // Bind the RLS tenant in OUR async context (enterWith does not escape a callee).

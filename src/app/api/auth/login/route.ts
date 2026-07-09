@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { runAsPlatform } from "@/lib/db/context";
 import { createSession } from "@/lib/auth";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,17 @@ export async function POST(req: NextRequest) {
   if (!email || !password) {
     return NextResponse.json({ success: false, message: "Email and password are required." }, { status: 400 });
   }
+
+  // A staff account opens a lender's entire loan book. Throttle per account
+  // (credential stuffing) and per IP (spraying one password across many accounts).
+  const limited = await rateLimit(
+    [
+      { name: "login:email", subject: email, max: 10, windowSec: 900 },
+      { name: "login:ip", subject: clientIp(req), max: 30, windowSec: 900 },
+    ],
+    "Too many sign-in attempts. Please wait before trying again.",
+  );
+  if (limited) return limited;
 
   // Sign-in is inherently cross-tenant: the same email may exist in several orgs
   // and we have no tenant identity until the credentials check out. This is one

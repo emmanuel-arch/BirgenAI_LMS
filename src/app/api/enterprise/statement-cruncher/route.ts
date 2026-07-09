@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { readBorrowerSession } from "@/lib/portal/session";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { extractPdfText, PdfPasswordRequiredError, PdfPasswordIncorrectError } from "@/lib/statement/extract-pdf";
 import { parseMpesaStatement } from "@/lib/statement/mpesa-parser";
 import { crunch } from "@/lib/statement/features";
@@ -18,10 +20,24 @@ export const maxDuration = 60;
 const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
 
 export async function POST(req: NextRequest) {
-  // Session is OPTIONAL: the lms wizard on white-label lender subdomains serves
-  // borrowers without Hub accounts. Compute-only (no DB writes, nothing stored).
-  // TODO(hardening): phone-OTP identity + rate limiting before public launch.
-  await auth();
+  // Compute-only (no DB writes, nothing stored), but far from free: 15 MB of PDF
+  // and up to a minute of server time per call. Callers must be a verified
+  // borrower or signed-in staff — no org binding, since the analysis touches no
+  // tenant data and the funnel form carries no lender slug.
+  const [staff, borrower] = await Promise.all([auth(), readBorrowerSession()]);
+  if (!staff?.user?.id && !borrower) {
+    return NextResponse.json(
+      { success: false, needsOtp: true, message: "Verify your phone number to continue." },
+      { status: 401 },
+    );
+  }
+
+  const subject = borrower ? `phone:${borrower.phone}` : `staff:${staff!.user!.id}`;
+  const limited = await rateLimit([
+    { name: "crunch:subject", subject, max: 8, windowSec: 3600 },
+    { name: "crunch:ip", subject: clientIp(req), max: 30, windowSec: 3600 },
+  ]);
+  if (limited) return limited;
 
   let form: FormData;
   try {

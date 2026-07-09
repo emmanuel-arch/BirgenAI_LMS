@@ -10,12 +10,18 @@ import {
 import { getBrand, BRANDED_LENDERS } from "@/lib/lms/branding";
 import { ConfidenceRing } from "./ConfidenceRing";
 import { Capture, type CaptureSignals } from "./Capture";
+import OtpCard, { type OtpIssue } from "@/components/portal/OtpCard";
 
 // ── Elite KYC onboarding — the "we take not-getting-defaulted seriously" funnel.
-// Step order: consent → ID capture (quality+OCR) → selfie liveness → face match
-// + white-bg portrait → IPRS registry → decision. Every credentialed check runs
-// in high-fidelity SIMULATION until the lender adds Smile ID keys.
-type StepKey = "intro" | "id" | "liveness" | "facematch" | "iprs" | "done";
+// Step order: phone + OTP → ID capture (quality+OCR) → selfie liveness → face
+// match + white-bg portrait → IPRS registry → decision. Every credentialed check
+// runs in high-fidelity SIMULATION until the lender adds Smile ID keys.
+//
+// The OTP is not ceremony: this wizard writes a KycSession keyed to a phone, and
+// that session is later promoted onto the Borrower row of whoever owns that
+// number. Verifying possession first is what stops one person from attaching
+// their verified face to another person's account.
+type StepKey = "intro" | "otp" | "id" | "liveness" | "facematch" | "iprs" | "done";
 const STEPS: { key: StepKey; label: string; icon: typeof IdCard }[] = [
   { key: "id", label: "ID", icon: IdCard },
   { key: "liveness", label: "Liveness", icon: ScanFace },
@@ -34,6 +40,7 @@ function lenderFromLocation(): string {
 export default function VerifyPage() {
   const [lender, setLender] = useState("hub");
   const [phone, setPhone] = useState("");
+  const [otpIssue, setOtpIssue] = useState<OtpIssue | null>(null);
   const [nationalId, setNationalId] = useState("");
   const [step, setStep] = useState<StepKey>("intro");
   const [sessionId, setSessionId] = useState<string | undefined>();
@@ -47,12 +54,35 @@ export default function VerifyPage() {
   const brand = getBrand(lender);
   const brandStyle = useMemo(() => ({ ["--brand" as never]: brand.accent, ["--brand-soft" as never]: brand.accentSoft }), [brand]);
 
+  // The phone is no longer sent — the server reads it from the verified session.
   const call = async (stepKey: string, payload: Record<string, unknown>) => {
     const res = await fetch("/api/portal/kyc", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lenderSlug: lender, phone, nationalId, step: stepKey, sessionId, payload }),
+      body: JSON.stringify({ lenderSlug: lender, nationalId, step: stepKey, sessionId, payload }),
     });
     return res.json();
+  };
+
+  const startVerification = async () => {
+    setError(null);
+    if (!phone.trim() || !nationalId.trim()) { setError("Enter your phone and ID to begin."); return; }
+    setBusy(true);
+    try {
+      // Already verified this number with this lender? Don't spend another SMS.
+      try {
+        const s = await fetch(`/api/portal/session?phone=${encodeURIComponent(phone.trim())}`).then((r) => r.json());
+        if (s?.authenticated && s.lenderSlug === lender && s.matchesPhone) { setStep("id"); return; }
+      } catch { /* no session — issue a code as normal */ }
+
+      const res = await fetch("/api/portal/otp", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lenderSlug: lender, phone: phone.trim() }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.message || "Could not send a code."); return; }
+      setOtpIssue({ delivered: !!data.delivered, devCode: data.devCode });
+      setStep("otp");
+    } catch { setError("Could not send a code."); } finally { setBusy(false); }
   };
 
   const captureStep = async (stepKey: StepKey, sig: CaptureSignals) => {
@@ -61,6 +91,7 @@ export default function VerifyPage() {
     await new Promise((r) => setTimeout(r, 1400));
     try {
       const data = await call(stepKey, { bytes: sig.bytes, brightness: sig.brightness, blurVar: sig.blurVar, imageKey: `${stepKey}/${Date.now()}` });
+      if (data.needsOtp) { setStep("intro"); setOtpIssue(null); setError("Your session expired — verify your number again."); return; }
       if (!data.success) { setError(data.message || "Check failed."); return; }
       setSessionId(data.sessionId); setMode(data.mode);
       setResults((r) => ({ ...r, [stepKey]: data }));
@@ -74,6 +105,7 @@ export default function VerifyPage() {
     await new Promise((r) => setTimeout(r, 1200));
     try {
       const data = await call("iprs", {});
+      if (data.needsOtp) { setStep("intro"); setOtpIssue(null); setError("Your session expired — verify your number again."); return; }
       if (!data.success) { setError(data.message); return; }
       setResults((r) => ({ ...r, iprs: data }));
       const fin = await call("finalize", {});
@@ -127,8 +159,8 @@ export default function VerifyPage() {
           )}
         </div>
 
-        {/* Step rail */}
-        {step !== "intro" && step !== "done" && (
+        {/* Step rail — the OTP gate sits before the pipeline, so it has no rung. */}
+        {step !== "intro" && step !== "otp" && step !== "done" && (
           <div className="mt-5 flex items-center gap-1.5">
             {STEPS.map((s, i) => (
               <div key={s.key} className="flex flex-1 items-center gap-1.5">
@@ -163,12 +195,22 @@ export default function VerifyPage() {
                   <div className={startStyle}><input className={input} inputMode="tel" placeholder="Phone number (07XX…)" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
                   <div className={startStyle}><input className={input} inputMode="numeric" placeholder="National ID number" value={nationalId} onChange={(e) => setNationalId(e.target.value)} /></div>
                 </div>
-                <button onClick={() => { if (phone.trim() && nationalId.trim()) { setError(null); setStep("id"); } else setError("Enter your phone and ID to begin."); }}
-                  className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold text-white" style={{ backgroundColor: "var(--brand)" }}>
-                  Start verification <ArrowRight className="h-4 w-4" />
+                <button onClick={startVerification} disabled={busy}
+                  className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: "var(--brand)" }}>
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Start verification <ArrowRight className="h-4 w-4" />
                 </button>
                 <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-400"><Lock className="h-3 w-3" /> Protected under the Data Protection Act</p>
               </div>
+            )}
+
+            {step === "otp" && otpIssue && (
+              <OtpCard
+                lenderSlug={lender}
+                phone={phone.trim()}
+                issue={otpIssue}
+                onVerified={() => { setError(null); setStep("id"); }}
+                onChangeNumber={() => { setOtpIssue(null); setError(null); setStep("intro"); }}
+              />
             )}
 
             {step === "id" && (

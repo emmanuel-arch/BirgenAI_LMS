@@ -2,15 +2,21 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, AlertTriangle, CheckCircle2, Banknote, Phone, CreditCard, ArrowRight } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2, Banknote, Phone, CreditCard, ArrowRight, Lock } from "lucide-react";
 import { getBrand, BRANDED_LENDERS } from "@/lib/lms/branding";
+import OtpCard, { type OtpIssue } from "@/components/portal/OtpCard";
 
 // Borrower self-service: check my loan + Pay Now (STK to the REGISTERED phone).
 // White-label aware like the funnel (subdomain or ?lender=).
+//
+// Phone first, then the code, then the ID. Possession (the SMS) plus knowledge
+// (the ID) — a SIM swap alone should not open someone's loan book.
 type MyLoan = {
   ref: string; product: string; status: string; loanAmount: number; balance: number;
   expectedClearDate: string | null; nextDue: { date: string; amount: number } | null;
 };
+
+type Stage = "phone" | "code" | "id";
 
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 
@@ -24,7 +30,9 @@ function lenderFromLocation(): string | null {
 
 export default function MyLoanPage() {
   const [lender, setLender] = useState<string>("");
+  const [stage, setStage] = useState<Stage>("phone");
   const [phone, setPhone] = useState("");
+  const [otpIssue, setOtpIssue] = useState<OtpIssue | null>(null);
   const [nationalId, setNationalId] = useState("");
   const [loading, setLoading] = useState(false);
   const [paying, setPaying] = useState(false);
@@ -36,16 +44,42 @@ export default function MyLoanPage() {
   useEffect(() => { setLender(lenderFromLocation() ?? "hub"); }, []);
   const brand = getBrand(lender);
 
+  /** The session expired mid-flow — send them back to the phone step. */
+  const expired = () => { setStage("phone"); setOtpIssue(null); setError("Your session expired — verify your number again."); };
+
+  const requestOtp = async () => {
+    setError(null); setNotice(null);
+    if (!phone.trim()) { setError("Enter your phone number."); return; }
+    setLoading(true);
+    try {
+      // Skip the SMS if this number is already verified with this lender.
+      try {
+        const s = await fetch(`/api/portal/session?phone=${encodeURIComponent(phone.trim())}`).then((r) => r.json());
+        if (s?.authenticated && s.lenderSlug === lender && s.matchesPhone) { setStage("id"); return; }
+      } catch { /* no session — issue a code as normal */ }
+
+      const res = await fetch("/api/portal/otp", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lenderSlug: lender, phone: phone.trim() }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.message || "Could not send a code."); return; }
+      setOtpIssue({ delivered: !!data.delivered, devCode: data.devCode });
+      setStage("code");
+    } catch { setError("Could not send a code."); } finally { setLoading(false); }
+  };
+
   const lookup = async () => {
     setError(null); setNotice(null); setResult(null);
-    if (!phone.trim() || !nationalId.trim()) { setError("Enter your phone number and national ID."); return; }
+    if (!nationalId.trim()) { setError("Enter your national ID."); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/portal/my-loan", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lenderSlug: lender, phone, nationalId }),
+        body: JSON.stringify({ lenderSlug: lender, nationalId }),
       });
       const data = await res.json();
+      if (data.needsOtp) { expired(); return; }
       if (!data.success) { setError(data.message || "Lookup failed."); return; }
       setResult(data);
       if (data.activeLoan?.nextDue) setPayAmount(String(Math.round(data.activeLoan.nextDue.amount)));
@@ -57,9 +91,10 @@ export default function MyLoanPage() {
     try {
       const res = await fetch("/api/portal/pay", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lenderSlug: lender, phone, nationalId, amount: Number(payAmount) || undefined }),
+        body: JSON.stringify({ lenderSlug: lender, nationalId, amount: Number(payAmount) || undefined }),
       });
       const data = await res.json();
+      if (data.needsOtp) { expired(); return; }
       if (!data.success) { setError(data.message || "Could not start the payment."); return; }
       setNotice(`${data.message} (KES ${Math.round(data.amount).toLocaleString()} to your registered number)`);
     } catch { setError("Could not start the payment."); } finally { setPaying(false); }
@@ -69,9 +104,22 @@ export default function MyLoanPage() {
   const input = "flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-zinc-400";
 
   return (
-    <div className="min-h-screen relative text-zinc-900" style={{ ["--brand" as never]: brand.accent }}>
+    <div className="min-h-screen relative text-zinc-900" style={{ ["--brand" as never]: brand.accent, ["--brand-soft" as never]: brand.accentSoft }}>
       <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-8">
+        {/* The code screen is its own full card — no header above it. */}
+        {stage === "code" && otpIssue && !result?.found ? (
+          <div className="w-full max-w-md">
+            {error && <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
+            <OtpCard
+              lenderSlug={lender}
+              phone={phone.trim()}
+              issue={otpIssue}
+              onVerified={() => { setError(null); setStage("id"); }}
+              onChangeNumber={() => { setOtpIssue(null); setError(null); setStage("phone"); }}
+            />
+          </div>
+        ) : (
         <div className="glass w-full max-w-md rounded-3xl bg-white/65 p-6 sm:p-8">
           <div className="text-center">
             <CreditCard className="mx-auto h-10 w-10" style={{ color: "var(--brand)" }} />
@@ -82,11 +130,26 @@ export default function MyLoanPage() {
           {error && <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
           {notice && <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50/90 px-3 py-2.5 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> {notice}</div>}
 
-          {!result?.found && (
+          {!result?.found && stage === "phone" && (
             <>
-              <div className="mt-5 space-y-3">
-                <div className={field}><Phone className="h-4 w-4 text-zinc-400 shrink-0" /><input className={input} inputMode="tel" placeholder="Phone number (07XX XXX XXX)" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
-                <div className={field}><input className={input} inputMode="numeric" placeholder="National ID number" value={nationalId} onChange={(e) => setNationalId(e.target.value)} /></div>
+              <div className={`mt-5 ${field}`}>
+                <Phone className="h-4 w-4 text-zinc-400 shrink-0" />
+                <input className={input} inputMode="tel" placeholder="Phone number (07XX XXX XXX)" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              </div>
+              <button onClick={requestOtp} disabled={loading}
+                className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Continue <ArrowRight className="h-4 w-4" />
+              </button>
+              <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-400">
+                <Lock className="h-3 w-3" /> We&apos;ll text you a code to confirm it&apos;s you
+              </p>
+            </>
+          )}
+
+          {!result?.found && stage === "id" && (
+            <>
+              <div className={`mt-5 ${field}`}>
+                <input className={input} inputMode="numeric" placeholder="National ID number" value={nationalId} onChange={(e) => setNationalId(e.target.value)} />
               </div>
               <button onClick={lookup} disabled={loading}
                 className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
@@ -138,6 +201,7 @@ export default function MyLoanPage() {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

@@ -3,6 +3,11 @@
 // when already set. Run after every `prisma db push` that adds a tenant table.
 //
 //   npm run db:rls
+//
+// A push that adds ANY table should also be followed by `npm run db:app-role`,
+// which grants the new table to the restricted runtime role. Supabase's pooler
+// may briefly reject connections right after that script's ALTER ROLE — retry
+// once before believing an authentication failure.
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

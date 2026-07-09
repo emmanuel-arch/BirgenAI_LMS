@@ -60,8 +60,14 @@ export type Graduation = {
 
 /**
  * Graduated-customer check (read-only). A borrower qualifies for self-service if
- * they have 5+ fully-cleared loans and no currently-active loan. Matched by phone
- * (and optionally national ID) within the entity.
+ * they have 5+ fully-cleared loans and no currently-active loan.
+ *
+ * MATCHED BY PHONE ONLY, and that is a security property, not an omission. This
+ * used to also match `b.NationalID = @nationalId` as an ALTERNATIVE — so a
+ * caller who supplied a stranger's ID number was handed that stranger's
+ * `borrowerId`, which `apply` then passed to `postLoan()`. A national ID is a
+ * claim for KYC to verify, never a lookup key on a borrower-facing route. The
+ * phone arrives from the OTP session cookie and cannot be asserted.
  */
 /** Digits-only phone (borrowers type 07XX XXX XXX, DB stores 2547XXXXXXXX). */
 const cleanPhone = (p: string) => p.replace(/\D/g, "");
@@ -70,7 +76,6 @@ export async function checkGraduation(
   org: OrgDef,
   entityId: number,
   phone: string,
-  nationalId?: string,
 ): Promise<Graduation | null> {
   phone = cleanPhone(phone);
   const sql = `
@@ -82,8 +87,7 @@ export async function checkGraduation(
     FROM Borrowers b
     WHERE b.EntityId = @entityId
       AND (b.PhoneNumber = @phone
-        OR RIGHT(REPLACE(b.PhoneNumber, ' ', ''), 9) = RIGHT(@phone, 9)
-        OR (@nationalId <> '' AND b.NationalID = @nationalId))
+        OR RIGHT(REPLACE(b.PhoneNumber, ' ', ''), 9) = RIGHT(@phone, 9))
     ORDER BY b.ID DESC`;
 
   const { rows } = await runReadOnlyQuery(
@@ -92,7 +96,6 @@ export async function checkGraduation(
     [
       { name: "entityId", type: mssql.Int, value: entityId },
       { name: "phone", type: mssql.VarChar(32), value: phone },
-      { name: "nationalId", type: mssql.VarChar(32), value: nationalId || "" },
     ],
     { timeoutMs: 15000, maxRows: 1 },
   );
@@ -144,11 +147,11 @@ export type Customer360 = {
   activeLoans: number;
 };
 
+/** Matched by phone only — see checkGraduation for why the ID is not a key here. */
 export async function getCustomer360(
   org: OrgDef,
   entityId: number,
   phone: string,
-  nationalId?: string,
 ): Promise<Customer360 | null> {
   phone = cleanPhone(phone);
   const sql = `
@@ -176,8 +179,7 @@ export async function getCustomer360(
     ) s
     WHERE b.EntityId = @entityId
       AND (b.PhoneNumber = @phone
-        OR RIGHT(REPLACE(b.PhoneNumber, ' ', ''), 9) = RIGHT(@phone, 9)
-        OR (@nationalId <> '' AND b.NationalID = @nationalId))
+        OR RIGHT(REPLACE(b.PhoneNumber, ' ', ''), 9) = RIGHT(@phone, 9))
     ORDER BY b.ID DESC`;
 
   const { rows } = await runReadOnlyQuery(
@@ -186,7 +188,6 @@ export async function getCustomer360(
     [
       { name: "entityId", type: mssql.Int, value: entityId },
       { name: "phone", type: mssql.VarChar(32), value: phone },
-      { name: "nationalId", type: mssql.VarChar(32), value: (nationalId || "").trim() },
     ],
     { timeoutMs: 30000, maxRows: 1 },
   );

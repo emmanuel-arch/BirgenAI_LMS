@@ -1,14 +1,21 @@
 // POST /api/portal/kyc — run one step of the elite KYC pipeline (borrower-facing).
-// Body: { lenderSlug, phone, nationalId?, step, sessionId?, payload }
+// Body: { lenderSlug, nationalId?, step, sessionId?, payload }
 //   step: "id" | "liveness" | "facematch" | "iprs" | "finalize"
 // The wizard drives these in order; each returns the step result + updated
 // session so the UI can render confidence rings and gates live. Every step is
 // also written as a KycCheck (the audit + ML feature trail).
+//
+// REQUIRES a verified borrower session. A KYC session is the record that says
+// "this face, this ID and this phone are one person", and it is later promoted
+// onto a Borrower row. Letting the caller name the phone would let them attach
+// their own verified identity to someone else's number.
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolveOrg } from "@/lib/tenancy";
 import { enterOrg } from "@/lib/db/context";
+import { borrowerFor, otpRequired } from "@/lib/portal/session";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
 import {
   kycMode, assessIdQuality, extractId, assessLiveness, faceMatch, iprsLookup, portraitKeyFrom,
 } from "@/lib/kyc/provider";
@@ -18,19 +25,24 @@ export const runtime = "nodejs";
 
 type Step = "id" | "liveness" | "facematch" | "iprs" | "finalize";
 
+/**
+ * Resume the caller's own KYC session, or start one. Scoped to the verified
+ * phone as well as the org: a session id is a bearer token for an identity
+ * record, and resuming someone else's would let you finish their verification.
+ */
 async function getSession(orgId: string, sessionId: string | undefined, phone: string, nationalId: string | undefined, provider: string) {
   if (sessionId) {
-    const s = await prisma.kycSession.findFirst({ where: { id: sessionId, orgId } });
+    const s = await prisma.kycSession.findFirst({ where: { id: sessionId, orgId, phone } });
     if (s) return s;
   }
   return prisma.kycSession.create({
-    data: { orgId, phone: phone.replace(/\D/g, ""), nationalId: nationalId || null, provider },
+    data: { orgId, phone, nationalId: nationalId || null, provider },
   });
 }
 
 export async function POST(req: NextRequest) {
   let body: {
-    lenderSlug?: string; phone?: string; nationalId?: string; step?: Step; sessionId?: string;
+    lenderSlug?: string; nationalId?: string; step?: Step; sessionId?: string;
     payload?: { bytes?: number; brightness?: number; blurVar?: number; imageKey?: string };
   };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
@@ -40,8 +52,17 @@ export async function POST(req: NextRequest) {
   if (org) enterOrg(org.id);
   if (!org) return NextResponse.json({ success: false, message: "Choose a lender." }, { status: 400 });
 
-  const phone = (body.phone ?? "").replace(/\D/g, "");
-  if (phone.length < 9) return NextResponse.json({ success: false, message: "Enter your phone number." }, { status: 400 });
+  const verified = await borrowerFor(org.id);
+  if (!verified) return otpRequired();
+  const phone = verified.phone;
+
+  // Each step is a provider call the lender pays for once Smile ID is live.
+  // Generous enough for a borrower who has to retake a blurry ID a few times.
+  const limited = await rateLimit([
+    { name: "kyc:phone", subject: `${org.id}:${phone}`, max: 40, windowSec: 3600 },
+    { name: "kyc:ip", subject: clientIp(req), max: 120, windowSec: 3600 },
+  ]);
+  if (limited) return limited;
 
   const mode = await kycMode(org.id);
   const session = await getSession(org.id, body.sessionId, phone, body.nationalId, mode);

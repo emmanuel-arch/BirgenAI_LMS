@@ -1,24 +1,27 @@
 // POST /api/portal/pay — borrower "Pay now": STK push for the active loan.
-// Body: { lenderSlug, phone, nationalId, amount? } — identity must match the
-// borrower; the STK ALWAYS targets the borrower's REGISTERED phone (never a
+// Body: { lenderSlug, nationalId, amount? } — the phone comes from the verified
+// OTP session; the STK ALWAYS targets the borrower's REGISTERED phone (never a
 // caller-supplied payout target), so the worst misuse is paying someone's loan.
+// Rate-limited hard: an STK push is an unsolicited PIN prompt on a real handset,
+// and an unthrottled one is a harassment tool.
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolveOrg } from "@/lib/tenancy";
 import { enterOrg } from "@/lib/db/context";
+import { borrowerFor, otpRequired } from "@/lib/portal/session";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { initiateStkPush } from "@/lib/mpesa/daraja";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  let body: { lenderSlug?: string; phone?: string; nationalId?: string; amount?: number };
+  let body: { lenderSlug?: string; nationalId?: string; amount?: number };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
-  const phone = (body.phone ?? "").replace(/\D/g, "");
   const nationalId = (body.nationalId ?? "").trim();
-  if (phone.length < 9 || !nationalId) {
-    return NextResponse.json({ success: false, message: "Enter your phone number and national ID." }, { status: 400 });
+  if (!nationalId) {
+    return NextResponse.json({ success: false, message: "Enter your national ID." }, { status: 400 });
   }
 
   const org = await resolveOrg(body.lenderSlug ?? "");
@@ -27,6 +30,16 @@ export async function POST(req: NextRequest) {
   if (!org || org.mode !== "NATIVE") {
     return NextResponse.json({ success: false, message: "Pay-now is available for this lender via their own channels." }, { status: 400 });
   }
+
+  const verified = await borrowerFor(org.id);
+  if (!verified) return otpRequired();
+  const phone = verified.phone;
+
+  const limited = await rateLimit([
+    { name: "pay:phone", subject: `${org.id}:${phone}`, max: 5, windowSec: 600 },
+    { name: "pay:ip", subject: clientIp(req), max: 30, windowSec: 3600 },
+  ]);
+  if (limited) return limited;
 
   const borrower = await prisma.borrower.findFirst({
     where: { orgId: org.id, phone: { endsWith: phone.slice(-9) }, nationalId },

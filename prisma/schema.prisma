@@ -293,19 +293,26 @@ model KycSession {
   @@index([orgId, phone])
 }
 
-/// One-time codes for sensitive staff actions (final approvals, big
-/// disbursements). Only the bcrypt hash is stored; codes expire fast.
+/// One-time codes, for two different subjects:
+///   staffId — a staff member authorising a sensitive action (final approvals)
+///   phone   — a borrower proving possession of their number before the funnel
+/// Exactly one of the two is set. Only the bcrypt hash is stored, codes expire
+/// fast, and a challenge is burned after MAX_ATTEMPTS wrong guesses — otherwise
+/// a 6-digit code is a 1,000,000-guess walk against a live SMS.
 model OtpChallenge {
   id        String    @id @default(uuid())
   orgId     String
-  staffId   String
-  purpose   String // e.g. "application:<id>:finalize"
+  staffId   String?
+  phone     String? // digits-only msisdn (2547XXXXXXXX)
+  purpose   String // e.g. "application:<id>:finalize" | "borrower:verify"
   codeHash  String
+  attempts  Int       @default(0)
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
 
   @@index([orgId, staffId, purpose])
+  @@index([orgId, phone, purpose])
 }
 
 model AuditLog {
@@ -840,4 +847,21 @@ model UsageEvent {
   org Org @relation(fields: [orgId], references: [id])
 
   @@index([orgId, kind, createdAt])
+}
+
+/// Fixed-window request counters (src/lib/ratelimit.ts). One row per
+/// bucket:subject; the window advances in place via an atomic upsert.
+///
+/// Deliberately has NO orgId and NO RLS policy: the limiter must run before the
+/// caller's tenant is known (staff login, OTP issue on an unresolved slug), and
+/// it holds no tenant data — only a coarse counter keyed by phone/IP/email.
+/// It is therefore reached through `rawPrisma`, the one sanctioned use in app
+/// code. Expired rows are swept by the daily arrears cron.
+model RateLimit {
+  key         String   @id // "<bucket>:<subject>"
+  windowStart DateTime
+  count       Int      @default(0)
+  expiresAt   DateTime
+
+  @@index([expiresAt])
 }

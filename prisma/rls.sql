@@ -16,9 +16,13 @@
 -- FORCE is essential: our connection role owns these tables, and owners bypass
 -- RLS unless forced.
 --
--- The `Org` table is deliberately NOT protected: it is the tenant registry, it
--- has no orgId, and its slug/name/branding are already served publicly on the
--- borrower funnel. Lookups against it run under runAsPlatform().
+-- Two tables are deliberately NOT protected, both for the same reason — they are
+-- read before the caller's tenant is known, and neither holds tenant data:
+--   Org        the tenant registry itself; slug/name/branding are already public
+--              on the borrower funnel. Lookups run under runAsPlatform().
+--   RateLimit  coarse request counters keyed by phone/IP/email. The limiter
+--              guards staff login and OTP issuance, which run before any org is
+--              resolved. Reached through rawPrisma (see src/lib/ratelimit.ts).
 --
 -- Apply with:  npm run db:rls      (idempotent — safe to re-run)
 -- ─────────────────────────────────────────────────────────────────────────────
