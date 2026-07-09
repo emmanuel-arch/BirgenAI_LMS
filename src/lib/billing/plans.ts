@@ -50,14 +50,13 @@ export type Feature =
 export const AVAILABLE_FEATURES: Feature[] = [
   "credit-score",
   "statement-cruncher",
+  "document-parser",
   "crb",
   "id-verify",
   "riri",
   "route-planner",
   "portfolio-scan",
-  // "document-parser" — the ID OCR step exists inside the KYC pipeline, but there
-  //   is no standalone parser for fee structures, invoices, permits or statements.
-  // "model-tuning"   — the early-warning weights are the tuning surface; no UI yet.
+  // "model-tuning" — the early-warning weights are the tuning surface; no UI yet.
 ];
 
 export const isAvailable = (f: Feature): boolean => AVAILABLE_FEATURES.includes(f);
@@ -107,10 +106,9 @@ export type PlanDef = {
 // The ladder ascends by price. Note "Enterprise" sits at tier 2 by the founder's
 // naming, so it is NOT the top package — Premium is.
 //
-// Add "document-parser" to Starter and "model-tuning" to Premium in the same commit
-// that builds them and lists them in AVAILABLE_FEATURES. Until then they are not for
-// sale, and `verify-billing` enforces that.
-const STARTER_FEATURES: Feature[] = ["credit-score", "statement-cruncher"];
+// Add "model-tuning" to Premium in the same commit that builds it and lists it in
+// AVAILABLE_FEATURES. Until then it is not for sale, and `verify-billing` enforces that.
+const STARTER_FEATURES: Feature[] = ["credit-score", "statement-cruncher", "document-parser"];
 const ENTERPRISE_FEATURES: Feature[] = [...STARTER_FEATURES, "crb", "id-verify"];
 const ADVANCED_FEATURES: Feature[] = [...ENTERPRISE_FEATURES, "riri", "route-planner"];
 const PREMIUM_FEATURES: Feature[] = [...ADVANCED_FEATURES, "portfolio-scan"];
@@ -120,7 +118,7 @@ export const PLANS: Record<OrgPlan, PlanDef> = {
     key: "STARTER",
     name: "Starter",
     monthlyKes: 10_000,
-    blurb: "Lend on our rails. The full loan book, real-time credit scoring and the M-Pesa statement cruncher.",
+    blurb: "Lend on our rails. The full loan book, credit scoring, the M-Pesa cruncher and the document parser.",
     features: STARTER_FEATURES,
     included: { score: 300, statement: 150, document: 100, sms: 500 },
     seats: 5,

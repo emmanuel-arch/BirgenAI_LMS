@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, ShieldCheck, Bot, Package, GitBranch, Crown,
+  Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, ShieldCheck, Bot, Package, GitBranch, Crown, ScanLine,
 } from "lucide-react";
 import { SignOutButton } from "./signout";
 
@@ -21,6 +21,7 @@ const MODULES = [
   { icon: Landmark, title: "Repayments", desc: "STK requests, C2B receipts, unallocated exceptions", ready: true, href: "/console/repayments" },
   { icon: Gauge, title: "Credit Intelligence", desc: "Portfolio early-warning watchlist, risk scores, one-tap recovery", ready: true, href: "/console/intelligence" },
   { icon: MapPin, title: "Field & Routes", desc: "Geo-pinned verifications, nearest-agent allocation, drive routes", ready: true, href: "/console/field" },
+  { icon: ScanLine, title: "Document Parser", desc: "Fee structures, invoices, permits, statements → structured figures", ready: true, href: "/console/documents" },
   { icon: MessageSquare, title: "SMS & Comms", desc: "Templates, campaigns, delivery billing", ready: false },
   { icon: Bot, title: "Riri Assistant", desc: "Talk to your book — 3 models: Analyst (live data), Copilot & Max", ready: true, open: "analyst" },
   { icon: FileText, title: "Reports", desc: "Portfolio report & loan statements — print or save as PDF", ready: true, href: "/console/report" },

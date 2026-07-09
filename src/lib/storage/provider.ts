@@ -26,6 +26,9 @@ import { randomUUID } from "node:crypto";
 export type StorageMode = "simulation" | "live";
 
 export const KYC_BUCKET = "kyc-private";
+/** Borrower paperwork: fee structures, invoices, permits, statements. Also private. */
+export const DOCS_BUCKET = "docs-private";
+export const BUCKETS = [KYC_BUCKET, DOCS_BUCKET] as const;
 /** Long enough to render an <img>, short enough that a leaked URL is stale. */
 export const SIGNED_URL_TTL_SEC = 120;
 /**
@@ -112,11 +115,29 @@ export async function putKycObject(
 ): Promise<string> {
   const { buffer, contentType } = decodeImageDataUrl(dataUrl);
   const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
-  const key = `${orgId}/${sessionId}/${kind}-${randomUUID()}.${ext}`;
+  return putObject(KYC_BUCKET, `${orgId}/${sessionId}/${kind}-${randomUUID()}.${ext}`, buffer, contentType);
+}
 
+/**
+ * Store one borrower document. Same key shape as KYC — org prefix so tenancy is
+ * checkable from the key, uuid so the path is unguessable — in its own bucket, so a
+ * retention policy for paperwork never touches a national-ID photo.
+ */
+export async function putDocumentObject(
+  orgId: string,
+  documentId: string,
+  buffer: Buffer,
+  contentType: string,
+): Promise<string> {
+  const ext = contentType === "application/pdf" ? "pdf" : contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+  return putObject(DOCS_BUCKET, `${orgId}/${documentId}/source-${randomUUID()}.${ext}`, buffer, contentType);
+}
+
+/** Write bytes. Simulation prefixes the key with `sim/` and stores nothing. */
+async function putObject(bucket: string, key: string, buffer: Buffer, contentType: string): Promise<string> {
   if (storageMode() === "simulation") return `sim/${key}`;
 
-  const res = await fetch(`${supabaseUrl()}/storage/v1/object/${KYC_BUCKET}/${key}`, {
+  const res = await fetch(`${supabaseUrl()}/storage/v1/object/${bucket}/${key}`, {
     method: "POST",
     headers: headers({ "Content-Type": contentType, "Cache-Control": "no-store" }),
     body: new Uint8Array(buffer),
@@ -127,10 +148,10 @@ export async function putKycObject(
 }
 
 /** A short-lived read URL, or null when the key was never really uploaded. */
-export async function signedUrl(key: string, ttlSec = SIGNED_URL_TTL_SEC): Promise<string | null> {
+export async function signedUrl(key: string, ttlSec = SIGNED_URL_TTL_SEC, bucket: string = KYC_BUCKET): Promise<string | null> {
   if (!key || key.startsWith("sim/") || storageMode() === "simulation") return null;
 
-  const res = await fetch(`${supabaseUrl()}/storage/v1/object/sign/${KYC_BUCKET}/${key}`, {
+  const res = await fetch(`${supabaseUrl()}/storage/v1/object/sign/${bucket}/${key}`, {
     method: "POST",
     headers: headers({ "Content-Type": "application/json" }),
     body: JSON.stringify({ expiresIn: ttlSec }),
@@ -142,11 +163,11 @@ export async function signedUrl(key: string, ttlSec = SIGNED_URL_TTL_SEC): Promi
 }
 
 /** Erasure (DPA right to deletion). Best-effort, never throws. */
-export async function deleteKycObjects(keys: string[]): Promise<number> {
+export async function deleteObjects(keys: string[], bucket: string = KYC_BUCKET): Promise<number> {
   const real = keys.filter((k) => k && !k.startsWith("sim/"));
   if (real.length === 0 || storageMode() === "simulation") return 0;
   try {
-    const res = await fetch(`${supabaseUrl()}/storage/v1/object/${KYC_BUCKET}`, {
+    const res = await fetch(`${supabaseUrl()}/storage/v1/object/${bucket}`, {
       method: "DELETE",
       headers: headers({ "Content-Type": "application/json" }),
       body: JSON.stringify({ prefixes: real }),
@@ -157,6 +178,9 @@ export async function deleteKycObjects(keys: string[]): Promise<number> {
     return 0;
   }
 }
+
+/** @deprecated Use deleteObjects. Kept so existing erasure call sites keep working. */
+export const deleteKycObjects = (keys: string[]) => deleteObjects(keys, KYC_BUCKET);
 
 /** Does this key belong to this tenant? Cheap check before we hit the DB. */
 export function keyBelongsToOrg(key: string, orgId: string): boolean {

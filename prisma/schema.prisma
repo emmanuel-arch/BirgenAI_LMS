@@ -101,6 +101,7 @@ model Org {
   workflows     Workflow[]
   applications  LoanApplication[]
   offers        LoanOffer[]
+  documents     Document[]
   loans         Loan[]
   usageEvents   UsageEvent[]
   fieldVisits   FieldVisit[]
@@ -408,6 +409,7 @@ model Borrower {
   kycChecks    KycCheck[]
   applications LoanApplication[]
   offers       LoanOffer[]
+  documents    Document[]
   loans        Loan[]
   fieldVisits  FieldVisit[]
 
@@ -606,6 +608,64 @@ model LoanApplication {
   @@index([orgId, status])
   @@index([orgId, borrowerId])
   @@index([orgId, outcome])
+}
+
+enum DocumentKind {
+  FEE_STRUCTURE
+  INVOICE
+  PERMIT
+  BANK_STATEMENT
+  NATIONAL_ID
+  OTHER
+}
+
+enum DocumentStatus {
+  PARSED // fields read, confidence above the review threshold
+  NEEDS_REVIEW // read, but an expected field is missing — a human checks it
+  UNPARSED // stored, unreadable without OCR (a photo, or a scanned PDF)
+  FAILED // the file could not be opened at all
+}
+
+/// A borrower's paperwork: fee structures, invoices, permits, statements, IDs.
+///
+/// The bytes live in a private bucket; only the extracted fields live here. Raw
+/// document text is deliberately NOT stored — it is PII, and we have no use for it
+/// once the fields are out. `confidence` is the share of a kind's needed fields we
+/// found, not a probability, and anything below the review threshold is flagged
+/// rather than trusted.
+model Document {
+  id            String  @id @default(uuid())
+  orgId         String
+  borrowerId    String?
+  applicationId String?
+  loanId        String?
+
+  kind        DocumentKind
+  filename    String
+  contentType String
+  bytes       Int
+  pages       Int?
+  /// Object key in the private docs bucket. `sim/…` ⇒ storage is simulated.
+  storageKey  String
+
+  status     DocumentStatus
+  confidence Float          @default(0)
+  /// Structured output. Shape depends on `kind`; see lib/documents/extract.ts.
+  fields     Json?
+  /// What is missing, or why it could not be read — in words an officer can act on.
+  note       String?
+  parserMode String         @default("simulation")
+
+  uploadedBy String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  org      Org       @relation(fields: [orgId], references: [id])
+  borrower Borrower? @relation(fields: [borrowerId], references: [id])
+
+  @@index([orgId, createdAt])
+  @@index([orgId, borrowerId])
+  @@index([orgId, status])
 }
 
 enum OfferStatus {

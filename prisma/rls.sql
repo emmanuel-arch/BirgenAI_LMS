@@ -40,7 +40,7 @@ DECLARE
   tables text[] := ARRAY[
     'OrgIntegration','OrgSubscription','Branch','Role','StaffUser','FieldVisit','KycSession',
     'OtpChallenge','AuditLog','Borrower','Consent','KycCheck','Product','Workflow',
-    'LoanApplication','LoanOffer','Loan','Installment','Disbursement','PaymentIntent','C2BReceipt',
+    'LoanApplication','LoanOffer','Document','Loan','Installment','Disbursement','PaymentIntent','C2BReceipt',
     'FloatLedger','SmsMessage','SmsTemplate','ScoreSnapshot','GeoPin','UsageEvent'
   ];
 BEGIN

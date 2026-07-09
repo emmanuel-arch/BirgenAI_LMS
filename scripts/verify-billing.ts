@@ -52,8 +52,8 @@ async function main() {
       ok(`${PLANS[key].name} sells only built features`, sold.length === 0, sold.join(", ") || "clean");
     }
     ok("a roadmap feature has no price — cheapestPlanWith returns null",
-      cheapestPlanWith("document-parser") === null && cheapestPlanWith("model-tuning") === null);
-    ok("an unbuilt tool is never billable", !isBillableKind("document"));
+      cheapestPlanWith("model-tuning") === null);
+    ok("the parser is built, so its meter is billable", isBillableKind("document") && isAvailable("document-parser"));
     ok("every billable kind maps to a built feature or to none",
       USAGE_KINDS.filter(isBillableKind).every((k) => KIND_FEATURE[k] === null || isAvailable(KIND_FEATURE[k]!)));
     ok("route-planner IS built, so Advanced may charge for it",
@@ -66,8 +66,8 @@ async function main() {
     ok("does NOT have Riri", !ent.features.has("riri"));
     ok("does NOT have the route planner", !ent.features.has("route-planner"));
     ok("does NOT have early-warning", !ent.features.has("portfolio-scan"));
-    ok("is never granted an unbuilt feature, even though the plan lists it",
-      !ent.features.has("document-parser"));
+    ok("has the document parser, which Starter now genuinely includes", ent.features.has("document-parser"));
+    ok("is never granted an unbuilt feature", !ent.features.has("model-tuning"));
     ok("starts on a trial, so onboarding never hits a paywall", ent.status === "TRIALING" && ent.paying);
     ok("seats come from the plan", ent.seats === PLANS.STARTER.seats);
 
