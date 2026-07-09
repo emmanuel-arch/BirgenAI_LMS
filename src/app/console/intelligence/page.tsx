@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Gauge, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Gauge, ShieldAlert, SlidersHorizontal } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { hasFeature } from "@/lib/billing/entitlements";
 import { UpgradeCard } from "@/components/billing/UpgradeCard";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
+import { tuningFor, isDefault } from "@/lib/intelligence/tuning";
 import { Watchlist } from "./Watchlist";
 
 export const runtime = "nodejs";
@@ -34,7 +35,14 @@ export default async function IntelligencePage() {
     );
   }
 
-  const ew = await portfolioEarlyWarning(session.user.orgId);
+  // Premium can shape this policy. Everyone else is scored on the BirgenAI defaults,
+  // and the page says which — a risk score with no stated policy behind it is a rumour.
+  const [ew, tuneEntitled, tuning] = await Promise.all([
+    portfolioEarlyWarning(session.user.orgId),
+    hasFeature(session.user.orgId, "model-tuning"),
+    tuningFor(session.user.orgId),
+  ]);
+  const isTuned = !isDefault(tuning);
   const parPct = ew.tiles.olb > 0 ? (ew.tiles.atRiskValue / ew.tiles.olb) * 100 : 0;
 
   const TILES = [
@@ -56,8 +64,19 @@ export default async function IntelligencePage() {
             <h1 className="text-xl font-bold flex items-center gap-2"><Gauge className="h-5 w-5" style={{ color: "var(--brand)" }} /> Credit Intelligence</h1>
             <p className="mt-1 text-sm text-zinc-500 max-w-2xl">Portfolio early-warning. Every active loan is scored on live repayment behaviour, the origination model&apos;s PD, and structural risk — so you recover the money before it walks.</p>
           </div>
-          <span className="rounded-full bg-white/70 px-3 py-1 text-[11px] font-medium text-zinc-500 border border-zinc-900/10">Closed ML loop · updated just now</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {tuneEntitled && (
+              <Link href="/console/intelligence/tuning"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white">
+                <SlidersHorizontal className="h-3.5 w-3.5" /> {isTuned ? "Your risk policy" : "Tune the policy"}
+              </Link>
+            )}
+            <span className="rounded-full bg-white/70 px-3 py-1 text-[11px] font-medium text-zinc-500 border border-zinc-900/10">Closed ML loop · updated just now</span>
+          </div>
         </div>
+        <p className="mt-2 text-[11px] text-zinc-400">
+          {isTuned ? "Scored with your own risk policy." : "Scored with the BirgenAI default risk policy."} Anyone in arrears is shown, whatever they score.
+        </p>
 
         <div className="mt-5 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {TILES.map((t) => (

@@ -56,7 +56,7 @@ export const AVAILABLE_FEATURES: Feature[] = [
   "riri",
   "route-planner",
   "portfolio-scan",
-  // "model-tuning" — the early-warning weights are the tuning surface; no UI yet.
+  "model-tuning",
 ];
 
 export const isAvailable = (f: Feature): boolean => AVAILABLE_FEATURES.includes(f);
@@ -106,12 +106,12 @@ export type PlanDef = {
 // The ladder ascends by price. Note "Enterprise" sits at tier 2 by the founder's
 // naming, so it is NOT the top package — Premium is.
 //
-// Add "model-tuning" to Premium in the same commit that builds it and lists it in
-// AVAILABLE_FEATURES. Until then it is not for sale, and `verify-billing` enforces that.
+// Everything on this ladder is built. Add a feature here only in the same commit that
+// implements it and lists it in AVAILABLE_FEATURES — `verify-billing` enforces that.
 const STARTER_FEATURES: Feature[] = ["credit-score", "statement-cruncher", "document-parser"];
 const ENTERPRISE_FEATURES: Feature[] = [...STARTER_FEATURES, "crb", "id-verify"];
 const ADVANCED_FEATURES: Feature[] = [...ENTERPRISE_FEATURES, "riri", "route-planner"];
-const PREMIUM_FEATURES: Feature[] = [...ADVANCED_FEATURES, "portfolio-scan"];
+const PREMIUM_FEATURES: Feature[] = [...ADVANCED_FEATURES, "portfolio-scan", "model-tuning"];
 
 export const PLANS: Record<OrgPlan, PlanDef> = {
   STARTER: {
@@ -145,7 +145,7 @@ export const PLANS: Record<OrgPlan, PlanDef> = {
     key: "PREMIUM",
     name: "Premium",
     monthlyKes: 30_000,
-    blurb: "See defaults coming. Adds portfolio early-warning and unlimited seats.",
+    blurb: "See defaults coming. Adds portfolio early-warning, your own risk policy and unlimited seats.",
     features: PREMIUM_FEATURES,
     included: { score: 10_000, statement: 5_000, document: 3_000, crb: 1_000, kyc: 1_500, riri_query: 10_000, sms: 5_000 },
     seats: null,

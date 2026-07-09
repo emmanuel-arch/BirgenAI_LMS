@@ -10,9 +10,15 @@
 // (request payment via STK, or dispatch the nearest field agent).
 //
 // Deterministic and rules-based on purpose: every number an officer sees can be
-// explained and defended. The weights are the tuning surface.
+// explained and defended. The weights ARE the tuning surface, and they now live in
+// lib/intelligence/tuning.ts as a per-org policy rather than as constants here.
+// DEFAULT_CONFIG holds the numbers this file used to hard-code, so an org that has
+// never opened the tuning page is scored exactly as it was before — `verify-tuning`
+// asserts that, because a silent change to a risk score is a silent change to who
+// gets a debt collector at their door.
 // ─────────────────────────────────────────────────────────────────────────────
 import { prisma } from "@/lib/prisma";
+import { tuningFor, type TuningConfig } from "./tuning";
 
 export type RiskBand = "WATCH" | "ELEVATED" | "HIGH";
 export type RiskActionKind = "FIELD_VISIT" | "REQUEST_PAYMENT" | "MONITOR";
@@ -44,9 +50,20 @@ export type EarlyWarning = {
 };
 
 const num = (d: unknown) => Number(d ?? 0);
-const bandOf = (score: number): RiskBand => (score >= 65 ? "HIGH" : score >= 38 ? "ELEVATED" : "WATCH");
 
-export async function portfolioEarlyWarning(orgId: string): Promise<EarlyWarning> {
+/**
+ * Score the org's live book.
+ *
+ * `override` runs the engine against a policy that has NOT been saved — that is how
+ * the tuning page shows a Credit Manager what a change would do to their real
+ * borrowers before they commit to it. Nothing is written either way; this function
+ * only reads.
+ */
+export async function portfolioEarlyWarning(orgId: string, override?: TuningConfig): Promise<EarlyWarning> {
+  const { weights: w, thresholds: t } = override ?? (await tuningFor(orgId));
+  const bandOf = (score: number): RiskBand =>
+    score >= t.highBand ? "HIGH" : score >= t.elevatedBand ? "ELEVATED" : "WATCH";
+
   const loans = await prisma.loan.findMany({
     where: { orgId, status: "ACTIVE" },
     include: {
@@ -83,27 +100,27 @@ export async function portfolioEarlyWarning(orgId: string): Promise<EarlyWarning
     let risk = 0;
     const reasons: string[] = [];
     // In-life arrears — the dominant signal.
-    if (dpd > 60) { risk += 55; reasons.push(`${dpd} days past due`); }
-    else if (dpd >= 31) { risk += 42; reasons.push(`${dpd} days past due`); }
-    else if (dpd >= 8) { risk += 28; reasons.push(`${dpd} days past due`); }
-    else if (dpd >= 1) { risk += 14; reasons.push(`${dpd} day${dpd === 1 ? "" : "s"} past due`); }
-    if (overdueCount >= 3) { risk += 12; reasons.push(`${overdueCount} missed installments`); }
-    else if (overdueCount === 2) { risk += 7; reasons.push(`2 missed installments`); }
-    if (dueSoFar.length >= 2 && paidRatio < 0.5) { risk += 12; reasons.push(`only ${Math.round(paidRatio * 100)}% of dues paid`); }
-    else if (dueSoFar.length >= 2 && paidRatio < 0.75) { risk += 6; reasons.push(`weak repayment trajectory`); }
+    if (dpd > 60) { risk += w.dpdOver60; reasons.push(`${dpd} days past due`); }
+    else if (dpd >= 31) { risk += w.dpd31to60; reasons.push(`${dpd} days past due`); }
+    else if (dpd >= 8) { risk += w.dpd8to30; reasons.push(`${dpd} days past due`); }
+    else if (dpd >= 1) { risk += w.dpd1to7; reasons.push(`${dpd} day${dpd === 1 ? "" : "s"} past due`); }
+    if (overdueCount >= 3) { risk += w.missed3Plus; reasons.push(`${overdueCount} missed installments`); }
+    else if (overdueCount === 2) { risk += w.missed2; reasons.push(`2 missed installments`); }
+    if (dueSoFar.length >= 2 && paidRatio < 0.5) { risk += w.paidRatioUnder50; reasons.push(`only ${Math.round(paidRatio * 100)}% of dues paid`); }
+    else if (dueSoFar.length >= 2 && paidRatio < 0.75) { risk += w.paidRatioUnder75; reasons.push(`weak repayment trajectory`); }
     // Origination signal (closed ML loop).
-    if (pd != null && pd >= 0.25) { risk += 12; reasons.push(`high model PD ${pd.toFixed(2)}`); }
-    else if (pd != null && pd >= 0.15) { risk += 6; reasons.push(`elevated model PD ${pd.toFixed(2)}`); }
-    if (score != null && score < 500) { risk += 12; reasons.push(`credit score ${score}`); }
-    else if (score != null && score < 600) { risk += 6; reasons.push(`credit score ${score}`); }
+    if (pd != null && pd >= t.pdHighAt) { risk += w.modelPdHigh; reasons.push(`high model PD ${pd.toFixed(2)}`); }
+    else if (pd != null && pd >= t.pdElevatedAt) { risk += w.modelPdElevated; reasons.push(`elevated model PD ${pd.toFixed(2)}`); }
+    if (score != null && score < 500) { risk += w.creditScoreUnder500; reasons.push(`credit score ${score}`); }
+    else if (score != null && score < 600) { risk += w.creditScoreUnder600; reasons.push(`credit score ${score}`); }
     // Structural risk.
-    if (priorLoans === 0) { risk += 8; reasons.push(`first-cycle borrower`); }
-    if (l.borrower.kycStatus !== "VERIFIED") { risk += 8; reasons.push(`KYC not verified`); }
-    if (avgBalance > 0 && balance > avgBalance * 1.5) { risk += 6; reasons.push(`large exposure`); }
+    if (priorLoans === 0) { risk += w.firstCycle; reasons.push(`first-cycle borrower`); }
+    if (l.borrower.kycStatus !== "VERIFIED") { risk += w.kycUnverified; reasons.push(`KYC not verified`); }
+    if (avgBalance > 0 && balance > avgBalance * t.largeExposureMultiple) { risk += w.largeExposure; reasons.push(`large exposure`); }
 
     const riskScore = Math.min(100, Math.round(risk));
     // Only surface borrowers that actually warrant attention.
-    if (riskScore < 20 && dpd === 0) continue;
+    if (riskScore < t.surfaceAt && dpd === 0) continue;
 
     const band = bandOf(riskScore);
     // Estimated PD for expected-loss: blend model PD with the behavioural score.
@@ -111,7 +128,7 @@ export async function portfolioEarlyWarning(orgId: string): Promise<EarlyWarning
     const expectedLoss = balance * pdEstimate;
 
     let action: RiskAction;
-    if (dpd >= 31 && hasGeo) action = { kind: "FIELD_VISIT", label: "Dispatch field agent" };
+    if (dpd >= t.fieldVisitAtDpd && hasGeo) action = { kind: "FIELD_VISIT", label: "Dispatch field agent" };
     else if (dpd >= 1) action = { kind: "REQUEST_PAYMENT", label: "Request payment" };
     else action = { kind: "MONITOR", label: "Proactive check-in" };
 

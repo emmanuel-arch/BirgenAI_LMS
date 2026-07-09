@@ -102,6 +102,7 @@ model Org {
   applications  LoanApplication[]
   offers        LoanOffer[]
   documents     Document[]
+  tuning        TuningProfile?
   loans         Loan[]
   usageEvents   UsageEvent[]
   fieldVisits   FieldVisit[]
@@ -608,6 +609,31 @@ model LoanApplication {
   @@index([orgId, status])
   @@index([orgId, borrowerId])
   @@index([orgId, outcome])
+}
+
+/// A lender's own scoring policy for Portfolio Early Warning.
+///
+/// Advisory only: these weights decide who an officer is told to call first. They
+/// cannot change a schedule, a balance, or a credit decision already made. Absent a
+/// row, the engine runs on DEFAULT_WEIGHTS and behaves exactly as it always has.
+///
+/// Every save is validated, clamped and written to the audit log — a scoring policy
+/// a lender cannot explain is a scoring policy a regulator will not accept.
+model TuningProfile {
+  id     String @id @default(uuid())
+  orgId  String @unique
+  /// Points added per risk factor. See lib/intelligence/tuning.ts → Weights.
+  weights    Json
+  /// Band cut-offs and the thresholds the weights key off. → Thresholds.
+  thresholds Json
+  /// Bumped on every save, so a score can be traced to the policy that produced it.
+  version    Int    @default(1)
+  note       String?
+  updatedBy  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  org Org @relation(fields: [orgId], references: [id])
 }
 
 enum DocumentKind {

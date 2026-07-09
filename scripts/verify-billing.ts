@@ -51,8 +51,9 @@ async function main() {
       const sold = PLANS[key].features.filter((f) => !isAvailable(f));
       ok(`${PLANS[key].name} sells only built features`, sold.length === 0, sold.join(", ") || "clean");
     }
-    ok("a roadmap feature has no price — cheapestPlanWith returns null",
-      cheapestPlanWith("model-tuning") === null);
+    ok("every feature on the ladder is built", PLAN_ORDER.every((k) => PLANS[k].features.every(isAvailable)));
+    ok("model tuning is built, and Premium is where it lives",
+      isAvailable("model-tuning") && cheapestPlanWith("model-tuning")?.key === "PREMIUM");
     ok("the parser is built, so its meter is billable", isBillableKind("document") && isAvailable("document-parser"));
     ok("every billable kind maps to a built feature or to none",
       USAGE_KINDS.filter(isBillableKind).every((k) => KIND_FEATURE[k] === null || isAvailable(KIND_FEATURE[k]!)));
@@ -67,7 +68,7 @@ async function main() {
     ok("does NOT have the route planner", !ent.features.has("route-planner"));
     ok("does NOT have early-warning", !ent.features.has("portfolio-scan"));
     ok("has the document parser, which Starter now genuinely includes", ent.features.has("document-parser"));
-    ok("is never granted an unbuilt feature", !ent.features.has("model-tuning"));
+    ok("does NOT have model tuning — that is Premium's", !ent.features.has("model-tuning"));
     ok("starts on a trial, so onboarding never hits a paywall", ent.status === "TRIALING" && ent.paying);
     ok("seats come from the plan", ent.seats === PLANS.STARTER.seats);
 
@@ -75,7 +76,7 @@ async function main() {
     await runWithOrg(org.id, () => prisma.orgSubscription.update({
       where: { orgId: org.id },
       data: {
-        featureOverrides: { crb: true, "model-tuning": true } as Prisma.InputJsonValue,
+        featureOverrides: { crb: true, "made-up-feature": true } as Prisma.InputJsonValue,
         includedOverrides: { crb: 250 } as Prisma.InputJsonValue,
         seatsOverride: 12,
       },
@@ -86,8 +87,8 @@ async function main() {
     ok("raised the CRB allowance to 250", ent.included.crb === 250);
     ok("seat override wins over the plan", ent.seats === 12);
     ok("the override did NOT leak other features", !ent.features.has("riri"));
-    ok("a salesperson cannot promise an unbuilt feature into existence",
-      !ent.features.has("model-tuning"));
+    ok("a salesperson cannot promise a feature that does not exist into existence",
+      ![...ent.features].includes("made-up-feature" as never));
 
     console.log("\n4. A lapsed subscription revokes metered features — never the loan book");
     await runWithOrg(org.id, () => prisma.org.update({ where: { id: org.id }, data: { plan: "PREMIUM" } }));
