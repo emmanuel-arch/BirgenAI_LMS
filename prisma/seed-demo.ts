@@ -12,11 +12,12 @@
 // All demo accounts share the password: Demo1234! (shown on /demo).
 // ─────────────────────────────────────────────────────────────────────────────
 import "dotenv/config";
-import { PrismaClient, OrgMode, OrgStatus, OrgPlan } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { OrgMode, OrgStatus, OrgPlan } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { platformPrisma } from "./seed-client";
 
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
+// Seeds write across orgs, so they connect platform-scoped (see seed-client.ts).
+const prisma = platformPrisma();
 
 const SLUG = "demo";
 const PASSWORD = "Demo1234!";

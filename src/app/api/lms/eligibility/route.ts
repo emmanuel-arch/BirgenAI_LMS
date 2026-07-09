@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveOrg } from "@/lib/tenancy";
+import { enterOrg } from "@/lib/db/context";
 import { checkGraduation } from "@/lib/lms/servicesuite";
 
 export const runtime = "nodejs";
@@ -29,6 +30,8 @@ export async function POST(req: NextRequest) {
   if (!phone) return NextResponse.json({ success: false, message: "Enter your phone number." }, { status: 400 });
 
   const org = await resolveOrg(body.lenderSlug ?? "");
+  // Bind the RLS tenant in OUR async context (enterWith does not escape a callee).
+  if (org) enterOrg(org.id);
   if (!org) return NextResponse.json({ success: false, message: "Choose a lender." }, { status: 400 });
 
   // NATIVE: graduation from our own loan book.

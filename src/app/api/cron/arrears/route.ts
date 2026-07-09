@@ -7,7 +7,8 @@
 //     the exact T-2 day, so reruns the same day are the only repeat risk)
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { prisma, orgTx } from "@/lib/prisma";
+import { runAsPlatform } from "@/lib/db/context";
 import { sendSms } from "@/lib/sms/send";
 
 export const runtime = "nodejs";
@@ -54,7 +55,7 @@ async function run() {
     const rate = inst.loan.product.penaltyRate != null ? Number(inst.loan.product.penaltyRate) : 0;
     const addPenalty = Number(inst.penalty) === 0 && rate > 0 ? round2(outstanding * (rate / 100)) : 0;
 
-    await prisma.$transaction(async (tx) => {
+    await orgTx(async (tx) => {
       await tx.installment.update({
         where: { id: inst.id },
         data: { status: "OVERDUE", ...(addPenalty > 0 ? { penalty: new Prisma.Decimal(addPenalty) } : {}) },
@@ -121,7 +122,8 @@ async function run() {
 export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   try {
-    const stats = await run();
+    // The arrears sweep spans every lender's book, so it runs platform-scoped.
+    const stats = await runAsPlatform(run);
     return NextResponse.json({ success: true, ranAt: new Date().toISOString(), ...stats });
   } catch (err) {
     return NextResponse.json({ success: false, message: err instanceof Error ? err.message : "Arrears run failed." }, { status: 500 });

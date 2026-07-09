@@ -10,7 +10,9 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 
-const COOKIE = "lms_session";
+/** Also read by the Prisma client to resolve the RLS tenant (db/session-tenant.ts). */
+export const SESSION_COOKIE = "lms_session";
+const COOKIE = SESSION_COOKIE;
 const MAX_AGE_S = 60 * 60 * 12; // 12h — lending consoles shouldn't idle for days
 
 export type SessionUser = {

@@ -1,10 +1,22 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // BirgenAI_LMS — core schema (Phase 0 first cut).
 //
-// Multi-tenancy: every tenant-scoped row carries orgId. Postgres RLS policies
-// (prisma/rls.sql, applied via migration) enforce isolation at the DB layer on
-// top of app-level scoping — a cross-tenant leak must be architecturally
-// impossible, not just unlikely.
+// Multi-tenancy: every tenant-scoped row carries orgId, and Postgres RLS
+// enforces it at the DB layer on top of app-level scoping — a cross-tenant leak
+// must be architecturally impossible, not just unlikely.
+//
+// Three things must all hold, or RLS silently buys nothing:
+//   1. `npm run db:rls`       — ENABLE + FORCE row security and the policies
+//                               (re-run after any `db:push` that adds a table).
+//   2. `npm run db:app-role`  — the app connects as `lms_app`, which has NO
+//                               BYPASSRLS. Supabase's `postgres` role bypasses
+//                               RLS entirely, FORCE included. DATABASE_URL must
+//                               point at lms_app; DIRECT_URL stays the owner.
+//   3. src/lib/prisma.ts      — stamps each transaction with the caller's tenant
+//                               (`app.org_id`) so the policies have something to
+//                               compare against. No stamp ⇒ no rows.
+//
+// `npm run db:rls:verify` runs a cross-tenant attack suite that proves all three.
 //
 // Bridged orgs (Micromart/Axe/BuySimu) keep their loan book in ServiceSuite;
 // the adapter links records via serviceSuite* fields. Native orgs book here.

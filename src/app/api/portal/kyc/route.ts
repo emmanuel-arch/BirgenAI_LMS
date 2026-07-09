@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { resolveOrg } from "@/lib/tenancy";
+import { enterOrg } from "@/lib/db/context";
 import {
   kycMode, assessIdQuality, extractId, assessLiveness, faceMatch, iprsLookup, portraitKeyFrom,
 } from "@/lib/kyc/provider";
@@ -35,6 +36,8 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
   const org = await resolveOrg(body.lenderSlug ?? "");
+  // Bind the RLS tenant in OUR async context (enterWith does not escape a callee).
+  if (org) enterOrg(org.id);
   if (!org) return NextResponse.json({ success: false, message: "Choose a lender." }, { status: 400 });
 
   const phone = (body.phone ?? "").replace(/\D/g, "");

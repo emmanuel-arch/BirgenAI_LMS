@@ -7,7 +7,7 @@
 // what graduation reads). Idempotency is the CALLER's job (unique receipt ids).
 // ─────────────────────────────────────────────────────────────────────────────
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { prisma, orgTx } from "@/lib/prisma";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -24,7 +24,7 @@ export type AllocationResult = {
 export async function allocateRepayment(loanId: string, amount: number, ref?: string): Promise<AllocationResult> {
   if (!(amount > 0)) throw new Error("Allocation amount must be positive.");
 
-  return prisma.$transaction(async (tx) => {
+  return orgTx(async (tx) => {
     const loan = await tx.loan.findUnique({
       where: { id: loanId },
       include: { installments: { orderBy: { seq: "asc" } } },

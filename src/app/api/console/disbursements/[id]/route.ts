@@ -13,7 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, orgTx } from "@/lib/prisma";
 import { initiateB2C } from "@/lib/mpesa/daraja";
 import { addFloatEntry, floatBalance } from "@/lib/lending/float";
 import { sendSms } from "@/lib/sms/send";
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (body.action === "manual") {
     const ref = (body.ref ?? "").trim();
     if (ref.length < 6) return NextResponse.json({ success: false, message: "Enter the M-Pesa/bank reference of the payment." }, { status: 400 });
-    await prisma.$transaction(async (tx) => {
+    await orgTx(async (tx) => {
       await tx.disbursement.update({
         where: { id: disb.id },
         data: { state: "MANUAL_CONFIRMED", checkerId: session.user!.id, receiptRef: ref },

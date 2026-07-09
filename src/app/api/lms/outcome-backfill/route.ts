@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth, hasAdminAccess } from "@/lib/auth";
+import { runAsPlatform } from "@/lib/db/context";
 import { backfillOutcomes } from "@/lib/lms/outcome";
 
 export const runtime = "nodejs";
@@ -34,7 +35,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   }
   try {
-    const result = await backfillOutcomes({});
+    // Sweeps every lender's book — platform-scoped by necessity.
+    const result = await runAsPlatform(() => backfillOutcomes({}));
     return NextResponse.json({ success: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Backfill failed.";
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await backfillOutcomes({ lenderSlug });
+    const result = await runAsPlatform(() => backfillOutcomes({ lenderSlug }));
     return NextResponse.json({ success: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Backfill failed.";

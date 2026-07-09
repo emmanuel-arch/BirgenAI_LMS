@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { runAsPlatform, runWithOrg } from "@/lib/db/context";
 import { verifyCallbackKey } from "@/lib/mpesa/daraja";
 
 export const runtime = "nodejs";
@@ -14,7 +15,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
   if (!verifyCallbackKey(slug, req.nextUrl.searchParams.get("key"))) {
     return NextResponse.json({ ResultCode: 1, ResultDesc: "Rejected" }, { status: 401 });
   }
-  const org = await prisma.org.findUnique({ where: { slug }, select: { id: true } });
+  // The slug is all we have until the Org registry resolves it — a platform read.
+  const org = await runAsPlatform(() => prisma.org.findUnique({ where: { slug }, select: { id: true } }));
   if (!org) return NextResponse.json({ ResultCode: 1, ResultDesc: "Unknown org" }, { status: 404 });
 
   let body: Record<string, unknown>;
@@ -22,10 +24,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
 
   const conversationId = String((body as { Result?: Record<string, unknown> }).Result?.ConversationID ?? "");
   if (conversationId) {
-    await prisma.disbursement.updateMany({
-      where: { orgId: org.id, b2cRef: conversationId, state: { in: ["SENDING", "SENT"] } },
-      data: { state: "FAILED", failReason: "B2C queue timeout", raw: body as Prisma.InputJsonValue },
-    });
+    await runWithOrg(org.id, () =>
+      prisma.disbursement.updateMany({
+        where: { orgId: org.id, b2cRef: conversationId, state: { in: ["SENDING", "SENT"] } },
+        data: { state: "FAILED", failReason: "B2C queue timeout", raw: body as Prisma.InputJsonValue },
+      }),
+    );
   }
   return NextResponse.json(ACK);
 }

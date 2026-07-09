@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { auth, hasAdminAccess } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, orgTx } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -98,15 +98,15 @@ export async function PUT(req: NextRequest) {
     if (err) return NextResponse.json({ success: false, message: err }, { status: 400 });
     // In-flight applications keep moving: their currentStageId points at old
     // stage ids, which the approval route treats as stage-1 fallback if gone.
-    await prisma.$transaction([
-      prisma.workflowStage.deleteMany({ where: { workflowId: existing.id } }),
-      prisma.workflow.update({
+    await orgTx(async (tx) => {
+      await tx.workflowStage.deleteMany({ where: { workflowId: existing.id } });
+      await tx.workflow.update({
         where: { id: existing.id },
         data: {
           title: body.title?.trim() || undefined,
           description: body.description !== undefined ? body.description?.trim() || null : undefined,
           stages: {
-            create: body.stages.map((s, i) => ({
+            create: body.stages!.map((s, i) => ({
               title: s.title!.trim(),
               order: i + 1,
               accessTier: Number(s.accessTier),
@@ -116,8 +116,8 @@ export async function PUT(req: NextRequest) {
             })),
           },
         },
-      }),
-    ]);
+      });
+    });
   } else if (body.title) {
     await prisma.workflow.update({ where: { id: existing.id }, data: { title: body.title.trim() } });
   }

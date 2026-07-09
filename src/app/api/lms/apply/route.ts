@@ -11,6 +11,7 @@ import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveOrg } from "@/lib/tenancy";
+import { enterOrg } from "@/lib/db/context";
 import { scoreThinFileAuto } from "@/lib/statement/score-thinfile";
 import type { CashflowFeatures } from "@/lib/statement/features";
 import { LMS_STAGES, stageFromDecision, type LmsStageKey } from "@/lib/lms/workflow";
@@ -68,6 +69,8 @@ export async function POST(req: NextRequest) {
   }
 
   const org = await resolveOrg(body.lenderSlug ?? "");
+  // Bind the RLS tenant in OUR async context (enterWith does not escape a callee).
+  if (org) enterOrg(org.id);
   if (!org) return NextResponse.json({ success: false, message: "Choose a lender." }, { status: 400 });
 
   const phone = (body.phone ?? "").trim();

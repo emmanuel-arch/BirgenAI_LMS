@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "prisma db push",
+    "db:rls": "tsx scripts/apply-rls.ts",
+    "db:rls:verify": "tsx scripts/verify-rls.ts",
+    "db:app-role": "tsx scripts/create-app-role.ts",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:seed:demo": "tsx prisma/seed-demo.ts"

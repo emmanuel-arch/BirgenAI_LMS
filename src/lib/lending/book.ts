@@ -10,7 +10,7 @@
 // products still book flat with a TODO until the reducing engine lands.
 // ─────────────────────────────────────────────────────────────────────────────
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { prisma, orgTx } from "@/lib/prisma";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -107,7 +107,7 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
   const loanAmount = round2(principal + interest);
   const expectedClearDate = rows[rows.length - 1].dueDate;
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await orgTx(async (tx) => {
     const loan = await tx.loan.create({
       data: {
         orgId: app.orgId,

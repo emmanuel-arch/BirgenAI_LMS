@@ -8,6 +8,7 @@
 // BRIDGED orgs that need a ServiceSuite connection.
 // ─────────────────────────────────────────────────────────────────────────────
 import { prisma } from "@/lib/prisma";
+import { runAsPlatform } from "@/lib/db/context";
 import { getOrg, getEntityId, isOrgConfigured, type OrgDef } from "@/lib/enterprise/connections";
 
 export type ResolvedOrg = {
@@ -27,10 +28,20 @@ export type ResolvedOrg = {
 export async function resolveOrg(slug: string): Promise<ResolvedOrg | null> {
   const s = (slug ?? "").trim().toLowerCase();
   if (!s) return null;
-  const row = await prisma.org.findUnique({
-    where: { slug: s },
-    select: { id: true, slug: true, name: true, mode: true, status: true, serviceSuiteEntityId: true },
-  });
+  // The Org registry is the one table with no orgId of its own, and we must read
+  // it BEFORE we know which tenant we are — a chicken-and-egg the platform scope
+  // resolves.
+  //
+  // NOTE: this function cannot bind the RLS tenant on the caller's behalf —
+  // AsyncLocalStorage.enterWith() does not propagate back out of an async callee.
+  // Borrower routes (which have no session cookie to fall back on) must call
+  // `enterOrg(org.id)` themselves right after awaiting this.
+  const row = await runAsPlatform(() =>
+    prisma.org.findUnique({
+      where: { slug: s },
+      select: { id: true, slug: true, name: true, mode: true, status: true, serviceSuiteEntityId: true },
+    }),
+  );
   if (!row) return null;
 
   const registry = row.mode === "BRIDGED" ? getOrg(row.slug) : null;

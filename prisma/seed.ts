@@ -1,11 +1,11 @@
 // Seed the four launch organizations.
 // BirgenAI Hub runs NATIVE (demo + our own book); the three lenders start
 // BRIDGED (loan book stays in their ServiceSuite; adapter reads + posts).
-import { PrismaClient, OrgMode, OrgStatus, OrgPlan } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { OrgMode, OrgStatus, OrgPlan } from "@prisma/client";
+import { platformPrisma } from "./seed-client";
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
-const prisma = new PrismaClient({ adapter });
+// Seeds write across orgs, so they connect platform-scoped (see seed-client.ts).
+const prisma = platformPrisma();
 
 const ORGS = [
   {

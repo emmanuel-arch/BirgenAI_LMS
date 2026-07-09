@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { runAsPlatform, runWithOrg } from "@/lib/db/context";
 import { issueOtp, verifyOtp } from "@/lib/otp";
 
 export const runtime = "nodejs";
@@ -52,8 +53,10 @@ export async function POST(req: NextRequest) {
   // Uniform response — never reveal whether the email exists.
   const ok = NextResponse.json({ success: true, message: "If that email is on a team, a reset code has been sent." });
   if (!body.email?.includes("@")) return ok;
-  const staff = await findStaff(body.email, body.orgSlug);
-  if (staff) await issueOtp(staff.orgId, staff.id, RESET_PURPOSE);
+  // No session yet: the email must be matched across orgs (platform read), then
+  // the OTP is issued inside that staff member's own tenant fence.
+  const staff = await runAsPlatform(() => findStaff(body.email!, body.orgSlug));
+  if (staff) await runWithOrg(staff.orgId, () => issueOtp(staff.orgId, staff.id, RESET_PURPOSE));
   return ok;
 }
 
@@ -64,13 +67,17 @@ export async function PATCH(req: NextRequest) {
   const err = validNext(body.next ?? "");
   if (err) return NextResponse.json({ success: false, message: err }, { status: 400 });
 
-  const staff = body.email?.includes("@") ? await findStaff(body.email, body.orgSlug) : null;
-  if (!staff || !(await verifyOtp(staff.orgId, staff.id, RESET_PURPOSE, body.code ?? ""))) {
-    return NextResponse.json({ success: false, message: "Invalid or expired reset code." }, { status: 403 });
-  }
-  await prisma.staffUser.update({ where: { id: staff.id }, data: { passwordHash: await bcrypt.hash(body.next!, 12) } });
-  await prisma.auditLog.create({
-    data: { orgId: staff.orgId, actorId: staff.id, actorType: "staff", action: "auth.password-reset" },
-  }).catch(() => {});
-  return NextResponse.json({ success: true, message: "Password updated — sign in with the new one." });
+  const bad = () => NextResponse.json({ success: false, message: "Invalid or expired reset code." }, { status: 403 });
+  const staff = body.email?.includes("@") ? await runAsPlatform(() => findStaff(body.email!, body.orgSlug)) : null;
+  if (!staff) return bad();
+
+  // The code check and the write both happen inside the staff member's tenant.
+  return runWithOrg(staff.orgId, async () => {
+    if (!(await verifyOtp(staff.orgId, staff.id, RESET_PURPOSE, body.code ?? ""))) return bad();
+    await prisma.staffUser.update({ where: { id: staff.id }, data: { passwordHash: await bcrypt.hash(body.next!, 12) } });
+    await prisma.auditLog.create({
+      data: { orgId: staff.orgId, actorId: staff.id, actorType: "staff", action: "auth.password-reset" },
+    }).catch(() => {});
+    return NextResponse.json({ success: true, message: "Password updated — sign in with the new one." });
+  });
 }
