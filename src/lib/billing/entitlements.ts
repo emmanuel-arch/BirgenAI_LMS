@@ -76,10 +76,14 @@ async function resolve(orgId: string): Promise<Entitlements> {
     const org = await prisma.org.findUniqueOrThrow({ where: { id: orgId }, select: { slug: true, plan: true } });
     const { start, end } = monthWindow();
 
+    // A brand-new lender starts on a trial of whatever plan they were assigned,
+    // so onboarding never dead-ends at a paywall. The upsert can RACE ITSELF on
+    // an org's very first request — the console layout and page both resolve
+    // entitlements concurrently, Prisma's upsert is find-then-create under the
+    // driver adapter, and the loser throws P2002. The row it wanted now exists,
+    // so the losing side just reads it.
     const sub = await prisma.orgSubscription.upsert({
       where: { orgId },
-      // A brand-new lender starts on a trial of whatever plan they were assigned,
-      // so onboarding never dead-ends at a paywall.
       create: {
         orgId,
         status: "TRIALING",
@@ -88,6 +92,11 @@ async function resolve(orgId: string): Promise<Entitlements> {
         currentPeriodEnd: end,
       },
       update: {},
+    }).catch(async (e: unknown) => {
+      if ((e as { code?: string })?.code === "P2002") {
+        return prisma.orgSubscription.findUniqueOrThrow({ where: { orgId } });
+      }
+      throw e;
     });
 
     // An expired trial is PAST_DUE until someone pays, but we don't mutate here —

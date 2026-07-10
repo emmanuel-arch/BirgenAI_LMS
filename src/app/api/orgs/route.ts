@@ -1,13 +1,21 @@
 // POST /api/orgs — self-onboard a new lending organization (ServiceSuite
 // NewEntity parity, self-service). Creates in ONE transaction:
 //   Org (status PENDING — platform approves before it can transact)
-//   + "Org Admin" role  + "Head Office" branch
+//   + starter roles ("Org Admin" with everything, plus Loan Officer /
+//     Branch Manager / Finance with sensible defaults, so the Roles page is a
+//     working example rather than a blank slate)
+//   + "Head Office" branch
 //   + the admin StaffUser (ACTIVE so they can sign in and configure the vault
 //     while approval is pending; money-moving surfaces stay gated on org status)
+// The onboarding wizard may attach a logo (base64, size-capped); it uploads
+// AFTER the transaction and must never fail the onboarding itself.
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma, orgTx } from "@/lib/prisma";
 import { runAsPlatform } from "@/lib/db/context";
+import { rateLimit, clientIp } from "@/lib/ratelimit";
+import { putBrandLogo, InvalidImageError } from "@/lib/storage/provider";
+import { isHexColor, accentSoftFrom } from "@/lib/branding/palette";
 
 export const runtime = "nodejs";
 
@@ -15,6 +23,8 @@ type Body = {
   name?: string;
   slug?: string;
   accent?: string;
+  accent2?: string;
+  logoDataUrl?: string;
   tagline?: string;
   blurb?: string;
   country?: string;
@@ -26,7 +36,36 @@ type Body = {
 };
 
 const SLUG_RE = /^[a-z][a-z0-9-]{2,30}$/;
-const RESERVED = new Set(["www", "api", "lms", "app", "admin", "console", "hub", "birgenai", "login", "onboard"]);
+const RESERVED = new Set(["www", "api", "lms", "app", "admin", "console", "hub", "birgenai", "login", "onboard", "platform", "demo"]);
+
+/** Sensible defaults a new lender can rename, reshape or delete on day one. */
+const STARTER_ROLES: { title: string; rights: string[] }[] = [
+  { title: "Org Admin", rights: ["*"] },
+  {
+    title: "Loan Officer",
+    rights: [
+      "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view",
+      "products.view", "documents.view", "documents.parse", "field.view", "reports.view", "riri.use",
+    ],
+  },
+  {
+    title: "Branch Manager",
+    rights: [
+      "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view",
+      "products.view", "workflows.view", "documents.view", "documents.parse", "field.view", "field.manage",
+      "disbursements.view", "disbursements.manage", "float.view", "repayments.view", "repayments.collect",
+      "team.view", "intelligence.view", "reports.view", "riri.use",
+    ],
+  },
+  {
+    title: "Finance",
+    rights: [
+      "loans.view", "disbursements.view", "disbursements.manage", "float.view", "float.manage",
+      "repayments.view", "repayments.collect", "reconciliation.view", "reconciliation.resolve",
+      "billing.view", "reports.view",
+    ],
+  },
+];
 
 export async function POST(req: NextRequest) {
   let body: Body;
@@ -35,6 +74,17 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 });
   }
+
+  // Unauthenticated tenant creation: throttle hard. Two windows kill both the
+  // burst and the slow grind.
+  const limited = await rateLimit(
+    [
+      { name: "org-create:ip", subject: clientIp(req), max: 3, windowSec: 3600 },
+      { name: "org-create:ip:day", subject: clientIp(req), max: 8, windowSec: 86400 },
+    ],
+    "Too many organizations created from this connection. Try again later.",
+  );
+  if (limited) return limited;
 
   const name = (body.name ?? "").trim();
   const slug = (body.slug ?? "").trim().toLowerCase();
@@ -53,6 +103,8 @@ export async function POST(req: NextRequest) {
   if (password.length < 10) {
     return NextResponse.json({ success: false, message: "Use a password of at least 10 characters." }, { status: 400 });
   }
+  const accent = body.accent?.trim() && isHexColor(body.accent.trim()) ? body.accent.trim() : "#F97316";
+  const accent2 = body.accent2?.trim() && isHexColor(body.accent2.trim()) ? body.accent2.trim() : null;
 
   const [first, ...rest] = adminName.split(/\s+/);
   const passwordHash = await bcrypt.hash(password, 12);
@@ -71,16 +123,20 @@ export async function POST(req: NextRequest) {
             name,
             mode: "NATIVE",
             status: "PENDING",
-            accent: body.accent?.trim() || "#F97316",
+            accent,
+            accentSoft: accentSoftFrom(accent),
+            accent2,
             tagline: body.tagline?.trim() || null,
             blurb: body.blurb?.trim() || null,
             country: (body.country ?? "KE").toUpperCase().slice(0, 2),
             currency: (body.currency ?? "KES").toUpperCase().slice(0, 3),
           },
         });
-        const role = await tx.role.create({
-          data: { orgId: org.id, title: "Org Admin", rights: ["*"], menu: ["*"] },
-        });
+        let adminRoleId: string | null = null;
+        for (const r of STARTER_ROLES) {
+          const role = await tx.role.create({ data: { orgId: org.id, title: r.title, rights: r.rights, menu: r.rights } });
+          if (r.title === "Org Admin") adminRoleId = role.id;
+        }
         const branch = await tx.branch.create({
           data: { orgId: org.id, name: "Head Office", levelName: "Head Office" },
         });
@@ -92,7 +148,7 @@ export async function POST(req: NextRequest) {
             firstName: first,
             otherName: rest.join(" ") || null,
             passwordHash,
-            roleId: role.id,
+            roleId: adminRoleId,
             branchId: branch.id,
             isInitiator: true,
             isAuthorizer: true,
@@ -106,11 +162,23 @@ export async function POST(req: NextRequest) {
         return org;
       }, { timeout: 30000, maxWait: 10000 }); // EU pooler round-trips exceed the 5s default
 
+      // Logo AFTER the tx — a failed upload costs the logo, never the org.
+      let logoWarning: string | null = null;
+      if (body.logoDataUrl) {
+        try {
+          const logoUrl = await putBrandLogo(org.id, body.logoDataUrl);
+          await prisma.org.update({ where: { id: org.id }, data: { logoUrl } });
+        } catch (e) {
+          logoWarning = e instanceof InvalidImageError ? e.message : "The logo could not be stored — add it later under Organization → Branding.";
+        }
+      }
+
       return NextResponse.json({
         success: true,
         orgId: org.id,
         slug: org.slug,
         status: org.status,
+        logoWarning,
         message: "Organization created — sign in to configure it. BirgenAI will review and activate it for live lending.",
       });
     } catch (err) {

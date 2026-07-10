@@ -8,6 +8,7 @@ import type { Feature } from "@/lib/billing/plans";
 import {
   Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, Bot, Package, GitBranch, Crown, ScanLine, Scale, KeyRound, PhoneCall,
 } from "lucide-react";
+import SetupChecklist, { type ChecklistItem } from "@/components/console/SetupChecklist";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -44,7 +45,7 @@ export default async function Console() {
   if (!session?.user?.orgId) redirect("/login");
   const orgId = session.user.orgId;
 
-  const org = await prisma.org.findUnique({ where: { id: orgId }, select: { name: true } });
+  const org = await prisma.org.findUnique({ where: { id: orgId }, select: { name: true, status: true, onboardingState: true } });
   if (!org) redirect("/login");
 
   const [rights, ent] = await Promise.all([getRights(session), entitlementsFor(orgId)]);
@@ -70,6 +71,27 @@ export default async function Console() {
     prisma.loanApplication.count({ where: { orgId, status: { in: ["SUBMITTED", "AI_PRESCREEN", "OFFICER_REVIEW", "REFERRED"] } } }),
     prisma.disbursement.count({ where: { orgId, state: { in: ["PENDING_MAKER", "PENDING_CHECKER"] } } }),
   ]);
+  // First-run checklist — only while the org is PENDING and not dismissed.
+  const setupState = (org.onboardingState ?? {}) as { dismissed?: boolean; activationRequestedAt?: string };
+  let checklist: ChecklistItem[] | null = null;
+  if (org.status === "PENDING" && !setupState.dismissed) {
+    const [products, workflows, staffCount, roleCount, integrations] = await Promise.all([
+      prisma.product.count({ where: { orgId } }),
+      prisma.workflow.count({ where: { orgId } }),
+      prisma.staffUser.count({ where: { orgId, status: "ACTIVE" } }),
+      prisma.role.count({ where: { orgId } }),
+      prisma.orgIntegration.count({ where: { orgId } }),
+    ]);
+    checklist = [
+      { key: "branding", label: "Brand your platform", detail: "Logo, colors and words — done at onboarding, refine any time.", href: "/console/settings/branding", done: true },
+      { key: "products", label: "Create a loan product", detail: "Limits, interest, schedule — what you actually lend.", href: "/console/products", done: products > 0 },
+      { key: "workflows", label: "Design your approval workflow", detail: "Who reviews, who approves, who finalizes — your stages, your caps.", href: "/console/workflows", done: workflows > 0 },
+      { key: "roles", label: "Review your roles", detail: "Starter roles are in place — choose the menus each role sees.", href: "/console/roles", done: roleCount > 1 },
+      { key: "team", label: "Invite your team", detail: "Officers, checkers, field agents — credentials are emailed.", href: "/console/team", done: staffCount > 1 },
+      { key: "vault", label: "Connect your rails", detail: "M-Pesa (Daraja), SMS, CRB and KYC credentials in the vault.", href: "/console/settings", done: integrations > 0 },
+    ];
+  }
+
   const olb = Number(olbAgg._sum.balance ?? 0);
   const par30 = Number(par30Agg._sum.balance ?? 0);
   const fmt = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
@@ -86,6 +108,14 @@ export default async function Console() {
     <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
       <h1 className="text-xl font-bold">Console</h1>
       <p className="mt-1 text-sm text-zinc-500">Your lending operation, org-scoped and isolated.</p>
+
+      {checklist && (
+        <SetupChecklist
+          items={checklist}
+          canAct={rights.has("settings.manage")}
+          activationRequestedAt={setupState.activationRequestedAt ?? null}
+        />
+      )}
 
       <div className="mt-5 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
         {TILES.map((t) => (

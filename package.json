@@ -21,6 +21,7 @@
     "test:sms": "tsx scripts/verify-sms-wallet.ts",
     "test:reconcile": "tsx scripts/verify-reconcile.ts",
     "test:rbac": "tsx scripts/verify-rbac.ts",
+    "test:branding": "tsx scripts/verify-branding.ts",
     "db:app-role": "tsx scripts/create-app-role.ts",
     "storage:init": "tsx scripts/init-storage.ts",
     "db:migrate:plans": "tsx scripts/migrate-plans.ts",

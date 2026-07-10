@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import { useLoad } from "@/lib/hooks/useLoad";
 import { Loader2, AlertTriangle, CheckCircle2, Banknote, Phone, CreditCard, ArrowRight, Lock } from "lucide-react";
-import { getBrand, BRANDED_LENDERS } from "@/lib/lms/branding";
+import { useBrand, lenderFromLocation } from "@/lib/lms/useBrand";
 import OtpCard, { type OtpIssue } from "@/components/portal/OtpCard";
 
 // Borrower self-service: check my loan + Pay Now (STK to the REGISTERED phone).
@@ -20,14 +21,6 @@ type Stage = "phone" | "code" | "id";
 
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 
-function lenderFromLocation(): string | null {
-  if (typeof window === "undefined") return null;
-  const label = window.location.hostname.split(".")[0]?.toLowerCase() ?? "";
-  if (BRANDED_LENDERS.some((l) => l.slug === label)) return label;
-  const q = new URLSearchParams(window.location.search).get("lender");
-  return q || null;
-}
-
 export default function MyLoanPage() {
   const [lender, setLender] = useState<string>("");
   const [stage, setStage] = useState<Stage>("phone");
@@ -41,8 +34,8 @@ export default function MyLoanPage() {
   const [result, setResult] = useState<{ found: boolean; firstName?: string | null; lender?: string; clearedLoans?: number; activeLoan?: MyLoan | null; message?: string } | null>(null);
   const [payAmount, setPayAmount] = useState("");
 
-  useEffect(() => { setLender(lenderFromLocation() ?? "hub"); }, []);
-  const brand = getBrand(lender);
+  useLoad(() => { setLender(lenderFromLocation() ?? "hub"); });
+  const brand = useBrand(lender);
 
   /** The session expired mid-flow — send them back to the phone step. */
   const expired = () => { setStage("phone"); setOtpIssue(null); setError("Your session expired — verify your number again."); };

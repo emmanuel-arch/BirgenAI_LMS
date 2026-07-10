@@ -8,6 +8,7 @@ import {
   Lock, AlertTriangle, Phone, Banknote, HelpCircle, ChevronDown, MapPin, Crosshair,
 } from "lucide-react";
 import { getBrand, BRANDED_LENDERS } from "@/lib/lms/branding";
+import { useBrand } from "@/lib/lms/useBrand";
 import CrunchTheatre, { type CrunchData } from "@/components/statement/CrunchTheatre";
 import OtpCard, { type OtpIssue } from "@/components/portal/OtpCard";
 import { OfferCard } from "@/components/portal/OfferCard";
@@ -146,7 +147,8 @@ export default function LmsPortal() {
   }, []);
 
   const lenderObj = LENDERS.find((l) => l.slug === lender)!;
-  const brand = getBrand(lender);
+  // DB-first: an org that onboarded this morning wears its own logo/colors here.
+  const brand = useBrand(lender);
 
   // White-label: the browser tab carries the lender's name, not BirgenAI's.
   useEffect(() => {

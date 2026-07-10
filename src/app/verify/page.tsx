@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useLoad } from "@/lib/hooks/useLoad";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShieldCheck, IdCard, ScanFace, UserCheck, Landmark, CheckCircle2, AlertTriangle,
   ArrowRight, FlaskConical, Lock, Loader2, PartyPopper,
 } from "lucide-react";
-import { getBrand, BRANDED_LENDERS } from "@/lib/lms/branding";
+import { useBrand, lenderFromLocation } from "@/lib/lms/useBrand";
 import { ConfidenceRing } from "./ConfidenceRing";
 import { Capture, type CaptureSignals } from "./Capture";
 import OtpCard, { type OtpIssue } from "@/components/portal/OtpCard";
@@ -29,14 +30,6 @@ const STEPS: { key: StepKey; label: string; icon: typeof IdCard }[] = [
   { key: "iprs", label: "Registry", icon: Landmark },
 ];
 
-function lenderFromLocation(): string {
-  if (typeof window === "undefined") return "hub";
-  const label = window.location.hostname.split(".")[0]?.toLowerCase() ?? "";
-  if (BRANDED_LENDERS.some((l) => l.slug === label)) return label;
-  const q = new URLSearchParams(window.location.search).get("lender");
-  return q || "hub";
-}
-
 export default function VerifyPage() {
   const [lender, setLender] = useState("hub");
   const [phone, setPhone] = useState("");
@@ -50,8 +43,8 @@ export default function VerifyPage() {
   const [results, setResults] = useState<Record<string, unknown>>({});
   const [preview, setPreview] = useState<string | null>(null);
 
-  useEffect(() => { setLender(lenderFromLocation()); }, []);
-  const brand = getBrand(lender);
+  useLoad(() => { setLender(lenderFromLocation() ?? "hub"); });
+  const brand = useBrand(lender);
   const brandStyle = useMemo(() => ({ ["--brand" as never]: brand.accent, ["--brand-soft" as never]: brand.accentSoft }), [brand]);
 
   // The phone is no longer sent — the server reads it from the verified session.

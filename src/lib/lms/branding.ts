@@ -21,6 +21,8 @@ export type LenderBrand = {
   accent: string;
   /** translucent accent for soft fills (rgba/hex8). */
   accentSoft: string;
+  /** optional second gradient stop (logo-derived for DB-branded orgs). */
+  accent2?: string | null;
   /** hero headline shown on the lender-scoped landing. */
   tagline: string;
   /** one-line product blurb (chooser + header). */

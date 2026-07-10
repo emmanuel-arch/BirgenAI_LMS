@@ -28,7 +28,23 @@ export type StorageMode = "simulation" | "live";
 export const KYC_BUCKET = "kyc-private";
 /** Borrower paperwork: fee structures, invoices, permits, statements. Also private. */
 export const DOCS_BUCKET = "docs-private";
+/**
+ * Lender brand assets — logos. THE ONE PUBLIC BUCKET: a logo is meant to be seen
+ * by every visitor to the lender's portal, so it is served by plain URL. Nothing
+ * but brand assets may be written here — `putObject` enforces the pairing below.
+ */
+export const BRAND_BUCKET = "brand-public";
 export const BUCKETS = [KYC_BUCKET, DOCS_BUCKET] as const;
+/** Which buckets exist at all, and whether the world may read them. */
+export const BUCKET_VISIBILITY: Record<string, "private" | "public"> = {
+  [KYC_BUCKET]: "private",
+  [DOCS_BUCKET]: "private",
+  [BRAND_BUCKET]: "public",
+};
+/** Simulation stores the logo data-URL directly on Org.logoUrl — keep it small. */
+export const MAX_SIM_LOGO_BYTES = 64 * 1024;
+/** Live logo ceiling (the studio downscales to 512px, this is the backstop). */
+export const MAX_LOGO_BYTES = 1024 * 1024;
 /** Long enough to render an <img>, short enough that a leaked URL is stale. */
 export const SIGNED_URL_TTL_SEC = 120;
 /**
@@ -135,16 +151,61 @@ export async function putDocumentObject(
 
 /** Write bytes. Simulation prefixes the key with `sim/` and stores nothing. */
 async function putObject(bucket: string, key: string, buffer: Buffer, contentType: string): Promise<string> {
+  // The allowlist that keeps sensitive bytes out of the public bucket: only a
+  // known bucket may be written, and only logo-shaped keys may enter the public
+  // one. A new code path cannot "accidentally" publish a national ID.
+  if (!BUCKET_VISIBILITY[bucket]) throw new Error(`unknown bucket "${bucket}"`);
+  if (BUCKET_VISIBILITY[bucket] === "public" && !/^[^/]+\/logo-[0-9a-f-]+\.(png|jpg|webp)$/.test(key)) {
+    throw new Error(`refusing to write non-brand key "${key}" to the public bucket`);
+  }
   if (storageMode() === "simulation") return `sim/${key}`;
 
+  // Private artifacts are never cached; public brand assets cache forever —
+  // safe because every upload takes a fresh uuid key, never overwriting.
+  const cache = BUCKET_VISIBILITY[bucket] === "public" ? "public, max-age=31536000, immutable" : "no-store";
   const res = await fetch(`${supabaseUrl()}/storage/v1/object/${bucket}/${key}`, {
     method: "POST",
-    headers: headers({ "Content-Type": contentType, "Cache-Control": "no-store" }),
+    headers: headers({ "Content-Type": contentType, "Cache-Control": cache }),
     body: new Uint8Array(buffer),
     signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) throw new Error(`storage upload failed (${res.status}): ${await res.text().catch(() => "")}`);
   return key;
+}
+
+/**
+ * Store an org's logo and return the value to put on `Org.logoUrl`.
+ *
+ * Live: uploads to the public brand bucket and returns its permanent public URL
+ * (immutable cache headers — a re-upload gets a fresh uuid, never overwrites).
+ * Simulation: returns the data URL itself, size-capped, so the logo still
+ * renders everywhere with zero infrastructure.
+ */
+export async function putBrandLogo(orgId: string, dataUrl: string): Promise<string> {
+  const { buffer, contentType } = decodeImageDataUrl(dataUrl);
+  if (buffer.length > MAX_LOGO_BYTES) throw new InvalidImageError("That logo is too large — use an image under 1 MB.");
+  if (storageMode() === "simulation") {
+    if (buffer.length > MAX_SIM_LOGO_BYTES) {
+      throw new InvalidImageError("That logo is too large to store without object storage — use an image under 64 KB or connect storage.");
+    }
+    return dataUrl.trim();
+  }
+  const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
+  const key = await putObjectPublicBrand(orgId, ext, buffer, contentType);
+  return `${supabaseUrl()}/storage/v1/object/public/${BRAND_BUCKET}/${key}`;
+}
+
+async function putObjectPublicBrand(orgId: string, ext: string, buffer: Buffer, contentType: string): Promise<string> {
+  return putObject(BRAND_BUCKET, `${orgId}/logo-${randomUUID()}.${ext}`, buffer, contentType);
+}
+
+/** Best-effort removal of a previous logo (accepts the stored Org.logoUrl value). */
+export async function deleteBrandLogo(logoUrl: string | null | undefined): Promise<void> {
+  if (!logoUrl || logoUrl.startsWith("data:")) return; // simulation logos live in the DB row
+  const marker = `/storage/v1/object/public/${BRAND_BUCKET}/`;
+  const at = logoUrl.indexOf(marker);
+  if (at < 0) return; // not ours (e.g. a hand-set path) — leave it alone
+  await deleteObjects([logoUrl.slice(at + marker.length)], BRAND_BUCKET);
 }
 
 /** A short-lived read URL, or null when the key was never really uploaded. */

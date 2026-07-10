@@ -14,12 +14,15 @@
 // both private, but they are not the same class of data — separate buckets let a
 // retention or erasure policy apply to one without touching the other.
 import "dotenv/config";
-import { KYC_BUCKET, DOCS_BUCKET, MAX_IMAGE_BYTES, storageMode, supabaseUrl } from "../src/lib/storage/provider";
+import { KYC_BUCKET, DOCS_BUCKET, BRAND_BUCKET, MAX_IMAGE_BYTES, MAX_LOGO_BYTES, storageMode, supabaseUrl } from "../src/lib/storage/provider";
 import { MAX_DOCUMENT_BYTES } from "../src/lib/documents/parse";
 
 const SPECS = [
-  { id: KYC_BUCKET, limit: MAX_IMAGE_BYTES, mimes: ["image/jpeg", "image/png", "image/webp"], holds: "borrower ID photos" },
-  { id: DOCS_BUCKET, limit: MAX_DOCUMENT_BYTES, mimes: ["application/pdf", "image/jpeg", "image/png", "image/webp"], holds: "borrower paperwork" },
+  { id: KYC_BUCKET, public: false, limit: MAX_IMAGE_BYTES, mimes: ["image/jpeg", "image/png", "image/webp"], holds: "borrower ID photos" },
+  { id: DOCS_BUCKET, public: false, limit: MAX_DOCUMENT_BYTES, mimes: ["application/pdf", "image/jpeg", "image/png", "image/webp"], holds: "borrower paperwork" },
+  // The one deliberate exception: logos are meant to be world-readable. Nothing
+  // but brand assets can be written here — putObject enforces the key shape.
+  { id: BRAND_BUCKET, public: true, limit: MAX_LOGO_BYTES, mimes: ["image/jpeg", "image/png", "image/webp"], holds: "lender logos" },
 ];
 
 async function main() {
@@ -43,25 +46,28 @@ async function main() {
         body: JSON.stringify({
           id: spec.id,
           name: spec.id,
-          public: false,
+          public: spec.public,
           file_size_limit: spec.limit,
           allowed_mime_types: spec.mimes,
         }),
       });
       if (!created.ok) throw new Error(`create bucket failed (${created.status}): ${await created.text()}`);
-      console.log(`created private bucket "${spec.id}"`);
+      console.log(`created ${spec.public ? "PUBLIC" : "private"} bucket "${spec.id}"`);
     } else if (existing.ok) {
       console.log(`bucket "${spec.id}" already exists`);
     } else {
       throw new Error(`bucket lookup failed (${existing.status}): ${await existing.text()}`);
     }
 
-    // The one property that must never drift: a public bucket serves a national ID
-    // photo — or somebody's bank statement — to anyone who can guess the path.
+    // The one property that must never drift: visibility must match the spec.
+    // A private bucket gone public serves national-ID photos to anyone who can
+    // guess a path; the brand bucket gone private breaks every lender's logo.
     const check = await fetch(`${url}/storage/v1/bucket/${spec.id}`, { headers: auth });
     const bucket = (await check.json()) as { public?: boolean; file_size_limit?: number };
-    if (bucket.public) throw new Error(`"${spec.id}" is PUBLIC — ${spec.holds} would be world-readable.`);
-    console.log(`  private ✓  (${spec.holds}, limit ${Math.round((bucket.file_size_limit ?? 0) / 1024 / 1024)} MB)`);
+    if (!!bucket.public !== spec.public) {
+      throw new Error(`"${spec.id}" is ${bucket.public ? "PUBLIC" : "private"} but must be ${spec.public ? "public" : "private"} (${spec.holds}).`);
+    }
+    console.log(`  ${spec.public ? "public" : "private"} ✓  (${spec.holds}, limit ${Math.round((bucket.file_size_limit ?? 0) / 1024 / 1024)} MB)`);
   }
 
   console.log("\nReads are served only through short-lived signed URLs (kyc/asset, documents/[id]).");
