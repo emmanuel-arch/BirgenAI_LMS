@@ -3,6 +3,7 @@
 // aggregates (the native Customer-360 list view).
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -10,6 +11,8 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "borrowers.view");
+  if (denied) return denied;
   const orgId = session.user.orgId;
 
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim();

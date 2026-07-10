@@ -2,7 +2,8 @@
 //   GET  → balance + recent entries (staff)
 //   POST → top-up { amount, ref?, note? } (admin only)
 import { NextRequest, NextResponse } from "next/server";
-import { auth, hasAdminAccess } from "@/lib/auth";
+import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { addFloatEntry, floatBalance } from "@/lib/lending/float";
 
@@ -11,6 +12,8 @@ export const runtime = "nodejs";
 export async function GET() {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "float.view");
+  if (denied) return denied;
   const [balance, entries] = await Promise.all([
     floatBalance(session.user.orgId),
     prisma.floatLedger.findMany({
@@ -31,9 +34,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.orgId || !hasAdminAccess(session)) {
-    return NextResponse.json({ success: false, message: "Admin sign-in required." }, { status: 401 });
-  }
+  if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "float.manage");
+  if (denied) return denied;
   let body: { amount?: number; ref?: string; note?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 

@@ -2,6 +2,7 @@
 // Body: { action: "reallocate" | "en_route" | "arrived" | "verify" | "fail" | "cancel", outcome?, notes? }
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { rankAgents } from "@/lib/field/allocate";
@@ -13,6 +14,8 @@ const NEXT: Record<string, string> = { en_route: "EN_ROUTE", arrived: "ARRIVED",
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "field.manage");
+  if (denied) return denied;
 
   const gate = await requireFeature(session.user.orgId, "route-planner");
   if (gate) return gate;

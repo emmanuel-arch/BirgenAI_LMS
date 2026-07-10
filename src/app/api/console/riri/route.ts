@@ -5,6 +5,7 @@
 // Every query meters a `riri_query` UsageEvent for Intelligence-Suite billing.
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
 import { isRiriModel } from "@/lib/riri/models";
@@ -16,6 +17,8 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "riri.use");
+  if (denied) return denied;
   const orgId = session.user.orgId;
 
   const gated = await requireFeature(orgId, "riri");

@@ -61,9 +61,19 @@ const BORROWERS = [
   { first: "Quincy", other: "Owino", nid: "34910284", phone: "254712000008", biz: 1, score: 698, band: "Moderate risk", loans: "cleared1" },
 ];
 
+// Child tables first, parents last — a swallowed FK failure here left stale
+// borrowers behind once (P2002 on reseed), so keep this list in step with the
+// schema whenever a new org-scoped model appears.
 async function wipe(orgId: string) {
   const w = { orgId };
-  for (const m of ["smsMessage", "c2BReceipt", "paymentIntent", "floatLedger", "otpChallenge", "installment", "disbursement", "loan", "loanApplication", "consent", "geoPin", "scoreSnapshot", "kycCheck", "fieldVisit", "borrower", "product", "workflowStage", "workflow", "orgIntegration", "auditLog", "staffUser", "role", "branch"] as const) {
+  for (const m of [
+    "smsMessage", "c2BReceipt", "paymentIntent", "floatLedger", "otpChallenge",
+    "reconciliationException", "usageEvent", "invoiceLine", "invoice", "smsTopUp", "smsWallet",
+    "installment", "guarantor", "collateral", "disbursement", "loanOffer", "loan",
+    "loanApplication", "consent", "geoPin", "scoreSnapshot", "kycCheck", "kycSession",
+    "fieldVisit", "document", "borrower", "product", "workflowStage", "workflow",
+    "orgIntegration", "tuningProfile", "auditLog", "staffUser", "role", "branch",
+  ] as const) {
     try {
       // @ts-expect-error dynamic model access
       await prisma[m].deleteMany({ where: m === "workflowStage" ? { workflow: w } : w });
@@ -83,12 +93,39 @@ async function main() {
     create: { slug: SLUG, name: "BirgenAI Demo Microfinance", mode: OrgMode.NATIVE, status: OrgStatus.ACTIVE, plan: OrgPlan.PREMIUM, isDemo: true, accent: "#6d28d9", accentSoft: "rgba(109,40,217,0.12)", tagline: "Credit that understands your cashflow.", blurb: "The BirgenAI guided demo lender" },
   });
 
-  // 2) Branch + roles.
+  // 2) Branch + roles. Each role's rights are its sidebar AND its API access —
+  // signing in as each demo account shows a genuinely different console, which
+  // is the role-visibility showcase the /demo page sells.
   const branch = await prisma.branch.create({ data: { orgId: org.id, name: "Nairobi CBD", levelName: "Branch", lat: -1.2841, lng: 36.8233, disbursementLimit: 500000 } });
-  const roleTitles = ["Org Admin", "Loan Officer", "Branch Manager", "Risk Manager", "Finance", "Relationship Officer"];
+  const ROLE_RIGHTS: Record<string, string[]> = {
+    "Org Admin": ["*"],
+    "Loan Officer": [
+      "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view",
+      "products.view", "documents.view", "documents.parse", "field.view", "reports.view", "riri.use",
+    ],
+    "Branch Manager": [
+      "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view",
+      "products.view", "workflows.view", "documents.view", "documents.parse", "field.view", "field.manage",
+      "disbursements.view", "disbursements.manage", "float.view", "repayments.view", "repayments.collect",
+      "team.view", "reports.view", "intelligence.view", "riri.use",
+    ],
+    "Risk Manager": [
+      "borrowers.view", "applications.view", "loans.view", "products.view", "reconciliation.view",
+      "intelligence.view", "intelligence.tune", "documents.view", "reports.view", "riri.use",
+    ],
+    Finance: [
+      "loans.view", "disbursements.view", "disbursements.manage", "float.view", "float.manage",
+      "repayments.view", "repayments.collect", "reconciliation.view", "reconciliation.resolve",
+      "billing.view", "reports.view", "riri.use",
+    ],
+    "Relationship Officer": [
+      "borrowers.view", "borrowers.create", "loans.view", "field.view", "field.manage",
+      "documents.view", "documents.parse", "reports.view",
+    ],
+  };
   const roles = new Map<string, string>();
-  for (const title of roleTitles) {
-    const r = await prisma.role.create({ data: { orgId: org.id, title, rights: title === "Org Admin" ? ["*"] : [], menu: ["*"] } });
+  for (const [title, rights] of Object.entries(ROLE_RIGHTS)) {
+    const r = await prisma.role.create({ data: { orgId: org.id, title, rights, menu: rights } });
     roles.set(title, r.id);
   }
 

@@ -14,7 +14,8 @@
 // borrower owes.
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
-import { auth, hasAdminAccess } from "@/lib/auth";
+import { auth } from "@/lib/auth";
+import { requireRight, hasRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
@@ -40,6 +41,8 @@ function summarize(ew: Awaited<ReturnType<typeof portfolioEarlyWarning>>) {
 export async function GET() {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "intelligence.view");
+  if (denied) return denied;
   const orgId = session.user.orgId;
 
   // Two gates. Tuning is Premium's, but it tunes the early-warning engine — and a
@@ -66,13 +69,17 @@ export async function GET() {
     note: row?.note ?? null,
     updatedAt: row?.updatedAt ?? null,
     current,
-    canEdit: hasAdminAccess(session),
+    canEdit: await hasRight(session, "intelligence.tune"),
   });
 }
 
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  // Preview (scoring the book against an unsaved policy) is open to anyone who
+  // can see intelligence; the writes below require intelligence.tune.
+  const denied = await requireRight(session, "intelligence.view");
+  if (denied) return denied;
   const orgId = session.user.orgId;
 
   // Two gates. Tuning is Premium's, but it tunes the early-warning engine — and a
@@ -118,9 +125,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Everything below writes.
-  if (!hasAdminAccess(session)) {
-    return NextResponse.json({ success: false, message: "Only an admin can change the risk policy." }, { status: 403 });
-  }
+  const tuneDenied = await requireRight(session, "intelligence.tune");
+  if (tuneDenied) return tuneDenied;
 
   if (body.action === "reset") {
     await prisma.tuningProfile.deleteMany({ where: { orgId } });

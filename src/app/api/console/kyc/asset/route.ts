@@ -14,6 +14,7 @@
 // audit log with the actor and the key.
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/ratelimit";
 import { signedUrl, keyBelongsToOrg, storageMode, SIGNED_URL_TTL_SEC } from "@/lib/storage/provider";
@@ -24,6 +25,8 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   const orgId = session?.user?.orgId;
   if (!orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "borrowers.view");
+  if (denied) return denied;
 
   const key = req.nextUrl.searchParams.get("key")?.trim() ?? "";
   if (!key || !keyBelongsToOrg(key, orgId)) {

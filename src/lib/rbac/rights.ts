@@ -143,6 +143,25 @@ export const RESERVED_RIGHTS: Right[] = [
 ];
 
 /**
+ * How the role editor groups the checkboxes — mirrors the sidebar's modules so
+ * "choosing menus for a role" and "granting rights" are visibly the same act.
+ * verify-rbac asserts every right appears in exactly one group.
+ */
+export const RIGHT_GROUPS: { key: string; label: string; rights: Right[] }[] = [
+  { key: "borrowers", label: "Borrowers", rights: ["borrowers.view", "borrowers.create", "borrowers.manage"] },
+  { key: "loans", label: "Loans", rights: ["applications.view", "applications.decide", "loans.view", "loans.apply"] },
+  { key: "payments", label: "Payments", rights: ["disbursements.view", "disbursements.manage", "float.view", "float.manage", "repayments.view", "repayments.collect", "reconciliation.view", "reconciliation.resolve"] },
+  { key: "collections", label: "Collections", rights: ["collections.view", "collections.manage"] },
+  { key: "intelligence", label: "Intelligence & Reports", rights: ["intelligence.view", "intelligence.tune", "documents.view", "documents.parse", "documents.manage", "reports.view"] },
+  { key: "field", label: "Field Ops", rights: ["field.view", "field.manage"] },
+  { key: "organization", label: "Organization", rights: ["products.view", "products.manage", "workflows.view", "workflows.manage", "branches.view", "branches.manage", "branding.manage", "settings.view", "settings.manage"] },
+  { key: "access", label: "Team & Access", rights: ["team.view", "team.manage", "roles.view", "roles.manage"] },
+  { key: "billing", label: "Billing", rights: ["billing.view", "billing.manage"] },
+  { key: "comms", label: "Comms", rights: ["sms.view", "sms.manage"] },
+  { key: "riri", label: "Riri AI", rights: ["riri.use"] },
+];
+
+/**
  * Plain-language captions for the role editor — every right explained in the
  * words a lender's admin would use, not ours.
  */

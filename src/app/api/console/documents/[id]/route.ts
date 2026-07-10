@@ -6,7 +6,8 @@
 // resolves to nothing. Every link minted is written to the audit log, because a fee
 // structure or a bank statement is somebody's private business.
 import { NextRequest, NextResponse } from "next/server";
-import { auth, hasAdminAccess } from "@/lib/auth";
+import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { signedUrl, deleteObjects, DOCS_BUCKET, keyBelongsToOrg } from "@/lib/storage/provider";
@@ -16,6 +17,8 @@ export const runtime = "nodejs";
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "documents.view");
+  if (denied) return denied;
   const orgId = session.user.orgId;
 
   const gate = await requireFeature(orgId, "document-parser");
@@ -46,9 +49,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 export async function DELETE(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
-  if (!hasAdminAccess(session)) {
-    return NextResponse.json({ success: false, message: "Only an admin can delete a document." }, { status: 403 });
-  }
+  const denied = await requireRight(session, "documents.manage");
+  if (denied) return denied;
   const orgId = session.user.orgId;
   const { id } = await ctx.params;
 

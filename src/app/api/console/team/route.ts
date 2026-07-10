@@ -6,7 +6,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
-import { auth, hasAdminAccess } from "@/lib/auth";
+import { auth } from "@/lib/auth";
+import { requireRight, invalidateRights } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 import { PLANS, PLAN_ORDER } from "@/lib/billing/plans";
@@ -16,9 +17,9 @@ export const runtime = "nodejs";
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user?.orgId || !hasAdminAccess(session)) {
-    return NextResponse.json({ success: false, message: "Admin sign-in required." }, { status: 401 });
-  }
+  if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "team.view");
+  if (denied) return denied;
   const orgId = session.user.orgId;
   const [staff, roles, branches] = await Promise.all([
     prisma.staffUser.findMany({
@@ -39,9 +40,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.orgId || !hasAdminAccess(session)) {
-    return NextResponse.json({ success: false, message: "Admin sign-in required." }, { status: 401 });
-  }
+  if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "team.manage");
+  if (denied) return denied;
   let body: { email?: string; name?: string; phone?: string; roleId?: string; branchId?: string; tiers?: { initiator?: boolean; authorizer?: boolean; validator?: boolean } };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
@@ -107,9 +108,9 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.orgId || !hasAdminAccess(session)) {
-    return NextResponse.json({ success: false, message: "Admin sign-in required." }, { status: 401 });
-  }
+  if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "team.manage");
+  if (denied) return denied;
   let body: { id?: string; roleId?: string | null; branchId?: string | null; status?: "ACTIVE" | "LOCKED" | "DISABLED"; tiers?: { initiator?: boolean; authorizer?: boolean; validator?: boolean }; isFieldAgent?: boolean; title?: string; lat?: number; lng?: number };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
   if (!body.id) return NextResponse.json({ success: false, message: "Staff id required." }, { status: 400 });
@@ -138,6 +139,9 @@ export async function PUT(req: NextRequest) {
       lastLocationAt: hasGeo ? new Date() : undefined,
     },
   });
+  // Role reassignment or a status flip changes what this person may do — the
+  // rights resolver caches by staff id, so drop it and the change lands ≤30s.
+  invalidateRights();
   await prisma.auditLog.create({
     data: { orgId: session.user.orgId, actorId: session.user.id, actorType: "staff", action: "staff.update", entity: "StaffUser", entityId: staff.id },
   }).catch(() => {});

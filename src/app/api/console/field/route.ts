@@ -4,6 +4,7 @@
 //          address? } then AUTO-ALLOCATE the nearest available agent
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { rankAgents, routeOrder } from "@/lib/field/allocate";
@@ -13,6 +14,8 @@ export const runtime = "nodejs";
 export async function GET() {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "field.view");
+  if (denied) return denied;
   const orgId = session.user.orgId;
 
   const gate = await requireFeature(orgId, "route-planner");
@@ -67,6 +70,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "field.manage");
+  if (denied) return denied;
 
   // Auto-allocating the nearest officer IS the route planner — the Customer-360 and
   // watchlist "Dispatch agent" buttons land here too, and must obey the same gate.

@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
@@ -31,6 +32,8 @@ const MAX_BODY_BYTES = Math.ceil(MAX_DOCUMENT_BYTES * 1.4);
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "documents.view");
+  if (denied) return denied;
   const orgId = session.user.orgId;
 
   const gate = await requireFeature(orgId, "document-parser");
@@ -54,6 +57,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "documents.parse");
+  if (denied) return denied;
   const orgId = session.user.orgId;
 
   const gate = await requireFeature(orgId, "document-parser");

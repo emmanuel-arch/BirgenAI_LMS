@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
@@ -14,6 +15,8 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "borrowers.view");
+  if (denied) return denied;
   const orgId = session.user.orgId;
 
   // A bureau pull bills us. Gate BEFORE the call, never after.

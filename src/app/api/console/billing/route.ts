@@ -10,7 +10,8 @@
 // from its own rate card when the lender actually pays, so a stale price in this
 // deployment can misinform, never mischarge.
 import { NextRequest, NextResponse } from "next/server";
-import { auth, hasAdminAccess } from "@/lib/auth";
+import { auth } from "@/lib/auth";
+import { requireRight, hasRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { entitlementsFor, overageFor, currentPeriod, invalidateEntitlements } from "@/lib/billing/entitlements";
 import { usageBetween } from "@/lib/billing/meter";
@@ -30,6 +31,8 @@ export const runtime = "nodejs";
 export async function GET() {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "billing.view");
+  if (denied) return denied;
   const orgId = session.user.orgId;
 
   const ent = await entitlementsFor(orgId);
@@ -91,13 +94,17 @@ export async function GET() {
     estimate: { baseKes: open.planFeeKes, overageKes, totalKes: open.totalKes },
     catalogue: PLAN_ORDER.map((k) => ({ ...PLANS[k], features: deliverableFeatures(PLANS[k]) })),
     payment: { via: "hub-wallet", mode: hubBillingMode() },
-    canPay: hasAdminAccess(session),
+    canPay: await hasRight(session, "billing.manage"),
   });
 }
 
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  // Sync (reading the wallet's verdict) is open to anyone who can see billing;
+  // the money-moving actions below require billing.manage individually.
+  const denied = await requireRight(session, "billing.view");
+  if (denied) return denied;
   const orgId = session.user.orgId;
 
   let body: { action?: string; plan?: string; pack?: string; returnTo?: string };
@@ -118,10 +125,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (body.action === "checkout") {
-    // Only a billing admin sends the company to a payment page. This check is what
+    // Only billing.manage sends the company to a payment page. This check is what
     // the signed token vouches for — the Hub has no way to make it itself.
-    if (!hasAdminAccess(session)) {
-      return NextResponse.json({ success: false, message: "Only an admin can start a payment." }, { status: 403 });
+    if (!(await hasRight(session, "billing.manage"))) {
+      return NextResponse.json({ success: false, message: "Your role can't start a payment. Ask your administrator." }, { status: 403 });
     }
     const ent = await entitlementsFor(orgId);
     const plan = PLAN_ORDER.includes(body.plan as never) ? (body.plan as keyof typeof PLANS) : ent.plan.key;
@@ -139,9 +146,9 @@ export async function POST(req: NextRequest) {
   }
 
   if (body.action === "sms-topup") {
-    // Buying credits is spending company money — the same admin bar as checkout.
-    if (!hasAdminAccess(session)) {
-      return NextResponse.json({ success: false, message: "Only an admin can buy SMS credits." }, { status: 403 });
+    // Buying credits is spending company money — the same bar as checkout.
+    if (!(await hasRight(session, "billing.manage"))) {
+      return NextResponse.json({ success: false, message: "Your role can't buy SMS credits. Ask your administrator." }, { status: 403 });
     }
     const pack = smsPack(body.pack);
     if (!pack) return NextResponse.json({ success: false, message: "Choose an SMS pack." }, { status: 400 });

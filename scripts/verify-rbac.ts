@@ -13,7 +13,7 @@
 // menu the API rejects (or worse, the reverse).
 import {
   ALL_RIGHTS, ALL_RIGHTS_SET, LEGACY_DEFAULT_RIGHTS, ADMIN_ONLY_RIGHTS, RESERVED_RIGHTS,
-  RIGHT_LABELS, WILDCARD, type Right,
+  RIGHT_LABELS, RIGHT_GROUPS, WILDCARD, type Right,
 } from "@/lib/rbac/rights";
 import { rightsSetFrom, getRights, requireRight } from "@/lib/rbac/authz";
 import { NAV_REGISTRY, navFor } from "@/lib/nav/registry";
@@ -80,6 +80,9 @@ async function main() {
   ok("legacy staff still dispatch field agents", legacy.has("field.manage"));
   ok("legacy staff still parse documents", legacy.has("documents.parse"));
   ok("legacy staff still use Riri", legacy.has("riri.use"));
+
+  const grouped = RIGHT_GROUPS.flatMap((g) => g.rights);
+  ok("role-editor groups cover every right exactly once", grouped.length === ALL_RIGHTS.length && new Set(grouped).size === grouped.length && grouped.every((r) => ALL_RIGHTS_SET.has(r)));
 
   console.log("\n3. Registry integrity — menu and enforcement cannot drift");
   const moduleKeys = NAV_REGISTRY.map((m) => m.key);

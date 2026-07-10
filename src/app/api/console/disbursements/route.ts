@@ -1,6 +1,7 @@
 // GET /api/console/disbursements — the org's disbursement queue + float balance.
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { floatBalance } from "@/lib/lending/float";
 
@@ -9,6 +10,8 @@ export const runtime = "nodejs";
 export async function GET() {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "disbursements.view");
+  if (denied) return denied;
 
   const [rows, balance] = await Promise.all([
     prisma.disbursement.findMany({

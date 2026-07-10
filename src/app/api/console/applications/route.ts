@@ -2,6 +2,7 @@
 // ?scope=live (default: SUBMITTED/AI_PRESCREEN/OFFICER_REVIEW/REFERRED) | all
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -11,6 +12,8 @@ const LIVE = ["SUBMITTED", "AI_PRESCREEN", "OFFICER_REVIEW", "REFERRED"] as cons
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "applications.view");
+  if (denied) return denied;
 
   const scope = req.nextUrl.searchParams.get("scope") ?? "live";
   const apps = await prisma.loanApplication.findMany({

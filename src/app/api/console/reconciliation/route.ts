@@ -9,6 +9,7 @@
 //                                                  the fix the webhook failed to make
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { reconcileOrg, resolveException } from "@/lib/finance/reconcile";
 import { allocateRepayment } from "@/lib/lending/allocate";
@@ -18,6 +19,8 @@ export const runtime = "nodejs";
 export async function GET() {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "reconciliation.view");
+  if (denied) return denied;
   const orgId = session.user.orgId;
 
   const [open, closed] = await Promise.all([
@@ -60,6 +63,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "reconciliation.resolve");
+  if (denied) return denied;
   const orgId = session.user.orgId;
   const actor = session.user.id ?? "staff";
 

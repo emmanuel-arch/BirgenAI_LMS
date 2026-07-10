@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma, orgTx } from "@/lib/prisma";
 import { initiateB2C } from "@/lib/mpesa/daraja";
 import { addFloatEntry, floatBalance } from "@/lib/lending/float";
@@ -23,6 +24,8 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "disbursements.manage");
+  if (denied) return denied;
   const { id } = await ctx.params;
 
   let body: { action?: string; ref?: string; note?: string };

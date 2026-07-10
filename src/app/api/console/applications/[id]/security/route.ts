@@ -13,6 +13,7 @@
 // the audit log beside the valuation they accepted.
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { toMsisdn, isKenyanMsisdn } from "@/lib/portal/session";
 import { inviteGuarantor, effectiveGuarantorStatus, standsBehind, GuarantorError } from "@/lib/lending/guarantor";
@@ -25,6 +26,8 @@ const KINDS = ["VEHICLE", "LAND", "EQUIPMENT", "STOCK", "CHATTEL", "OTHER"];
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "applications.view");
+  if (denied) return denied;
   const orgId = session.user.orgId;
   const { id } = await ctx.params;
 
@@ -67,6 +70,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "applications.decide");
+  if (denied) return denied;
   const orgId = session.user.orgId;
   const { id } = await ctx.params;
 

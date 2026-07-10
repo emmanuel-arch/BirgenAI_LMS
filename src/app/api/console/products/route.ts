@@ -4,7 +4,8 @@
 //   PUT  → update a product by id (admin only)
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { auth, hasAdminAccess } from "@/lib/auth";
+import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -32,6 +33,8 @@ type Body = {
 export async function GET() {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "products.view");
+  if (denied) return denied;
   const products = await prisma.product.findMany({
     where: { orgId: session.user.orgId },
     orderBy: [{ isActive: "desc" }, { minPrincipal: "asc" }],
@@ -53,9 +56,9 @@ function validate(b: Body): string | null {
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.orgId || !hasAdminAccess(session)) {
-    return NextResponse.json({ success: false, message: "Admin sign-in required." }, { status: 401 });
-  }
+  if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "products.manage");
+  if (denied) return denied;
   let body: Body;
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
@@ -91,9 +94,9 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.orgId || !hasAdminAccess(session)) {
-    return NextResponse.json({ success: false, message: "Admin sign-in required." }, { status: 401 });
-  }
+  if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "products.manage");
+  if (denied) return denied;
   let body: Body;
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
   if (!body.id) return NextResponse.json({ success: false, message: "Product id required." }, { status: 400 });
