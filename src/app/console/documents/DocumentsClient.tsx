@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useCallback, useRef, useState } from "react";
+import { useLoad } from "@/lib/hooks/useLoad";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, Loader2, AlertTriangle, CheckCircle2, FileText, Upload, Eye, ScanLine, FlaskConical,
+  Loader2, AlertTriangle, CheckCircle2, FileText, Upload, Eye, ScanLine, FlaskConical,
 } from "lucide-react";
 
 // The Document Parser. Upload a PDF, get fields.
@@ -69,7 +69,7 @@ export function DocumentsClient() {
     } catch { /* leave list */ }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useLoad(load);
 
   const upload = async (file: File, pwd?: string) => {
     setBusy(true); setError(null);
@@ -101,12 +101,7 @@ export function DocumentsClient() {
   };
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <main className="relative z-10 mx-auto max-w-4xl px-4 sm:px-6 py-10">
-        <Link href="/console" className="mb-6 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
-          <ArrowLeft className="h-4 w-4" /> Console
-        </Link>
+    <main className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -209,7 +204,6 @@ export function DocumentsClient() {
           </div>
         )}
       </main>
-    </div>
   );
 }
 

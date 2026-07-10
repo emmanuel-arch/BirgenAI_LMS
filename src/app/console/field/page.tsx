@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { hasFeature } from "@/lib/billing/entitlements";
@@ -18,19 +17,13 @@ export default async function FieldPage() {
 
   if (!(await hasFeature(session.user.orgId, "route-planner"))) {
     return (
-      <div className="min-h-screen relative text-zinc-900">
-        <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-        <main className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 py-10">
-          <Link href="/console" className="mb-6 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
-            <ArrowLeft className="h-4 w-4" /> Console
-          </Link>
+      <main className="mx-auto max-w-5xl px-4 sm:px-6 py-10">
           <UpgradeCard
             feature="route-planner"
             title="Field & Route Planner"
             blurb="Drop a verification visit anywhere, and the nearest available officer is allocated automatically — then their stops are ordered into the shortest route they can walk or ride."
           />
         </main>
-      </div>
     );
   }
 

@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useLoad } from "@/lib/hooks/useLoad";
 import Link from "next/link";
-import { ArrowLeft, Loader2, AlertTriangle, Users, Search, MapPin } from "lucide-react";
+import { Loader2, AlertTriangle, Users, Search, MapPin } from "lucide-react";
 
 type Borrower = {
   id: string; name: string | null; phone: string; nationalId: string | null;
@@ -27,13 +28,10 @@ export default function BorrowersPage() {
       setRows(data.borrowers);
     } catch { setError("Could not load borrowers."); }
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useLoad(load);
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <main className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 py-8">
-        <Link href="/console" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800"><ArrowLeft className="h-4 w-4" /> Console</Link>
+    <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
         <h1 className="mt-3 text-xl font-bold flex items-center gap-2"><Users className="h-5 w-5" style={{ color: "var(--brand)" }} /> Borrowers</h1>
 
         <div className="mt-4 flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3 max-w-md">
@@ -76,6 +74,5 @@ export default function BorrowersPage() {
           ))}
         </div>
       </main>
-    </div>
   );
 }

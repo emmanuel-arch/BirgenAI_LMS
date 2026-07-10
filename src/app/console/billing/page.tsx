@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import {
-  ArrowLeft, Loader2, AlertTriangle, CheckCircle2, Crown, Banknote, RefreshCw, Gauge, FlaskConical, FileText,
+  Loader2, AlertTriangle, CheckCircle2, Crown, Banknote, RefreshCw, Gauge, FlaskConical, FileText,
   MessageSquare, Clock3, Gift,
 } from "lucide-react";
 
@@ -127,12 +126,7 @@ export default function BillingPage() {
   const usedPct = (l: Line) => (l.included > 0 ? Math.min(100, (l.used / l.included) * 100) : l.used > 0 ? 100 : 0);
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <main className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 py-8">
-        <Link href="/console" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
-          <ArrowLeft className="h-4 w-4" /> Console
-        </Link>
+    <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
 
         {error && <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
         {notice && <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50/90 px-3 py-2.5 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> {notice}</div>}
@@ -378,6 +372,5 @@ export default function BillingPage() {
           })}
         </div>
       </main>
-    </div>
   );
 }

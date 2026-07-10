@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { hasFeature } from "@/lib/billing/entitlements";
@@ -22,19 +21,13 @@ export default async function TuningPage() {
 
   if (!scan || !tune) {
     return (
-      <div className="min-h-screen relative text-zinc-900">
-        <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-        <main className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 py-10">
-          <Link href="/console" className="mb-6 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
-            <ArrowLeft className="h-4 w-4" /> Console
-          </Link>
+      <main className="mx-auto max-w-5xl px-4 sm:px-6 py-10">
           <UpgradeCard
             feature={scan ? "model-tuning" : "portfolio-scan"}
             title="Your own risk policy"
             blurb="Every book behaves differently. A ten-day delinquency is normal breathing at a market-stall lender and an alarm at a payroll lender. Tune what counts as risk on your book — and see exactly which borrowers move before you commit."
           />
         </main>
-      </div>
     );
   }
 

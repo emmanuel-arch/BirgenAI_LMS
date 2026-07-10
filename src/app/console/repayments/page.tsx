@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Loader2, AlertTriangle, CheckCircle2, Landmark, Send } from "lucide-react";
+import { useCallback, useState } from "react";
+import { useLoad } from "@/lib/hooks/useLoad";
+import { Loader2, AlertTriangle, CheckCircle2, Landmark, Send } from "lucide-react";
 
 type LoanRow = { id: string; ref: string; borrower: string; phone: string; product: string; balance: number; nextDue: { date: string; amount: number } | null };
 type Receipt = { id: string; transId: string; amount: number; phone: string | null; billRef: string | null; allocatedLoanId: string | null; createdAt: string };
@@ -28,7 +28,7 @@ export default function RepaymentsPage() {
       setLoans(data.loans); setReceipts(data.receipts); setIntents(data.intents);
     } catch { setError("Could not load."); }
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useLoad(load);
 
   const stk = async (loanId: string) => {
     setActing(loanId); setError(null); setNotice(null);
@@ -59,12 +59,7 @@ export default function RepaymentsPage() {
   const unallocated = receipts.filter((r) => !r.allocatedLoanId);
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <main className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 py-8">
-        <Link href="/console" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
-          <ArrowLeft className="h-4 w-4" /> Console
-        </Link>
+    <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
         <h1 className="mt-3 text-xl font-bold flex items-center gap-2"><Landmark className="h-5 w-5" style={{ color: "var(--brand)" }} /> Repayments</h1>
 
         {notice && <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50/90 px-3 py-2.5 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> {notice}</div>}
@@ -140,6 +135,5 @@ export default function RepaymentsPage() {
           </div>
         </section>
       </main>
-    </div>
   );
 }

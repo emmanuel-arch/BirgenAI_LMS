@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         status: "ACTIVE",
         ...(body.orgSlug ? { org: { slug: body.orgSlug } } : {}),
       },
-      include: { role: { select: { title: true } }, org: { select: { id: true, slug: true, status: true } } },
+      include: { role: { select: { id: true, title: true } }, org: { select: { id: true, slug: true, status: true } } },
       orderBy: { createdAt: "asc" },
     });
 
@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
       name: `${staff.firstName}${staff.otherName ? " " + staff.otherName : ""}`,
       email: staff.email,
       role: staff.role?.title ?? null,
+      roleId: staff.role?.id ?? null,
       orgId: staff.orgId,
       orgSlug: staff.org.slug,
       tiers: { initiator: staff.isInitiator, authorizer: staff.isAuthorizer, validator: staff.isValidator },

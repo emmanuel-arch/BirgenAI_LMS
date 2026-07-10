@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, ShieldCheck, Loader2, AlertTriangle, CheckCircle2, ChevronDown } from "lucide-react";
+import { useState } from "react";
+import { useLoad } from "@/lib/hooks/useLoad";
+import { ShieldCheck, Loader2, AlertTriangle, CheckCircle2, ChevronDown } from "lucide-react";
 
 // Settings & Vault — each integration slot has its own encrypted, per-org
 // config form. Secrets are WRITE-ONLY: the API never returns stored values,
@@ -106,7 +106,7 @@ export default function Settings() {
       setRows(data.integrations);
     } catch { setError("Could not load integrations."); }
   };
-  useEffect(() => { load(); }, []);
+  useLoad(load);
 
   const statusOf = (kind: string) => rows?.find((r) => r.kind === kind)?.status ?? "UNCONFIGURED";
 
@@ -135,12 +135,7 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <main className="relative z-10 mx-auto max-w-4xl px-4 sm:px-6 py-8">
-        <Link href="/console" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
-          <ArrowLeft className="h-4 w-4" /> Console
-        </Link>
+    <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
         <h1 className="mt-3 text-xl font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5" style={{ color: "var(--brand)" }} /> Settings & Vault</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Your organization&apos;s own credentials, encrypted at rest and never shown back. Saving replaces the previous config.
@@ -210,6 +205,5 @@ export default function Settings() {
           </div>
         )}
       </main>
-    </div>
   );
 }

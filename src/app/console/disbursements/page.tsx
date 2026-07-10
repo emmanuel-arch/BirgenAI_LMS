@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Loader2, AlertTriangle, CheckCircle2, Banknote, Wallet, Plus, Send, RotateCcw } from "lucide-react";
+import { useCallback, useState } from "react";
+import { useLoad } from "@/lib/hooks/useLoad";
+import { Loader2, AlertTriangle, CheckCircle2, Banknote, Wallet, Plus, Send, RotateCcw } from "lucide-react";
 
 type Disb = {
   id: string; state: string; amount: number; phone: string; makerId: string | null; checkerId: string | null;
@@ -42,7 +42,7 @@ export default function DisbursementsPage() {
       setBalance(data.floatBalance);
     } catch { setError("Could not load."); }
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useLoad(load);
 
   const act = async (id: string, action: string, ref?: string) => {
     setActing(id + action); setError(null); setNotice(null);
@@ -75,12 +75,7 @@ export default function DisbursementsPage() {
   };
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <main className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 py-8">
-        <Link href="/console" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
-          <ArrowLeft className="h-4 w-4" /> Console
-        </Link>
+    <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
         <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
           <h1 className="text-xl font-bold flex items-center gap-2"><Banknote className="h-5 w-5" style={{ color: "var(--brand)" }} /> Disbursements</h1>
           <div className="glass px-4 py-2 flex items-center gap-3">
@@ -168,6 +163,5 @@ export default function DisbursementsPage() {
           ))}
         </div>
       </main>
-    </div>
   );
 }

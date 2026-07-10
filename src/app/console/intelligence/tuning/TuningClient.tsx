@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useLoad } from "@/lib/hooks/useLoad";
 import Link from "next/link";
 import { ArrowLeft, Loader2, AlertTriangle, RotateCcw, Save, Gauge, Eye, Info } from "lucide-react";
 
@@ -54,7 +55,7 @@ export function TuningClient() {
     } catch { setError("Could not load the policy."); }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useLoad(load);
 
   const dirty = useMemo(
     () => !!data && !!draft && JSON.stringify(draft) !== JSON.stringify(data.config),
@@ -99,9 +100,7 @@ export function TuningClient() {
   const setThreshold = (k: string, v: number) => setDraft({ ...draft, thresholds: { ...draft.thresholds, [k]: v } });
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <main className="relative z-10 mx-auto max-w-4xl px-4 sm:px-6 py-10">
+    <main className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
         <Link href="/console/intelligence" className="mb-6 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
           <ArrowLeft className="h-4 w-4" /> Credit Intelligence
         </Link>
@@ -260,7 +259,6 @@ export function TuningClient() {
           <p className="mt-6 text-xs text-zinc-500">You can see the policy, but only an admin can change it.</p>
         )}
       </main>
-    </div>
   );
 }
 

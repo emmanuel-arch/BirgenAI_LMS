@@ -20,9 +20,12 @@ export type SessionUser = {
   name?: string | null;
   email?: string | null;
   role?: string | null; // role TITLE (e.g. "Org Admin")
+  roleId?: string | null; // drives the rights resolver (src/lib/rbac); absent on pre-RBAC cookies
   orgId?: string;
   orgSlug?: string;
   tiers?: { initiator: boolean; authorizer: boolean; validator: boolean };
+  /** Set only on sessions minted by a platform admin "acting as" this org. */
+  impersonator?: { platformAdminId: string; name: string };
 };
 
 export type Session = { user?: SessionUser } | null;

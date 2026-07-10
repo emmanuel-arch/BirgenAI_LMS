@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useLoad } from "@/lib/hooks/useLoad";
 import { motion } from "framer-motion";
-import { ArrowLeft, Loader2, AlertTriangle, CheckCircle2, Navigation, UserCheck, Plus, Route } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2, Navigation, UserCheck, Plus, Route } from "lucide-react";
 
 type Agent = { id: string; name: string; title: string | null; lat: number | null; lng: number | null; avatarSeed: string; openVisits: number };
 type Visit = { id: string; label: string; kind: string; status: string; address: string | null; lat: number; lng: number; distanceKm: number | null; outcome: string | null; agentId: string | null; agentName: string | null; createdAt: string };
@@ -47,7 +47,7 @@ export function FieldClient() {
       setAgents(data.agents); setVisits(data.visits); setRoutes(data.routes);
     } catch { setError("Could not load."); } finally { setLoading(false); }
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useLoad(load);
 
   // Bounding box over agents + visits (+ demo spots as a floor) → SVG projection.
   const pts = useMemo(() => {
@@ -109,10 +109,7 @@ export function FieldClient() {
   const dropPin = form.lat && form.lng ? proj(form.lat, form.lng) : null;
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <main className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 py-8">
-        <Link href="/console" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800"><ArrowLeft className="h-4 w-4" /> Console</Link>
+    <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
         <h1 className="mt-3 text-xl font-bold flex items-center gap-2"><Route className="h-5 w-5" style={{ color: "var(--brand)" }} /> Field & route planner</h1>
         <p className="mt-1 text-xs text-zinc-500">Drop a verification visit; the nearest available agent is allocated automatically. Every agent&apos;s queue is ordered into a drive route.</p>
 
@@ -251,7 +248,6 @@ export function FieldClient() {
           </div>
         )}
       </main>
-    </div>
   );
 }
 

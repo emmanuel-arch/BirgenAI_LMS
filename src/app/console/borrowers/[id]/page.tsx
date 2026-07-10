@@ -68,9 +68,7 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
   const clearedCount = b.loans.filter((l) => l.status === "CLEARED").length;
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <main className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 py-8">
+    <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
         <Link href="/console/borrowers" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800"><ArrowLeft className="h-4 w-4" /> Borrowers</Link>
 
         {/* Identity header */}
@@ -223,6 +221,5 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
           />
         </div>
       </main>
-    </div>
   );
 }

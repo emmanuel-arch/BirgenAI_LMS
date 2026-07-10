@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Loader2, AlertTriangle, CheckCircle2, GitBranch, Plus, Trash2 } from "lucide-react";
+import { useCallback, useState } from "react";
+import { useLoad } from "@/lib/hooks/useLoad";
+import { Loader2, AlertTriangle, CheckCircle2, GitBranch, Plus, Trash2 } from "lucide-react";
 
 type Stage = { title: string; accessTier: number; canFinalize: boolean; otpRequired: boolean; maxAmount: string };
 type Workflow = { id: string; title: string; stages: { id: string; title: string; order: number; accessTier: number; canFinalize: boolean; otpRequired: boolean; maxAmount: number | null }[] };
@@ -30,7 +30,7 @@ export default function WorkflowsPage() {
       setRows(data.workflows);
     } catch { setError("Could not load workflows."); }
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useLoad(load);
 
   const save = async () => {
     setSaving(true); setError(null); setNotice(null);
@@ -54,10 +54,7 @@ export default function WorkflowsPage() {
     setStages((s) => s.map((x, j) => (j === i ? { ...x, ...patch } : x)));
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <main className="relative z-10 mx-auto max-w-4xl px-4 sm:px-6 py-8">
-        <Link href="/console" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800"><ArrowLeft className="h-4 w-4" /> Console</Link>
+    <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
         <div className="mt-3 flex items-center justify-between gap-3">
           <h1 className="text-xl font-bold flex items-center gap-2"><GitBranch className="h-5 w-5" style={{ color: "var(--brand)" }} /> Approval workflows</h1>
           <button onClick={() => setShowForm((s) => !s)} className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
@@ -131,6 +128,5 @@ export default function WorkflowsPage() {
           ))}
         </div>
       </main>
-    </div>
   );
 }

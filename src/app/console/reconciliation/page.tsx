@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useLoad } from "@/lib/hooks/useLoad";
 import Link from "next/link";
 import {
-  ArrowLeft, Loader2, AlertTriangle, CheckCircle2, Scale, RefreshCw, ShieldCheck,
+  Loader2, AlertTriangle, CheckCircle2, Scale, RefreshCw, ShieldCheck,
   Banknote, EyeOff, Undo2, ExternalLink, Zap,
 } from "lucide-react";
 
@@ -60,7 +61,7 @@ export default function ReconciliationPage() {
       setData(d);
     } catch { setError("Could not load."); }
   };
-  useEffect(() => { void load(); }, []);
+  useLoad(load);
 
   const post = async (body: Record<string, unknown>, key: string, okMsg?: string) => {
     setBusy(key); setError(null); setNotice(null);
@@ -87,12 +88,7 @@ export default function ReconciliationPage() {
   }
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <main className="relative z-10 mx-auto max-w-4xl px-4 sm:px-6 py-8">
-        <Link href="/console" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
-          <ArrowLeft className="h-4 w-4" /> Console
-        </Link>
+    <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
 
         <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -231,7 +227,6 @@ export default function ReconciliationPage() {
           stops reproducing closes itself; anything resolved that comes back is reopened.
         </p>
       </main>
-    </div>
   );
 }
 

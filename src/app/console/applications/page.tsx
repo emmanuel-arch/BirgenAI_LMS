@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { ArrowLeft, Loader2, AlertTriangle, CheckCircle2, XCircle, FileText, ChevronDown } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2, XCircle, FileText, ChevronDown } from "lucide-react";
 import { OfferPanel } from "./OfferPanel";
 import { SecurityPanel } from "./SecurityPanel";
 
@@ -72,12 +71,7 @@ export default function ApplicationsQueue() {
   };
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <main className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 py-8">
-        <Link href="/console" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
-          <ArrowLeft className="h-4 w-4" /> Console
-        </Link>
+    <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
         <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
           <h1 className="text-xl font-bold flex items-center gap-2"><FileText className="h-5 w-5" style={{ color: "var(--brand)" }} /> Applications</h1>
           <div className="flex gap-1 rounded-lg border border-zinc-900/10 bg-white/70 p-1 text-xs font-semibold">
@@ -174,6 +168,5 @@ export default function ApplicationsQueue() {
           })}
         </div>
       </main>
-    </div>
   );
 }

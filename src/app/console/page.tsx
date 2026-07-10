@@ -1,45 +1,56 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getRights } from "@/lib/rbac/authz";
+import { entitlementsFor } from "@/lib/billing/entitlements";
+import type { Right } from "@/lib/rbac/rights";
+import type { Feature } from "@/lib/billing/plans";
 import {
-  Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, ShieldCheck, Bot, Package, GitBranch, Crown, ScanLine, Scale,
+  Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, Bot, Package, GitBranch, Crown, ScanLine, Scale, KeyRound, PhoneCall,
 } from "lucide-react";
-import { SignOutButton } from "./signout";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Staff console shell — the org-scoped home for officers/managers/admins.
-// Modules below are the Phase-2+ build order; each card lights up as it ships.
-const MODULES = [
-  { icon: FileText, title: "Applications", desc: "AI pre-screened queue, SHAP reasons, two-tier approvals", ready: true, href: "/console/applications" },
-  { icon: Package, title: "Products", desc: "Loan products: limits, interest, schedule, disbursement mode", ready: true, href: "/console/products" },
-  { icon: GitBranch, title: "Workflows", desc: "Approval stage chains: tiers, OTP, finalize amount caps", ready: true, href: "/console/workflows" },
-  { icon: Users, title: "Borrowers", desc: "The borrower book: KYC status, scores, OLB, graduation", ready: true, href: "/console/borrowers" },
-  { icon: Users, title: "Team & Roles", desc: "Invite staff, approval tiers (INIT/AUTH/VALID), access", ready: true, href: "/console/team" },
-  { icon: Banknote, title: "Loans & Disbursement", desc: "Maker-checker B2C queue, manual confirm, float ledger", ready: true, href: "/console/disbursements" },
-  { icon: Landmark, title: "Repayments", desc: "STK requests, C2B receipts, unallocated exceptions", ready: true, href: "/console/repayments" },
-  { icon: Scale, title: "Reconciliation", desc: "Every shilling M-Pesa moved, checked nightly against the book", ready: true, href: "/console/reconciliation" },
-  { icon: Gauge, title: "Credit Intelligence", desc: "Portfolio early-warning watchlist, risk scores, one-tap recovery", ready: true, href: "/console/intelligence" },
-  { icon: MapPin, title: "Field & Routes", desc: "Geo-pinned verifications, nearest-agent allocation, drive routes", ready: true, href: "/console/field" },
-  { icon: ScanLine, title: "Document Parser", desc: "Fee structures, invoices, permits, statements → structured figures", ready: true, href: "/console/documents" },
-  { icon: MessageSquare, title: "SMS & Comms", desc: "Templates, campaigns, delivery billing", ready: false },
-  { icon: Bot, title: "Riri Assistant", desc: "Talk to your book — 3 models: Analyst (live data), Copilot & Max", ready: true, open: "analyst" },
-  { icon: FileText, title: "Reports", desc: "Portfolio report & loan statements — print or save as PDF", ready: true, href: "/console/report" },
-  { icon: Crown, title: "Billing & Package", desc: "Your package, usage this month, pay via the BirgenAI wallet", ready: true, href: "/console/billing" },
-  { icon: Settings2, title: "Settings & Vault", desc: "Branding, team, roles, integrations (Daraja, SMS, CRB, KYC)", ready: true, href: "/console/settings" },
-] as const;
+// Staff console home. The sidebar is the canonical menu (src/lib/nav/registry);
+// these cards are the same destinations as a scannable dashboard, filtered by
+// the SAME rights + plan features so the two can never disagree.
+const MODULES: {
+  icon: typeof Users; title: string; desc: string; ready: boolean;
+  href?: string; open?: string; right?: Right; feature?: Feature;
+}[] = [
+  { icon: FileText, title: "Applications", desc: "AI pre-screened queue, SHAP reasons, two-tier approvals", ready: true, href: "/console/applications", right: "applications.view" },
+  { icon: Package, title: "Products", desc: "Loan products: limits, interest, schedule, disbursement mode", ready: true, href: "/console/products", right: "products.view" },
+  { icon: GitBranch, title: "Workflows", desc: "Approval stage chains: tiers, OTP, finalize amount caps", ready: true, href: "/console/workflows", right: "workflows.view" },
+  { icon: Users, title: "Borrowers", desc: "The borrower book: KYC status, scores, OLB, graduation", ready: true, href: "/console/borrowers", right: "borrowers.view" },
+  { icon: Landmark, title: "Loans", desc: "Booked loans: balances, schedules, printable statements", ready: true, href: "/console/loans", right: "loans.view" },
+  { icon: Banknote, title: "Disbursements", desc: "Maker-checker B2C queue, manual confirm, float ledger", ready: true, href: "/console/disbursements", right: "disbursements.view" },
+  { icon: Landmark, title: "Repayments", desc: "STK requests, C2B receipts, unallocated exceptions", ready: true, href: "/console/repayments", right: "repayments.view" },
+  { icon: Scale, title: "Reconciliation", desc: "Every shilling M-Pesa moved, checked nightly against the book", ready: true, href: "/console/reconciliation", right: "reconciliation.view" },
+  { icon: PhoneCall, title: "Collections", desc: "Promises to pay, call logs, arrears work queues", ready: false, right: "collections.view" },
+  { icon: Gauge, title: "Credit Intelligence", desc: "Portfolio early-warning watchlist, risk scores, one-tap recovery", ready: true, href: "/console/intelligence", right: "intelligence.view", feature: "portfolio-scan" },
+  { icon: MapPin, title: "Field & Routes", desc: "Geo-pinned verifications, nearest-agent allocation, drive routes", ready: true, href: "/console/field", right: "field.view", feature: "route-planner" },
+  { icon: ScanLine, title: "Document Parser", desc: "Fee structures, invoices, permits, statements → structured figures", ready: true, href: "/console/documents", right: "documents.view", feature: "document-parser" },
+  { icon: MessageSquare, title: "SMS & Comms", desc: "Templates, campaigns, delivery billing", ready: false, right: "sms.view" },
+  { icon: Bot, title: "Riri Assistant", desc: "Talk to your book — 3 models: Analyst (live data), Copilot & Max", ready: true, open: "analyst", right: "riri.use", feature: "riri" },
+  { icon: FileText, title: "Reports", desc: "Portfolio report & loan statements — print or save as PDF", ready: true, href: "/console/report", right: "reports.view" },
+  { icon: KeyRound, title: "Team, Roles & Access", desc: "Invite staff, create roles, choose the menus each role sees", ready: true, href: "/console/roles", right: "roles.view" },
+  { icon: Crown, title: "Billing & Package", desc: "Your package, usage this month, pay via the BirgenAI wallet", ready: true, href: "/console/billing", right: "billing.view" },
+  { icon: Settings2, title: "Settings & Vault", desc: "Branding, integrations (Daraja, SMS, CRB, KYC)", ready: true, href: "/console/settings", right: "settings.view" },
+];
 
 export default async function Console() {
   const session = await auth();
   if (!session?.user?.orgId) redirect("/login");
   const orgId = session.user.orgId;
 
-  const org = await prisma.org.findUnique({
-    where: { id: orgId },
-    select: { name: true, slug: true, status: true, mode: true, accent: true, accentSoft: true },
-  });
+  const org = await prisma.org.findUnique({ where: { id: orgId }, select: { name: true } });
   if (!org) redirect("/login");
+
+  const [rights, ent] = await Promise.all([getRights(session), entitlementsFor(orgId)]);
+  const visible = MODULES.filter(
+    (m) => (!m.right || rights.has(m.right)) && (!m.feature || ent.features.has(m.feature)),
+  );
 
   // Portfolio pulse — the semantic-metric-layer seeds (OLB, PAR30, today's flows).
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -72,66 +83,39 @@ export default async function Console() {
   ];
 
   return (
-    <div className="min-h-screen relative text-zinc-900" style={{ ["--brand" as never]: org.accent, ["--brand-soft" as never]: org.accentSoft }}>
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
+    <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
+      <h1 className="text-xl font-bold">Console</h1>
+      <p className="mt-1 text-sm text-zinc-500">Your lending operation, org-scoped and isolated.</p>
 
-      <header className="sticky top-0 z-30 border-b border-zinc-900/10 bg-white/70 backdrop-blur-xl">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg text-white text-sm font-bold shrink-0" style={{ backgroundColor: "var(--brand)" }}>
-              {org.name.slice(0, 1)}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-bold leading-tight truncate">{org.name}</p>
-              <p className="text-[10px] text-zinc-500 leading-tight">{org.slug}.birgenai.com · {org.mode === "NATIVE" ? "Native book" : "Bridged (ServiceSuite)"}</p>
-            </div>
+      <div className="mt-5 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+        {TILES.map((t) => (
+          <div key={t.label} className="glass p-3.5">
+            <p className="text-[10px] uppercase tracking-wide text-zinc-500">{t.label}</p>
+            <p className="mt-1 text-base font-bold leading-tight" style={{ color: "var(--brand)" }}>{t.value}</p>
+            {t.sub && <p className="mt-0.5 text-[10px] text-zinc-500">{t.sub}</p>}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {org.status !== "ACTIVE" && (
-              <span className="rounded-md bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700">
-                <ShieldCheck className="inline h-3 w-3 mr-1 -mt-0.5" />Pending activation
-              </span>
-            )}
-            <span className="hidden sm:block text-xs text-zinc-500 max-w-[160px] truncate">{session.user.name} · {session.user.role ?? "Staff"}</span>
-            <SignOutButton />
-          </div>
-        </div>
-      </header>
+        ))}
+      </div>
 
-      <main className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 py-8">
-        <h1 className="text-xl font-bold">Console</h1>
-        <p className="mt-1 text-sm text-zinc-500">Your lending operation, org-scoped and isolated.</p>
-
-        <div className="mt-5 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-          {TILES.map((t) => (
-            <div key={t.label} className="glass p-3.5">
-              <p className="text-[10px] uppercase tracking-wide text-zinc-500">{t.label}</p>
-              <p className="mt-1 text-base font-bold leading-tight" style={{ color: "var(--brand)" }}>{t.value}</p>
-              {t.sub && <p className="mt-0.5 text-[10px] text-zinc-500">{t.sub}</p>}
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {MODULES.map(({ icon: Icon, title, desc, ready, ...m }) => {
-            const card = (
-              <div className={`glass p-5 h-full ${ready ? "hover:bg-white/80 transition-colors" : "opacity-60"}`}>
-                <div className="flex items-center justify-between">
-                  <Icon className="h-6 w-6" style={{ color: "var(--brand)" }} aria-hidden />
-                  {!ready && <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">COMING UP</span>}
-                </div>
-                <h2 className="mt-3 text-sm font-semibold">{title}</h2>
-                <p className="mt-1 text-sm leading-relaxed text-zinc-600">{desc}</p>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {visible.map(({ icon: Icon, title, desc, ready, ...m }) => {
+          const card = (
+            <div className={`glass p-5 h-full ${ready ? "hover:bg-white/80 transition-colors" : "opacity-60"}`}>
+              <div className="flex items-center justify-between">
+                <Icon className="h-6 w-6" style={{ color: "var(--brand)" }} aria-hidden />
+                {!ready && <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">COMING UP</span>}
               </div>
-            );
-            if ("href" in m && m.href && ready) return <a key={title} href={m.href}>{card}</a>;
-            // Riri opens the floating dock (mounted in the console layout) via a
-            // global [data-riri-open] listener — no client component needed here.
-            if ("open" in m && m.open && ready) return <button key={title} type="button" data-riri-open={m.open} className="text-left w-full">{card}</button>;
-            return <div key={title}>{card}</div>;
-          })}
-        </div>
-      </main>
-    </div>
+              <h2 className="mt-3 text-sm font-semibold">{title}</h2>
+              <p className="mt-1 text-sm leading-relaxed text-zinc-600">{desc}</p>
+            </div>
+          );
+          if (m.href && ready) return <a key={title} href={m.href}>{card}</a>;
+          // Riri opens the floating dock (mounted in the console layout) via a
+          // global [data-riri-open] listener — no client component needed here.
+          if (m.open && ready) return <button key={title} type="button" data-riri-open={m.open} className="text-left w-full">{card}</button>;
+          return <div key={title}>{card}</div>;
+        })}
+      </div>
+    </main>
   );
 }

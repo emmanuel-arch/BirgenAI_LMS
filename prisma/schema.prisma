@@ -80,10 +80,14 @@ model Org {
   // Branding (white-label): accent drives --brand, assets in storage.
   accent     String  @default("#F97316")
   accentSoft String  @default("rgba(249,115,22,0.12)")
+  // Optional second gradient stop (logo-derived). Null ⇒ derived from accent at render.
+  accent2    String?
   tagline    String?
   blurb      String?
   logoUrl    String?
   heroUrl    String?
+  // First-run setup checklist ({ dismissed?: boolean, activationRequestedAt?: string })
+  onboardingState Json?
   // Bridged-mode link
   serviceSuiteEntityId Int?
   // Demo orgs power the guided showcase (test accounts, seeded lifecycle).
