@@ -22,6 +22,8 @@
     "test:reconcile": "tsx scripts/verify-reconcile.ts",
     "test:rbac": "tsx scripts/verify-rbac.ts",
     "test:branding": "tsx scripts/verify-branding.ts",
+    "test:platform-admin": "tsx scripts/verify-platform-auth.ts",
+    "platform:admin": "tsx scripts/create-platform-admin.ts",
     "db:app-role": "tsx scripts/create-app-role.ts",
     "storage:init": "tsx scripts/init-storage.ts",
     "db:migrate:plans": "tsx scripts/migrate-plans.ts",

@@ -67,6 +67,19 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+// Platform (founder-level) operators. NO orgId — they oversee every tenant, so
+// this table is deliberately outside RLS (documented in rls.sql beside Org and
+// RateLimit) and only ever touched under runAsPlatform() by /platform surfaces.
+model PlatformAdmin {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  status       String    @default("ACTIVE") // ACTIVE | DISABLED
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+}
+
 model Org {
   id        String    @id @default(uuid())
   slug      String    @unique // subdomain: <slug>.birgenai.com

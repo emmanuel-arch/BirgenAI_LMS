@@ -1,12 +1,14 @@
 // Platform administration — BirgenAI-side org activation (cross-tenant, the
-// ONLY surface that crosses orgs). Gated by PLATFORM_ADMIN_SECRET bearer —
-// never by an org session.
-//   GET  → all orgs with status + counts
+// ONLY surface that crosses orgs). Gated by a PlatformAdmin session (the
+// founder's real account) or, for one more release, the legacy
+// PLATFORM_ADMIN_SECRET bearer as break-glass — never by an org session.
+//   GET  → all orgs with status + counts + setup completeness (review queue)
 //   POST → { orgId, action: "activate" | "suspend" | "pend" | "plan" | "grant-sms" }
 import { NextRequest, NextResponse } from "next/server";
 import type { OrgPlan } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { runAsPlatform } from "@/lib/db/context";
+import { platformAuth, legacyBearerOk } from "@/lib/platform-auth";
 import { PLAN_ORDER, PLANS } from "@/lib/billing/plans";
 import { invalidateEntitlements } from "@/lib/billing/entitlements";
 import { creditTopUp } from "@/lib/sms/wallet";
@@ -14,29 +16,35 @@ import { flushQueuedSms } from "@/lib/sms/send";
 
 export const runtime = "nodejs";
 
-function authorized(req: NextRequest): boolean {
-  const secret = process.env.PLATFORM_ADMIN_SECRET?.trim();
-  if (!secret) return false;
-  const header = req.headers.get("authorization") ?? "";
-  const token = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : "";
-  return !!token && token === secret;
+async function authorized(req: NextRequest): Promise<boolean> {
+  const session = await platformAuth();
+  if (session?.admin) return true;
+  return legacyBearerOk(req.headers.get("authorization"));
 }
 
 export async function GET(req: NextRequest) {
-  if (!authorized(req)) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
-  // The one surface that legitimately crosses tenants — gated by the platform secret.
+  if (!(await authorized(req))) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
+  // The one surface that legitimately crosses tenants.
   const orgs = await runAsPlatform(() =>
     prisma.org.findMany({
       orderBy: { createdAt: "desc" },
       select: {
         id: true, slug: true, name: true, mode: true, status: true, plan: true, createdAt: true,
+        logoUrl: true, accent: true, onboardingState: true,
         // What the lender is actually paying, and what they last owed. A board that
         // shows a package but not whether it has been paid for is decoration.
         subscription: { select: { status: true, trialEndsAt: true, currentPeriodEnd: true } },
         invoices: { orderBy: { periodStart: "desc" }, take: 1, select: { number: true, totalKes: true, status: true } },
         // A deep negative here is a lender we are subsidising — the board should see it.
         smsWallet: { select: { balance: true } },
-        _count: { select: { staff: true, borrowers: true, loans: true, applications: true } },
+        _count: {
+          select: {
+            staff: true, borrowers: true, loans: true, applications: true,
+            // Setup completeness for the review queue: can this lender actually
+            // lend the moment the founder flips them ACTIVE?
+            products: true, workflows: true, roles: true, integrations: true,
+          },
+        },
       },
     }),
   );
@@ -44,16 +52,28 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     success: true,
     plans: PLAN_ORDER.map((k) => ({ key: k, name: PLANS[k].name, monthlyKes: PLANS[k].monthlyKes })),
-    orgs: orgs.map(({ invoices, smsWallet, ...o }) => ({
-      ...o,
-      smsBalance: smsWallet?.balance ?? 0,
-      lastInvoice: invoices[0] ? { ...invoices[0], totalKes: Number(invoices[0].totalKes) } : null,
-    })),
+    orgs: orgs.map(({ invoices, smsWallet, onboardingState, ...o }) => {
+      const state = (onboardingState ?? {}) as { activationRequestedAt?: string };
+      return {
+        ...o,
+        smsBalance: smsWallet?.balance ?? 0,
+        lastInvoice: invoices[0] ? { ...invoices[0], totalKes: Number(invoices[0].totalKes) } : null,
+        activationRequestedAt: state.activationRequestedAt ?? null,
+        setup: {
+          branding: !!o.logoUrl,
+          products: o._count.products > 0,
+          workflows: o._count.workflows > 0,
+          roles: o._count.roles > 1,
+          team: o._count.staff > 1,
+          vault: o._count.integrations > 0,
+        },
+      };
+    }),
   });
 }
 
 export async function POST(req: NextRequest) {
-  if (!authorized(req)) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
+  if (!(await authorized(req))) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
 
   let body: { orgId?: string; action?: string; plan?: string; units?: number; note?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
