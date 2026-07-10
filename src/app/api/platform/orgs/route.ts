@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { OrgPlan } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { runAsPlatform } from "@/lib/db/context";
-import { PLAN_ORDER } from "@/lib/billing/plans";
+import { PLAN_ORDER, PLANS } from "@/lib/billing/plans";
 import { invalidateEntitlements } from "@/lib/billing/entitlements";
 
 export const runtime = "nodejs";
@@ -28,11 +28,23 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       select: {
         id: true, slug: true, name: true, mode: true, status: true, plan: true, createdAt: true,
+        // What the lender is actually paying, and what they last owed. A board that
+        // shows a package but not whether it has been paid for is decoration.
+        subscription: { select: { status: true, trialEndsAt: true, currentPeriodEnd: true } },
+        invoices: { orderBy: { periodStart: "desc" }, take: 1, select: { number: true, totalKes: true, status: true } },
         _count: { select: { staff: true, borrowers: true, loans: true, applications: true } },
       },
     }),
   );
-  return NextResponse.json({ success: true, orgs });
+
+  return NextResponse.json({
+    success: true,
+    plans: PLAN_ORDER.map((k) => ({ key: k, name: PLANS[k].name, monthlyKes: PLANS[k].monthlyKes })),
+    orgs: orgs.map(({ invoices, ...o }) => ({
+      ...o,
+      lastInvoice: invoices[0] ? { ...invoices[0], totalKes: Number(invoices[0].totalKes) } : null,
+    })),
+  });
 }
 
 export async function POST(req: NextRequest) {
