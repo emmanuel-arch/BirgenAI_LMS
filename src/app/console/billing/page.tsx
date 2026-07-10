@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, Loader2, AlertTriangle, CheckCircle2, Crown, Banknote, RefreshCw, Gauge, FlaskConical,
+  ArrowLeft, Loader2, AlertTriangle, CheckCircle2, Crown, Banknote, RefreshCw, Gauge, FlaskConical, FileText,
 } from "lucide-react";
 
 // Billing. The lender sees what they are on, what they have used, and what it will
@@ -12,8 +12,13 @@ import {
 
 type Line = { kind: string; label: string; used: number; included: number; overage: number; unitPriceKes: number; costKes: number };
 type Plan = { key: string; name: string; monthlyKes: number; blurb: string; features: string[]; seats: number | null };
+type Invoice = {
+  id: string; number: string; periodStart: string; periodEnd: string; plan: string;
+  planFeeKes: number; overageKes: number; totalKes: number; status: string; paidAt: string | null;
+};
 type Billing = {
   plan: Plan; features: string[]; status: string; paying: boolean; trialEndsAt: string | null;
+  invoices: Invoice[];
   period: { start: string; end: string }; seats: number | null; lines: Line[];
   estimate: { baseKes: number; overageKes: number; totalKes: number };
   catalogue: Plan[]; payment: { via: string; mode: "live" | "simulation" }; canPay: boolean;
@@ -173,6 +178,37 @@ export default function BillingPage() {
             </div>
           )}
         </div>
+
+        {/* Closed months. These never recompute — they are what was owed. */}
+        {data.invoices?.length > 0 && (
+          <div className="mt-5 glass p-5 sm:p-6">
+            <h2 className="text-sm font-semibold flex items-center gap-2">
+              <FileText className="h-4 w-4" style={{ color: "var(--brand)" }} /> Invoices
+            </h2>
+            <p className="mt-1 text-[11px] text-zinc-400">
+              Each closed month, priced as it was charged. These do not change when our prices do.
+            </p>
+            <div className="mt-3 space-y-1.5">
+              {data.invoices.map((inv) => (
+                <div key={inv.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2">
+                  <div>
+                    <p className="text-xs font-semibold">{inv.number}</p>
+                    <p className="text-[11px] text-zinc-400">
+                      {new Date(inv.periodStart).toLocaleDateString("en-GB", { month: "long", year: "numeric" })} · {inv.plan.toLowerCase()}
+                      {inv.overageKes > 0 ? ` · ${kes(inv.planFeeKes)} + ${kes(inv.overageKes)} usage` : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold tabular-nums">{kes(inv.totalKes)}</span>
+                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${inv.status === "PAID" ? "bg-emerald-100 text-emerald-700" : inv.status === "VOID" ? "bg-zinc-900/5 text-zinc-500" : "bg-amber-100 text-amber-700"}`}>
+                      {inv.status.toLowerCase()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* The four packages */}
         <h2 className="mt-8 text-sm font-semibold">Packages</h2>

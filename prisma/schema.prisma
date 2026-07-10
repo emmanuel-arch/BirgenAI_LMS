@@ -104,6 +104,7 @@ model Org {
   guarantors    Guarantor[]
   collateral    Collateral[]
   documents     Document[]
+  invoices      Invoice[]
   tuning        TuningProfile?
   loans         Loan[]
   usageEvents   UsageEvent[]
@@ -1149,6 +1150,73 @@ model UsageEvent {
   org Org @relation(fields: [orgId], references: [id])
 
   @@index([orgId, kind, createdAt])
+}
+
+enum InvoiceStatus {
+  ISSUED // frozen and owed
+  PAID // settled through the Hub wallet
+  VOID // cancelled; kept, never deleted
+}
+
+/// A month, closed and frozen.
+///
+/// Once issued, an invoice never recomputes. Its lines carry the quantity and the
+/// price AS CHARGED — read from each UsageEvent's own `unitCost`, not from today's
+/// catalogue — so re-pricing CRB tomorrow cannot rewrite what a lender owed last
+/// month. That is the whole reason `unitCost` is stamped onto every event.
+///
+/// One invoice per org per period; the unique constraint is what makes the monthly
+/// freeze safe to run twice.
+model Invoice {
+  id     String @id @default(uuid())
+  orgId  String
+  /// Human reference: INV-<slug>-YYYYMM.
+  number String @unique
+
+  periodStart DateTime
+  periodEnd   DateTime
+
+  plan       String // the package as it stood when the month closed
+  planFeeKes Decimal @db.Decimal(18, 2)
+  overageKes Decimal @db.Decimal(18, 2)
+  totalKes   Decimal @db.Decimal(18, 2)
+  currency   String  @default("KES")
+
+  status   InvoiceStatus @default(ISSUED)
+  issuedAt DateTime      @default(now())
+  paidAt   DateTime?
+  /// Hub PaymentIntent / receipt, once the wallet settles it.
+  hubReference String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org   Org           @relation(fields: [orgId], references: [id])
+  lines InvoiceLine[]
+
+  @@unique([orgId, periodStart])
+  @@index([orgId, status])
+}
+
+model InvoiceLine {
+  id        String @id @default(uuid())
+  orgId     String
+  invoiceId String
+
+  /// "subscription", or a UsageKind.
+  kind  String
+  label String
+  /// Units billed on this line (already net of the included allowance).
+  qty         Int
+  /// How many of this kind the plan covered for free. Shown, never charged.
+  includedQty Int @default(0)
+  /// The price as charged. A month with a mid-period reprice yields two lines.
+  unitCostKes Decimal @db.Decimal(9, 4)
+  amountKes   Decimal @db.Decimal(18, 2)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, invoiceId])
 }
 
 /// The commercial relationship with one lender.

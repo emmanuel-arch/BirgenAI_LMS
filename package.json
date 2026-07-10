@@ -13,6 +13,7 @@
     "test:portal": "tsx scripts/verify-portal-auth.ts",
     "test:storage": "tsx scripts/verify-storage.ts",
     "test:billing": "tsx scripts/verify-billing.ts",
+    "test:invoice": "tsx scripts/verify-invoice.ts",
     "test:offer": "tsx scripts/verify-offer.ts",
     "test:guarantee": "tsx scripts/verify-guarantee.ts",
     "test:documents": "tsx scripts/verify-documents.ts",

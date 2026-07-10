@@ -9,6 +9,7 @@
 // deployment can misinform, never mischarge.
 import { NextRequest, NextResponse } from "next/server";
 import { auth, hasAdminAccess } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { entitlementsFor, overageFor, currentPeriod, invalidateEntitlements } from "@/lib/billing/entitlements";
 import { usageBetween } from "@/lib/billing/meter";
 import {
@@ -16,6 +17,7 @@ import {
   deliverableFeatures, isBillableKind,
 } from "@/lib/billing/plans";
 import { hubCheckoutUrl, hubBillingMode, syncSubscriptionFromHub } from "@/lib/billing/hub";
+import { estimateOpenPeriod } from "@/lib/billing/invoice";
 
 export const runtime = "nodejs";
 
@@ -38,11 +40,26 @@ export async function GET() {
     })
     .filter((l) => l.used > 0 || l.included > 0);
 
-  const overageKes = lines.reduce((s, l) => s + l.costKes, 0);
+  // The estimate uses the SAME arithmetic the invoice will: the allowance is spent
+  // chronologically and every billed unit costs what it cost when it happened. The
+  // bars above are a progress display; this is the number the lender will owe.
+  const open = await estimateOpenPeriod(orgId, ent.plan.key, (await prisma.orgSubscription.findUnique({ where: { orgId }, select: { includedOverrides: true } }))?.includedOverrides as never);
+  const overageKes = open.overageKes;
+
+  // Closed months, exactly as they were frozen. Never recomputed for display.
+  const invoices = await prisma.invoice.findMany({
+    where: { orgId },
+    orderBy: { periodStart: "desc" },
+    take: 12,
+    select: { id: true, number: true, periodStart: true, periodEnd: true, plan: true, planFeeKes: true, overageKes: true, totalKes: true, status: true, issuedAt: true, paidAt: true },
+  });
 
   return NextResponse.json({
     success: true,
     plan: { ...ent.plan, features: deliverableFeatures(ent.plan) },
+    invoices: invoices.map((i) => ({
+      ...i, planFeeKes: Number(i.planFeeKes), overageKes: Number(i.overageKes), totalKes: Number(i.totalKes),
+    })),
     features: [...ent.features],
     status: ent.status,
     paying: ent.paying,
@@ -50,7 +67,7 @@ export async function GET() {
     period: { start, end },
     seats: ent.seats,
     lines,
-    estimate: { baseKes: ent.plan.monthlyKes, overageKes, totalKes: ent.plan.monthlyKes + overageKes },
+    estimate: { baseKes: open.planFeeKes, overageKes, totalKes: open.totalKes },
     catalogue: PLAN_ORDER.map((k) => ({ ...PLANS[k], features: deliverableFeatures(PLANS[k]) })),
     payment: { via: "hub-wallet", mode: hubBillingMode() },
     canPay: hasAdminAccess(session),

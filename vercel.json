@@ -5,6 +5,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/billing",
+      "schedule": "30 4 * * *"
+    },
+    {
       "path": "/api/cron/arrears",
       "schedule": "0 5 * * *"
     }
