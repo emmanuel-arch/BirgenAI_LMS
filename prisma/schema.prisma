@@ -109,6 +109,8 @@ model Org {
   loans         Loan[]
   usageEvents   UsageEvent[]
   fieldVisits   FieldVisit[]
+  smsWallet     SmsWallet?
+  smsTopUps     SmsTopUp[]
 }
 
 enum IntegrationKind {
@@ -1086,6 +1088,48 @@ model SmsTemplate {
   updatedAt DateTime @updatedAt
 
   @@unique([orgId, key])
+}
+
+enum SmsTopUpSource {
+  HUB // paid through the BirgenAI wallet; hubReference is the Hub's record
+  PLATFORM_GRANT // granted from the platform board (sales, goodwill, demos)
+}
+
+/// Prepaid SMS credits, spent only by messages that ride the PLATFORM's provider.
+///
+/// SMS is the one metered kind whose third-party cost cannot be feature-gated
+/// up front — a borrower's signing code has to go out — so it is prepaid rather
+/// than invoiced in arrears: the plan's monthly allowance is spent first, then
+/// this balance. At zero, CRITICAL messages (codes, consent links) overdraw into
+/// the negative — a billing lapse must never lock a borrower out of signing —
+/// and the next top-up settles the overdraft. Discretionary messages queue until
+/// credit arrives. An org sending through its OWN vault provider never touches
+/// this wallet: those messages cost us nothing, so we charge nothing.
+model SmsWallet {
+  orgId     String   @id
+  balance   Int      @default(0) // whole messages; negative = critical overdraft
+  updatedAt DateTime @updatedAt
+
+  org Org @relation(fields: [orgId], references: [id])
+}
+
+/// One purchase (or grant) of SMS credits. The MONEY side lives in the Hub
+/// wallet — `hubReference` is the Hub's settlement record, and its uniqueness is
+/// what makes read-back crediting idempotent: syncing twice cannot credit twice.
+model SmsTopUp {
+  id           String         @id @default(uuid())
+  orgId        String
+  units        Int
+  amountKes    Decimal        @db.Decimal(18, 2)
+  source       SmsTopUpSource
+  hubReference String?        @unique
+  note         String?
+  createdBy    String? // platform actor on grants; null for wallet purchases
+  createdAt    DateTime       @default(now())
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, createdAt])
 }
 
 // ── Intelligence & metering ──────────────────────────────────────────────────

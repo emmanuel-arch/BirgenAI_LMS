@@ -18,6 +18,7 @@
     "test:guarantee": "tsx scripts/verify-guarantee.ts",
     "test:documents": "tsx scripts/verify-documents.ts",
     "test:tuning": "tsx scripts/verify-tuning.ts",
+    "test:sms": "tsx scripts/verify-sms-wallet.ts",
     "db:app-role": "tsx scripts/create-app-role.ts",
     "storage:init": "tsx scripts/init-storage.ts",
     "db:migrate:plans": "tsx scripts/migrate-plans.ts",

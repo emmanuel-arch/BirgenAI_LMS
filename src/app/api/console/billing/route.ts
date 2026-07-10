@@ -1,8 +1,10 @@
 // GET  /api/console/billing — this org's package, usage this month, and estimate.
-// POST /api/console/billing { action: "checkout" | "sync" }
+// POST /api/console/billing { action: "checkout" | "sms-topup" | "sync" }
 //
-//   checkout → a URL into the Hub's centralised wallet. We do not take money here.
-//   sync     → re-read what the Hub says has been paid, and mirror it locally.
+//   checkout  → a URL into the Hub's centralised wallet. We do not take money here.
+//   sms-topup → same wallet, different product: a prepaid SMS pack.
+//   sync      → re-read what the Hub says has been paid, and mirror it locally —
+//               the subscription AND any SMS packs bought since we last looked.
 //
 // The estimate is exactly that. The authoritative amount is recomputed by the Hub
 // from its own rate card when the lender actually pays, so a stale price in this
@@ -13,11 +15,15 @@ import { prisma } from "@/lib/prisma";
 import { entitlementsFor, overageFor, currentPeriod, invalidateEntitlements } from "@/lib/billing/entitlements";
 import { usageBetween } from "@/lib/billing/meter";
 import {
-  PLANS, PLAN_ORDER, USAGE_KINDS, USAGE_LABEL, UNIT_PRICE_KES,
+  PLANS, PLAN_ORDER, USAGE_KINDS, USAGE_LABEL, UNIT_PRICE_KES, SMS_PACKS, smsPack,
   deliverableFeatures, isBillableKind,
 } from "@/lib/billing/plans";
-import { hubCheckoutUrl, hubBillingMode, syncSubscriptionFromHub } from "@/lib/billing/hub";
+import {
+  hubCheckoutUrl, hubSmsTopupUrl, hubBillingMode, syncSubscriptionFromHub, syncSmsTopupsFromHub,
+} from "@/lib/billing/hub";
 import { estimateOpenPeriod } from "@/lib/billing/invoice";
+import { smsWalletSummary } from "@/lib/sms/wallet";
+import { getIntegration } from "@/lib/vault/integrations";
 
 export const runtime = "nodejs";
 
@@ -54,6 +60,14 @@ export async function GET() {
     select: { id: true, number: true, periodStart: true, periodEnd: true, plan: true, planFeeKes: true, overageKes: true, totalKes: true, status: true, issuedAt: true, paidAt: true },
   });
 
+  // Messaging. SMS is prepaid — allowance, then credits — so it lives in its own
+  // section rather than on the invoice estimate. An org sending through its own
+  // vault provider is told so instead of being sold credits it would never spend.
+  const [wallet, ownSms] = await Promise.all([
+    smsWalletSummary(orgId),
+    getIntegration(orgId, "SMS").then((c) => !!c?.apiKey).catch(() => false),
+  ]);
+
   return NextResponse.json({
     success: true,
     plan: { ...ent.plan, features: deliverableFeatures(ent.plan) },
@@ -67,6 +81,13 @@ export async function GET() {
     period: { start, end },
     seats: ent.seats,
     lines,
+    sms: {
+      ...wallet,
+      included: ent.included.sms ?? 0,
+      used: used.sms ?? 0,
+      packs: SMS_PACKS,
+      ownProvider: ownSms,
+    },
     estimate: { baseKes: open.planFeeKes, overageKes, totalKes: open.totalKes },
     catalogue: PLAN_ORDER.map((k) => ({ ...PLANS[k], features: deliverableFeatures(PLANS[k]) })),
     payment: { via: "hub-wallet", mode: hubBillingMode() },
@@ -79,17 +100,20 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
   const orgId = session.user.orgId;
 
-  let body: { action?: string; plan?: string; returnTo?: string };
+  let body: { action?: string; plan?: string; pack?: string; returnTo?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
   if (body.action === "sync") {
     const ent = await entitlementsFor(orgId);
     const moved = await syncSubscriptionFromHub(orgId, ent.orgSlug);
+    const packs = await syncSmsTopupsFromHub(orgId, ent.orgSlug);
     invalidateEntitlements(orgId);
     return NextResponse.json({
       success: true,
-      synced: moved,
-      message: moved ? "Updated from the BirgenAI wallet." : "No payment record to sync yet.",
+      synced: moved || packs > 0,
+      message: packs > 0
+        ? `Updated from the BirgenAI wallet — ${packs} SMS ${packs === 1 ? "pack" : "packs"} credited.`
+        : moved ? "Updated from the BirgenAI wallet." : "No payment record to sync yet.",
     });
   }
 
@@ -106,6 +130,25 @@ export async function POST(req: NextRequest) {
     if (!url) {
       // No shared secret ⇒ we cannot vouch for this org, so we do not hand out a link
       // the Hub would refuse anyway.
+      return NextResponse.json(
+        { success: false, message: "The BirgenAI wallet is not connected to this deployment yet." },
+        { status: 503 },
+      );
+    }
+    return NextResponse.json({ success: true, url });
+  }
+
+  if (body.action === "sms-topup") {
+    // Buying credits is spending company money — the same admin bar as checkout.
+    if (!hasAdminAccess(session)) {
+      return NextResponse.json({ success: false, message: "Only an admin can buy SMS credits." }, { status: 403 });
+    }
+    const pack = smsPack(body.pack);
+    if (!pack) return NextResponse.json({ success: false, message: "Choose an SMS pack." }, { status: 400 });
+    const ent = await entitlementsFor(orgId);
+    const returnTo = body.returnTo?.startsWith("http") ? body.returnTo : `${req.nextUrl.origin}/console/billing`;
+    const url = hubSmsTopupUrl(ent.orgSlug, pack.key, returnTo);
+    if (!url) {
       return NextResponse.json(
         { success: false, message: "The BirgenAI wallet is not connected to this deployment yet." },
         { status: 503 },

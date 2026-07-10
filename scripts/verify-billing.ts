@@ -59,6 +59,9 @@ async function main() {
       USAGE_KINDS.filter(isBillableKind).every((k) => KIND_FEATURE[k] === null || isAvailable(KIND_FEATURE[k]!)));
     ok("route-planner IS built, so Advanced may charge for it",
       isAvailable("route-planner") && cheapestPlanWith("route-planner")?.key === "ADVANCED");
+    // SMS is settled up front (allowance → prepaid credits, verify-sms-wallet.ts);
+    // if it ever turns billable again, every send would be charged twice.
+    ok("SMS is prepaid — metered for the record, never invoiced in arrears", !isBillableKind("sms"));
 
     console.log("\n2. A Starter org gets Starter, and nothing more");
     let ent = await entitlementsFor(org.id);

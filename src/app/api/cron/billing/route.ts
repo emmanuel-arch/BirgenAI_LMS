@@ -21,7 +21,8 @@ import { prisma } from "@/lib/prisma";
 import { runAsPlatform, runWithOrg } from "@/lib/db/context";
 import { freezeInvoice, nextMonth } from "@/lib/billing/invoice";
 import { invalidateEntitlements } from "@/lib/billing/entitlements";
-import { syncSubscriptionFromHub, hubBillingMode } from "@/lib/billing/hub";
+import { syncSubscriptionFromHub, syncSmsTopupsFromHub, hubBillingMode } from "@/lib/billing/hub";
+import { flushQueuedSms } from "@/lib/sms/send";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -39,7 +40,7 @@ function authorized(req: NextRequest): boolean {
 
 async function run() {
   const now = new Date();
-  const stats = { orgs: 0, invoicesIssued: 0, periodsRolled: 0, trialsLapsed: 0, hubSynced: 0, errors: 0 };
+  const stats = { orgs: 0, invoicesIssued: 0, periodsRolled: 0, trialsLapsed: 0, hubSynced: 0, smsPacksCredited: 0, smsFlushed: 0, errors: 0 };
 
   const subs = await prisma.orgSubscription.findMany({
     include: { org: { select: { id: true, slug: true } } },
@@ -83,7 +84,14 @@ async function run() {
       // 3. The Hub decides what is paid. We only ever read it.
       if (hubBillingMode() === "live") {
         if (await syncSubscriptionFromHub(orgId, sub.org.slug)) stats.hubSynced++;
+        stats.smsPacksCredited += await syncSmsTopupsFromHub(orgId, sub.org.slug);
       }
+
+      // 4. Messages waiting on credit get another chance nightly — a top-up the
+      // page-level sync missed, an allowance that reset at month roll — and the
+      // stale ones (48h+) are expired rather than sent embarrassingly late.
+      const flushed = await flushQueuedSms(orgId).catch(() => null);
+      if (flushed) stats.smsFlushed += flushed.sent;
 
       invalidateEntitlements(orgId);
     } catch (err) {

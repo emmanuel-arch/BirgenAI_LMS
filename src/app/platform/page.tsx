@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, AlertTriangle, ShieldCheck, Building2, CheckCircle2, Crown, Receipt } from "lucide-react";
+import { Loader2, AlertTriangle, ShieldCheck, Building2, CheckCircle2, Crown, Receipt, MessageSquare, Gift } from "lucide-react";
 
 // BirgenAI platform board — the ONE surface that crosses tenants. Gated by
 // PLATFORM_ADMIN_SECRET, entered here, held in memory only, sent as a bearer.
@@ -16,6 +16,7 @@ type OrgRow = {
   id: string; slug: string; name: string; mode: string; status: string; plan: string; createdAt: string;
   subscription: { status: string; trialEndsAt: string | null; currentPeriodEnd: string } | null;
   lastInvoice: { number: string; totalKes: number; status: string } | null;
+  smsBalance: number;
   _count: { staff: number; borrowers: number; loans: number; applications: number };
 };
 
@@ -41,6 +42,11 @@ export default function PlatformBoard() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
+  // Inline SMS-grant form, one org at a time. The note is mandatory — it is the
+  // only record of why the platform gave credit away.
+  const [grantFor, setGrantFor] = useState<string | null>(null);
+  const [grantUnits, setGrantUnits] = useState("500");
+  const [grantNote, setGrantNote] = useState("");
 
   const load = async (s = secret) => {
     setError(null);
@@ -62,7 +68,11 @@ export default function PlatformBoard() {
       });
       const data = await res.json();
       if (!data.success) { setError(data.message || "Action failed."); return; }
-      setNotice(data.plan ? `${data.slug} → ${data.plan}` : `${data.slug} → ${data.status}`);
+      setNotice(
+        data.granted
+          ? `${data.slug} +${Number(data.granted).toLocaleString()} SMS${data.flushed ? ` · ${data.flushed} queued messages sent` : ""}`
+          : data.plan ? `${data.slug} → ${data.plan}` : `${data.slug} → ${data.status}`,
+      );
       await load();
     } catch { setError("Action failed."); } finally { setActing(null); }
   };
@@ -160,7 +170,43 @@ export default function PlatformBoard() {
                         <Receipt className="h-3 w-3" /> {o.lastInvoice.number} · {kes(o.lastInvoice.totalKes)} · {o.lastInvoice.status.toLowerCase()}
                       </span>
                     )}
+
+                    {/* Prepaid comms: negative = we are fronting this lender's messages. */}
+                    <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold ${o.smsBalance < 0 ? "bg-red-100 text-red-700" : "bg-zinc-900/5 text-zinc-500"}`}>
+                      <MessageSquare className="h-3 w-3" /> {o.smsBalance.toLocaleString()} SMS
+                    </span>
+                    <button
+                      onClick={() => { setGrantFor(grantFor === o.id ? null : o.id); setGrantUnits("500"); setGrantNote(""); }}
+                      className="inline-flex items-center gap-1 rounded-md border border-zinc-900/10 bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-zinc-600 hover:bg-white"
+                    >
+                      <Gift className="h-3 w-3" /> Grant
+                    </button>
                   </div>
+
+                  {grantFor === o.id && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <input
+                        type="number" min={1} max={100000} value={grantUnits}
+                        onChange={(e) => setGrantUnits(e.target.value)}
+                        className="w-24 rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs tabular-nums outline-none"
+                      />
+                      <input
+                        value={grantNote} onChange={(e) => setGrantNote(e.target.value)}
+                        placeholder="Why? — recorded in the lender's ledger"
+                        className="min-w-44 flex-1 rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none"
+                      />
+                      <button
+                        disabled={!!acting || !grantNote.trim() || !(Number(grantUnits) >= 1)}
+                        onClick={() => {
+                          void post({ orgId: o.id, action: "grant-sms", units: Number(grantUnits), note: grantNote.trim() }, o.id + "grant");
+                          setGrantFor(null);
+                        }}
+                        className="rounded-lg bg-zinc-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
+                      >
+                        {acting === o.id + "grant" ? <Loader2 className="inline h-3 w-3 animate-spin" /> : "Grant SMS"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

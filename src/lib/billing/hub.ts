@@ -40,8 +40,10 @@ import { createHmac } from "node:crypto";
 import type { OrgPlan } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { runWithOrg } from "@/lib/db/context";
+import { creditTopUp } from "@/lib/sms/wallet";
+import { flushQueuedSms } from "@/lib/sms/send";
 import { invalidateEntitlements } from "./entitlements";
-import { PLAN_ORDER } from "./plans";
+import { PLAN_ORDER, smsPack } from "./plans";
 
 export type HubBillingMode = "simulation" | "live";
 
@@ -91,6 +93,36 @@ export function hubCheckoutUrl(orgSlug: string, plan: OrgPlan, returnTo: string)
   const u = new URL(`${hubUrl()}/transact`);
   u.searchParams.set("lms", orgSlug);
   u.searchParams.set("plan", plan);
+  u.searchParams.set("t", token);
+  u.searchParams.set("return", returnTo);
+  return u.toString();
+}
+
+/**
+ * Vouch that this org may buy this SMS pack. Same HMAC, same TTL, but a
+ * DIFFERENT claim shape (`kind: "sms"`, a pack key, no plan) — so a captured
+ * top-up token cannot be replayed into a package purchase or vice versa: each
+ * verifier on the Hub side accepts only its own shape.
+ */
+export function signSmsTopup(orgSlug: string, packKey: string): string | null {
+  const secret = billingSecret();
+  if (!secret || !smsPack(packKey)) return null;
+  const claims = { org: orgSlug, kind: "sms", pack: packKey, exp: Math.floor(Date.now() / 1000) + CHECKOUT_TTL_SEC };
+  const payload = Buffer.from(JSON.stringify(claims), "utf8").toString("base64url");
+  const signature = createHmac("sha256", secret).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+/**
+ * Where to send a billing admin to buy SMS credits. The pack in the query string
+ * is a display hint; the Hub prices from the pack key inside the signed token.
+ */
+export function hubSmsTopupUrl(orgSlug: string, packKey: string, returnTo: string): string | null {
+  const token = signSmsTopup(orgSlug, packKey);
+  if (!token) return null;
+  const u = new URL(`${hubUrl()}/transact`);
+  u.searchParams.set("lms", orgSlug);
+  u.searchParams.set("sms", packKey);
   u.searchParams.set("t", token);
   u.searchParams.set("return", returnTo);
   return u.toString();
@@ -156,4 +188,51 @@ export async function syncSubscriptionFromHub(orgId: string, orgSlug: string): P
 
   invalidateEntitlements(orgId);
   return true;
+}
+
+export type HubSmsTopup = { id: string; pack: string; units: number; amountKes: number; receipt: string | null; at: string };
+
+/** SMS packs this lender has paid for at the Hub. Null when unreachable/simulated. */
+export async function fetchHubSmsTopups(orgSlug: string): Promise<HubSmsTopup[] | null> {
+  const secret = billingSecret();
+  if (!secret) return null;
+  try {
+    const res = await fetch(`${hubUrl()}/api/lms/sms-topups?orgSlug=${encodeURIComponent(orgSlug)}`, {
+      headers: { Authorization: `Bearer ${secret}` },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { success?: boolean; topups?: HubSmsTopup[] };
+    return data.success && Array.isArray(data.topups) ? data.topups : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mirror paid SMS packs onto the local wallet. Safe to call as often as we like:
+ * each Hub settlement credits at most once (`hubReference` is unique), so this
+ * runs on the billing page's sync button, on the return from checkout, and in
+ * the nightly cron without ever double-crediting. Returns how many NEW top-ups
+ * landed — and when any did, sends the messages that were waiting for them.
+ */
+export async function syncSmsTopupsFromHub(orgId: string, orgSlug: string): Promise<number> {
+  const topups = await fetchHubSmsTopups(orgSlug);
+  if (!topups?.length) return 0;
+
+  let credited = 0;
+  for (const t of topups) {
+    try {
+      if (await creditTopUp({ orgId, units: t.units, amountKes: t.amountKes, source: "HUB", hubReference: t.id, note: t.pack })) {
+        credited++;
+      }
+    } catch (err) {
+      // One malformed row must not block the rest of the lender's credits.
+      console.error(`[sms-sync] top-up ${t.id} for org ${orgSlug} failed:`, err);
+    }
+  }
+
+  if (credited > 0) await flushQueuedSms(orgId).catch(() => {});
+  return credited;
 }

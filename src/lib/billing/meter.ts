@@ -29,6 +29,12 @@ export async function meter(
   kind: UsageKind,
   qty = 1,
   meta?: Record<string, unknown>,
+  /**
+   * Price actually charged per unit, when it differs from the catalogue. SMS on
+   * a lender's OWN provider passes 0 — the message cost us nothing and the
+   * record must not imply otherwise.
+   */
+  unitCostKes?: number,
 ): Promise<void> {
   if (!orgId || qty <= 0) return;
   try {
@@ -39,7 +45,7 @@ export async function meter(
           kind,
           qty,
           // The price as charged, not the price as currently listed.
-          unitCost: new Prisma.Decimal(UNIT_PRICE_KES[kind] ?? 0),
+          unitCost: new Prisma.Decimal(unitCostKes ?? UNIT_PRICE_KES[kind] ?? 0),
           meta: (meta ?? {}) as Prisma.InputJsonValue,
         },
       }),

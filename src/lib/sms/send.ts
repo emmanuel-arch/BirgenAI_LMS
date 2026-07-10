@@ -4,12 +4,22 @@
 //
 // Provider resolution: org vault SMS config → platform Africa's Talking env
 // default → none (message stays QUEUED so a later worker/config can flush it).
-// Sending is best-effort and never throws into a business flow. 
+// Sending is best-effort and never throws into a business flow.
+//
+// WHO PAYS is decided in ./wallet.ts before anything is dispatched: the lender's
+// own provider is free of charge, then the plan allowance, then prepaid credits,
+// then — for critical templates only — overdraft. A discretionary message that
+// finds no credit stays QUEUED; flushQueuedSms() sends it the moment a top-up
+// lands. Metering happens on PROVIDER ACCEPTANCE, not on queueing, and a failed
+// dispatch refunds the credit it took — a message that never left is not a
+// message the lender paid for.
 // ─────────────────────────────────────────────────────────────────────────────
 import { prisma } from "@/lib/prisma";
+import { runWithOrg } from "@/lib/db/context";
 import { meter } from "@/lib/billing/meter";
 import { getIntegration, type SmsConfig } from "@/lib/vault/integrations";
 import { normalizeMsisdn } from "@/lib/mpesa/daraja";
+import { fundSms, refundSmsCredit, type SmsFunding } from "./wallet";
 
 // Built-in transactional templates ({placeholders} substituted from vars).
 // Orgs override per key via the SmsTemplate table.
@@ -37,13 +47,22 @@ function render(template: string, vars: Record<string, string | number>): string
   return template.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? String(vars[k]) : ""));
 }
 
-async function providerFor(orgId: string): Promise<SmsConfig | null> {
+type ResolvedProvider = {
+  cfg: SmsConfig;
+  /** True when the message rides OUR Africa's Talking account — the only case that spends credits. */
+  platform: boolean;
+};
+
+async function providerFor(orgId: string): Promise<ResolvedProvider | null> {
   const vault = await getIntegration(orgId, "SMS");
-  if (vault?.apiKey) return vault;
+  if (vault?.apiKey) return { cfg: vault, platform: false };
   const apiKey = process.env.AFRICASTALKING_API_KEY?.trim();
   const username = process.env.AFRICASTALKING_USERNAME?.trim();
   if (apiKey && username) {
-    return { provider: "africastalking", apiKey, username, senderId: process.env.AFRICASTALKING_SENDER_ID?.trim() };
+    return {
+      cfg: { provider: "africastalking", apiKey, username, senderId: process.env.AFRICASTALKING_SENDER_ID?.trim() },
+      platform: true,
+    };
   }
   return null;
 }
@@ -90,9 +109,50 @@ async function sendViaAfricasTalking(cfg: SmsConfig, phone: string, message: str
   };
 }
 
+type QueuedRow = { id: string; orgId: string; phone: string; message: string; templateKey: string | null };
+
+/**
+ * Push one row through the provider and settle everything that depends on the
+ * outcome: row state, the usage record, and — when the dispatch fails after a
+ * credit was taken — the refund.
+ */
+async function dispatchRow(row: QueuedRow, resolved: ResolvedProvider, funding: SmsFunding): Promise<boolean> {
+  try {
+    const sent = resolved.cfg.provider === "africastalking"
+      ? await sendViaAfricasTalking(resolved.cfg, row.phone, row.message)
+      : { ok: false, providerRef: null, cost: null, error: `Provider ${resolved.cfg.provider} not implemented yet` };
+    await prisma.smsMessage.update({
+      where: { id: row.id },
+      data: {
+        state: sent.ok ? "SENT" : "FAILED",
+        provider: resolved.cfg.provider,
+        providerRef: sent.providerRef,
+        cost: sent.cost ?? undefined,
+        sentAt: sent.ok ? new Date() : null,
+      },
+    });
+    if (sent.ok) {
+      // Metered on provider acceptance. Own-provider messages stamp unit cost 0:
+      // the lender pays Africa's Talking directly and we charge nothing.
+      void meter(row.orgId, "sms", 1, { templateKey: row.templateKey, via: funding }, funding === "own-provider" ? 0 : undefined);
+      return true;
+    }
+    if (funding === "credit" || funding === "overdraft") await refundSmsCredit(row.orgId);
+    return false;
+  } catch {
+    await prisma.smsMessage.update({ where: { id: row.id }, data: { state: "FAILED", provider: resolved.cfg.provider } }).catch(() => {});
+    if (funding === "credit" || funding === "overdraft") await refundSmsCredit(row.orgId);
+    return false;
+  }
+}
+
 /**
  * Queue (and best-effort send) a templated SMS. Returns the SmsMessage id.
  * Never throws — comms must not break lending flows.
+ *
+ * A null return means the template does not exist; a returned id with the row
+ * still QUEUED means either no provider is configured or a discretionary message
+ * found no credit — both flush later, neither blocks the caller.
  */
 export async function sendSms(
   orgId: string,
@@ -111,32 +171,55 @@ export async function sendSms(
       data: { orgId, phone: msisdn, message, templateKey, state: "QUEUED" },
     });
 
-    const cfg = await providerFor(orgId);
-    if (!cfg) return row.id; // stays QUEUED, and unbilled, until a provider exists
+    const resolved = await providerFor(orgId);
+    if (!resolved) return row.id; // stays QUEUED, and unfunded, until a provider exists
 
-    // Metered on dispatch, not on queueing: a message that never left is not a
-    // message the lender should pay for.
-    void meter(orgId, "sms", 1, { templateKey });
+    const funding = await fundSms(orgId, templateKey, resolved.platform);
+    if (funding === "refused") return row.id; // stays QUEUED until a top-up flushes it
 
-    try {
-      const sent = cfg.provider === "africastalking"
-        ? await sendViaAfricasTalking(cfg, msisdn, message)
-        : { ok: false, providerRef: null, cost: null, error: `Provider ${cfg.provider} not implemented yet` };
-      await prisma.smsMessage.update({
-        where: { id: row.id },
-        data: {
-          state: sent.ok ? "SENT" : "FAILED",
-          provider: cfg.provider,
-          providerRef: sent.providerRef,
-          cost: sent.cost ?? undefined,
-          sentAt: sent.ok ? new Date() : null,
-        },
-      });
-    } catch {
-      await prisma.smsMessage.update({ where: { id: row.id }, data: { state: "FAILED", provider: cfg.provider } }).catch(() => {});
-    }
+    await dispatchRow({ id: row.id, orgId, phone: msisdn, message, templateKey }, resolved, funding);
     return row.id;
   } catch {
     return null;
   }
+}
+
+/** A queued message older than this never flushes — a three-day-old "KES 900 due TODAY" is worse than silence. */
+const QUEUE_FRESH_MS = 48 * 3_600_000;
+
+/**
+ * Send what has been waiting. Called when credit arrives (top-up read-back,
+ * platform grant) and by the nightly cron — oldest first, because that is the
+ * order the messages were owed. Stops at the first refusal: if the new credit
+ * ran out halfway, the rest keep waiting rather than burning the overdraft.
+ */
+export async function flushQueuedSms(orgId: string, max = 200): Promise<{ sent: number; expired: number; waiting: number }> {
+  return runWithOrg(orgId, async () => {
+    const cutoff = new Date(Date.now() - QUEUE_FRESH_MS);
+    // Expire the stale ones first, provider or not. They were never dispatched;
+    // FAILED is the honest state, and dunning that arrives days late is noise.
+    const expired = await prisma.smsMessage.updateMany({
+      where: { orgId, state: "QUEUED", createdAt: { lt: cutoff } },
+      data: { state: "FAILED" },
+    });
+
+    let sent = 0;
+    const resolved = await providerFor(orgId);
+    if (resolved) {
+      const rows = await prisma.smsMessage.findMany({
+        where: { orgId, state: "QUEUED" },
+        orderBy: { createdAt: "asc" },
+        take: Math.min(Math.max(1, max), 500),
+        select: { id: true, orgId: true, phone: true, message: true, templateKey: true },
+      });
+      for (const row of rows) {
+        const funding = await fundSms(orgId, row.templateKey ?? "", resolved.platform);
+        if (funding === "refused") break;
+        if (await dispatchRow(row, resolved, funding)) sent++;
+      }
+    }
+
+    const waiting = await prisma.smsMessage.count({ where: { orgId, state: "QUEUED" } });
+    return { sent, expired: expired.count, waiting };
+  });
 }

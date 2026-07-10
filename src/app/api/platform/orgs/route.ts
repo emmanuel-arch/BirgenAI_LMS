@@ -2,13 +2,15 @@
 // ONLY surface that crosses orgs). Gated by PLATFORM_ADMIN_SECRET bearer —
 // never by an org session.
 //   GET  → all orgs with status + counts
-//   POST → { orgId, action: "activate" | "suspend" | "pend" }
+//   POST → { orgId, action: "activate" | "suspend" | "pend" | "plan" | "grant-sms" }
 import { NextRequest, NextResponse } from "next/server";
 import type { OrgPlan } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { runAsPlatform } from "@/lib/db/context";
 import { PLAN_ORDER, PLANS } from "@/lib/billing/plans";
 import { invalidateEntitlements } from "@/lib/billing/entitlements";
+import { creditTopUp } from "@/lib/sms/wallet";
+import { flushQueuedSms } from "@/lib/sms/send";
 
 export const runtime = "nodejs";
 
@@ -32,6 +34,8 @@ export async function GET(req: NextRequest) {
         // shows a package but not whether it has been paid for is decoration.
         subscription: { select: { status: true, trialEndsAt: true, currentPeriodEnd: true } },
         invoices: { orderBy: { periodStart: "desc" }, take: 1, select: { number: true, totalKes: true, status: true } },
+        // A deep negative here is a lender we are subsidising — the board should see it.
+        smsWallet: { select: { balance: true } },
         _count: { select: { staff: true, borrowers: true, loans: true, applications: true } },
       },
     }),
@@ -40,8 +44,9 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     success: true,
     plans: PLAN_ORDER.map((k) => ({ key: k, name: PLANS[k].name, monthlyKes: PLANS[k].monthlyKes })),
-    orgs: orgs.map(({ invoices, ...o }) => ({
+    orgs: orgs.map(({ invoices, smsWallet, ...o }) => ({
       ...o,
+      smsBalance: smsWallet?.balance ?? 0,
       lastInvoice: invoices[0] ? { ...invoices[0], totalKes: Number(invoices[0].totalKes) } : null,
     })),
   });
@@ -50,9 +55,35 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
 
-  let body: { orgId?: string; action?: string; plan?: string };
+  let body: { orgId?: string; action?: string; plan?: string; units?: number; note?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
   if (!body.orgId) return NextResponse.json({ success: false, message: "orgId is required." }, { status: 400 });
+
+  // Grant SMS credits without money moving — sales sweeteners, goodwill after an
+  // outage, demo stock. The note is mandatory BECAUSE no money moves: the ledger
+  // entry is the only record of why the platform gave credit away.
+  if (body.action === "grant-sms") {
+    const units = Math.floor(Number(body.units));
+    const note = body.note?.trim() ?? "";
+    if (!Number.isFinite(units) || units < 1 || units > 100_000) {
+      return NextResponse.json({ success: false, message: "units must be between 1 and 100,000." }, { status: 400 });
+    }
+    if (!note) return NextResponse.json({ success: false, message: "A note explaining the grant is required." }, { status: 400 });
+
+    return runAsPlatform(async () => {
+      const org = await prisma.org.findUnique({ where: { id: body.orgId! }, select: { id: true, slug: true } });
+      if (!org) return NextResponse.json({ success: false, message: "Org not found." }, { status: 404 });
+
+      await creditTopUp({ orgId: org.id, units, amountKes: 0, source: "PLATFORM_GRANT", note, createdBy: "platform" });
+      await prisma.auditLog.create({
+        data: { orgId: org.id, actorType: "platform", action: "sms.grant", entity: "SmsWallet", entityId: org.id, meta: { units, note } },
+      }).catch(() => {});
+      // The credits may be exactly what a pile of queued reminders was waiting for.
+      const flushed = await flushQueuedSms(org.id).catch(() => null);
+
+      return NextResponse.json({ success: true, slug: org.slug, granted: units, flushed: flushed?.sent ?? 0 });
+    });
+  }
 
   // Assign a package. Sales negotiates the deal; the Hub still collects the money,
   // and PAST_DUE still switches the metered features off.

@@ -174,11 +174,48 @@ export function deliverableFeatures(plan: PlanDef): Feature[] {
   return plan.features.filter(isAvailable);
 }
 
-/** A metered kind is billable only if the feature behind it exists. */
+/**
+ * Kinds settled UP FRONT rather than on the monthly invoice. SMS is prepaid —
+ * plan allowance first, then purchased credits (SmsWallet) — because it is the
+ * one real-cost kind that cannot be feature-gated before the call: a borrower's
+ * signing code has to go out whatever the ledger says. Prepaying bounds our
+ * exposure to the credits already bought; invoicing it in arrears AS WELL would
+ * charge the lender twice for the same message.
+ */
+export const PREPAID_KINDS: UsageKind[] = ["sms"];
+
+/**
+ * A metered kind lands on an invoice only if the feature behind it exists and
+ * it is not settled up front. Prepaid kinds are still metered — the usage row
+ * is the send record — but the money moved at top-up time, through the Hub.
+ */
 export function isBillableKind(kind: UsageKind): boolean {
+  if (PREPAID_KINDS.includes(kind)) return false;
   const feature = KIND_FEATURE[kind];
   return feature === null || isAvailable(feature);
 }
+
+// ── Prepaid SMS bundles ───────────────────────────────────────────────────────
+
+export type SmsPack = { key: string; units: number; priceKes: number };
+
+/**
+ * The three bundles a lender can buy once the monthly allowance runs out.
+ * Purchased through the Hub wallet like every other shilling on this platform —
+ * and priced there too: the Hub charges from ITS mirror of this table
+ * (LMS_SMS_PACKS in the Hub's ratecard.ts), never from a query string, so a
+ * tampered link cannot change what a pack costs. Bigger bundles dip below the
+ * KES 1 catalogue price; that discount is the reward for paying ahead.
+ */
+export const SMS_PACKS: SmsPack[] = [
+  { key: "SMS_500", units: 500, priceKes: 500 }, // KES 1.00 per SMS
+  { key: "SMS_2000", units: 2_000, priceKes: 1_900 }, // KES 0.95
+  { key: "SMS_10000", units: 10_000, priceKes: 9_000 }, // KES 0.90
+];
+
+/** Resolve an untrusted pack key, or null. Never throws. */
+export const smsPack = (key?: string | null): SmsPack | null =>
+  SMS_PACKS.find((p) => p.key === (key ?? "").trim().toUpperCase()) ?? null;
 
 /** Which feature does this metered kind belong to? Used to gate before metering. */
 export const KIND_FEATURE: Record<UsageKind, Feature | null> = {

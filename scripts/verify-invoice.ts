@@ -56,7 +56,7 @@ async function main() {
       lines.length === 1 && lines[0].unitCostKes === 40 && lines[0].qty === 20);
 
     ok("inside the allowance costs nothing at all", billKind("crb", [{ qty: 3, unitCost: 35 }], 100).length === 0);
-    ok("no allowance means everything bills", billKind("sms", [{ qty: 5, unitCost: 1 }], 0)[0].amountKes === 5);
+    ok("no allowance means everything bills", billKind("kyc", [{ qty: 5, unitCost: 40 }], 0)[0].amountKes === 200);
 
     console.log("\n2. A trial month is not billed. Not billed at zero — not billed.");
     await ctx(() => prisma.orgSubscription.create({
@@ -81,7 +81,9 @@ async function main() {
     // Enterprise includes 100 CRB. 90 at 35, then a reprice, then 20 at 40.
     await event("crb", 90, 35, mid);
     await event("crb", 20, 40, new Date(Date.UTC(2026, 4, 20)));
-    // 1,000 SMS included; 1,200 sent.
+    // SMS is PREPAID (allowance, then purchased credits — see verify-sms-wallet).
+    // These 1,200 sends were already paid for when they happened; if any of them
+    // reappears on this invoice the lender has been charged twice.
     await event("sms", 1200, 1, mid);
     // Well inside the score allowance.
     await event("score", 5, 10, mid);
@@ -94,11 +96,11 @@ async function main() {
     const crb = inv!.lines.find((l) => l.kind === "crb")!;
     ok("CRB overage is the 10 units past the allowance, at the 40 they actually cost",
       crb.qty === 10 && crb.unitCostKes === 40 && crb.amountKes === 400, JSON.stringify(crb));
-    const sms = inv!.lines.find((l) => l.kind === "sms")!;
-    ok("SMS overage is 200 at 1", sms.qty === 200 && sms.amountKes === 200);
+    ok("SMS never lands on an invoice, however much was sent — it was prepaid",
+      !inv!.lines.some((l) => l.kind === "sms"));
     ok("a kind inside its allowance gets no line", !inv!.lines.some((l) => l.kind === "score"));
-    ok("overage totals 600 — 400 of CRB and 200 of SMS", inv!.overageKes === 600, `${inv!.overageKes}`);
-    ok("and the invoice totals 15,600", inv!.totalKes === 15600, `${inv!.totalKes}`);
+    ok("overage totals 400 — the CRB and nothing else", inv!.overageKes === 400, `${inv!.overageKes}`);
+    ok("and the invoice totals 15,400", inv!.totalKes === 15400, `${inv!.totalKes}`);
     ok("the subscription itself is a line", inv!.lines.some((l) => l.kind === "subscription" && l.amountKes === 15000));
 
     console.log("\n4. Re-pricing the catalogue does not rewrite a frozen month");
@@ -119,7 +121,7 @@ async function main() {
     ok("June's invoice exists and is its own", juneInv!.id !== inv!.id);
     ok("June bills 400 CRB over its 100 allowance at 35 = 14,000",
       juneInv!.lines.find((l) => l.kind === "crb")?.amountKes === 14000, JSON.stringify(juneInv!.lines.find((l) => l.kind === "crb")));
-    ok("May's invoice is untouched", Number((await ctx(() => prisma.invoice.findUniqueOrThrow({ where: { id: inv!.id } }))).totalKes) === 15600);
+    ok("May's invoice is untouched", Number((await ctx(() => prisma.invoice.findUniqueOrThrow({ where: { id: inv!.id } }))).totalKes) === 15400);
 
     console.log("\n6. Months roll forward one at a time");
     ok("May → June", nextMonth(start).toISOString().slice(0, 10) === "2026-06-01");
