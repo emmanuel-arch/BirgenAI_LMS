@@ -27,9 +27,15 @@ const MAX_ATTEMPTS = 5;
 export const PURPOSE_VERIFY = "borrower:verify";
 export const signPurpose = (offerId: string) => `offer:${offerId}:sign`;
 
-/** The SMS the borrower gets. Signing says what is being signed, and for how much. */
-const TEMPLATE: Record<string, string> = { [PURPOSE_VERIFY]: "verify" };
-const templateFor = (purpose: string) => TEMPLATE[purpose] ?? "offer_sign";
+/**
+ * The SMS that carries the code. Each purpose says plainly what the code does, so a
+ * recipient can tell an identity check from a credit agreement from a guarantee.
+ */
+function templateFor(purpose: string): string {
+  if (purpose.startsWith("offer:")) return "offer_sign";
+  if (purpose.startsWith("guarantor:")) return "guarantor_sign";
+  return "verify";
+}
 
 export type IssueResult = {
   /** An SMS provider accepted the message. False → the borrower cannot receive it. */

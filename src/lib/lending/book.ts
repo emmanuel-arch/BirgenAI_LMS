@@ -15,6 +15,8 @@ import { Prisma } from "@prisma/client";
 import { prisma, orgTx } from "@/lib/prisma";
 import { buildSchedule } from "./schedule";
 import { effectiveStatus, hashTerms, termsOf } from "./offer";
+import { standsBehind, effectiveGuarantorStatus } from "./guarantor";
+import { checkSecurity } from "./security";
 
 export type BookResult = {
   loanId: string;
@@ -42,6 +44,7 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
       borrower: { select: { id: true, phone: true } },
       loan: { select: { id: true } },
       offer: true,
+      guarantors: true,
     },
   });
   if (!app) throw new Error("Application not found.");
@@ -68,6 +71,41 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
   if (hashTerms(terms) !== offer.termsHash) {
     throw new Error("This offer's terms do not match its signature. Booking is blocked.");
   }
+
+  // ── The guarantee gate ──────────────────────────────────────────────────────
+  // `guarantorRequired` has been a decorative boolean until now. A guarantor's
+  // consent counts only if it is bound to THIS agreement: re-issue the offer on
+  // different terms and the guarantee goes stale, because standing behind KES 10,000
+  // is not standing behind KES 50,000.
+  if (app.product.guarantorRequired) {
+    const standing = app.guarantors.filter((g) => standsBehind(g, offer.termsHash));
+    if (standing.length === 0) {
+      // The officer has to know which of four different problems they have.
+      const states = app.guarantors.map(effectiveGuarantorStatus);
+      const waiting = states.filter((s) => s === "INVITED").length;
+      const stale = states.includes("CONSENTED"); // consented, but to other terms
+      const declined = states.filter((s) => s === "DECLINED").length;
+      const expired = states.filter((s) => s === "EXPIRED").length;
+
+      throw new Error(
+        stale
+          ? "The guarantor agreed to different terms. The offer changed since — ask them again."
+          : waiting > 0
+            ? `This product needs a guarantor, and ${waiting === 1 ? "the one asked has" : `the ${waiting} asked have`} not consented yet.`
+            : declined > 0
+              ? `This product needs a guarantor. ${declined === 1 ? "The person asked declined" : `All ${declined} people asked declined`} — ask someone else.`
+              : expired > 0
+                ? "The guarantor never answered and the invitation has expired. Ask again."
+                : "This product needs a guarantor, and none has been asked.",
+      );
+    }
+  }
+
+  // ── The security gate ───────────────────────────────────────────────────────
+  // Only VERIFIED collateral counts. A borrower's own word about what they own is a
+  // claim, not a valuation.
+  const security = await checkSecurity(app.id, Number(app.amountRequested), app.product);
+  if (!security.ok) throw new Error(security.shortfall ?? "This product requires security.");
 
   const principal = terms.principal;
   const count = terms.termCount;
@@ -132,6 +170,9 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
         state: "PENDING_MAKER",
       },
     });
+    // Security follows the loan it secures, so a Finance officer can find it later
+    // without walking back through the application.
+    await tx.collateral.updateMany({ where: { applicationId: app.id }, data: { loanId: loan.id } });
     await tx.loanApplication.update({
       where: { id: app.id },
       data: { status: "APPROVED", stageTitle: "Approved — pending disbursement", currentStageId: null, decidedAt: new Date() },
@@ -149,6 +190,9 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
           applicationId: app.id, principal, interest, loanAmount, installments: count,
           offerId: offer.id, termsHash: offer.termsHash,
           acceptedVia: offer.channel, acceptedAt: offer.acceptedAt?.toISOString() ?? null,
+          // Who stood behind it, and what secured it, at the moment it was written.
+          guarantors: app.guarantors.filter((g) => standsBehind(g, offer.termsHash)).map((g) => ({ id: g.id, name: g.fullName, phone: g.phone })),
+          securedValueKes: security.verifiedValue,
         },
       },
     });

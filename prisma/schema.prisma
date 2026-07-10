@@ -101,6 +101,8 @@ model Org {
   workflows     Workflow[]
   applications  LoanApplication[]
   offers        LoanOffer[]
+  guarantors    Guarantor[]
+  collateral    Collateral[]
   documents     Document[]
   tuning        TuningProfile?
   loans         Loan[]
@@ -410,6 +412,8 @@ model Borrower {
   kycChecks    KycCheck[]
   applications LoanApplication[]
   offers       LoanOffer[]
+  guarantors   Guarantor[]
+  collateral   Collateral[]
   documents    Document[]
   loans        Loan[]
   fieldVisits  FieldVisit[]
@@ -489,6 +493,9 @@ model Product {
   minCreditScore     Int?
   guarantorRequired  Boolean @default(false)
   securityRequired   Boolean @default(false)
+  /// Verified collateral must cover this percentage of the principal before a loan
+  /// on this product may book. Only meaningful when securityRequired.
+  securityCoverPct   Int     @default(100)
   disbursementMode   DisbursementMode @default(B2C_MPESA)
   newWorkflowId      String?
   repeatWorkflowId   String?
@@ -603,8 +610,9 @@ model LoanApplication {
   org      Org        @relation(fields: [orgId], references: [id])
   borrower Borrower   @relation(fields: [borrowerId], references: [id])
   product  Product?   @relation(fields: [productId], references: [id])
-  loan     Loan?
-  offer    LoanOffer?
+  loan       Loan?
+  offer      LoanOffer?
+  guarantors Guarantor[]
 
   @@index([orgId, status])
   @@index([orgId, borrowerId])
@@ -691,6 +699,115 @@ model Document {
 
   @@index([orgId, createdAt])
   @@index([orgId, borrowerId])
+  @@index([orgId, status])
+}
+
+enum GuarantorStatus {
+  INVITED // asked, not yet answered
+  CONSENTED // stood behind a specific agreement, with a code sent to their own phone
+  DECLINED
+  EXPIRED
+}
+
+/// Someone who stands behind a borrower's loan.
+///
+/// A guarantor consents to ONE agreement, identified by `offerTermsHash`. If the
+/// borrower's offer is re-issued on different terms, that consent is stale and the
+/// loan will not book — a person who agreed to guarantee KES 10,000 has not agreed
+/// to guarantee KES 50,000, and no amount of convenience justifies pretending
+/// otherwise. Consent is proved by a one-time code sent to the guarantor's own
+/// phone, never to the borrower's.
+model Guarantor {
+  id            String @id @default(uuid())
+  orgId         String
+  applicationId String
+  /// The applicant they are guaranteeing (denormalised for the officer's queries).
+  borrowerId    String
+
+  fullName     String
+  phone        String // digits-only msisdn
+  nationalId   String?
+  relationship String? // "brother", "business partner", …
+
+  status GuarantorStatus @default(INVITED)
+  /// The exact agreement stood behind. Null until an offer exists to bind to.
+  offerTermsHash String?
+  /// Defaults to the whole repayable amount. A partial guarantee is a later feature.
+  amountGuaranteed Decimal? @db.Decimal(18, 2)
+
+  invitedAt  DateTime  @default(now())
+  invitedBy  String?
+  remindedAt DateTime?
+  consentedAt DateTime?
+  declinedAt  DateTime?
+  /// Evidence of the signature: where from, on what, and which challenge proved possession.
+  consentIp        String?
+  consentUserAgent String?
+  otpChallengeId   String?
+  expiresAt        DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org         Org             @relation(fields: [orgId], references: [id])
+  application LoanApplication @relation(fields: [applicationId], references: [id])
+  borrower    Borrower        @relation(fields: [borrowerId], references: [id])
+
+  @@index([orgId, applicationId])
+  @@index([orgId, phone])
+  @@index([orgId, status])
+}
+
+enum CollateralKind {
+  VEHICLE
+  LAND
+  EQUIPMENT
+  STOCK // trading inventory
+  CHATTEL // household or business goods
+  OTHER
+}
+
+enum CollateralStatus {
+  REGISTERED // the borrower says they own it
+  VERIFIED // a staff member has seen it, and says so under their own name
+  REJECTED
+  RELEASED // the loan cleared; the security is discharged
+  SEIZED
+}
+
+/// Security pledged against a loan.
+///
+/// Only VERIFIED collateral counts toward a product's security requirement. A
+/// borrower's own claim about what they own is a starting point, not a valuation —
+/// somebody has to look at the lorry.
+model Collateral {
+  id            String  @id @default(uuid())
+  orgId         String
+  applicationId String?
+  loanId        String?
+  borrowerId    String
+
+  kind             CollateralKind
+  description      String
+  estimatedValueKes Decimal       @db.Decimal(18, 2)
+  registrationRef  String? // logbook number, title deed, serial
+  /// Proof — a logbook scan, a title deed — in the private documents bucket.
+  documentId       String?
+
+  status         CollateralStatus @default(REGISTERED)
+  verifiedBy     String?
+  verifiedAt     DateTime?
+  rejectedReason String?
+  releasedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org      Org      @relation(fields: [orgId], references: [id])
+  borrower Borrower @relation(fields: [borrowerId], references: [id])
+
+  @@index([orgId, applicationId])
+  @@index([orgId, loanId])
   @@index([orgId, status])
 }
 

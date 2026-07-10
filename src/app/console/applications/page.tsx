@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Loader2, AlertTriangle, CheckCircle2, XCircle, FileText, ChevronDown } from "lucide-react";
 import { OfferPanel } from "./OfferPanel";
+import { SecurityPanel } from "./SecurityPanel";
 
 type App = {
   id: string; createdAt: string; status: string; stageTitle: string | null; currentStageId: string | null;
@@ -137,6 +138,8 @@ export default function ApplicationsQueue() {
                     {a.loan && <p className="mt-2 text-xs text-zinc-500">Loan {a.loan.id.slice(0, 8)}… · {a.loan.status}</p>}
                     {/* A loan will not book until this says "Signed". */}
                     {!a.loan && <OfferPanel applicationId={a.id} onChanged={load} />}
+                    {/* Who stands behind it, and what secures it. Booking checks both. */}
+                    {!a.loan && <SecurityPanel applicationId={a.id} onChanged={load} />}
                     {live && otpFor !== a.id && (
                       <div className="mt-3 flex gap-2">
                         <button disabled={!!acting} onClick={() => act(a.id, "approve")}

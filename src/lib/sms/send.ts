@@ -4,7 +4,7 @@
 //
 // Provider resolution: org vault SMS config → platform Africa's Talking env
 // default → none (message stays QUEUED so a later worker/config can flush it).
-// Sending is best-effort and never throws into a business flow.
+// Sending is best-effort and never throws into a business flow. 
 // ─────────────────────────────────────────────────────────────────────────────
 import { prisma } from "@/lib/prisma";
 import { meter } from "@/lib/billing/meter";
@@ -24,6 +24,10 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
   // A signing code must name what it signs. A borrower who receives "your code is
   // 123456" cannot tell an identity check from a credit agreement worth KES 50,000.
   offer_sign: "{code} is your code to SIGN and accept a loan of KES {principal} from {org}, repaying KES {repayable} by {clearDate}. Only enter it if you agree. Expires in 5 minutes.",
+  // A guarantor must be told what they are being asked for, by whom, and for how
+  // much — and what it costs them if the borrower does not repay. Not "tap to continue".
+  guarantor_invite: "{org}: {borrower} has asked you to guarantee their loan of KES {amount}. If they do not repay, you would be asked to. Read the terms and decide: {link}",
+  guarantor_sign: "{code} is your code to GUARANTEE a loan of KES {amount} from {org}. Entering it makes you liable if the borrower does not repay. Only enter it if you agree. Expires in 5 minutes.",
   reminder: "{org}: A friendly reminder — KES {amount} is due on {date}. Pay early, pay less. Dial your paybill or use Pay Now.",
   due_today: "{org}: KES {amount} is due TODAY on loan {ref}. Pay via your paybill or the Pay Now link to stay on track.",
   arrears: "{org}: Your installment of KES {amount} on loan {ref} is overdue. Please pay today to avoid penalties and protect your limit.",
