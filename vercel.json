@@ -5,6 +5,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/reconcile",
+      "schedule": "15 4 * * *"
+    },
+    {
       "path": "/api/cron/billing",
       "schedule": "30 4 * * *"
     },

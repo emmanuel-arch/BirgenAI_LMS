@@ -75,6 +75,15 @@ export async function POST(req: NextRequest) {
     where: { id: receipt.id },
     data: { allocatedLoanId: loan.id, allocatedAt: new Date() },
   });
+  // Allocating the receipt IS the fix — close its reconciliation exception so
+  // Finance's queue empties by doing the work, not by clicking "resolve" twice.
+  await prisma.reconciliationException.updateMany({
+    where: { orgId: session.user.orgId, kind: "C2B_UNALLOCATED", reference: receipt.id, status: "OPEN" },
+    data: {
+      status: "RESOLVED", resolvedAt: new Date(), resolvedBy: session.user.id ?? "staff",
+      resolution: `allocated to loan ${loan.id.slice(0, 8).toUpperCase()} — KES ${Math.round(Number(receipt.amount)).toLocaleString()}`,
+    },
+  }).catch(() => {});
   await prisma.auditLog.create({
     data: { orgId: session.user.orgId, actorId: session.user.id, actorType: "staff", action: "receipt.allocate", entity: "C2BReceipt", entityId: receipt.id, meta: { loanId: loan.id, amount: Number(receipt.amount) } },
   }).catch(() => {});

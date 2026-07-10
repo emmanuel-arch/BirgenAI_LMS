@@ -8,6 +8,7 @@ import { runAsPlatform, runWithOrg } from "@/lib/db/context";
 import { verifyCallbackKey } from "@/lib/mpesa/daraja";
 import { allocateRepayment, matchLoanForPayment } from "@/lib/lending/allocate";
 import { sendSms } from "@/lib/sms/send";
+import { raiseException } from "@/lib/finance/reconcile";
 
 export const runtime = "nodejs";
 
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
       },
     });
 
+    let applied = false;
     try {
       const loanId = await matchLoanForPayment(org.id, phone, billRef);
       if (loanId) {
@@ -60,6 +62,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
           where: { id: receipt.id },
           data: { allocatedLoanId: loanId, allocatedAt: new Date() },
         });
+        applied = true;
         if (phone) {
           await sendSms(org.id, phone, result.cleared ? "cleared" : "payment", {
             org: org.name,
@@ -68,9 +71,20 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
           });
         }
       }
-      // Unmatched receipts stay on the exceptions list for Finance to allocate manually.
     } catch {
       /* allocation failure leaves the receipt unallocated for manual handling */
+    }
+    if (!applied) {
+      // Money arrived and is not on the book — raise it NOW, while the evidence
+      // is fresh, rather than let Finance wait a night for the sweep to notice.
+      await raiseException(org.id, {
+        kind: "C2B_UNALLOCATED",
+        reference: receipt.id,
+        severity: "HIGH",
+        amountKes: amount,
+        message: `KES ${Math.round(amount).toLocaleString()} paid to the paybill${phone ? ` by ${phone}` : ""}${billRef ? ` (account "${billRef}")` : ""} is not on any loan. Allocate it from Repayments.`,
+        meta: { transId, phone, billRef },
+      });
     }
 
     return NextResponse.json(ACK);

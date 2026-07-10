@@ -111,6 +111,7 @@ model Org {
   fieldVisits   FieldVisit[]
   smsWallet     SmsWallet?
   smsTopUps     SmsTopUp[]
+  reconExceptions ReconciliationException[]
 }
 
 enum IntegrationKind {
@@ -1051,6 +1052,51 @@ model FloatLedger {
   createdAt    DateTime       @default(now())
 
   @@index([orgId, createdAt])
+}
+
+enum ReconStatus {
+  OPEN // needs a human
+  RESOLVED // fixed (by Finance, or self-healed when the condition cleared)
+  IGNORED // Finance looked and decided it is fine; stays quiet even if re-detected
+}
+
+enum ReconSeverity {
+  HIGH // money moved (or claims to have moved) and the book disagrees
+  MEDIUM // amounts or states inconsistent; explainable, but must be explained
+  LOW // hygiene
+}
+
+/// One mismatch between the money and the book.
+///
+/// Written two ways, deliberately: the payment webhooks raise one at the MOMENT
+/// an allocation fails (the evidence is freshest there), and the nightly sweep
+/// re-derives every check from scratch — so a missed event, a crashed webhook or
+/// a manual DB edit still surfaces within a day. `@@unique([orgId, kind, reference])`
+/// is what lets both writers coexist: the same fact upserts into the same row,
+/// re-detection bumps `lastSeenAt`, and a condition that stops reproducing is
+/// closed as self-healed rather than lingering as a stale alarm.
+model ReconciliationException {
+  id        String        @id @default(uuid())
+  orgId     String
+  kind      String // C2B_UNALLOCATED | STK_SUCCESS_UNAPPLIED | DISB_STUCK | DISB_LOAN_STATE_MISMATCH | DISB_AMOUNT_MISMATCH | DUP_RECEIPT | FLOAT_DRIFT
+  /// The row this points at (receipt/intent/disbursement/loan id, or "float").
+  reference String
+  severity  ReconSeverity
+  amountKes Decimal?      @db.Decimal(18, 2)
+  message   String
+  meta      Json?
+
+  status     ReconStatus @default(OPEN)
+  detectedAt DateTime    @default(now())
+  lastSeenAt DateTime    @default(now())
+  resolvedAt DateTime?
+  resolvedBy String?
+  resolution String? // Finance's note, or "self-healed"
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, kind, reference])
+  @@index([orgId, status, severity])
 }
 
 // ── Comms ────────────────────────────────────────────────────────────────────

@@ -41,7 +41,7 @@ DECLARE
     'OrgIntegration','OrgSubscription','Branch','Role','StaffUser','FieldVisit','KycSession',
     'OtpChallenge','AuditLog','Borrower','Consent','KycCheck','Product','Workflow',
     'LoanApplication','LoanOffer','Guarantor','Collateral','Document','Loan','Installment','Disbursement','PaymentIntent','C2BReceipt',
-    'FloatLedger','SmsMessage','SmsTemplate','SmsWallet','SmsTopUp','ScoreSnapshot','GeoPin','UsageEvent','TuningProfile','Invoice','InvoiceLine'
+    'FloatLedger','ReconciliationException','SmsMessage','SmsTemplate','SmsWallet','SmsTopUp','ScoreSnapshot','GeoPin','UsageEvent','TuningProfile','Invoice','InvoiceLine'
   ];
 BEGIN
   FOREACH t IN ARRAY tables LOOP

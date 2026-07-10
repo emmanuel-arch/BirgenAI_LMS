@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, ShieldCheck, Bot, Package, GitBranch, Crown, ScanLine,
+  Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, ShieldCheck, Bot, Package, GitBranch, Crown, ScanLine, Scale,
 } from "lucide-react";
 import { SignOutButton } from "./signout";
 
@@ -19,6 +19,7 @@ const MODULES = [
   { icon: Users, title: "Team & Roles", desc: "Invite staff, approval tiers (INIT/AUTH/VALID), access", ready: true, href: "/console/team" },
   { icon: Banknote, title: "Loans & Disbursement", desc: "Maker-checker B2C queue, manual confirm, float ledger", ready: true, href: "/console/disbursements" },
   { icon: Landmark, title: "Repayments", desc: "STK requests, C2B receipts, unallocated exceptions", ready: true, href: "/console/repayments" },
+  { icon: Scale, title: "Reconciliation", desc: "Every shilling M-Pesa moved, checked nightly against the book", ready: true, href: "/console/reconciliation" },
   { icon: Gauge, title: "Credit Intelligence", desc: "Portfolio early-warning watchlist, risk scores, one-tap recovery", ready: true, href: "/console/intelligence" },
   { icon: MapPin, title: "Field & Routes", desc: "Geo-pinned verifications, nearest-agent allocation, drive routes", ready: true, href: "/console/field" },
   { icon: ScanLine, title: "Document Parser", desc: "Fee structures, invoices, permits, statements → structured figures", ready: true, href: "/console/documents" },

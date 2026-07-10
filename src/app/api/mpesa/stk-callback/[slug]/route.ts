@@ -7,6 +7,7 @@ import { runAsPlatform, runWithOrg } from "@/lib/db/context";
 import { verifyCallbackKey } from "@/lib/mpesa/daraja";
 import { allocateRepayment } from "@/lib/lending/allocate";
 import { sendSms } from "@/lib/sms/send";
+import { raiseException } from "@/lib/finance/reconcile";
 
 export const runtime = "nodejs";
 
@@ -52,15 +53,32 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
         data: { state: "SUCCESS", resultCode: "0", resultDesc, mpesaReceipt: receipt || null, raw: body as Prisma.InputJsonValue },
       });
 
+      let applied = false;
       if (intent.loanId) {
         try {
           const result = await allocateRepayment(intent.loanId, amount, `STK:${receipt || checkoutRequestId}`);
+          applied = true;
           await sendSms(org.id, intent.phone, result.cleared ? "cleared" : "payment", {
             org: org.name,
             amount: Math.round(amount).toLocaleString(),
             balance: Math.round(result.newBalance).toLocaleString(),
           });
-        } catch { /* left for manual allocation */ }
+        } catch { /* raised as an exception below */ }
+      }
+      if (!applied) {
+        // The borrower's money is confirmed and the book did not receive it —
+        // either the allocation threw or the intent carried no loan. This is
+        // the single worst thing to stay silent about.
+        await raiseException(org.id, {
+          kind: "STK_SUCCESS_UNAPPLIED",
+          reference: intent.id,
+          severity: "HIGH",
+          amountKes: amount,
+          message: intent.loanId
+            ? `M-Pesa confirmed KES ${Math.round(amount).toLocaleString()} from ${intent.phone}${receipt ? ` (receipt ${receipt})` : ""} but it never posted to the loan. Apply it, or resolve with a note saying how it was handled.`
+            : `M-Pesa confirmed KES ${Math.round(amount).toLocaleString()} from ${intent.phone}${receipt ? ` (receipt ${receipt})` : ""} and the request had NO loan attached. Find where this money belongs.`,
+          meta: { loanId: intent.loanId, mpesaReceipt: receipt || null, phone: intent.phone },
+        });
       }
     } else {
       await prisma.paymentIntent.update({
