@@ -12,7 +12,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
 import {
-  Loader2, AlertTriangle, ShieldCheck, Building2, CheckCircle2, Crown, Receipt,
+  Loader2, AlertTriangle, ShieldCheck, CheckCircle2, Crown, Receipt,
   MessageSquare, Gift, LogOut, ArrowRightCircle, Circle, BadgeCheck,
 } from "lucide-react";
 
