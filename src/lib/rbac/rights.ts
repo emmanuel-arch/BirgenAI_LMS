@@ -63,9 +63,9 @@ export const ALL_RIGHTS = [
   "settings.manage", // vault credentials (Daraja, SMS, CRB, KYC)
   "billing.view",
   "billing.manage", // checkout, package changes, SMS top-ups
-  // Comms (item 15 — reserved)
-  "sms.view",
-  "sms.manage",
+  // Comms
+  "sms.view", // campaigns history, template catalogue, email log
+  "sms.manage", // send campaigns, edit templates
   // AI
   "riri.use",
 ] as const;
@@ -136,8 +136,6 @@ export const RESERVED_RIGHTS: Right[] = [
   "loans.apply",
   "branches.view",
   "branches.manage",
-  "sms.view",
-  "sms.manage",
 ];
 
 /**
@@ -149,6 +147,8 @@ export const RESERVED_RIGHTS: Right[] = [
 export const MODERN_RIGHTS: Right[] = [
   "collections.view",
   "collections.manage",
+  "sms.view",
+  "sms.manage",
 ];
 
 /**
@@ -215,7 +215,7 @@ export const RIGHT_LABELS: Record<Right, string> = {
   "settings.manage": "Can update vault credentials (M-Pesa, SMS, CRB, KYC)",
   "billing.view": "Can see the package and this month's usage",
   "billing.manage": "Can pay, change packages and buy SMS credits",
-  "sms.view": "Can see SMS templates and campaigns (coming up)",
-  "sms.manage": "Can compose and send SMS campaigns (coming up)",
+  "sms.view": "Can see campaign history, SMS templates and the email log",
+  "sms.manage": "Can send SMS campaigns and edit message templates",
   "riri.use": "Can talk to Riri, the console AI",
 };

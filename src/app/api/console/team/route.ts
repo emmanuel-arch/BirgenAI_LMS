@@ -11,7 +11,9 @@ import { requireRight, invalidateRights } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 import { PLANS, PLAN_ORDER } from "@/lib/billing/plans";
-import { sendEmail } from "@/lib/email/send";
+import { sendTemplatedEmail } from "@/lib/email/send";
+import { emailBrandFor } from "@/lib/email/layout";
+import { staffInviteEmail } from "@/lib/email/templates";
 
 export const runtime = "nodejs";
 
@@ -91,12 +93,17 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const org = await prisma.org.findUnique({ where: { id: orgId }, select: { name: true, slug: true } });
-  const emailed = await sendEmail(
+  // Credentials ride the lender's own branding — logo, accent, portal links —
+  // and explain the daily sign-in code that will follow (see lib/email/templates).
+  const brand = await emailBrandFor(orgId);
+  const roleTitle = body.roleId
+    ? (await prisma.role.findFirst({ where: { id: body.roleId, orgId }, select: { title: true } }))?.title ?? null
+    : null;
+  const emailed = await sendTemplatedEmail(
     orgId,
     email,
-    `You've been added to ${org?.name} on BirgenAI LMS`,
-    `Hi ${first},\n\nYou now have staff access to ${org?.name}.\n\nSign in at https://lms.birgenai.com/login\nEmail: ${email}\nTemporary password: ${tempPassword}\n\nPlease change it after your first sign-in.`,
+    staffInviteEmail(brand, { name: first, email, tempPassword, roleTitle }),
+    "staff_invite",
   );
 
   await prisma.auditLog.create({

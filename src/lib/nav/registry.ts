@@ -115,7 +115,9 @@ export const NAV_REGISTRY: NavModule[] = [
     label: "Comms",
     icon: "MessageSquare",
     items: [
-      { key: "sms", label: "SMS & Campaigns", icon: "MessageSquare", right: "sms.view", ready: false },
+      { key: "sms-campaigns", label: "SMS Campaigns", href: "/console/comms", icon: "MessageSquare", right: "sms.view", exact: true },
+      { key: "sms-templates", label: "Message Templates", href: "/console/comms?tab=templates", icon: "FileText", right: "sms.view", exact: true },
+      { key: "email-log", label: "Email Log", href: "/console/comms?tab=email", icon: "Mail", right: "sms.view", exact: true },
     ],
   },
   {

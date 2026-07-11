@@ -30,6 +30,7 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
   cleared: "{org}: Your loan is fully repaid. Thank you — your limit grows with every on-time loan!",
   declined: "{org}: We could not approve your application this time. Reply HELP for the reasons and how to appeal.",
   otp: "Your approval code is {code}. It expires in 10 minutes. Never share it.",
+  login_code: "{code} is your {org} staff sign-in code for today. It works until midnight. Never share it.",
   verify: "{code} is your {org} verification code. It expires in 5 minutes. Never share it — {org} will never ask you for this code.",
   // A signing code must name what it signs. A borrower who receives "your code is
   // 123456" cannot tell an identity check from a credit agreement worth KES 50,000.
@@ -178,6 +179,41 @@ export async function sendSms(
     if (funding === "refused") return row.id; // stays QUEUED until a top-up flushes it
 
     await dispatchRow({ id: row.id, orgId, phone: msisdn, message, templateKey }, resolved, funding);
+    return row.id;
+  } catch {
+    return null;
+  }
+}
+
+/** The built-in template catalogue, for the console's template editor. */
+export function defaultSmsTemplates(): { key: string; body: string }[] {
+  return Object.entries(DEFAULT_TEMPLATES).map(([key, body]) => ({ key, body }));
+}
+
+/**
+ * Queue (and best-effort send) a RAW message — campaign blasts and other
+ * one-off copy that lives nowhere in the template catalogue. `tagKey` labels
+ * the row (e.g. `campaign:<id>`) so delivery stats group per campaign; raw
+ * sends are never critical, so an empty wallet queues them rather than
+ * overdrafting.
+ */
+export async function sendRawSms(orgId: string, phone: string, message: string, tagKey: string): Promise<string | null> {
+  try {
+    const msisdn = normalizeMsisdn(phone);
+    const body = (message ?? "").trim();
+    if (!body) return null;
+
+    const row = await prisma.smsMessage.create({
+      data: { orgId, phone: msisdn, message: body, templateKey: tagKey, state: "QUEUED" },
+    });
+
+    const resolved = await providerFor(orgId);
+    if (!resolved) return row.id;
+
+    const funding = await fundSms(orgId, tagKey, resolved.platform);
+    if (funding === "refused") return row.id;
+
+    await dispatchRow({ id: row.id, orgId, phone: msisdn, message: body, templateKey: tagKey }, resolved, funding);
     return row.id;
   } catch {
     return null;

@@ -34,7 +34,7 @@ export type SmsFunding = "own-provider" | "allowance" | "credit" | "overdraft" |
  * money-saving but survivable. Dunning stops at zero credit — that pressure is
  * the product working, not a bug.
  */
-const CRITICAL_TEMPLATES = new Set(["otp", "verify", "offer_sign", "guarantor_sign", "guarantor_invite"]);
+const CRITICAL_TEMPLATES = new Set(["otp", "verify", "offer_sign", "guarantor_sign", "guarantor_invite", "login_code"]);
 
 export const isCriticalTemplate = (templateKey: string): boolean => CRITICAL_TEMPLATES.has(templateKey);
 

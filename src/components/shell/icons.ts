@@ -5,14 +5,14 @@ import {
   LayoutDashboard, Gauge, Users, UserPlus, ShieldCheck, FileText, FileClock, Landmark,
   FilePlus2, Banknote, Wallet, HandCoins, Scale, PhoneCall, CalendarClock, BrainCircuit,
   SlidersHorizontal, ScanLine, FileBarChart, MapPin, MessageSquare, Building2, Package,
-  GitBranch, Palette, Settings2, KeyRound, Crown, Bot, Ticket, Circle, type LucideIcon,
+  GitBranch, Palette, Settings2, KeyRound, Crown, Bot, Ticket, Mail, Circle, type LucideIcon,
 } from "lucide-react";
 
 const ICONS: Record<string, LucideIcon> = {
   LayoutDashboard, Gauge, Users, UserPlus, ShieldCheck, FileText, FileClock, Landmark,
   FilePlus2, Banknote, Wallet, HandCoins, Scale, PhoneCall, CalendarClock, BrainCircuit,
   SlidersHorizontal, ScanLine, FileBarChart, MapPin, MessageSquare, Building2, Package,
-  GitBranch, Palette, Settings2, KeyRound, Crown, Bot, Ticket,
+  GitBranch, Palette, Settings2, KeyRound, Crown, Bot, Ticket, Mail,
 };
 
 export function navIcon(name: string): LucideIcon {

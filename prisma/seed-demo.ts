@@ -67,7 +67,7 @@ const BORROWERS = [
 async function wipe(orgId: string) {
   const w = { orgId };
   for (const m of [
-    "smsMessage", "c2BReceipt", "paymentIntent", "floatLedger", "otpChallenge",
+    "smsMessage", "smsCampaign", "emailMessage", "c2BReceipt", "paymentIntent", "floatLedger", "otpChallenge",
     "promiseToPay", "collectionCall", "collectionTicket",
     "reconciliationException", "usageEvent", "invoiceLine", "invoice", "smsTopUp", "smsWallet",
     "installment", "guarantor", "collateral", "disbursement", "loanOffer", "loan",
@@ -110,7 +110,7 @@ async function main() {
       "products.view", "workflows.view", "documents.view", "documents.parse", "field.view", "field.manage",
       "disbursements.view", "disbursements.manage", "float.view", "repayments.view", "repayments.collect",
       "team.view", "reports.view", "intelligence.view", "riri.use",
-      "collections.view", "collections.manage",
+      "collections.view", "collections.manage", "sms.view", "sms.manage",
     ],
     "Risk Manager": [
       "borrowers.view", "applications.view", "loans.view", "products.view", "reconciliation.view",

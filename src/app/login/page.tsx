@@ -3,33 +3,45 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Lock, Mail, ArrowRight, AlertTriangle, CheckCircle2, KeyRound } from "lucide-react";
+import { Loader2, Lock, Mail, ArrowRight, AlertTriangle, CheckCircle2, KeyRound, FlaskConical, ShieldCheck } from "lucide-react";
 
 // Staff sign-in (org-scoped console). Borrowers never need this — the funnel
 // at / identifies them by phone inside the wizard.
-type Mode = "signin" | "forgot" | "reset";
+//
+// Two factors: password, then today's 6-digit code (emailed, reusable until
+// midnight — one code each morning, not one per session).
+type Mode = "signin" | "otp" | "forgot" | "reset";
 
 export default function StaffLogin() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [devCode, setDevCode] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [nextPass, setNextPass] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const submit = async () => {
+  const submit = async (withOtp?: string) => {
     setError(null);
     if (!email.trim() || !password) { setError("Enter your email and password."); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: email.trim(), password, ...(withOtp ? { otp: withOtp } : {}) }),
       });
       const data = await res.json();
+      if (data.otpRequired) {
+        setMode("otp");
+        setDevCode(data.devCode ?? null);
+        if (withOtp) setError(data.message || "That code didn't match.");
+        else setNotice(data.message || "We emailed you today's sign-in code.");
+        return;
+      }
       if (!data.success) { setError(data.message || "Sign-in failed."); return; }
       router.replace("/console");
     } catch { setError("Sign-in failed. Try again."); } finally { setLoading(false); }
@@ -79,10 +91,12 @@ export default function StaffLogin() {
             <img src="/images/logo.png" alt="BirgenAI" className="mx-auto mb-4 h-11 w-auto object-contain"
               onError={(e) => (((e.target as HTMLImageElement).src = "/images/BirgenAI-logo.png"))} />
             <h1 className="text-2xl font-bold">
-              {mode === "signin" ? "Staff sign in" : "Reset your password"}
+              {mode === "signin" ? "Staff sign in" : mode === "otp" ? "Enter today's code" : "Reset your password"}
             </h1>
             <p className="mt-1.5 text-sm text-zinc-500">
-              {mode === "signin" ? "Loan officers, ROs, managers & admins." : mode === "forgot" ? "We'll email you a 6-digit code." : "Enter the code from your email and a new password."}
+              {mode === "signin" ? "Loan officers, ROs, managers & admins."
+                : mode === "otp" ? "We emailed you a 6-digit code. It works for the whole day — one code each morning."
+                : mode === "forgot" ? "We'll email you a 6-digit code." : "Enter the code from your email and a new password."}
             </p>
           </div>
 
@@ -103,13 +117,45 @@ export default function StaffLogin() {
                 <div className={wrap}><Mail className="h-4 w-4 text-zinc-400 shrink-0" /><input value={email} onChange={(e) => setEmail(e.target.value)} inputMode="email" placeholder="Work email" className={input} /></div>
                 <div className={wrap}><Lock className="h-4 w-4 text-zinc-400 shrink-0" /><input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Password" onKeyDown={(e) => e.key === "Enter" && submit()} className={input} /></div>
               </div>
-              <button onClick={submit} disabled={loading} className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+              <button onClick={() => submit()} disabled={loading} className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Sign in <ArrowRight className="h-4 w-4" />
               </button>
               <div className="mt-4 flex items-center justify-between text-xs">
                 <button onClick={() => { setMode("forgot"); setError(null); setNotice(null); }} className="text-zinc-500 hover:text-zinc-800">Forgot password?</button>
                 <Link href="/onboard" className="font-semibold" style={{ color: "var(--brand)" }}>Create your organization</Link>
               </div>
+            </>
+          )}
+
+          {mode === "otp" && (
+            <>
+              {devCode && (
+                <p className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-violet-100 px-2 py-1 text-[11px] font-semibold text-violet-700">
+                  <FlaskConical className="h-3 w-3" /> Dev code: {devCode}
+                </p>
+              )}
+              <div className="mt-5">
+                <div className={wrap}>
+                  <ShieldCheck className="h-4 w-4 text-zinc-400 shrink-0" />
+                  <input
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="6-digit code"
+                    onKeyDown={(e) => e.key === "Enter" && otp.length === 6 && submit(otp)}
+                    className={`${input} tracking-[0.4em] font-semibold`}
+                  />
+                </div>
+              </div>
+              <button onClick={() => submit(otp)} disabled={loading || otp.length !== 6}
+                className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Verify & sign in <ArrowRight className="h-4 w-4" />
+              </button>
+              <p className="mt-3 text-center text-[11px] text-zinc-400">
+                No email? The code from earlier today still works — check your inbox and spam.
+              </p>
+              <button onClick={() => { setMode("signin"); setOtp(""); setError(null); setNotice(null); }} className="mt-3 w-full text-center text-xs text-zinc-500 hover:text-zinc-800">Back to sign in</button>
             </>
           )}
 

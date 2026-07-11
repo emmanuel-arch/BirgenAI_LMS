@@ -132,6 +132,8 @@ model Org {
   promises      PromiseToPay[]
   collectionCalls CollectionCall[]
   tickets       CollectionTicket[]
+  smsCampaigns  SmsCampaign[]
+  emails        EmailMessage[]
 }
 
 enum IntegrationKind {
@@ -1260,6 +1262,53 @@ model SmsTemplate {
   updatedAt DateTime @updatedAt
 
   @@unique([orgId, key])
+}
+
+enum CampaignStatus {
+  DRAFT
+  SENDING
+  SENT // every recipient row created (delivery states live on SmsMessage)
+  FAILED
+}
+
+/// A one-off SMS blast to a borrower segment (ServiceSuite "SMS Campaign"
+/// parity). The campaign is the intent + audience + counts; each actual message
+/// is an SmsMessage row tagged `campaign:<id>`, so delivery/queueing/billing
+/// stay on the same rails as every other SMS.
+model SmsCampaign {
+  id         String         @id @default(uuid())
+  orgId      String
+  name       String
+  message    String // free text; {name} substitutes the borrower's first name
+  audience   String // ALL | ACTIVE_LOANS | ARREARS | CLEARED | BROKEN_PTP
+  recipients Int            @default(0) // enumerated at send time
+  queued     Int            @default(0) // rows created (sent or waiting for credit)
+  status     CampaignStatus @default(DRAFT)
+  createdBy  String // StaffUser.id
+  sentAt     DateTime?
+  createdAt  DateTime       @default(now())
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, createdAt])
+}
+
+/// Outbound email log (ServiceSuite EmailMessage parity). Every transactional
+/// send — invite credentials, sign-in codes, approvals — leaves a row, so
+/// "did the system email them?" has an answer that isn't a shrug.
+model EmailMessage {
+  id        String   @id @default(uuid())
+  orgId     String
+  to        String
+  subject   String
+  template  String? // staff_invite | login_otp | approval_otp | reset_code | welcome | raw
+  state     String // SENT | FAILED
+  error     String?
+  createdAt DateTime @default(now())
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, createdAt])
 }
 
 enum SmsTopUpSource {

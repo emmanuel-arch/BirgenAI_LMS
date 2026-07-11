@@ -45,7 +45,7 @@ DECLARE
     'OtpChallenge','AuditLog','Borrower','Consent','KycCheck','Product','Workflow',
     'LoanApplication','LoanOffer','Guarantor','Collateral','Document','Loan','Installment','Disbursement','PaymentIntent','C2BReceipt',
     'FloatLedger','ReconciliationException','SmsMessage','SmsTemplate','SmsWallet','SmsTopUp','ScoreSnapshot','GeoPin','UsageEvent','TuningProfile','Invoice','InvoiceLine',
-    'PromiseToPay','CollectionCall','CollectionTicket'
+    'PromiseToPay','CollectionCall','CollectionTicket','SmsCampaign','EmailMessage'
   ];
 BEGIN
   FOREACH t IN ARRAY tables LOOP

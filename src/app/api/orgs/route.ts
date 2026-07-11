@@ -16,6 +16,9 @@ import { runAsPlatform } from "@/lib/db/context";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { putBrandLogo, InvalidImageError } from "@/lib/storage/provider";
 import { isHexColor, accentSoftFrom } from "@/lib/branding/palette";
+import { sendTemplatedEmail } from "@/lib/email/send";
+import { emailBrandFor } from "@/lib/email/layout";
+import { welcomeOrgEmail } from "@/lib/email/templates";
 
 export const runtime = "nodejs";
 
@@ -56,7 +59,7 @@ const STARTER_ROLES: { title: string; rights: string[] }[] = [
       "products.view", "workflows.view", "documents.view", "documents.parse", "field.view", "field.manage",
       "disbursements.view", "disbursements.manage", "float.view", "repayments.view", "repayments.collect",
       "team.view", "intelligence.view", "reports.view", "riri.use",
-      "collections.view", "collections.manage",
+      "collections.view", "collections.manage", "sms.view", "sms.manage",
     ],
   },
   {
@@ -174,6 +177,11 @@ export async function POST(req: NextRequest) {
           logoWarning = e instanceof InvalidImageError ? e.message : "The logo could not be stored — add it later under Organization → Branding.";
         }
       }
+
+      // Welcome the founding admin in their OWN branding — the first proof the
+      // white-label is real. Best-effort, like everything mail.
+      const brand = await emailBrandFor(org.id);
+      await sendTemplatedEmail(org.id, adminEmail, welcomeOrgEmail(brand, { name: first, email: adminEmail }), "welcome").catch(() => {});
 
       return NextResponse.json({
         success: true,
