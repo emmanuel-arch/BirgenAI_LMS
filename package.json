@@ -25,6 +25,7 @@
     "test:platform-admin": "tsx scripts/verify-platform-auth.ts",
     "test:collections": "tsx scripts/verify-collections.ts",
     "test:comms": "tsx scripts/verify-comms.ts",
+    "test:funnel-gaps": "tsx scripts/verify-funnel-gaps.ts",
     "platform:admin": "tsx scripts/create-platform-admin.ts",
     "db:app-role": "tsx scripts/create-app-role.ts",
     "storage:init": "tsx scripts/init-storage.ts",

@@ -107,6 +107,43 @@ export function assessLiveness(seed: string, bytes: number): LivenessResult {
   return { score, passed: score >= 70, challenge };
 }
 
+// ── Active liveness (challenge–response) ─────────────────────────────────────
+// Passive liveness asks "is this a live face?"; ACTIVE liveness asks the person
+// to DO something a photo can't. Challenges derive deterministically from the
+// session seed, so the server re-derives what it asked without storing state —
+// a client cannot pick its own easier challenges.
+
+export type ActiveLivenessResult = {
+  passed: boolean;
+  score: number;
+  frames: { challenge: string; score: number; passed: boolean }[];
+};
+
+export function activeLivenessChallenges(seed: string): string[] {
+  const a = Math.floor(seeded(seed, "achl1") * CHALLENGES.length);
+  let b = Math.floor(seeded(seed, "achl2") * CHALLENGES.length);
+  if (b === a) b = (b + 1) % CHALLENGES.length;
+  return [CHALLENGES[a], CHALLENGES[b]];
+}
+
+export function assessActiveLiveness(seed: string, frames: { challenge: string; bytes: number }[]): ActiveLivenessResult {
+  const expected = activeLivenessChallenges(seed);
+  const per = expected.map((challenge, i) => {
+    const f = frames[i];
+    let score: number;
+    if (!f || f.challenge !== challenge) {
+      score = 10; // missing, or answering a different challenge than was asked
+    } else {
+      score = 80 + Math.round(seeded(seed, `alive${i}`) * 18);
+      if (f.bytes < 25_000) score -= 45; // a near-empty frame is not a face
+    }
+    score = Math.max(5, Math.min(99, score));
+    return { challenge, score, passed: score >= 70 };
+  });
+  const score = Math.round(per.reduce((s, p) => s + p.score, 0) / per.length);
+  return { passed: per.every((p) => p.passed), score, frames: per };
+}
+
 // ── Face match (ID portrait vs selfie) ────────────────────────────────────────
 export function faceMatch(seed: string): FaceMatchResult {
   const score = 84 + Math.round(seeded(seed, "face") * 14); // 84..98 in sim (a real person)

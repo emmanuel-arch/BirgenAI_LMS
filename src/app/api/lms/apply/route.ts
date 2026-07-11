@@ -24,6 +24,7 @@ import { borrowerFor, otpRequired } from "@/lib/portal/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { meter } from "@/lib/billing/meter";
 import { createOfferForApplication } from "@/lib/lending/offer";
+import { autoScheduleVerification } from "@/lib/field/auto";
 import { scoreThinFileAuto } from "@/lib/statement/score-thinfile";
 import type { CashflowFeatures } from "@/lib/statement/features";
 import { LMS_STAGES, stageFromDecision, type LmsStageKey } from "@/lib/lms/workflow";
@@ -58,6 +59,8 @@ type Body = {
   // Consented, one-time location capture (never tracked).
   location?: { lat?: number; lng?: number; accuracy?: number };
   locationType?: "business" | "home";
+  /** SHA-256 of the applying device's stable traits — the ring-fraud signal. */
+  deviceFingerprint?: string;
   locationAddress?: string;
 };
 
@@ -287,6 +290,7 @@ export async function POST(req: NextRequest) {
           ip: req.headers.get("x-forwarded-for") || null,
         } as Prisma.InputJsonValue,
         consentVersion: CONSENT_VERSION,
+        deviceFingerprint: /^[0-9a-f]{32,64}$/i.test(body.deviceFingerprint ?? "") ? body.deviceFingerprint : null,
         decidedAt: new Date(),
       },
     });
@@ -323,6 +327,21 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       console.error("[apply] KYC attach failed:", err);
     }
+  }
+
+  // An SME application with a captured business location gets a relationship
+  // officer AUTO-dispatched to verify the premises (blueprint §5.1) — nobody
+  // has to remember to click "dispatch". Entitlement-gated inside; best-effort.
+  if (hasCoords && locationType === "business" && borrowerRowId) {
+    await autoScheduleVerification({
+      orgId: orgRow.id,
+      borrowerId: borrowerRowId,
+      applicationId: app.id,
+      lat: lat!,
+      lng: lng!,
+      label: `${borrowerName || phone} (business verification)`,
+      address: locationAddress,
+    });
   }
 
   // Consented location → a geotag the lender's officers can route to (RO Route

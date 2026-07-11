@@ -13,6 +13,7 @@ type App = {
   productName: string | null; score: number | null; pd: number | null; decision: string | null;
   reasonCodes: { factor?: string; detail?: string; direction?: string }[] | null;
   graduated: boolean; postedToServiceSuite: boolean; serviceSuiteLoanId: string | null;
+  deviceSharedWith: number;
   loan: { id: string; status: string } | null;
 };
 
@@ -137,6 +138,12 @@ function ApplicationsQueue() {
                       {a.score != null && <> · score <span className="font-semibold">{a.score}</span>/900</>}
                     </p>
                   </div>
+                  {a.deviceSharedWith > 0 && (
+                    // The ring pattern: this device has applied as other people too.
+                    <span className="rounded-md bg-red-100 px-2 py-1 text-[11px] font-semibold text-red-700 shrink-0" title="This device has submitted applications for other borrowers">
+                      Device ×{a.deviceSharedWith + 1}
+                    </span>
+                  )}
                   <span className={`rounded-md px-2 py-1 text-[11px] font-semibold shrink-0 ${STATUS_TONE[a.status] ?? "bg-zinc-900/5 text-zinc-600"}`}>
                     {a.stageTitle ?? a.status}
                   </span>

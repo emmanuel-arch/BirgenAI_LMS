@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { getBrand, BRANDED_LENDERS } from "@/lib/lms/branding";
 import { useBrand } from "@/lib/lms/useBrand";
+import { deviceFingerprint } from "@/lib/portal/fingerprint";
 import CrunchTheatre, { type CrunchData } from "@/components/statement/CrunchTheatre";
 import OtpCard, { type OtpIssue } from "@/components/portal/OtpCard";
 import { OfferCard } from "@/components/portal/OfferCard";
@@ -309,6 +310,9 @@ export default function LmsPortal() {
     }
     setLoading(true);
     try {
+      // Fraud signal, not tracking: a hash of the device's stable traits, so the
+      // console can see one device applying as many different people.
+      const fp = await deviceFingerprint().catch(() => null);
       const res = await fetch("/api/lms/apply", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -322,6 +326,7 @@ export default function LmsPortal() {
           location: location ? { lat: location.lat, lng: location.lng, accuracy: location.accuracy } : undefined,
           locationType,
           locationAddress: manualAddress.trim() || undefined,
+          deviceFingerprint: fp ?? undefined,
         }),
       });
       const data = await res.json();
@@ -721,6 +726,13 @@ export default function LmsPortal() {
                             )}
                             {term && <span><span className="text-zinc-400">Term</span> {term}</span>}
                           </div>
+                          {(p as { interestMethod?: string }).interestMethod === "reducing" && (
+                            // §5.1: interest accrues on the falling balance, so
+                            // settling ahead of schedule genuinely costs less.
+                            <p className="mt-1.5 inline-block rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                              Pay early, pay less
+                            </p>
+                          )}
                         </button>
                       );
                     })}

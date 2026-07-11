@@ -616,6 +616,9 @@ model LoanApplication {
   consentId        String?
   consent          Json? // application-time consent snapshot (versioned, IP-stamped)
   consentVersion   String?
+  // Fraud signal: a hash of the applying device's stable traits. The same
+  // device applying as many different people is the classic ring pattern.
+  deviceFingerprint String?
   // Consented one-time geo
   lat             Float?
   lng             Float?

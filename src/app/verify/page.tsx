@@ -42,6 +42,9 @@ export default function VerifyPage() {
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, unknown>>({});
   const [preview, setPreview] = useState<string | null>(null);
+  // Active liveness: the server issues challenges, one captured frame each.
+  const [challenges, setChallenges] = useState<string[] | null>(null);
+  const [frames, setFrames] = useState<{ challenge: string; bytes: number; image: string }[]>([]);
 
   useLoad(() => { setLender(lenderFromLocation() ?? "hub"); });
   const brand = useBrand(lender);
@@ -94,6 +97,39 @@ export default function VerifyPage() {
       if (data.retake) { setError(gateMessage(data)); return; }
       advance(stepKey);
     } catch { setError("Something went wrong — try again."); } finally { setBusy(false); }
+  };
+
+  // Fetch what to DO before the camera opens — the server derives the same
+  // challenges again at verification, so these can't be swapped for easier ones.
+  const startLiveness = async () => {
+    setBusy(true); setError(null);
+    try {
+      const data = await call("liveness-challenges", {});
+      if (data.needsOtp) { setStep("intro"); setOtpIssue(null); setError("Your session expired — verify your number again."); return; }
+      if (!data.success) { setError(data.message || "Could not start the liveness check."); return; }
+      setSessionId(data.sessionId); setMode(data.mode);
+      setChallenges(data.challenges); setFrames([]);
+    } catch { setError("Could not start the liveness check."); } finally { setBusy(false); }
+  };
+
+  const captureLivenessFrame = async (sig: CaptureSignals) => {
+    if (!challenges) return;
+    const nextFrames = [...frames, { challenge: challenges[frames.length], bytes: sig.bytes, image: sig.dataUrl }];
+    if (nextFrames.length < challenges.length) { setFrames(nextFrames); return; }
+
+    // Last challenge answered — submit the whole sequence.
+    setBusy(true); setError(null); setPreview(sig.dataUrl);
+    await new Promise((r) => setTimeout(r, 1200));
+    try {
+      const data = await call("liveness", { frames: nextFrames });
+      if (data.needsOtp) { setStep("intro"); setOtpIssue(null); setError("Your session expired — verify your number again."); return; }
+      if (!data.success) { setError(data.message || "Check failed."); setFrames([]); return; }
+      setSessionId(data.sessionId); setMode(data.mode);
+      setResults((r) => ({ ...r, liveness: data }));
+      if (data.retake) { setFrames([]); setError("Couldn't confirm liveness — follow each prompt in good light and try again."); return; }
+      setFrames([]);
+      advance("liveness");
+    } catch { setError("Something went wrong — try again."); setFrames([]); } finally { setBusy(false); }
   };
 
   const runIprs = async () => {
@@ -224,11 +260,29 @@ export default function VerifyPage() {
 
             {step === "liveness" && (
               <div className="glass rounded-3xl bg-white/65 p-5">
-                <h2 className="text-base font-bold">Now a quick selfie</h2>
-                <p className="mt-1 text-xs text-zinc-500">Look straight at the camera — we check you&apos;re a live person, not a photo.</p>
-                <div className="mt-4">
-                  <Capture frame="face" facing="user" busy={busy} onCapture={(s) => captureStep("liveness", s)} />
-                </div>
+                <h2 className="text-base font-bold">Liveness check</h2>
+                {!challenges ? (
+                  <>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      We&apos;ll ask you to do two quick things a photo can&apos;t — that&apos;s how we know it&apos;s really you, live.
+                    </p>
+                    <button onClick={startLiveness} disabled={busy}
+                      className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                      style={{ backgroundColor: "var(--brand)" }}>
+                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanFace className="h-4 w-4" />} Start the check
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-2 rounded-lg px-3 py-2 text-sm font-semibold text-white" style={{ backgroundColor: "var(--brand)" }}>
+                      {frames.length + 1} of {challenges.length}: {challenges[frames.length].charAt(0).toUpperCase() + challenges[frames.length].slice(1)}
+                    </div>
+                    <p className="mt-1.5 text-xs text-zinc-500">Do it, then capture — face the camera in good light.</p>
+                    <div className="mt-3">
+                      <Capture frame="face" facing="user" busy={busy} onCapture={captureLivenessFrame} />
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

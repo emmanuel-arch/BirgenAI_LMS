@@ -23,14 +23,14 @@ import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
 import {
-  kycMode, assessIdQuality, extractId, assessLiveness, faceMatch, iprsLookup, portraitIsStandardized,
+  kycMode, assessIdQuality, extractId, assessLiveness, activeLivenessChallenges, assessActiveLiveness, faceMatch, iprsLookup, portraitIsStandardized,
 } from "@/lib/kyc/provider";
 import { putKycObject, storageMode, InvalidImageError, MAX_IMAGE_BYTES, type KycAssetKind } from "@/lib/storage/provider";
 import { attachKycSession } from "@/lib/kyc/attach";
 
 export const runtime = "nodejs";
 
-type Step = "id" | "liveness" | "facematch" | "iprs" | "finalize";
+type Step = "id" | "liveness-challenges" | "liveness" | "facematch" | "iprs" | "finalize";
 
 /**
  * Resume the caller's own KYC session, or start one. Scoped to the verified
@@ -60,7 +60,11 @@ export async function POST(req: NextRequest) {
   let body: {
     lenderSlug?: string; nationalId?: string; step?: Step; sessionId?: string;
     /** `image` is a base64 data URL from the camera/upload surface. */
-    payload?: { bytes?: number; brightness?: number; blurVar?: number; image?: string };
+    payload?: {
+      bytes?: number; brightness?: number; blurVar?: number; image?: string;
+      /** Active liveness: one frame per issued challenge, in order. */
+      frames?: { challenge?: string; bytes?: number; image?: string }[];
+    };
   };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
@@ -136,7 +140,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, sessionId: session.id, mode, step, quality, ocr, idMismatch: !!idMismatch, session: updated });
     }
 
+    // The wizard asks what to DO before the camera opens — challenges derive
+    // from the session seed, so the server can re-verify what it asked without
+    // storing state (and a client cannot pick easier ones).
+    if (step === "liveness-challenges") {
+      return NextResponse.json({ success: true, sessionId: session.id, mode, step, challenges: activeLivenessChallenges(seed) });
+    }
+
     if (step === "liveness") {
+      // ACTIVE path (challenge–response frames); legacy single-selfie stays for
+      // older clients so nothing mid-flight breaks.
+      if (Array.isArray(p.frames) && p.frames.length > 0) {
+        const active = assessActiveLiveness(
+          seed,
+          p.frames.map((f) => ({ challenge: (f.challenge ?? "").trim(), bytes: Number(f.bytes) || 0 })),
+        );
+        await writeCheck("LIVENESS", active.passed, active.score, { mode: "active", ...active });
+        // The last frame is a straight-on face — it becomes the selfie artifact.
+        const lastImage = p.frames[p.frames.length - 1]?.image;
+        let selfieKey: string | null = null;
+        if (active.passed && lastImage) selfieKey = await putKycObject(org.id, session.id, "selfie", lastImage);
+        await prisma.kycSession.update({
+          where: { id: session.id },
+          data: { livenessScore: active.score, livenessPassed: active.passed, ...(selfieKey ? { selfieKey } : {}) },
+        });
+        return NextResponse.json({
+          success: true, sessionId: session.id, mode, step,
+          liveness: { score: active.score, passed: active.passed, challenge: "active", frames: active.frames },
+          retake: !active.passed,
+        });
+      }
+
       const liveness = assessLiveness(seed, bytes);
       await writeCheck("LIVENESS", liveness.passed, liveness.score, liveness);
       const selfieKey = liveness.passed ? await store("selfie") : null;

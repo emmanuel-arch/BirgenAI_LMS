@@ -47,6 +47,8 @@ export async function POST(req: NextRequest) {
       maxPrincipal: Number(p.maxPrincipal),
       interestRate: Number(p.interestRate),
       interestUnit: p.interestPeriodUnit,
+      // Reducing-balance products reward early settlement; the wizard says so.
+      interestMethod: p.interestMethod,
       repaymentPeriod: p.repaymentPeriod,
       repaymentUnit: p.repaymentPeriodUnit,
       minCreditScore: p.minCreditScore,

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
+import { autoScheduleVerification } from "@/lib/field/auto";
 
 export const runtime = "nodejs";
 
@@ -28,17 +29,34 @@ export async function GET(req: NextRequest) {
       borrowerName: true, phone: true, amountRequested: true,
       productName: true, productId: true, productRef: true,
       score: true, pd: true, decision: true, reasonCodes: true, graduated: true,
-      postedToServiceSuite: true, serviceSuiteLoanId: true,
+      postedToServiceSuite: true, serviceSuiteLoanId: true, deviceFingerprint: true,
       loan: { select: { id: true, status: true } },
     },
   });
 
+  // Ring-fraud signal: how many OTHER borrowers applied from the same device.
+  // One query over the fingerprints on this page, not one per row.
+  const prints = [...new Set(apps.map((a) => a.deviceFingerprint).filter((f): f is string => !!f))];
+  const shared = new Map<string, Set<string>>();
+  if (prints.length > 0) {
+    const rows = await prisma.loanApplication.findMany({
+      where: { orgId: session.user.orgId, deviceFingerprint: { in: prints } },
+      select: { deviceFingerprint: true, borrowerId: true },
+    });
+    for (const r of rows) {
+      if (!r.deviceFingerprint) continue;
+      (shared.get(r.deviceFingerprint) ?? shared.set(r.deviceFingerprint, new Set()).get(r.deviceFingerprint)!).add(r.borrowerId);
+    }
+  }
+
   return NextResponse.json({
     success: true,
-    applications: apps.map((a) => ({
+    applications: apps.map(({ deviceFingerprint, ...a }) => ({
       ...a,
       amountRequested: Number(a.amountRequested),
       pd: a.pd != null ? Number(a.pd) : null,
+      // 0 = device seen for this borrower only (or no fingerprint at all).
+      deviceSharedWith: deviceFingerprint ? Math.max(0, (shared.get(deviceFingerprint)?.size ?? 1) - 1) : 0,
     })),
   });
 }
@@ -118,6 +136,17 @@ export async function POST(req: NextRequest) {
       meta: { borrowerId: borrower.id, product: product.name, amount, note: body.note?.trim() || null },
     },
   }).catch(() => {});
+
+  // A walk-in SME with a captured business location gets the same auto-dispatched
+  // verification the funnel schedules (entitlement-gated inside, best-effort).
+  if (borrower.locationType === "business" && borrower.lat != null && borrower.lng != null) {
+    await autoScheduleVerification({
+      orgId, borrowerId: borrower.id, applicationId: app.id,
+      lat: borrower.lat, lng: borrower.lng,
+      label: `${borrower.firstName ?? borrower.phone} (business verification)`,
+      address: borrower.locationAddress,
+    });
+  }
 
   return NextResponse.json({ success: true, applicationId: app.id });
 }
