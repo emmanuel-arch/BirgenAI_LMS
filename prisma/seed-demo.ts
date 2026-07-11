@@ -68,6 +68,7 @@ async function wipe(orgId: string) {
   const w = { orgId };
   for (const m of [
     "smsMessage", "c2BReceipt", "paymentIntent", "floatLedger", "otpChallenge",
+    "promiseToPay", "collectionCall", "collectionTicket",
     "reconciliationException", "usageEvent", "invoiceLine", "invoice", "smsTopUp", "smsWallet",
     "installment", "guarantor", "collateral", "disbursement", "loanOffer", "loan",
     "loanApplication", "consent", "geoPin", "scoreSnapshot", "kycCheck", "kycSession",
@@ -102,12 +103,14 @@ async function main() {
     "Loan Officer": [
       "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view",
       "products.view", "documents.view", "documents.parse", "field.view", "reports.view", "riri.use",
+      "collections.view", "collections.manage",
     ],
     "Branch Manager": [
       "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view",
       "products.view", "workflows.view", "documents.view", "documents.parse", "field.view", "field.manage",
       "disbursements.view", "disbursements.manage", "float.view", "repayments.view", "repayments.collect",
       "team.view", "reports.view", "intelligence.view", "riri.use",
+      "collections.view", "collections.manage",
     ],
     "Risk Manager": [
       "borrowers.view", "applications.view", "loans.view", "products.view", "reconciliation.view",
@@ -116,7 +119,7 @@ async function main() {
     Finance: [
       "loans.view", "disbursements.view", "disbursements.manage", "float.view", "float.manage",
       "repayments.view", "repayments.collect", "reconciliation.view", "reconciliation.resolve",
-      "billing.view", "reports.view", "riri.use",
+      "billing.view", "reports.view", "riri.use", "collections.view",
     ],
     "Relationship Officer": [
       "borrowers.view", "borrowers.create", "loans.view", "field.view", "field.manage",
@@ -319,7 +322,35 @@ async function main() {
     }
     if (b.loans === "arrears") {
       const app = await makeApp({ amount: 30000, product: quickProduct, status: "DISBURSED", decision: "APPROVE", score: b.score, pd: 0.34, outcome: "PENDING", daysAgo: 70 });
-      await bookLoan(app, quickProduct, 30000, 70, "arrears");
+      const loan = await bookLoan(app, quickProduct, 30000, 70, "arrears");
+      // Collections showcase: this loan has been WORKED — a call that took a
+      // promise (broken: the money never came), a fresher no-answer attempt,
+      // and a hardship ticket sitting with the manager. The demo queue shows a
+      // lender mid-chase, not a blank slate.
+      const managerId = staffIds.get("manager@demo.birgenai.com")!;
+      const ptp = await prisma.promiseToPay.create({
+        data: {
+          orgId: org.id, loanId: loan.id, borrowerId: borrower.id,
+          amount: 8000, dueDate: D(10), status: "BROKEN", paidAmount: 0,
+          note: "Says the market has been slow; will sell stock over the weekend.",
+          createdBy: officerId, createdAt: D(14), resolvedAt: D(9),
+        },
+      });
+      await prisma.collectionCall.createMany({
+        data: [
+          { orgId: org.id, loanId: loan.id, borrowerId: borrower.id, outcome: "PROMISE_TO_PAY", note: "Reached him at the stall. Promised KES 8,000 by Friday.", ptpId: ptp.id, createdBy: officerId, createdAt: D(14) },
+          { orgId: org.id, loanId: loan.id, borrowerId: borrower.id, outcome: "NO_ANSWER", note: "Rang through twice, no pick. Try evenings.", createdBy: officerId, createdAt: D(3) },
+        ],
+      });
+      await prisma.collectionTicket.create({
+        data: {
+          orgId: org.id, borrowerId: borrower.id, loanId: loan.id,
+          kind: "HARDSHIP", status: "IN_PROGRESS",
+          title: "Requests restructuring after stall flooding",
+          detail: "Stock lost to flooding at Gikomba. Asking for the schedule to be spread over two extra months.",
+          assignedToId: managerId, createdBy: officerId, createdAt: D(8),
+        },
+      });
     }
     if (b.loans === "declined") {
       await makeApp({ amount: 25000, product: quickProduct, status: "DECLINED", decision: "DECLINE", score: b.score, pd: 0.61, outcome: "PENDING", daysAgo: 10 });

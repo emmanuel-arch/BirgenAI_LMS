@@ -13,7 +13,7 @@
 // menu the API rejects (or worse, the reverse).
 import {
   ALL_RIGHTS, ALL_RIGHTS_SET, LEGACY_DEFAULT_RIGHTS, ADMIN_ONLY_RIGHTS, RESERVED_RIGHTS,
-  RIGHT_LABELS, RIGHT_GROUPS, WILDCARD, type Right,
+  MODERN_RIGHTS, RIGHT_LABELS, RIGHT_GROUPS, WILDCARD, type Right,
 } from "@/lib/rbac/rights";
 import { rightsSetFrom, getRights, requireRight } from "@/lib/rbac/authz";
 import { NAV_REGISTRY, navFor } from "@/lib/nav/registry";
@@ -51,16 +51,19 @@ async function main() {
   const legacy = new Set<string>(LEGACY_DEFAULT_RIGHTS);
   const admin = new Set<string>(ADMIN_ONLY_RIGHTS);
   const reserved = new Set<string>(RESERVED_RIGHTS);
+  const modern = new Set<string>(MODERN_RIGHTS);
   ok("legacy ⊆ all", LEGACY_DEFAULT_RIGHTS.every((r) => ALL_RIGHTS_SET.has(r)));
   ok("admin-only ⊆ all", ADMIN_ONLY_RIGHTS.every((r) => ALL_RIGHTS_SET.has(r)));
   ok("reserved ⊆ all", RESERVED_RIGHTS.every((r) => ALL_RIGHTS_SET.has(r)));
+  ok("modern ⊆ all", MODERN_RIGHTS.every((r) => ALL_RIGHTS_SET.has(r)));
   ok("legacy ∩ admin-only = ∅", LEGACY_DEFAULT_RIGHTS.every((r) => !admin.has(r)));
   ok("legacy ∩ reserved = ∅", LEGACY_DEFAULT_RIGHTS.every((r) => !reserved.has(r)));
   ok("admin-only ∩ reserved = ∅", ADMIN_ONLY_RIGHTS.every((r) => !reserved.has(r)));
+  ok("modern ∩ every historical bucket = ∅", MODERN_RIGHTS.every((r) => !legacy.has(r) && !admin.has(r) && !reserved.has(r)));
   ok(
-    "legacy ∪ admin-only ∪ reserved = all (nothing unaccounted for)",
-    ALL_RIGHTS.every((r) => legacy.has(r) || admin.has(r) || reserved.has(r)) &&
-      legacy.size + admin.size + reserved.size === ALL_RIGHTS.length,
+    "legacy ∪ admin-only ∪ reserved ∪ modern = all (nothing unaccounted for)",
+    ALL_RIGHTS.every((r) => legacy.has(r) || admin.has(r) || reserved.has(r) || modern.has(r)) &&
+      legacy.size + admin.size + reserved.size + modern.size === ALL_RIGHTS.length,
   );
 
   console.log("\n2. LEGACY_DEFAULT_RIGHTS is exactly the pre-RBAC reachable set");

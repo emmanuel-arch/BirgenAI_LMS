@@ -86,8 +86,9 @@ export const NAV_REGISTRY: NavModule[] = [
     label: "Collections",
     icon: "PhoneCall",
     items: [
-      { key: "collections-queues", label: "Overdue Book", icon: "PhoneCall", right: "collections.view", ready: false },
-      { key: "collections-ptp", label: "Promises to Pay", icon: "CalendarClock", right: "collections.view", ready: false },
+      { key: "collections-queue", label: "Work Queue", href: "/console/collections", icon: "PhoneCall", right: "collections.view", exact: true },
+      { key: "collections-ptp", label: "Promises to Pay", href: "/console/collections?tab=ptp", icon: "CalendarClock", right: "collections.view", exact: true },
+      { key: "collections-tickets", label: "Tickets", href: "/console/collections?tab=tickets", icon: "Ticket", right: "collections.view", exact: true },
     ],
   },
   {

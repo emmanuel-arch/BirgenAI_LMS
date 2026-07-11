@@ -13,6 +13,7 @@ import { sendSms } from "@/lib/sms/send";
 import { sweepRateLimits } from "@/lib/ratelimit";
 import { expireStaleOffers } from "@/lib/lending/offer";
 import { expireStaleGuarantors } from "@/lib/lending/guarantor";
+import { resolveDuePromises } from "@/lib/collections/ptp";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -31,7 +32,7 @@ function authorized(req: NextRequest): boolean {
 async function run() {
   const today = dayStart(new Date());
   const tomorrow2 = new Date(today.getTime() + 2 * 86400000);
-  const stats = { overdueMarked: 0, penaltiesApplied: 0, penaltyTotal: 0, dueToday: 0, reminders: 0, rateLimitsSwept: 0, offersExpired: 0, guarantorsExpired: 0 };
+  const stats = { overdueMarked: 0, penaltiesApplied: 0, penaltyTotal: 0, dueToday: 0, reminders: 0, rateLimitsSwept: 0, offersExpired: 0, guarantorsExpired: 0, ptpsResolved: 0 };
 
   // Housekeeping: closed rate-limit windows. Counters reset themselves in place,
   // so this only reclaims rows for subjects that never came back.
@@ -42,6 +43,9 @@ async function run() {
   stats.offersExpired = await runAsPlatform(() => expireStaleOffers());
   // Guarantor invitations nobody answered. Booking already treats them as expired.
   stats.guarantorsExpired = await runAsPlatform(() => expireStaleGuarantors());
+  // Promises whose date passed resolve against the money that actually came
+  // (the collections queue also does this opportunistically on read).
+  stats.ptpsResolved = (await resolveDuePromises()).length;
 
   // 1) OVERDUE + one-time penalties (loans ACTIVE only; penalty once per installment).
   const overdue = await prisma.installment.findMany({

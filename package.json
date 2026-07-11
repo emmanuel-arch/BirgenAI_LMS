@@ -23,6 +23,7 @@
     "test:rbac": "tsx scripts/verify-rbac.ts",
     "test:branding": "tsx scripts/verify-branding.ts",
     "test:platform-admin": "tsx scripts/verify-platform-auth.ts",
+    "test:collections": "tsx scripts/verify-collections.ts",
     "platform:admin": "tsx scripts/create-platform-admin.ts",
     "db:app-role": "tsx scripts/create-app-role.ts",
     "storage:init": "tsx scripts/init-storage.ts",

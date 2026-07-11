@@ -129,6 +129,9 @@ model Org {
   smsWallet     SmsWallet?
   smsTopUps     SmsTopUp[]
   reconExceptions ReconciliationException[]
+  promises      PromiseToPay[]
+  collectionCalls CollectionCall[]
+  tickets       CollectionTicket[]
 }
 
 enum IntegrationKind {
@@ -1048,6 +1051,112 @@ model C2BReceipt {
 
   @@unique([orgId, transId])
   @@index([orgId, allocatedLoanId])
+}
+
+// ── Collections — the workflow layer for the humans who chase arrears ─────────
+// The QUEUE is derived live from the book (loans with overdue installments);
+// what persists is what a human did about it: calls logged, promises taken,
+// tickets opened. ServiceSuite parity (Collections/PTPs) done native.
+
+enum PtpStatus {
+  PENDING // promise taken, due date not yet passed
+  KEPT // paid in full (allocated receipts since the promise ≥ the amount)
+  PARTIAL // some money came, not all of it
+  BROKEN // due date passed, nothing came
+  CANCELLED // superseded by a newer promise, or withdrawn with a note
+}
+
+/// A borrower's promise to pay an amount by a date — taken on a call, resolved
+/// against REAL money (allocated receipts), never by a checkbox alone.
+model PromiseToPay {
+  id         String    @id @default(uuid())
+  orgId      String
+  loanId     String
+  borrowerId String
+  amount     Decimal   @db.Decimal(18, 2)
+  dueDate    DateTime
+  status     PtpStatus @default(PENDING)
+  note       String?
+  /// Receipts allocated to the loan from creation until resolution.
+  paidAmount Decimal   @default(0) @db.Decimal(18, 2)
+  createdBy  String // StaffUser.id
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, status, dueDate])
+  @@index([orgId, loanId])
+}
+
+enum CallOutcome {
+  REACHED // spoke to the borrower, no promise made
+  PROMISE_TO_PAY // spoke to them and took a promise (links a PromiseToPay)
+  CLAIMS_PAID // borrower says they already paid — check reconciliation
+  NO_ANSWER
+  PHONE_OFF
+  WRONG_NUMBER
+  CALLBACK_LATER
+  DISPUTED // borrower disputes the debt — open a ticket
+}
+
+/// One phone conversation (or attempt) about an overdue loan.
+model CollectionCall {
+  id         String      @id @default(uuid())
+  orgId      String
+  loanId     String
+  borrowerId String
+  outcome    CallOutcome
+  note       String?
+  ptpId      String? // set when the outcome was PROMISE_TO_PAY
+  createdBy  String // StaffUser.id
+  createdAt  DateTime    @default(now())
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, loanId, createdAt])
+  @@index([orgId, createdAt])
+}
+
+enum TicketKind {
+  DISPUTE // "that's not my loan / I paid already"
+  HARDSHIP // job loss, illness — candidates for restructuring
+  FRAUD // identity theft, agent collusion
+  COMPLAINT // conduct, harassment, wrong deductions
+  LEGAL // demand letters, court, auctioneers
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED // resolved + reviewed, nothing more to do
+}
+
+/// A collections case that outlives a phone call — disputes, hardship,
+/// escalations. Resolution demands a note: the row may be the only record of
+/// why a lender stopped (or kept) chasing a debt.
+model CollectionTicket {
+  id           String       @id @default(uuid())
+  orgId        String
+  borrowerId   String
+  loanId       String?
+  kind         TicketKind
+  status       TicketStatus @default(OPEN)
+  title        String
+  detail       String?
+  assignedToId String? // StaffUser.id
+  resolution   String? // mandatory when leaving OPEN/IN_PROGRESS
+  createdBy    String // StaffUser.id
+  resolvedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, status, updatedAt])
+  @@index([orgId, borrowerId])
 }
 
 enum FloatEntryKind {

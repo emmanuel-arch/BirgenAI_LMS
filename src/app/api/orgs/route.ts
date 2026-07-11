@@ -46,6 +46,7 @@ const STARTER_ROLES: { title: string; rights: string[] }[] = [
     rights: [
       "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view",
       "products.view", "documents.view", "documents.parse", "field.view", "reports.view", "riri.use",
+      "collections.view", "collections.manage",
     ],
   },
   {
@@ -55,6 +56,7 @@ const STARTER_ROLES: { title: string; rights: string[] }[] = [
       "products.view", "workflows.view", "documents.view", "documents.parse", "field.view", "field.manage",
       "disbursements.view", "disbursements.manage", "float.view", "repayments.view", "repayments.collect",
       "team.view", "intelligence.view", "reports.view", "riri.use",
+      "collections.view", "collections.manage",
     ],
   },
   {
@@ -62,7 +64,7 @@ const STARTER_ROLES: { title: string; rights: string[] }[] = [
     rights: [
       "loans.view", "disbursements.view", "disbursements.manage", "float.view", "float.manage",
       "repayments.view", "repayments.collect", "reconciliation.view", "reconciliation.resolve",
-      "billing.view", "reports.view",
+      "billing.view", "reports.view", "collections.view",
     ],
   },
 ];

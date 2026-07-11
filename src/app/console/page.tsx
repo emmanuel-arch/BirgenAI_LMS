@@ -28,7 +28,7 @@ const MODULES: {
   { icon: Banknote, title: "Disbursements", desc: "Maker-checker B2C queue, manual confirm, float ledger", ready: true, href: "/console/disbursements", right: "disbursements.view" },
   { icon: Landmark, title: "Repayments", desc: "STK requests, C2B receipts, unallocated exceptions", ready: true, href: "/console/repayments", right: "repayments.view" },
   { icon: Scale, title: "Reconciliation", desc: "Every shilling M-Pesa moved, checked nightly against the book", ready: true, href: "/console/reconciliation", right: "reconciliation.view" },
-  { icon: PhoneCall, title: "Collections", desc: "Promises to pay, call logs, arrears work queues", ready: false, right: "collections.view" },
+  { icon: PhoneCall, title: "Collections", desc: "Arrears work queue, promises to pay, call logs, tickets", ready: true, href: "/console/collections", right: "collections.view" },
   { icon: Gauge, title: "Credit Intelligence", desc: "Portfolio early-warning watchlist, risk scores, one-tap recovery", ready: true, href: "/console/intelligence", right: "intelligence.view", feature: "portfolio-scan" },
   { icon: MapPin, title: "Field & Routes", desc: "Geo-pinned verifications, nearest-agent allocation, drive routes", ready: true, href: "/console/field", right: "field.view", feature: "route-planner" },
   { icon: ScanLine, title: "Document Parser", desc: "Fee structures, invoices, permits, statements → structured figures", ready: true, href: "/console/documents", right: "documents.view", feature: "document-parser" },

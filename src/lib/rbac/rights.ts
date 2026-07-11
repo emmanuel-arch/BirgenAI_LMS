@@ -23,6 +23,9 @@ export const ALL_RIGHTS = [
   "applications.decide", // act on a stage: approve, refer, decline, offers, security
   "loans.view", // see booked loans + statements
   "loans.apply", // (reserved) console-assisted application on a borrower's behalf
+  // Collections
+  "collections.view", // see the arrears work queue, promises, tickets
+  "collections.manage", // log calls, take promises, run tickets
   // Money rails
   "disbursements.view", // see the maker-checker queue
   "disbursements.manage", // initiate/confirm disbursements (tiers still apply)
@@ -32,9 +35,6 @@ export const ALL_RIGHTS = [
   "repayments.collect", // trigger STK requests, allocate receipts
   "reconciliation.view", // see the exceptions queue
   "reconciliation.resolve", // resolve/ignore exceptions, re-apply payments
-  // Collections (item 14 — reserved so roles can be prepared ahead of the build)
-  "collections.view",
-  "collections.manage",
   // Intelligence
   "intelligence.view", // early-warning watchlist, portfolio risk
   "intelligence.tune", // edit model weights (Premium's model-tuning)
@@ -134,12 +134,21 @@ export const ADMIN_ONLY_RIGHTS: Right[] = [
 export const RESERVED_RIGHTS: Right[] = [
   "borrowers.manage",
   "loans.apply",
-  "collections.view",
-  "collections.manage",
   "branches.view",
   "branches.manage",
   "sms.view",
   "sms.manage",
+];
+
+/**
+ * Built AFTER the RBAC cutover, so they belong to no historical bucket: never
+ * legacy (the surface didn't exist pre-roles, so a role-less staff member never
+ * had it), never admin-only (there was no admin gate to inherit). Granted only
+ * by an explicit role. Collections (item 14) is the first of these.
+ */
+export const MODERN_RIGHTS: Right[] = [
+  "collections.view",
+  "collections.manage",
 ];
 
 /**
@@ -181,8 +190,8 @@ export const RIGHT_LABELS: Record<Right, string> = {
   "repayments.collect": "Can send payment requests (STK) and allocate receipts",
   "reconciliation.view": "Can see the reconciliation exceptions queue",
   "reconciliation.resolve": "Can resolve or ignore reconciliation exceptions",
-  "collections.view": "Can see the collections work queues (coming up)",
-  "collections.manage": "Can log calls, record promises-to-pay and manage tickets (coming up)",
+  "collections.view": "Can see the arrears work queue, promises to pay and tickets",
+  "collections.manage": "Can log calls, take promises to pay and run tickets",
   "intelligence.view": "Can see the early-warning watchlist and portfolio risk",
   "intelligence.tune": "Can change the risk model's weights",
   "documents.view": "Can see parsed documents",
