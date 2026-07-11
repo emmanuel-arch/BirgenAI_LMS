@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
 import { Loader2, AlertTriangle, CheckCircle2, XCircle, FileText, ChevronDown, FilePlus2, Search } from "lucide-react";
@@ -213,20 +213,19 @@ function AssistedApplyPanel({ onClose, onCreated, setError }: {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<{ id: string; name: string | null; phone: string; activeLoans: number }[]>([]);
   const [borrower, setBorrower] = useState<{ id: string; name: string | null; phone: string } | null>(null);
-  const [products, setProducts] = useState<{ id: string; name: string; minPrincipal: number; maxPrincipal: number; interestRate: number; repaymentPeriod: number; repaymentPeriodUnit: string }[]>([]);
+  const [products, setProducts] = useState<{ id: string; name: string; minPrincipal: number; maxPrincipal: number; interestRate: number; repaymentPeriod: number; repaymentPeriodUnit: string; disbursementMode?: string }[]>([]);
   const [productId, setProductId] = useState("");
   const [amount, setAmount] = useState("");
+  const [payee, setPayee] = useState({ name: "", paybill: "", account: "" });
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    void (async () => {
-      const res = await fetch("/api/console/products");
-      const data = await res.json().catch(() => ({}));
-      if (data.success) {
-        setProducts((data.products ?? []).filter((p: { isActive?: boolean }) => p.isActive !== false));
-      }
-    })();
-  }, []);
+  useLoad(async () => {
+    const res = await fetch("/api/console/products");
+    const data = await res.json().catch(() => ({}));
+    if (data.success) {
+      setProducts((data.products ?? []).filter((p: { isActive?: boolean }) => p.isActive !== false));
+    }
+  });
 
   const searchBorrowers = async () => {
     if (!q.trim()) return;
@@ -237,13 +236,19 @@ function AssistedApplyPanel({ onClose, onCreated, setError }: {
 
   const product = products.find((p) => p.id === productId) ?? null;
 
+  const toSchool = product?.disbursementMode === "TO_THIRD_PARTY";
+
   const submit = async () => {
     if (!borrower || !product) return;
+    if (toSchool && !/^\d{5,8}$/.test(payee.paybill)) { setError("Enter the school's paybill number — this product pays the institution directly."); return; }
     setBusy(true); setError(null);
     try {
       const res = await fetch("/api/console/applications", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ borrowerId: borrower.id, productId, amount: Number(amount) }),
+        body: JSON.stringify({
+          borrowerId: borrower.id, productId, amount: Number(amount),
+          ...(toSchool ? { payee: { name: payee.name.trim() || undefined, paybill: payee.paybill, account: payee.account.trim() || undefined } } : {}),
+        }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.message || "Could not create the application."); return; }
@@ -302,6 +307,16 @@ function AssistedApplyPanel({ onClose, onCreated, setError }: {
                 ? `${product.name} lends ${Number(product.minPrincipal) > 0 ? `from KES ${Number(product.minPrincipal).toLocaleString()}` : ""}${Number(product.maxPrincipal) > 0 ? ` up to KES ${Number(product.maxPrincipal).toLocaleString()}` : ""}.`
                 : `${product.name} has no fixed amount limits.`}
             </p>
+          )}
+          {toSchool && (
+            <div className="mt-3 rounded-lg border border-zinc-900/10 bg-white/60 p-3 max-w-2xl">
+              <p className="text-[12px] font-medium">Pays the institution directly (not the borrower&apos;s phone)</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                <input className={`${field} sm:col-span-1`} placeholder="School name" value={payee.name} onChange={(e) => setPayee((p) => ({ ...p, name: e.target.value }))} />
+                <input className={field} inputMode="numeric" placeholder="Paybill" value={payee.paybill} onChange={(e) => setPayee((p) => ({ ...p, paybill: e.target.value.replace(/\D/g, "") }))} />
+                <input className={field} placeholder="Account / admission no." value={payee.account} onChange={(e) => setPayee((p) => ({ ...p, account: e.target.value }))} />
+              </div>
+            </div>
           )}
           <div className="mt-4 flex items-center gap-2">
             <button onClick={submit} disabled={busy || !productId || !(Number(amount) > 0)}

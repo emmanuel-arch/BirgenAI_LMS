@@ -121,6 +121,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }
 
   // approve: execute B2C with the org's vault credentials.
+  // §7 diversion control: a pay-to-institution disbursement must NEVER ride B2C
+  // to the borrower's phone. Until the direct-paybill (B2B) rail ships, these
+  // are paid outside and recorded with the manual reference.
+  if (disb.payeePaybill) {
+    return NextResponse.json({
+      success: false,
+      message: `This loan pays ${disb.payeeName || "the institution"} (paybill ${disb.payeePaybill}${disb.payeeAccount ? `, account ${disb.payeeAccount}` : ""}) — not the borrower's phone. Pay the paybill and use "Confirm manual" with the reference.`,
+    }, { status: 400 });
+  }
   const res = await initiateB2C(disb.orgId, org.slug, { phone: disb.phone, amount, remarks: "Loan disbursement" });
   if (!res.ok) {
     await audit("disbursement.b2c-reject", { message: res.message });

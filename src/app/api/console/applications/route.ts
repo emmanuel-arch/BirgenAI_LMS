@@ -73,7 +73,10 @@ export async function POST(req: NextRequest) {
   if (denied) return denied;
   const orgId = session!.user!.orgId!;
 
-  let body: { borrowerId?: string; productId?: string; amount?: number; note?: string };
+  let body: {
+    borrowerId?: string; productId?: string; amount?: number; note?: string;
+    payee?: { name?: string; paybill?: string; account?: string };
+  };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
   const amount = Math.round(Number(body.amount) * 100) / 100;
@@ -98,6 +101,21 @@ export async function POST(req: NextRequest) {
       success: false,
       message: `${product.name} lends ${min > 0 ? `from KES ${min.toLocaleString()}` : ""}${max > 0 ? ` up to KES ${max.toLocaleString()}` : ""}.`.trim(),
     }, { status: 400 });
+  }
+
+  // Pay-to-institution products (§7): the payee is part of the application —
+  // a school-fees loan with no school on it cannot book, so refuse it up front.
+  let payee: { name: string | null; paybill: string; account: string | null } | null = null;
+  if (product.disbursementMode === "TO_THIRD_PARTY") {
+    const paybill = (body.payee?.paybill ?? "").replace(/\D/g, "");
+    if (!/^\d{5,8}$/.test(paybill)) {
+      return NextResponse.json({ success: false, message: "This product pays the institution directly — enter the school's paybill number (5–8 digits)." }, { status: 400 });
+    }
+    payee = {
+      name: body.payee?.name?.trim().slice(0, 80) || null,
+      paybill,
+      account: body.payee?.account?.trim().slice(0, 30) || null,
+    };
   }
 
   // One live application per borrower — same rule the funnel enforces.
@@ -126,6 +144,9 @@ export async function POST(req: NextRequest) {
       lng: borrower.lng,
       locationType: borrower.locationType,
       locationAddress: borrower.locationAddress,
+      payeeName: payee?.name ?? null,
+      payeePaybill: payee?.paybill ?? null,
+      payeeAccount: payee?.account ?? null,
     },
   });
 

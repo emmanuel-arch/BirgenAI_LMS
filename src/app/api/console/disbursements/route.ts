@@ -49,6 +49,9 @@ export async function GET() {
       borrower: `${d.loan.borrower.firstName ?? ""} ${d.loan.borrower.otherName ?? ""}`.trim() || d.loan.borrower.phone,
       product: d.loan.product.name,
       mode: d.loan.product.disbursementMode,
+      payee: d.payeePaybill
+        ? { name: d.payeeName, paybill: d.payeePaybill, account: d.payeeAccount }
+        : null,
     })),
   });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, type CSSProperties, type SyntheticEvent } from "react";
+import { useLoad } from "@/lib/hooks/useLoad";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -58,6 +59,7 @@ type Product = {
   interestRate: number | null; interestUnit: string | null;
   repaymentPeriod: number | null; repaymentUnit: string | null;
   minCreditScore: number | null;
+  interestMethod?: string; disbursementMode?: string;
 };
 
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
@@ -115,6 +117,8 @@ export default function LmsPortal() {
   const [features, setFeatures] = useState<Features | null>(null);
   const [scorePreview, setScorePreview] = useState<ScorePreview | null>(null);
   const [amount, setAmount] = useState("");
+  // Pay-to-institution products (§7): the school's paybill, captured here.
+  const [payee, setPayee] = useState({ name: "", paybill: "", account: "" });
   const [productRef, setProductRef] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoaded, setProductsLoaded] = useState(false);
@@ -132,20 +136,16 @@ export default function LmsPortal() {
   // Branding is resolved client-side (hostname); render no brand until then so a
   // white-label subdomain never flashes the BirgenAI logo on first paint.
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Per-lender hosts (micromart.birgenai.com / micromart.localhost) pre-select
-  // that lender and skip the chooser: the landing card identifies the borrower.
-  useEffect(() => {
+  // After mount: reveal branding (no white-label logo flash) and, on a per-lender
+  // host, pre-select that lender and skip the chooser.
+  useLoad(() => {
+    setMounted(true);
     const l = lenderFromLocation();
-    if (l) {
-      setLender(l);
-      setScoped(true);
-    }
-  }, []);
+    if (l) { setLender(l); setScoped(true); }
+  });
 
   const lenderObj = LENDERS.find((l) => l.slug === lender)!;
   // DB-first: an org that onboarded this morning wears its own logo/colors here.
@@ -308,6 +308,10 @@ export default function LmsPortal() {
       setError(`For ${selectedProduct.name}, enter an amount${lo ? ` from ${lo}` : ""}${hi ? ` up to ${hi}` : ""}.`);
       return;
     }
+    if (selectedProduct?.disbursementMode === "TO_THIRD_PARTY" && !/^\d{5,8}$/.test(payee.paybill)) {
+      setError("Enter the school's paybill number — this loan is paid directly to the institution.");
+      return;
+    }
     setLoading(true);
     try {
       // Fraud signal, not tracking: a hash of the device's stable traits, so the
@@ -327,6 +331,9 @@ export default function LmsPortal() {
           locationType,
           locationAddress: manualAddress.trim() || undefined,
           deviceFingerprint: fp ?? undefined,
+          payee: selectedProduct?.disbursementMode === "TO_THIRD_PARTY"
+            ? { name: payee.name.trim() || undefined, paybill: payee.paybill, account: payee.account.trim() || undefined }
+            : undefined,
         }),
       });
       const data = await res.json();
@@ -756,6 +763,22 @@ export default function LmsPortal() {
                     {hasMax(selectedProduct) ? ` – ${fmtKES(selectedProduct.maxPrincipal!)}` : "+"}.
                   </p>
                 )}
+
+                {selectedProduct?.disbursementMode === "TO_THIRD_PARTY" && (
+                  <div className="mt-4 rounded-lg border border-zinc-900/10 bg-white/60 p-3">
+                    <p className="text-sm font-medium">Where should the fees be paid?</p>
+                    <p className="mt-0.5 text-xs text-zinc-500">This loan is paid straight to the school&apos;s paybill — the money never reaches your phone. Find these on the fee structure.</p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <input value={payee.name} onChange={(e) => setPayee((p) => ({ ...p, name: e.target.value }))} placeholder="School name"
+                        className="rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400 sm:col-span-2" />
+                      <input value={payee.paybill} onChange={(e) => setPayee((p) => ({ ...p, paybill: e.target.value.replace(/\D/g, "") }))} inputMode="numeric" placeholder="Paybill number"
+                        className="rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400" />
+                      <input value={payee.account} onChange={(e) => setPayee((p) => ({ ...p, account: e.target.value }))} placeholder="Account / admission no."
+                        className="rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400" />
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-6 flex gap-2">
                   <button onClick={back} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 px-4 py-3 text-sm text-zinc-600 hover:bg-zinc-900/5"><ArrowLeft className="h-4 w-4" /></button>
                   <button onClick={submit} disabled={loading} className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">

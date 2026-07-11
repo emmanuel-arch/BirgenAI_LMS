@@ -50,6 +50,12 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
   if (!app) throw new Error("Application not found.");
   if (app.loan) throw new Error("This application already has a loan."); // double-safe: Loan.applicationId is unique
   if (!app.product) throw new Error("Assign a product to this application before final approval.");
+  // §7 diversion control: a pay-to-institution loan without a captured payee
+  // would default to the borrower's phone — the exact leak the mode exists to
+  // stop — so it cannot book at all.
+  if (app.product.disbursementMode === "TO_THIRD_PARTY" && !app.payeePaybill?.trim()) {
+    throw new Error("This product pays the institution directly — capture the school's paybill and account on the application before approval.");
+  }
 
   // ── The consent gate ────────────────────────────────────────────────────────
   const offer = app.offer;
@@ -168,6 +174,11 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
         amount: new Prisma.Decimal(principal), // net-of-fees logic lands with the fee engine
         phone: app.borrower.phone,
         state: "PENDING_MAKER",
+        // §7 diversion control: pay-to-institution loans freeze the payee here;
+        // the disbursement queue refuses B2C to the borrower when it is set.
+        payeeName: app.payeeName,
+        payeePaybill: app.payeePaybill,
+        payeeAccount: app.payeeAccount,
       },
     });
     // Security follows the loan it secures, so a Finance officer can find it later

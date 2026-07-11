@@ -619,6 +619,11 @@ model LoanApplication {
   // Fraud signal: a hash of the applying device's stable traits. The same
   // device applying as many different people is the classic ring pattern.
   deviceFingerprint String?
+  // Pay-to-institution products (§7 diversion control): the money goes to the
+  // school's paybill, never the borrower's phone. Captured at application.
+  payeeName    String?
+  payeePaybill String?
+  payeeAccount String? // e.g. the student's admission number
   // Consented one-time geo
   lat             Float?
   lng             Float?
@@ -1002,6 +1007,11 @@ model Disbursement {
   checkerId String?
   b2cRef    String? // Daraja conversation/originator id
   receiptRef String? // M-Pesa receipt (or manual ref)
+  // TO_THIRD_PARTY: who actually gets paid (frozen from the application at
+  // booking). B2C to the borrower's phone is REFUSED when these are set.
+  payeeName    String?
+  payeePaybill String?
+  payeeAccount String?
   raw       Json?
   failReason String?
   createdAt DateTime @default(now())

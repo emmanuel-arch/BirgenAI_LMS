@@ -61,6 +61,8 @@ type Body = {
   locationType?: "business" | "home";
   /** SHA-256 of the applying device's stable traits — the ring-fraud signal. */
   deviceFingerprint?: string;
+  /** Pay-to-institution products: where the money actually goes (§7). */
+  payee?: { name?: string; paybill?: string; account?: string };
   locationAddress?: string;
 };
 
@@ -155,10 +157,11 @@ export async function POST(req: NextRequest) {
   // NATIVE orgs: resolve the chosen product from OUR product table (uuid ref)
   // so the application carries productId and booking can generate the schedule.
   let nativeProductId: string | null = null;
+  let payee: { name: string | null; paybill: string; account: string | null } | null = null;
   if (org.mode === "NATIVE" && body.productRef) {
     const p = await prisma.product.findFirst({
       where: { id: body.productRef, orgId: org.id, isActive: true },
-      select: { id: true, name: true, minPrincipal: true, maxPrincipal: true },
+      select: { id: true, name: true, minPrincipal: true, maxPrincipal: true, disbursementMode: true },
     });
     if (p) {
       nativeProductId = p.id;
@@ -166,6 +169,19 @@ export async function POST(req: NextRequest) {
       const min = Number(p.minPrincipal), max = Number(p.maxPrincipal);
       if ((min > 0 && amount < min) || (max > 0 && amount > max)) {
         return NextResponse.json({ success: false, message: `For ${p.name}, enter an amount within the product limits.` }, { status: 400 });
+      }
+      // §7 diversion control: school-fees-style products pay the institution's
+      // paybill, never the applicant's phone — the payee is part of applying.
+      if (p.disbursementMode === "TO_THIRD_PARTY") {
+        const paybill = (body.payee?.paybill ?? "").replace(/\D/g, "");
+        if (!/^\d{5,8}$/.test(paybill)) {
+          return NextResponse.json({ success: false, message: `${p.name} pays the institution directly — enter its paybill number (it's on the fee structure).` }, { status: 400 });
+        }
+        payee = {
+          name: body.payee?.name?.trim().slice(0, 80) || null,
+          paybill,
+          account: body.payee?.account?.trim().slice(0, 30) || null,
+        };
       }
     }
   }
@@ -291,6 +307,9 @@ export async function POST(req: NextRequest) {
         } as Prisma.InputJsonValue,
         consentVersion: CONSENT_VERSION,
         deviceFingerprint: /^[0-9a-f]{32,64}$/i.test(body.deviceFingerprint ?? "") ? body.deviceFingerprint : null,
+        payeeName: payee?.name ?? null,
+        payeePaybill: payee?.paybill ?? null,
+        payeeAccount: payee?.account ?? null,
         decidedAt: new Date(),
       },
     });

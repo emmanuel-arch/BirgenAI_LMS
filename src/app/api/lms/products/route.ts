@@ -49,6 +49,8 @@ export async function POST(req: NextRequest) {
       interestUnit: p.interestPeriodUnit,
       // Reducing-balance products reward early settlement; the wizard says so.
       interestMethod: p.interestMethod,
+      // TO_THIRD_PARTY (school fees): the wizard asks for the institution's paybill.
+      disbursementMode: p.disbursementMode,
       repaymentPeriod: p.repaymentPeriod,
       repaymentUnit: p.repaymentPeriodUnit,
       minCreditScore: p.minCreditScore,

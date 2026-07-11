@@ -8,6 +8,7 @@ type Disb = {
   id: string; state: string; amount: number; phone: string; makerId: string | null; checkerId: string | null;
   receiptRef: string | null; failReason: string | null; createdAt: string;
   loanId: string; loanStatus: string; borrower: string; product: string; mode: string;
+  payee: { name: string | null; paybill: string; account: string | null } | null;
 };
 
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
@@ -112,11 +113,18 @@ export default function DisbursementsPage() {
             <div key={d.id} className="glass p-4">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold truncate">{d.borrower} · {fmtKES(d.amount)} → {d.phone}</p>
+                  <p className="text-sm font-semibold truncate">
+                    {d.borrower} · {fmtKES(d.amount)} → {d.payee ? (d.payee.name || `paybill ${d.payee.paybill}`) : d.phone}
+                  </p>
                   <p className="text-xs text-zinc-500 truncate">
                     {d.product} · loan {d.loanId.slice(0, 8)} · {new Date(d.createdAt).toLocaleString("en-KE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     {d.receiptRef && <> · ref {d.receiptRef}</>}
                   </p>
+                  {d.payee && (
+                    <p className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+                      Pays {d.payee.name || "institution"} · paybill {d.payee.paybill}{d.payee.account ? ` · a/c ${d.payee.account}` : ""}
+                    </p>
+                  )}
                   {d.failReason && <p className="text-xs text-red-600 mt-0.5">{d.failReason}</p>}
                 </div>
                 <span className={`rounded-md px-2 py-1 text-[11px] font-semibold shrink-0 ${TONE[d.state] ?? TONE.PENDING_MAKER}`}>{d.state.replace(/_/g, " ")}</span>
@@ -131,13 +139,18 @@ export default function DisbursementsPage() {
                 )}
                 {d.state === "PENDING_CHECKER" && (
                   <>
-                    <button disabled={!!acting} onClick={() => act(d.id, "approve")}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
-                      {acting === d.id + "approve" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />} Pay via M-Pesa B2C
-                    </button>
+                    {/* Pay-to-institution loans can't ride B2C to a phone (§7). Until
+                        the direct-paybill rail ships they're paid outside + recorded. */}
+                    {!d.payee && (
+                      <button disabled={!!acting} onClick={() => act(d.id, "approve")}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                        {acting === d.id + "approve" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />} Pay via M-Pesa B2C
+                      </button>
+                    )}
                     <button disabled={!!acting} onClick={() => setManualFor(manualFor === d.id ? null : d.id)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-white disabled:opacity-60">
-                      Record manual payment
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-white disabled:opacity-60"
+                      style={d.payee ? { backgroundColor: "var(--brand)", color: "#fff", borderColor: "transparent" } : undefined}>
+                      {d.payee ? `Confirm paid to paybill ${d.payee.paybill}` : "Record manual payment"}
                     </button>
                   </>
                 )}
