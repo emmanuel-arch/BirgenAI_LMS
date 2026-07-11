@@ -54,9 +54,7 @@ export const NAV_REGISTRY: NavModule[] = [
     icon: "Users",
     items: [
       { key: "borrowers-list", label: "Borrowers List", href: "/console/borrowers", icon: "Users", right: "borrowers.view" },
-      // Console-side borrower onboarding ships with the assisted-apply work
-      // (roadmap item 16); listed now so roles can be prepared ahead of it.
-      { key: "borrowers-new", label: "New Borrower", icon: "UserPlus", right: "borrowers.create", ready: false },
+      { key: "borrowers-new", label: "New Borrower", href: "/console/borrowers?new=1", icon: "UserPlus", right: "borrowers.create", exact: true },
     ],
   },
   {
@@ -66,7 +64,7 @@ export const NAV_REGISTRY: NavModule[] = [
     items: [
       { key: "applications", label: "Applications Queue", href: "/console/applications", icon: "FileText", right: "applications.view" },
       { key: "loans-list", label: "Loans List", href: "/console/loans", icon: "Landmark", right: "loans.view" },
-      { key: "loans-apply", label: "Apply for a Borrower", icon: "FilePlus2", right: "loans.apply", ready: false },
+      { key: "loans-apply", label: "Apply for a Borrower", href: "/console/applications?apply=1", icon: "FilePlus2", right: "loans.apply", exact: true },
     ],
   },
   {

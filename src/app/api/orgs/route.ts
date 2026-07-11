@@ -47,7 +47,7 @@ const STARTER_ROLES: { title: string; rights: string[] }[] = [
   {
     title: "Loan Officer",
     rights: [
-      "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view",
+      "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view", "loans.apply",
       "products.view", "documents.view", "documents.parse", "field.view", "reports.view", "riri.use",
       "collections.view", "collections.manage",
     ],
@@ -55,7 +55,7 @@ const STARTER_ROLES: { title: string; rights: string[] }[] = [
   {
     title: "Branch Manager",
     rights: [
-      "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view",
+      "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view", "loans.apply",
       "products.view", "workflows.view", "documents.view", "documents.parse", "field.view", "field.manage",
       "disbursements.view", "disbursements.manage", "float.view", "repayments.view", "repayments.collect",
       "team.view", "intelligence.view", "reports.view", "riri.use",

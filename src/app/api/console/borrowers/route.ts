@@ -72,3 +72,58 @@ export async function GET(req: NextRequest) {
     }),
   });
 }
+
+// POST — register a walk-in borrower from the console (borrowers.create).
+// The officer-side twin of the funnel's self-onboarding: identity now, KYC and
+// scoring follow through the normal machinery (the /verify wizard and the
+// application pipeline treat a console-created borrower like any other).
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  const denied = await requireRight(session, "borrowers.create");
+  if (denied) return denied;
+  const orgId = session!.user!.orgId!;
+
+  let body: {
+    name?: string; phone?: string; nationalId?: string; email?: string;
+    locationType?: string; locationAddress?: string; lat?: number; lng?: number;
+  };
+  try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
+
+  const name = (body.name ?? "").trim();
+  const digits = (body.phone ?? "").replace(/\D/g, "");
+  if (name.length < 3) return NextResponse.json({ success: false, message: "Enter the borrower's full name." }, { status: 400 });
+  if (digits.length < 9) return NextResponse.json({ success: false, message: "Enter a valid phone number." }, { status: 400 });
+  const phone = `254${digits.slice(-9)}`;
+
+  // One borrower per phone per org — the phone IS the identity key everywhere else.
+  const dup = await prisma.borrower.findFirst({ where: { orgId, phone: { contains: digits.slice(-9) } }, select: { id: true } });
+  if (dup) {
+    return NextResponse.json({ success: false, message: "A borrower with that phone already exists.", borrowerId: dup.id }, { status: 409 });
+  }
+
+  const [first, ...rest] = name.split(/\s+/);
+  const hasGeo = Number.isFinite(Number(body.lat)) && Number.isFinite(Number(body.lng));
+  const borrower = await prisma.borrower.create({
+    data: {
+      orgId,
+      phone,
+      firstName: first,
+      otherName: rest.join(" ") || null,
+      nationalId: body.nationalId?.trim() || null,
+      email: body.email?.trim() || null,
+      locationType: body.locationType === "business" || body.locationType === "home" ? body.locationType : null,
+      locationAddress: body.locationAddress?.trim() || null,
+      lat: hasGeo ? Number(body.lat) : null,
+      lng: hasGeo ? Number(body.lng) : null,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      orgId, actorId: session!.user!.id, actorType: "staff", action: "borrower.create",
+      entity: "Borrower", entityId: borrower.id, meta: { channel: "console", phone },
+    },
+  }).catch(() => {});
+
+  return NextResponse.json({ success: true, borrowerId: borrower.id });
+}

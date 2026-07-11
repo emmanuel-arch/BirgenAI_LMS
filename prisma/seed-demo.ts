@@ -101,12 +101,12 @@ async function main() {
   const ROLE_RIGHTS: Record<string, string[]> = {
     "Org Admin": ["*"],
     "Loan Officer": [
-      "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view",
+      "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view", "loans.apply",
       "products.view", "documents.view", "documents.parse", "field.view", "reports.view", "riri.use",
       "collections.view", "collections.manage",
     ],
     "Branch Manager": [
-      "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view",
+      "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view", "loans.apply",
       "products.view", "workflows.view", "documents.view", "documents.parse", "field.view", "field.manage",
       "disbursements.view", "disbursements.manage", "float.view", "repayments.view", "repayments.collect",
       "team.view", "reports.view", "intelligence.view", "riri.use",

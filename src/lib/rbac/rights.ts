@@ -22,7 +22,7 @@ export const ALL_RIGHTS = [
   "applications.view", // see the applications queue
   "applications.decide", // act on a stage: approve, refer, decline, offers, security
   "loans.view", // see booked loans + statements
-  "loans.apply", // (reserved) console-assisted application on a borrower's behalf
+  "loans.apply", // console-assisted application on a borrower's behalf
   // Collections
   "collections.view", // see the arrears work queue, promises, tickets
   "collections.manage", // log calls, take promises, run tickets
@@ -133,7 +133,6 @@ export const ADMIN_ONLY_RIGHTS: Right[] = [
 /** Reserved for modules not yet built — grantable, but nothing consumes them yet. */
 export const RESERVED_RIGHTS: Right[] = [
   "borrowers.manage",
-  "loans.apply",
   "branches.view",
   "branches.manage",
 ];
@@ -149,6 +148,7 @@ export const MODERN_RIGHTS: Right[] = [
   "collections.manage",
   "sms.view",
   "sms.manage",
+  "loans.apply",
 ];
 
 /**
@@ -181,7 +181,7 @@ export const RIGHT_LABELS: Record<Right, string> = {
   "applications.view": "Can see the loan applications queue",
   "applications.decide": "Can approve, refer or decline applications and manage offers",
   "loans.view": "Can see booked loans and print statements",
-  "loans.apply": "Can submit an application on a borrower's behalf (coming up)",
+  "loans.apply": "Can submit an application on a borrower's behalf (walk-ins at the counter)",
   "disbursements.view": "Can see the disbursement queue",
   "disbursements.manage": "Can initiate and confirm disbursements (approval tiers still apply)",
   "float.view": "Can see the float balance and ledger",
