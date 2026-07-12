@@ -27,7 +27,7 @@ export default async function PortfolioReport() {
   const par30Cutoff = new Date(Date.now() - 30 * 86400000);
 
   const [org, olbAgg, activeCount, disb, c2b, stk, appsByStatus, outcomes, borrowers, byProduct, products, ew] = await Promise.all([
-    prisma.org.findUnique({ where: { id: orgId }, select: { name: true, slug: true, accent: true, mode: true } }),
+    prisma.org.findUnique({ where: { id: orgId }, select: { name: true, slug: true, accent: true, mode: true, logoUrl: true } }),
     prisma.loan.aggregate({ where: { orgId, status: "ACTIVE" }, _sum: { balance: true } }),
     prisma.loan.count({ where: { orgId, status: "ACTIVE" } }),
     prisma.disbursement.aggregate({ where: { orgId, state: { in: ["CONFIRMED", "MANUAL_CONFIRMED"] }, updatedAt: { gte: monthStart } }, _sum: { amount: true }, _count: true }),
@@ -67,8 +67,8 @@ export default async function PortfolioReport() {
   const asOf = new Date();
 
   return (
-    <div className="min-h-screen bg-white text-zinc-900 print-doc">
-      <div className="no-print border-b border-zinc-900/10 bg-white/80 backdrop-blur sticky top-0 z-10">
+    <div className="min-h-screen rounded-2xl bg-white text-zinc-900 print-doc">
+      <div className="no-print sticky top-0 z-10 rounded-t-2xl border-b border-zinc-900/10 bg-white/80 backdrop-blur">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link href="/console" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800"><ArrowLeft className="h-4 w-4" /> Console</Link>
           <PrintButton label="Download report" />
@@ -77,15 +77,25 @@ export default async function PortfolioReport() {
 
       <main className="mx-auto max-w-3xl px-4 sm:px-6 py-8 print-exact">
         <header className="flex items-start justify-between gap-4 border-b-2 pb-4" style={{ borderColor: org?.accent ?? "#000" }}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl text-lg font-bold text-white" style={{ backgroundColor: org?.accent ?? "#000" }}>
-              {org?.name.slice(0, 1)}
+          {/* The lender's actual mark on white paper — same letterhead as the
+              statement; the initial tile only when no logo has been uploaded. */}
+          {org?.logoUrl ? (
+            <div className="min-w-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={org.logoUrl} alt={`${org.name} logo`} className="h-12 max-w-[220px] object-contain object-left" />
+              <p className="mt-1 text-[11px] leading-tight text-zinc-500">{org.slug}.birgenai.com · {org.mode === "NATIVE" ? "Native book" : "Bridged"}</p>
             </div>
-            <div>
-              <p className="text-base font-bold leading-tight">{org?.name}</p>
-              <p className="text-[11px] text-zinc-500 leading-tight">{org?.slug}.birgenai.com · {org?.mode === "NATIVE" ? "Native book" : "Bridged"}</p>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl text-lg font-bold text-white" style={{ backgroundColor: org?.accent ?? "#000" }}>
+                {org?.name.slice(0, 1)}
+              </div>
+              <div>
+                <p className="text-base font-bold leading-tight">{org?.name}</p>
+                <p className="text-[11px] text-zinc-500 leading-tight">{org?.slug}.birgenai.com · {org?.mode === "NATIVE" ? "Native book" : "Bridged"}</p>
+              </div>
             </div>
-          </div>
+          )}
           <div className="text-right">
             <h1 className="text-lg font-bold tracking-tight">PORTFOLIO REPORT</h1>
             <p className="text-[11px] text-zinc-500">As at {asOf.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</p>

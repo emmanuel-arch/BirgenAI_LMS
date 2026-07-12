@@ -8,9 +8,9 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useLoad } from "@/lib/hooks/useLoad";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import type { NavModule, NavItem } from "@/lib/nav/registry";
-import type { ShellOrg } from "./TopBar";
+import type { ShellOrg } from "./types";
 import { navIcon } from "./icons";
 
 /**
@@ -32,7 +32,7 @@ function BrandBlock({ org, collapsed, onNavigate }: { org: ShellOrg; collapsed: 
       onClick={onNavigate}
       aria-label={`${org.name} — console home`}
       title={org.name}
-      className={`mx-2 mt-2 mb-2 flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-900/[0.06] bg-white shadow-sm transition-all ${
+      className={`flex min-w-0 flex-1 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-900/[0.06] bg-white shadow-sm transition-all ${
         collapsed ? "h-12 px-1.5" : "h-20 px-4"
       }`}
     >
@@ -88,12 +88,17 @@ export default function Sidebar({
   org,
   collapsed,
   onNavigate,
+  onToggleCollapse,
 }: {
   nav: NavModule[];
   org: ShellOrg;
   collapsed: boolean;
   /** Called on any link click — the mobile drawer closes itself with this. */
   onNavigate?: () => void;
+  /** Desktop only. The collapse control lives BESIDE the letterhead — the logo
+      owns the very corner of the screen; the drawer passes nothing and gets no
+      toggle (it has its own close button). */
+  onToggleCollapse?: () => void;
 }) {
   const pathname = usePathname();
   const search = useSearchParams();
@@ -127,7 +132,26 @@ export default function Sidebar({
 
   return (
     <nav aria-label="Console" className="flex h-full flex-col">
-      <BrandBlock org={org} collapsed={collapsed} onNavigate={onNavigate} />
+      {/* The letterhead heads the column, in the very corner of the screen, and
+          the collapse control sits at its side as a slim tab of the same white
+          card — one object, two panes. Collapsed, the tab drops underneath so
+          the narrow column stays a single clean stack. */}
+      <div className={`mx-2 mt-2 mb-2 flex shrink-0 gap-1.5 ${collapsed ? "flex-col" : "items-stretch"}`}>
+        <BrandBlock org={org} collapsed={collapsed} onNavigate={onNavigate} />
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
+            title={collapsed ? "Expand" : "Collapse"}
+            className={`flex shrink-0 items-center justify-center rounded-xl border border-zinc-900/[0.06] bg-white text-zinc-400 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-700 ${
+              collapsed ? "h-8 w-full" : "w-7"
+            }`}
+          >
+            {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
       <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-3">
       {nav.map((mod) => {
         const isClosed = collapsed ? false : closedModules.includes(mod.key) && !mod.items.some((i) => i.key === activeKey);

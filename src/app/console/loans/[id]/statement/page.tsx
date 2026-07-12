@@ -34,7 +34,7 @@ export default async function LoanStatement({ params }: { params: Promise<{ id: 
   if (!loan) redirect("/console/borrowers");
 
   const [org, receipts, stk] = await Promise.all([
-    prisma.org.findUnique({ where: { id: orgId }, select: { name: true, slug: true, accent: true } }),
+    prisma.org.findUnique({ where: { id: orgId }, select: { name: true, slug: true, accent: true, logoUrl: true } }),
     prisma.c2BReceipt.findMany({ where: { orgId, allocatedLoanId: loan.id }, orderBy: { createdAt: "asc" } }),
     prisma.paymentIntent.findMany({ where: { orgId, loanId: loan.id, state: "SUCCESS" }, orderBy: { createdAt: "asc" } }),
   ]);
@@ -51,9 +51,9 @@ export default async function LoanStatement({ params }: { params: Promise<{ id: 
   const totalDue = loan.installments.reduce((s, i) => s + num(i.amountDue), 0);
 
   return (
-    <div className="min-h-screen bg-white text-zinc-900 print-doc">
+    <div className="min-h-screen rounded-2xl bg-white text-zinc-900 print-doc">
       {/* Screen-only chrome */}
-      <div className="no-print border-b border-zinc-900/10 bg-white/80 backdrop-blur sticky top-0 z-10">
+      <div className="no-print sticky top-0 z-10 rounded-t-2xl border-b border-zinc-900/10 bg-white/80 backdrop-blur">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link href={`/console/borrowers/${loan.borrower.id}`} className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
             <ArrowLeft className="h-4 w-4" /> {name}
@@ -65,15 +65,27 @@ export default async function LoanStatement({ params }: { params: Promise<{ id: 
       <main className="mx-auto max-w-3xl px-4 sm:px-6 py-8 print-exact">
         {/* Letterhead */}
         <header className="flex items-start justify-between gap-4 border-b-2 pb-4" style={{ borderColor: org?.accent ?? "#000" }}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl text-lg font-bold text-white" style={{ backgroundColor: org?.accent ?? "#000" }}>
-              {org?.name.slice(0, 1)}
+          {/* The lender's actual mark, on the white paper it was designed for —
+              the same letterhead treatment as the sidebar. A wordmark already
+              says the name, so we don't say it twice; the initial tile is only
+              the fallback for an org that hasn't uploaded a logo yet. */}
+          {org?.logoUrl ? (
+            <div className="min-w-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={org.logoUrl} alt={`${org.name} logo`} className="h-12 max-w-[220px] object-contain object-left" />
+              <p className="mt-1 text-[11px] leading-tight text-zinc-500">{org.slug}.birgenai.com</p>
             </div>
-            <div>
-              <p className="text-base font-bold leading-tight">{org?.name}</p>
-              <p className="text-[11px] text-zinc-500 leading-tight">{org?.slug}.birgenai.com</p>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl text-lg font-bold text-white" style={{ backgroundColor: org?.accent ?? "#000" }}>
+                {org?.name.slice(0, 1)}
+              </div>
+              <div>
+                <p className="text-base font-bold leading-tight">{org?.name}</p>
+                <p className="text-[11px] text-zinc-500 leading-tight">{org?.slug}.birgenai.com</p>
+              </div>
             </div>
-          </div>
+          )}
           <div className="text-right">
             <h1 className="text-lg font-bold tracking-tight">LOAN STATEMENT</h1>
             <p className="text-[11px] text-zinc-500">Ref {ref} · issued {d(new Date())}</p>
