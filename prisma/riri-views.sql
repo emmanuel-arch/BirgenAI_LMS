@@ -59,6 +59,7 @@ SELECT
   l."clearedAt"           AS cleared_at,
   l."expectedClearDate"   AS expected_clear_date,
   l."createdBy"           AS created_by,
+  l."branchId"            AS branch_id,
   l."createdAt"           AS created_at
 FROM "Loan" l;
 
@@ -99,6 +100,8 @@ SELECT
   b."graduationCount"                                                     AS graduation_count,
   b."gender"                                                              AS gender,
   b."locationType"                                                        AS location_type,
+  b."createdById"                                                         AS created_by,
+  b."branchId"                                                            AS branch_id,
   b."createdAt"                                                           AS created_at
 FROM "Borrower" b;
 
@@ -136,6 +139,8 @@ SELECT
   a."fusionEngine"                AS fusion_engine,
   a."outcome"                     AS outcome,
   a."daysToDefault"               AS days_to_default,
+  a."officerId"                   AS officer_id,
+  a."branchId"                    AS branch_id,
   a."decidedAt"                   AS decided_at,
   a."createdAt"                   AS created_at
 FROM "LoanApplication" a;

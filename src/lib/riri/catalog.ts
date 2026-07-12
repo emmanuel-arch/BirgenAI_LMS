@@ -29,7 +29,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type MetricUnit = "KES" | "count" | "percent" | "score";
-export type DimensionId = "product" | "borrower" | "officer" | "status" | "channel" | "kyc_status" | "risk_band" | "month";
+export type DimensionId = "product" | "borrower" | "officer" | "branch" | "status" | "channel" | "kyc_status" | "risk_band" | "month";
 
 /** How a metric is sliced. Each metric declares the slices its own data can support. */
 export type DimensionSpec = {
@@ -105,6 +105,15 @@ const PRODUCT_OF_LOAN: DimensionSpec = {
   name: "Product",
 };
 
+/// The lender's own structure, so "PAR by branch" and "which region is bleeding"
+/// are askable the moment they build their org chart.
+const BRANCH_OF_LOAN: DimensionSpec = {
+  label: "Branch",
+  join: "left join riri_branches br on br.id = l.branch_id",
+  group: "coalesce(br.name, 'Unassigned')",
+  name: "Branch",
+};
+
 // ── The catalogue ─────────────────────────────────────────────────────────────
 
 export const METRICS: MetricSpec[] = [
@@ -125,6 +134,7 @@ export const METRICS: MetricSpec[] = [
     countNoun: "active loans",
     dimensions: {
       product: PRODUCT_OF_LOAN,
+      branch: BRANCH_OF_LOAN,
       borrower: { label: "Borrower", join: "join riri_borrowers b on b.id = l.borrower_id", group: "coalesce(b.name, 'Unnamed borrower')", name: "Borrower" },
       officer: { label: "Booked by", join: "left join riri_staff s on s.id = l.created_by", group: "coalesce(s.name, 'Portal / system')", name: "Booked by" },
     },
@@ -140,6 +150,7 @@ export const METRICS: MetricSpec[] = [
     value: "count(*)",
     dimensions: {
       product: PRODUCT_OF_LOAN,
+      branch: BRANCH_OF_LOAN,
       officer: { label: "Booked by", join: "left join riri_staff s on s.id = l.created_by", group: "coalesce(s.name, 'Portal / system')", name: "Booked by" },
     },
   },
@@ -156,7 +167,7 @@ export const METRICS: MetricSpec[] = [
     countExpr: "count(*)",
     countNoun: "loans in arrears",
     goodDirection: "down",
-    dimensions: { product: PRODUCT_OF_LOAN },
+    dimensions: { product: PRODUCT_OF_LOAN, branch: BRANCH_OF_LOAN },
   },
   {
     id: "par30",
@@ -169,7 +180,7 @@ export const METRICS: MetricSpec[] = [
     where: "l.status = 'ACTIVE'",
     value: `100.0 * coalesce(sum(case when ${OVERDUE_BEFORE("l", "$2")} then l.balance else 0 end), 0) / nullif(sum(l.balance), 0)`,
     goodDirection: "down",
-    dimensions: { product: PRODUCT_OF_LOAN },
+    dimensions: { product: PRODUCT_OF_LOAN, branch: BRANCH_OF_LOAN },
   },
   {
     id: "arrears",

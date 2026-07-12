@@ -42,10 +42,14 @@ const SLUG_RE = /^[a-z][a-z0-9-]{2,30}$/;
 const RESERVED = new Set(["www", "api", "lms", "app", "admin", "console", "hub", "birgenai", "login", "onboard", "platform", "demo"]);
 
 /** Sensible defaults a new lender can rename, reshape or delete on day one. */
-const STARTER_ROLES: { title: string; rights: string[] }[] = [
-  { title: "Org Admin", rights: ["*"] },
+// Each starter role ships with the VISIBILITY its job implies, not just its rights: an
+// officer sees their own customers, a branch manager their branch, head office the lot.
+// A lender who never opens the roles editor still gets a sane separation.
+const STARTER_ROLES: { title: string; rights: string[]; dataScope: "OWN" | "BRANCH" | "BRANCH_TREE" | "ORG" }[] = [
+  { title: "Org Admin", rights: ["*"], dataScope: "ORG" },
   {
     title: "Loan Officer",
+    dataScope: "OWN",
     rights: [
       "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view", "loans.apply",
       "products.view", "documents.view", "documents.parse", "field.view", "reports.view", "riri.use", "metrics.view",
@@ -54,6 +58,7 @@ const STARTER_ROLES: { title: string; rights: string[] }[] = [
   },
   {
     title: "Branch Manager",
+    dataScope: "BRANCH",
     rights: [
       "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view", "loans.apply",
       "products.view", "workflows.view", "documents.view", "documents.parse", "field.view", "field.manage",
@@ -64,6 +69,7 @@ const STARTER_ROLES: { title: string; rights: string[] }[] = [
   },
   {
     title: "Finance",
+    dataScope: "ORG",
     rights: [
       "loans.view", "disbursements.view", "disbursements.manage", "float.view", "float.manage",
       "repayments.view", "repayments.collect", "reconciliation.view", "reconciliation.resolve",
@@ -139,7 +145,7 @@ export async function POST(req: NextRequest) {
         });
         let adminRoleId: string | null = null;
         for (const r of STARTER_ROLES) {
-          const role = await tx.role.create({ data: { orgId: org.id, title: r.title, rights: r.rights, menu: r.rights } });
+          const role = await tx.role.create({ data: { orgId: org.id, title: r.title, rights: r.rights, menu: r.rights, dataScope: r.dataScope } });
           if (r.title === "Org Admin") adminRoleId = role.id;
         }
         const branch = await tx.branch.create({

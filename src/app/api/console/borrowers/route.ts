@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
+import { originStamp, resolveScope, borrowerScopeWhere } from "@/lib/rbac/scope";
 
 export const runtime = "nodejs";
 
@@ -20,9 +21,14 @@ export async function GET(req: NextRequest) {
   // match on the last 9 digits so every format finds the same borrower.
   const digits = q.replace(/\D/g, "");
   const phoneNeedle = digits.length >= 9 ? digits.slice(-9) : digits;
+  // WHOSE borrowers. Enforced in the QUERY, never in the page: a list that filters on
+  // render still ships every row in the HTML (the bug the billing work already caught).
+  const scope = await resolveScope(session);
+
   const borrowers = await prisma.borrower.findMany({
     where: {
       orgId,
+      ...borrowerScopeWhere(scope),
       ...(q
         ? {
             OR: [
@@ -103,9 +109,20 @@ export async function POST(req: NextRequest) {
 
   const [first, ...rest] = name.split(/\s+/);
   const hasGeo = Number.isFinite(Number(body.lat)) && Number.isFinite(Number(body.lng));
+
+  // The officer who registers a walk-in OWNS them: this stamp is what later lets an
+  // OWN-scoped officer see their own book and nobody else's (src/lib/rbac/scope.ts).
+  const me = await prisma.staffUser.findFirst({
+    where: { id: session!.user!.id, orgId },
+    select: { id: true, branchId: true },
+  });
+  const origin = await originStamp(orgId, me);
+
   const borrower = await prisma.borrower.create({
     data: {
       orgId,
+      createdById: origin.staffId,
+      branchId: origin.branchId,
       phone,
       firstName: first,
       otherName: rest.join(" ") || null,

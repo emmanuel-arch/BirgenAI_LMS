@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Landmark, FileText } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { resolveScope, loanScopeWhere } from "@/lib/rbac/scope";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -23,7 +24,10 @@ export default async function LoansPage({ searchParams }: { searchParams: Promis
   const orgId = session.user.orgId;
   const { status } = await searchParams;
 
-  const where = { orgId, ...(status ? { status: status as never } : {}) };
+  // Whose loans (src/lib/rbac/scope.ts). An OWN-scoped officer's loan list is their own
+  // book; a branch manager's is their branch's.
+  const scope = await resolveScope(session);
+  const where = { orgId, ...loanScopeWhere(scope), ...(status ? { status: status as never } : {}) };
   const [loans, counts] = await Promise.all([
     prisma.loan.findMany({
       where,

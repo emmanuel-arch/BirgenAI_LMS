@@ -14,7 +14,17 @@ import {
 import { navFor } from "@/lib/nav/registry";
 import { AVAILABLE_FEATURES } from "@/lib/billing/plans";
 
-type RoleRow = { id: string; title: string; rights: string[]; staffCount: number };
+type DataScope = "OWN" | "BRANCH" | "BRANCH_TREE" | "ORG";
+type RoleRow = { id: string; title: string; rights: string[]; dataScope: DataScope; staffCount: number };
+
+// How much of the book a role sees — a different question from what it may DO, and the
+// one that decides whether a loan officer sees their own customers or everybody's.
+const SCOPE_OPTIONS: { id: DataScope; label: string; help: string }[] = [
+  { id: "OWN", label: "Only their own customers", help: "The borrowers, applications and loans they personally registered. What a loan officer should have." },
+  { id: "BRANCH", label: "Their whole branch", help: "Everything booked at the branch they belong to, whoever registered it. What a branch manager should have." },
+  { id: "BRANCH_TREE", label: "Their branch and everything under it", help: "Their branch plus every office beneath it in the structure. What a regional manager should have." },
+  { id: "ORG", label: "The entire organisation", help: "Every branch, every officer, the whole book. Head office, admins and auditors." },
+];
 
 const ADMIN_SET = new Set<string>(ADMIN_ONLY_RIGHTS);
 const RESERVED_SET = new Set<string>(RESERVED_RIGHTS);
@@ -29,6 +39,7 @@ export default function RolesPage() {
   // Editor state. selected === "new" means creating.
   const [selected, setSelected] = useState<string | null>(null);
   const [title, setTitle] = useState("");
+  const [scope, setScope] = useState<DataScope>("ORG");
   const [draft, setDraft] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -45,6 +56,7 @@ export default function RolesPage() {
   const openRole = (r: RoleRow) => {
     setSelected(r.id); setNotice(null); setError(null);
     setTitle(r.title);
+    setScope(r.dataScope ?? "ORG");
     const wildcard = r.rights.includes(WILDCARD);
     setIsAdmin(wildcard);
     setDraft(new Set(wildcard ? [] : r.rights));
@@ -52,6 +64,7 @@ export default function RolesPage() {
   const openNew = () => {
     setSelected("new"); setNotice(null); setError(null);
     setTitle("");
+    setScope("OWN"); // a NEW role starts narrow; widening is a deliberate act
     setIsAdmin(false);
     setDraft(new Set(["borrowers.view", "applications.view", "loans.view", "products.view", "reports.view"]));
   };
@@ -71,7 +84,7 @@ export default function RolesPage() {
       const res = await fetch("/api/console/roles", {
         method: selected === "new" ? "POST" : "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(selected === "new" ? { title, rights } : { id: selected, title, rights }),
+        body: JSON.stringify(selected === "new" ? { title, rights, dataScope: scope } : { id: selected, title, rights, dataScope: scope }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.message || "Could not save the role."); return; }
@@ -175,6 +188,39 @@ export default function RolesPage() {
                   <span className="block text-[11px] text-amber-700">Every menu and every ability, including ones added in future updates. Use sparingly.</span>
                 </span>
               </label>
+            </div>
+
+            {/* WHOSE book, as opposed to WHAT they may do. Deliberately its own card: a
+                loan officer and a branch manager can hold nearly identical permissions
+                and still must not see the same customers. */}
+            <div className="glass p-5">
+              <p className="text-sm font-semibold">Whose customers can they see?</p>
+              <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
+                Permissions decide what someone may do. This decides whose borrowers, applications and loans they may do it
+                to. It follows your <a href="/console/branches" className="underline">organisation structure</a>.
+              </p>
+              <div className="mt-3 space-y-1.5">
+                {SCOPE_OPTIONS.map((o) => (
+                  <label
+                    key={o.id}
+                    className={`flex cursor-pointer items-start gap-2.5 rounded-lg border p-2.5 transition-colors ${
+                      scope === o.id ? "border-[color:var(--brand)] bg-white" : "border-zinc-900/10 bg-white/60 hover:border-zinc-900/20"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="dataScope"
+                      checked={scope === o.id}
+                      onChange={() => setScope(o.id)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      <span className="block text-[13px] font-semibold text-zinc-800">{o.label}</span>
+                      <span className="block text-[11px] leading-snug text-zinc-500">{o.help}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             {!isAdmin && (

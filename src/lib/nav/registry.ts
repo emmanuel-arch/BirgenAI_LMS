@@ -124,6 +124,9 @@ export const NAV_REGISTRY: NavModule[] = [
     label: "Organization",
     icon: "Building2",
     items: [
+      // The structure comes first: a lender's offices are the thing everything else —
+      // staff, borrowers, loans, and who may see them — is hung off.
+      { key: "branches", label: "Structure", href: "/console/branches", icon: "Building2", right: "branches.view" },
       { key: "products", label: "Products", href: "/console/products", icon: "Package", right: "products.view" },
       { key: "workflows", label: "Workflows", href: "/console/workflows", icon: "GitBranch", right: "workflows.view" },
       { key: "branding", label: "Branding", href: "/console/settings/branding", icon: "Palette", right: "branding.manage" },

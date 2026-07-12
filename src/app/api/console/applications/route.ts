@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
+import { originStamp, resolveScope, applicationScopeWhere } from "@/lib/rbac/scope";
 import { autoScheduleVerification } from "@/lib/field/auto";
 
 export const runtime = "nodejs";
@@ -17,9 +18,14 @@ export async function GET(req: NextRequest) {
   if (denied) return denied;
 
   const scope = req.nextUrl.searchParams.get("scope") ?? "live";
+  // WHOSE applications (src/lib/rbac/scope.ts). `scope` below is the STATUS filter the
+  // queue already had ("live" vs all) — a different thing entirely, hence `seen`.
+  const seen = await resolveScope(session);
+
   const apps = await prisma.loanApplication.findMany({
     where: {
       orgId: session.user.orgId,
+      ...applicationScopeWhere(seen),
       ...(scope === "live" ? { status: { in: LIVE as unknown as never } } : {}),
     },
     orderBy: { createdAt: "desc" },
@@ -127,9 +133,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, message: "This borrower already has an application in the queue." }, { status: 409 });
   }
 
+  // Whose application this is. Inherited from the borrower's owning officer where there
+  // is one, so an application does not change hands just because a different officer
+  // happened to key it in; falls back to the officer keying it in.
+  const me = await prisma.staffUser.findFirst({
+    where: { id: session!.user!.id, orgId },
+    select: { id: true, branchId: true },
+  });
+  const origin = await originStamp(orgId, me);
+
   const app = await prisma.loanApplication.create({
     data: {
       orgId,
+      officerId: borrower.createdById ?? origin.staffId,
+      branchId: borrower.branchId ?? origin.branchId,
       borrowerId: borrower.id,
       productId: product.id,
       productName: product.name,

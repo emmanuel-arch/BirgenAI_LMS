@@ -16,6 +16,16 @@ import { ALL_RIGHTS_SET, WILDCARD } from "@/lib/rbac/rights";
 
 export const runtime = "nodejs";
 
+/**
+ * A role's DATA SCOPE — how much of the book it sees. Orthogonal to its rights, and
+ * validated the same way: an unrecognised value falls back to ORG, which is what every
+ * role had before scopes existed. Never silently narrow someone on a typo.
+ */
+const SCOPES = ["OWN", "BRANCH", "BRANCH_TREE", "ORG"] as const;
+type ScopeValue = (typeof SCOPES)[number];
+const cleanScope = (v: unknown): ScopeValue | null =>
+  (SCOPES as readonly string[]).includes(String(v)) ? (String(v) as ScopeValue) : null;
+
 /** Normalize + validate a submitted rights array. Null = invalid. */
 function cleanRights(raw: unknown): string[] | null {
   if (!Array.isArray(raw) || raw.length === 0) return null;
@@ -56,11 +66,11 @@ export async function GET() {
   const roles = await prisma.role.findMany({
     where: { orgId: session!.user!.orgId },
     orderBy: { createdAt: "asc" },
-    select: { id: true, title: true, rights: true, createdAt: true, _count: { select: { staff: true } } },
+    select: { id: true, title: true, rights: true, dataScope: true, createdAt: true, _count: { select: { staff: true } } },
   });
   return NextResponse.json({
     success: true,
-    roles: roles.map((r) => ({ id: r.id, title: r.title, rights: r.rights, staffCount: r._count.staff, createdAt: r.createdAt })),
+    roles: roles.map((r) => ({ id: r.id, title: r.title, rights: r.rights, dataScope: r.dataScope, staffCount: r._count.staff, createdAt: r.createdAt })),
   });
 }
 
@@ -70,7 +80,7 @@ export async function POST(req: NextRequest) {
   if (denied) return denied;
   const orgId = session!.user!.orgId!;
 
-  let body: { title?: string; rights?: unknown };
+  let body: { title?: string; rights?: unknown; dataScope?: unknown };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
   const title = (body.title ?? "").trim();
@@ -86,7 +96,9 @@ export async function POST(req: NextRequest) {
   if (exists) return NextResponse.json({ success: false, message: "A role with that name already exists." }, { status: 409 });
 
   // Role.menu is ServiceSuite-era denormalization — mirrored, never read.
-  const role = await prisma.role.create({ data: { orgId, title, rights, menu: rights } });
+  const role = await prisma.role.create({
+    data: { orgId, title, rights, menu: rights, dataScope: cleanScope(body.dataScope) ?? "ORG" },
+  });
   invalidateRights();
   await prisma.auditLog.create({
     data: { orgId, actorId: session!.user!.id, actorType: "staff", action: "role.create", entity: "Role", entityId: role.id, meta: { title, rights } },
@@ -101,7 +113,7 @@ export async function PUT(req: NextRequest) {
   if (denied) return denied;
   const orgId = session!.user!.orgId!;
 
-  let body: { id?: string; title?: string; rights?: unknown };
+  let body: { id?: string; title?: string; rights?: unknown; dataScope?: unknown };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
   if (!body.id) return NextResponse.json({ success: false, message: "Role id required." }, { status: 400 });
 
@@ -137,7 +149,12 @@ export async function PUT(req: NextRequest) {
 
   await prisma.role.update({
     where: { id: role.id },
-    data: { title, rights, menu: rights },
+    data: {
+      title, rights, menu: rights,
+      // Absent ⇒ leave it alone. A client that only sends rights must not silently
+      // reset a lender's carefully-narrowed visibility back to "the whole book".
+      ...(body.dataScope === undefined ? {} : { dataScope: cleanScope(body.dataScope) ?? "ORG" }),
+    },
   });
   invalidateRights();
   await prisma.auditLog.create({

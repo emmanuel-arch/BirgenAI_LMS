@@ -29,10 +29,12 @@
     "test:funnel-gaps": "tsx scripts/verify-funnel-gaps.ts",
     "test:school-fees": "tsx scripts/verify-school-fees.ts",
     "test:riri": "tsx scripts/verify-riri.ts",
+    "test:scope": "tsx scripts/verify-scope.ts",
     "platform:admin": "tsx scripts/create-platform-admin.ts",
     "db:app-role": "tsx scripts/create-app-role.ts",
     "storage:init": "tsx scripts/init-storage.ts",
     "db:migrate:plans": "tsx scripts/migrate-plans.ts",
+    "db:backfill:structure": "tsx scripts/backfill-org-structure.ts",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:seed:demo": "tsx prisma/seed-demo.ts"

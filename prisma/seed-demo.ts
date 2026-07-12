@@ -97,7 +97,23 @@ async function main() {
   // 2) Branch + roles. Each role's rights are its sidebar AND its API access —
   // signing in as each demo account shows a genuinely different console, which
   // is the role-visibility showcase the /demo page sells.
-  const branch = await prisma.branch.create({ data: { orgId: org.id, name: "Nairobi CBD", levelName: "Branch", lat: -1.2841, lng: 36.8233, disbursementLimit: 500000 } });
+  // A real four-level structure: the demo has to be able to SHOW a regional manager
+  // seeing two branches while an officer sees only the customers he registered.
+  //
+  //   Head Office → Nairobi Region → Nairobi CBD  (Brian, Carol, the book)
+  //                                → Westlands    (Grace)
+  const headOffice = await prisma.branch.create({
+    data: { orgId: org.id, name: "Head Office", levelName: "Head Office", code: "HQ", lat: -1.2921, lng: 36.8219 },
+  });
+  const region = await prisma.branch.create({
+    data: { orgId: org.id, name: "Nairobi Region", levelName: "Region", code: "NRB", parentId: headOffice.id, lat: -1.2864, lng: 36.8172 },
+  });
+  const branch = await prisma.branch.create({
+    data: { orgId: org.id, name: "Nairobi CBD", levelName: "Branch", code: "NRB-CBD", parentId: region.id, lat: -1.2841, lng: 36.8233, disbursementLimit: 500000 },
+  });
+  const westlands = await prisma.branch.create({
+    data: { orgId: org.id, name: "Westlands", levelName: "Branch", code: "NRB-WL", parentId: region.id, lat: -1.2676, lng: 36.8108, disbursementLimit: 300000 },
+  });
   const ROLE_RIGHTS: Record<string, string[]> = {
     "Org Admin": ["*"],
     "Loan Officer": [
@@ -127,9 +143,21 @@ async function main() {
       "documents.view", "documents.parse", "reports.view",
     ],
   };
+  // WHOSE book each role sees. This is the half of RBAC that rights cannot express:
+  // Brian and Carol hold nearly the same rights, and must not see the same customers.
+  const ROLE_SCOPE: Record<string, "OWN" | "BRANCH" | "BRANCH_TREE" | "ORG"> = {
+    "Org Admin": "ORG",
+    "Loan Officer": "OWN", // Brian sees only the borrowers he registered
+    "Branch Manager": "BRANCH_TREE", // Carol sits at the Region and sees both branches
+    "Risk Manager": "ORG",
+    Finance: "ORG",
+    "Relationship Officer": "OWN",
+  };
   const roles = new Map<string, string>();
   for (const [title, rights] of Object.entries(ROLE_RIGHTS)) {
-    const r = await prisma.role.create({ data: { orgId: org.id, title, rights, menu: rights } });
+    const r = await prisma.role.create({
+      data: { orgId: org.id, title, rights, menu: rights, dataScope: ROLE_SCOPE[title] ?? "ORG" },
+    });
     roles.set(title, r.id);
   }
 
@@ -141,7 +169,12 @@ async function main() {
       data: {
         orgId: org.id, email: s.email, firstName: s.first, otherName: s.other, title: s.title,
         phone: "2547" + Math.floor(10000000 + Math.random() * 89999999),
-        passwordHash, roleId: roles.get(s.role), branchId: branch.id,
+        passwordHash, roleId: roles.get(s.role),
+        branchId:
+          s.role === "Branch Manager" ? region.id           // Carol: sees the whole region
+            : s.role === "Org Admin" || s.role === "Risk Manager" || s.role === "Finance" ? headOffice.id
+              : s.email === "ro2@demo.birgenai.com" ? westlands.id  // Grace: the other branch
+                : branch.id,
         isInitiator: !!s.tiers[0], isAuthorizer: !!s.tiers[1], isValidator: !!s.tiers[2],
         isFieldAgent: s.field, lat: spot?.lat, lng: spot?.lng, lastLocationAt: spot ? new Date() : null,
         avatarSeed: s.email, status: "ACTIVE",
@@ -176,13 +209,25 @@ async function main() {
   const round2 = (n: number) => Math.round(n * 100) / 100;
 
   // 6) Borrowers + their lifecycle.
+  const ro2Id = staffIds.get("ro2@demo.birgenai.com")!; // Grace, at Westlands
+
   let floatBalance = 2000000;
   for (let i = 0; i < BORROWERS.length; i++) {
     const b = BORROWERS[i];
     const spot = SPOTS[b.biz];
+
+    // WHO REGISTERED THIS CUSTOMER, and where. Split deliberately: Brian (CBD, OWN
+    // scope) owns most of the book, Grace (Westlands) owns two. Signing in as Brian
+    // then shows six borrowers, as Grace two, and as Carol — regional — all eight.
+    // Without this split the demo could not show the thing the scope exists to do.
+    const graceCustomer = i === 5 || i === 6;
+    const ownerId = graceCustomer ? ro2Id : officerId;
+    const ownerBranch = graceCustomer ? westlands.id : branch.id;
+
     const borrower = await prisma.borrower.create({
       data: {
-        orgId: org.id, phone: b.phone, nationalId: b.nid, firstName: b.first, otherName: b.other,
+        orgId: org.id, createdById: ownerId, branchId: ownerBranch,
+        phone: b.phone, nationalId: b.nid, firstName: b.first, otherName: b.other,
         kycStatus: b.loans === "declined" ? "PENDING_REVIEW" : "VERIFIED", kycVerifiedAt: b.loans === "declined" ? null : D(60 - i),
         faceMatchScore: 88 + (i % 10), livenessPassed: true, iprsVerified: b.loans !== "declined",
         creditScore: b.score, riskBand: b.band, loanLimit: 50000 + i * 15000, graduationCount: b.loans === "graduated" ? 5 : b.loans.startsWith("cleared") ? Number(b.loans.replace("cleared", "")) : 0,
@@ -206,7 +251,8 @@ async function main() {
     const makeApp = async (opts: { amount: number; product: typeof bizProduct; status: string; decision: string; score: number; pd: number; outcome: string; daysAgo: number; loanStatus?: string; arrears?: boolean }) => {
       const app = await prisma.loanApplication.create({
         data: {
-          orgId: org.id, borrowerId: borrower.id, productId: opts.product.id, productName: opts.product.name,
+          orgId: org.id, officerId: ownerId, branchId: ownerBranch,
+          borrowerId: borrower.id, productId: opts.product.id, productName: opts.product.name,
           phone: b.phone, nationalId: b.nid, borrowerName: `${b.first} ${b.other}`,
           amountRequested: opts.amount, status: opts.status as never, stageTitle: opts.status,
           score: opts.score, pd: opts.pd, scoreModelVersion: "fused(thinfile-v2+origination-v2)",
@@ -291,7 +337,8 @@ async function main() {
           orgId: org.id, borrowerId: borrower.id, applicationId: app.id, productId: product.id,
           principal: amount, interest, loanAmount, balance: cleared ? 0 : state === "arrears" ? loanAmount : round2(loanAmount * 0.6),
           status: cleared ? "CLEARED" : "ACTIVE", borrowDate: D(daysAgo), disbursedAt: D(daysAgo - 1),
-          expectedClearDate: rows[rows.length - 1].date, clearedAt: cleared ? D(daysAgo - 20) : null, createdBy: officerId,
+          expectedClearDate: rows[rows.length - 1].date, clearedAt: cleared ? D(daysAgo - 20) : null,
+          createdBy: ownerId, branchId: ownerBranch,
         },
       });
       const isPaid = (idx: number) => cleared || (state === "active" && idx < Math.floor(n * 0.4));

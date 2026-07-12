@@ -17,7 +17,8 @@ export const ALL_RIGHTS = [
   // Borrower book
   "borrowers.view", // see the borrower list + Customer-360
   "borrowers.create", // register a borrower / run KYC checks
-  "borrowers.manage", // (reserved) edit identity fields, reallocate portfolios
+  "borrowers.manage", // edit identity fields, reassign, DELETE an unverified borrower
+  "kyc.verify", // work the KYC verification queue: verify, reject
   // Origination
   "applications.view", // see the applications queue
   "applications.decide", // act on a stage: approve, refer, decline, offers, security
@@ -50,8 +51,8 @@ export const ALL_RIGHTS = [
   "products.manage",
   "workflows.view",
   "workflows.manage",
-  "branches.view", // (reserved) branch tree
-  "branches.manage",
+  "branches.view", // the organisational structure
+  "branches.manage", // build it: offices, regions, branches, who reports to whom
   // People & access
   "team.view",
   "team.manage",
@@ -133,11 +134,7 @@ export const ADMIN_ONLY_RIGHTS: Right[] = [
 ];
 
 /** Reserved for modules not yet built — grantable, but nothing consumes them yet. */
-export const RESERVED_RIGHTS: Right[] = [
-  "borrowers.manage",
-  "branches.view",
-  "branches.manage",
-];
+export const RESERVED_RIGHTS: Right[] = [];
 
 /**
  * Built AFTER the RBAC cutover, so they belong to no historical bucket: never
@@ -153,6 +150,12 @@ export const MODERN_RIGHTS: Right[] = [
   "loans.apply",
   "metrics.view",
   "metrics.manage",
+  // The org structure and the KYC gate. Both were RESERVED until the surfaces that
+  // consume them existed; they are MODERN because no pre-RBAC screen ever granted them.
+  "branches.view",
+  "branches.manage",
+  "borrowers.manage",
+  "kyc.verify",
 ];
 
 /**
@@ -161,7 +164,7 @@ export const MODERN_RIGHTS: Right[] = [
  * verify-rbac asserts every right appears in exactly one group.
  */
 export const RIGHT_GROUPS: { key: string; label: string; rights: Right[] }[] = [
-  { key: "borrowers", label: "Borrowers", rights: ["borrowers.view", "borrowers.create", "borrowers.manage"] },
+  { key: "borrowers", label: "Borrowers", rights: ["borrowers.view", "borrowers.create", "borrowers.manage", "kyc.verify"] },
   { key: "loans", label: "Loans", rights: ["applications.view", "applications.decide", "loans.view", "loans.apply"] },
   { key: "payments", label: "Payments", rights: ["disbursements.view", "disbursements.manage", "float.view", "float.manage", "repayments.view", "repayments.collect", "reconciliation.view", "reconciliation.resolve"] },
   { key: "collections", label: "Collections", rights: ["collections.view", "collections.manage"] },
@@ -181,7 +184,8 @@ export const RIGHT_GROUPS: { key: string; label: string; rights: Right[] }[] = [
 export const RIGHT_LABELS: Record<Right, string> = {
   "borrowers.view": "Can see the borrower list and each borrower's full profile",
   "borrowers.create": "Can register new borrowers and run KYC checks",
-  "borrowers.manage": "Can edit borrower details and reallocate portfolios (coming up)",
+  "borrowers.manage": "Can reassign borrowers and delete unverified ones",
+  "kyc.verify": "Can verify a customer's identity from the KYC queue",
   "applications.view": "Can see the loan applications queue",
   "applications.decide": "Can approve, refer or decline applications and manage offers",
   "loans.view": "Can see booked loans and print statements",
@@ -208,8 +212,8 @@ export const RIGHT_LABELS: Record<Right, string> = {
   "products.manage": "Can create and edit loan products",
   "workflows.view": "Can see approval workflows",
   "workflows.manage": "Can create and edit approval workflows",
-  "branches.view": "Can see the branch structure (coming up)",
-  "branches.manage": "Can create and edit branches (coming up)",
+  "branches.view": "Can see the organisation structure",
+  "branches.manage": "Can build the structure — offices, regions, branches and who reports to whom",
   "team.view": "Can see the staff list",
   "team.manage": "Can invite staff, set approval tiers and assign roles",
   "roles.view": "Can see roles and what each one may do",

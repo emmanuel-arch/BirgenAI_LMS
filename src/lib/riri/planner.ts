@@ -126,6 +126,7 @@ export function previousRange(range: TimeRange): TimeRange | null {
 const DIMENSION_PHRASES: { id: DimensionId; re: RegExp }[] = [
   { id: "product", re: /\b(by|per|across|for each|breakdown by|split by)\s+(loan\s+)?product\b|\bproduct (mix|breakdown|split)\b|\bwhich product\b/ },
   { id: "borrower", re: /\b(by|per)\s+(borrower|customer|client)\b|\btop\s+(\d+\s+)?(borrower|customer|client)/ },
+  { id: "branch", re: /(by|per)\s+(branch|region|office|unit)|which branch|branch (mix|breakdown|split)/ },
   { id: "officer", re: /\b(by|per)\s+(officer|staff|agent|loan officer|who booked)\b|\bwhich officer\b/ },
   { id: "status", re: /\b(by|per)\s+(status|stage)\b|\bbreakdown of the (pipeline|queue)\b/ },
   { id: "channel", re: /\b(by|per)\s+(channel|method)\b|\bpaybill vs\b|\bstk vs\b/ },

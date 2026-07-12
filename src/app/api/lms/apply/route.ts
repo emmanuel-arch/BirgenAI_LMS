@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { originStamp } from "@/lib/rbac/scope";
 import { resolveOrg } from "@/lib/tenancy";
 import { enterOrg } from "@/lib/db/context";
 import { borrowerFor, otpRequired } from "@/lib/portal/session";
@@ -229,6 +230,11 @@ export async function POST(req: NextRequest) {
 
   // Record borrower + consent + application (the application is the training row).
   const nameParts = (borrowerName ?? "").split(/\s+/).filter(Boolean);
+  // A borrower who walked in off the public portal has NO officer. They are stamped to
+  // the head office rather than left branchless: a null branch belongs to no one, so a
+  // branch-scoped manager would never see them and the lead would rot unclaimed.
+  const portalOrigin = await originStamp(orgRow.id, null);
+
   let app;
   let borrowerRowId: string | null = null;
   try {
@@ -247,6 +253,7 @@ export async function POST(req: NextRequest) {
       },
       create: {
         orgId: orgRow.id,
+        branchId: portalOrigin.branchId,
         phone,
         nationalId: body.nationalId?.trim() || null,
         firstName: nameParts[0] || null,
@@ -274,6 +281,10 @@ export async function POST(req: NextRequest) {
     app = await prisma.loanApplication.create({
       data: {
         orgId: orgRow.id,
+        // Inherit the borrower's owner: a repeat customer who applies from their phone
+        // stays on the officer's book rather than falling off it.
+        officerId: borrower.createdById ?? null,
+        branchId: borrower.branchId ?? portalOrigin.branchId,
         borrowerId: borrower.id,
         productId: nativeProductId,
         hubUserId: session?.user?.id ?? null,

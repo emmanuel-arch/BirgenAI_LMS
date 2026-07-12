@@ -4,6 +4,7 @@ import {
   ArrowLeft, ScanFace, ShieldAlert, Landmark, MapPin, History, CheckCircle2, XCircle, Clock, FileText,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { resolveScope, borrowerScopeWhere } from "@/lib/rbac/scope";
 import { prisma } from "@/lib/prisma";
 import { hasFeature } from "@/lib/billing/entitlements";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
@@ -38,8 +39,12 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
   const orgId = session.user.orgId;
   const { id } = await params;
 
+  // A list that filters correctly while the detail page renders any id you type is not
+  // a boundary — it is a speed bump. The scope filter goes in THIS query too.
+  const scope = await resolveScope(session);
+
   const b = await prisma.borrower.findFirst({
-    where: { id, orgId },
+    where: { id, orgId, ...borrowerScopeWhere(scope) },
     include: {
       loans: { orderBy: { createdAt: "desc" }, include: { product: { select: { name: true } }, installments: { select: { status: true, amountDue: true, amountPaid: true, dueDate: true } } } },
       fieldVisits: { orderBy: { createdAt: "desc" }, take: 5, include: { agent: { select: { firstName: true, otherName: true } } } },

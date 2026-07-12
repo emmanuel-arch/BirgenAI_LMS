@@ -9,6 +9,7 @@ import { randomBytes } from "crypto";
 import { auth } from "@/lib/auth";
 import { requireRight, invalidateRights } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
+import { headOfficeId } from "@/lib/rbac/scope";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 import { PLANS, PLAN_ORDER } from "@/lib/billing/plans";
 import { sendTemplatedEmail } from "@/lib/email/send";
@@ -76,6 +77,11 @@ export async function POST(req: NextRequest) {
   const tempPassword = randomBytes(6).toString("base64url"); // ~8 chars, emailed once
   const t = body.tiers ?? {};
 
+  // Everyone belongs somewhere. A staff member with no branch cannot be seen by a
+  // branch-scoped manager and cannot BE one (resolveScope degrades them to OWN), so an
+  // invite that names no branch puts them at the head office rather than nowhere.
+  const branchId = body.branchId || (await headOfficeId(orgId));
+
   const staff = await prisma.staffUser.create({
     data: {
       orgId,
@@ -85,7 +91,7 @@ export async function POST(req: NextRequest) {
       otherName: rest.join(" ") || null,
       passwordHash: await bcrypt.hash(tempPassword, 12),
       roleId: body.roleId || null,
-      branchId: body.branchId || null,
+      branchId,
       isInitiator: !!t.initiator,
       isAuthorizer: !!t.authorizer,
       isValidator: !!t.validator,

@@ -183,8 +183,11 @@ model Branch {
   id                String  @id @default(uuid())
   orgId             String
   name              String
+  /// Null == the ROOT of the tree: the lender's head office. Exactly one per org.
   parentId          String?
   levelName         String  @default("Branch") // org-defined hierarchy level
+  /// Short code an officer would actually say out loud ("NRB-CBD"). Optional.
+  code              String?
   disbursementLimit Decimal? @db.Decimal(18, 2)
   lat               Float?
   lng               Float?
@@ -202,12 +205,37 @@ model Branch {
 
 // ── Staff, roles, audit ───────────────────────────────────────────────────────
 
+/// HOW MUCH OF THE BOOK A ROLE MAY SEE — orthogonal to rights.
+///
+/// Rights answer "may you open the borrower list at all"; this answers "WHOSE
+/// borrowers are on it". They are genuinely different questions: a Loan Officer and
+/// a Branch Manager have almost identical rights and must not see the same rows.
+/// Without this, `borrowers.view` meant *every* borrower in the lender, so a
+/// one-branch officer could read the whole book.
+enum DataScope {
+  /// Only what this person originated. An officer's own portfolio.
+  OWN
+  /// Everything booked at the staff member's own branch.
+  BRANCH
+  /// Their branch and every branch beneath it — how a regional manager sees a region.
+  BRANCH_TREE
+  /// The whole lender. Head office, admins, auditors.
+  ORG
+}
+
 model Role {
   id        String   @id @default(uuid())
   orgId     String
   title     String
   rights    Json     @default("[]") // module-right keys
   menu      Json     @default("[]") // visible menu keys
+
+  /// Defaults to ORG so that adding this column changes NOTHING for a role that
+  /// existed before it: every role kept exactly the visibility it already had, and a
+  /// lender narrows deliberately rather than discovering their officers went blind
+  /// after a deploy.
+  dataScope DataScope @default(ORG)
+
   createdAt DateTime @default(now())
 
   org   Org         @relation(fields: [orgId], references: [id])
@@ -432,6 +460,15 @@ model Borrower {
   serviceSuiteBorrowerId Int?
   hubUserId              String? // birgenai.com account id (federated login)
   deviceFingerprint      String?
+
+  /// WHO owns this customer and WHERE they belong. Both are stamped at registration
+  /// and are what every data-scope decision reads (src/lib/rbac/scope.ts).
+  /// A borrower who arrived through the public portal has no officer; they are stamped
+  /// to the head office, where a manager can see them and assign them out — a null
+  /// branch would belong to no one and quietly accumulate leads nobody was told about.
+  createdById String? // StaffUser.id of the officer who registered them
+  branchId    String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -621,6 +658,11 @@ model LoanApplication {
   // Fraud signal: a hash of the applying device's stable traits. The same
   // device applying as many different people is the classic ring pattern.
   deviceFingerprint String?
+
+  /// Whose application this is, and where it was taken. Stamped from the borrower at
+  /// creation so the queue can be scoped without a join back through the borrower.
+  officerId String? // StaffUser.id
+  branchId  String?
   // Pay-to-institution products (§7 diversion control): the money goes to the
   // school's paybill, never the borrower's phone. Captured at application.
   payeeName    String?
@@ -943,7 +985,10 @@ model Loan {
   expectedClearDate DateTime?
   disbursedAt   DateTime?
   clearedAt     DateTime?
-  createdBy     String?
+  createdBy     String? // StaffUser.id — the officer whose book this loan is on
+  /// The branch that owns this loan. Frozen at booking: a loan does not move branch
+  /// because an officer transferred.
+  branchId      String?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 

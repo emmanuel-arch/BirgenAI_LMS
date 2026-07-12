@@ -143,6 +143,16 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
     const loan = await tx.loan.create({
       data: {
         orgId: app.orgId,
+        // WHOSE BOOK THIS LOAN IS ON. It inherits the application's ORIGINATING officer,
+        // not the person who happened to finalise it — the finaliser is usually a
+        // manager or validator, and crediting them would take the loan off the officer's
+        // own book and put it on their supervisor's the moment it was approved. The
+        // actor is already recorded, separately and properly, in the audit trail.
+        // Branch is inherited and then FROZEN: a booked loan does not move because an
+        // officer later transferred or a customer was reassigned. The book is where the
+        // money was lent.
+        createdBy: app.officerId ?? actorStaffId,
+        branchId: app.branchId ?? undefined,
         borrowerId: app.borrowerId,
         applicationId: app.id,
         productId: app.product!.id,
@@ -153,7 +163,6 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
         status: "PENDING_DISBURSEMENT",
         borrowDate,
         expectedClearDate,
-        createdBy: actorStaffId,
       },
     });
     await tx.installment.createMany({
