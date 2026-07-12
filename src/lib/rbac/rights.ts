@@ -68,6 +68,8 @@ export const ALL_RIGHTS = [
   "sms.manage", // send campaigns, edit templates
   // AI
   "riri.use",
+  "metrics.view", // Riri's metric catalogue + the query log
+  "metrics.manage", // rename metrics, teach synonyms, set targets, hide measures
 ] as const;
 
 export type Right = (typeof ALL_RIGHTS)[number];
@@ -149,6 +151,8 @@ export const MODERN_RIGHTS: Right[] = [
   "sms.view",
   "sms.manage",
   "loans.apply",
+  "metrics.view",
+  "metrics.manage",
 ];
 
 /**
@@ -167,7 +171,7 @@ export const RIGHT_GROUPS: { key: string; label: string; rights: Right[] }[] = [
   { key: "access", label: "Team & Access", rights: ["team.view", "team.manage", "roles.view", "roles.manage"] },
   { key: "billing", label: "Billing", rights: ["billing.view", "billing.manage"] },
   { key: "comms", label: "Comms", rights: ["sms.view", "sms.manage"] },
-  { key: "riri", label: "Riri AI", rights: ["riri.use"] },
+  { key: "riri", label: "Riri AI", rights: ["riri.use", "metrics.view", "metrics.manage"] },
 ];
 
 /**
@@ -218,4 +222,6 @@ export const RIGHT_LABELS: Record<Right, string> = {
   "sms.view": "Can see campaign history, SMS templates and the email log",
   "sms.manage": "Can send SMS campaigns and edit message templates",
   "riri.use": "Can talk to Riri, the console AI",
+  "metrics.view": "Can see what each of Riri's measures means and every question staff have asked her",
+  "metrics.manage": "Can rename Riri's measures, teach her the words your staff use, and set targets",
 };

@@ -68,7 +68,7 @@ async function wipe(orgId: string) {
   const w = { orgId };
   for (const m of [
     "smsMessage", "smsCampaign", "emailMessage", "c2BReceipt", "paymentIntent", "floatLedger", "otpChallenge",
-    "promiseToPay", "collectionCall", "collectionTicket",
+    "promiseToPay", "collectionCall", "collectionTicket", "ririQueryLog", "metricDefinition",
     "reconciliationException", "usageEvent", "invoiceLine", "invoice", "smsTopUp", "smsWallet",
     "installment", "guarantor", "collateral", "disbursement", "loanOffer", "loan",
     "loanApplication", "consent", "geoPin", "scoreSnapshot", "kycCheck", "kycSession",
@@ -102,24 +102,25 @@ async function main() {
     "Org Admin": ["*"],
     "Loan Officer": [
       "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view", "loans.apply",
-      "products.view", "documents.view", "documents.parse", "field.view", "reports.view", "riri.use",
+      "products.view", "documents.view", "documents.parse", "field.view", "reports.view", "riri.use", "metrics.view",
       "collections.view", "collections.manage",
     ],
     "Branch Manager": [
       "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view", "loans.apply",
       "products.view", "workflows.view", "documents.view", "documents.parse", "field.view", "field.manage",
       "disbursements.view", "disbursements.manage", "float.view", "repayments.view", "repayments.collect",
-      "team.view", "reports.view", "intelligence.view", "riri.use",
+      "team.view", "reports.view", "intelligence.view", "riri.use", "metrics.view",
       "collections.view", "collections.manage", "sms.view", "sms.manage",
     ],
     "Risk Manager": [
       "borrowers.view", "applications.view", "loans.view", "products.view", "reconciliation.view",
       "intelligence.view", "intelligence.tune", "documents.view", "reports.view", "riri.use",
+      "metrics.view", "metrics.manage",
     ],
     Finance: [
       "loans.view", "disbursements.view", "disbursements.manage", "float.view", "float.manage",
       "repayments.view", "repayments.collect", "reconciliation.view", "reconciliation.resolve",
-      "billing.view", "reports.view", "riri.use", "collections.view",
+      "billing.view", "reports.view", "riri.use", "metrics.view", "collections.view",
     ],
     "Relationship Officer": [
       "borrowers.view", "borrowers.create", "loans.view", "field.view", "field.manage",
@@ -293,15 +294,35 @@ async function main() {
           expectedClearDate: rows[rows.length - 1].date, clearedAt: cleared ? D(daysAgo - 20) : null, createdBy: officerId,
         },
       });
+      const isPaid = (idx: number) => cleared || (state === "active" && idx < Math.floor(n * 0.4));
       await prisma.installment.createMany({
         data: rows.map((r, idx) => ({
           orgId: org.id, loanId: loan.id, seq: r.seq, dueDate: state === "arrears" && idx === 0 ? D(daysAgo - 40) : r.date,
           amountDue: r.due, principalDue: r.prin, interestDue: r.int,
-          amountPaid: cleared ? r.due : state === "active" && idx < Math.floor(n * 0.4) ? r.due : 0,
-          status: cleared ? "PAID" : state === "arrears" && idx === 0 ? "OVERDUE" : state === "active" && idx < Math.floor(n * 0.4) ? "PAID" : "UPCOMING",
+          amountPaid: isPaid(idx) ? r.due : 0,
+          status: cleared ? "PAID" : state === "arrears" && idx === 0 ? "OVERDUE" : isPaid(idx) ? "PAID" : "UPCOMING",
           penalty: state === "arrears" && idx === 0 ? round2(r.due * 0.05) : 0,
         })),
       });
+
+      // The money BEHIND those paid installments. Until now the demo marked
+      // installments paid with no receipt anywhere, so the book said borrowers had
+      // repaid while every "collected" figure in the platform was zero — Riri read that
+      // faithfully and answered "KES 0 collected", which is the correct answer to a
+      // book that never received a shilling. Each paid installment now has the paybill
+      // receipt that paid it, allocated to its loan (allocated, so it raises no
+      // reconciliation exception) and dated when it actually landed.
+      for (const [idx, r] of rows.entries()) {
+        if (!isPaid(idx)) continue;
+        const receivedAt = new Date(Math.min(r.date.getTime(), Date.now() - 3600_000));
+        await prisma.c2BReceipt.create({
+          data: {
+            orgId: org.id, transId: `DEMO${loan.id.slice(0, 6).toUpperCase()}${r.seq}`,
+            amount: r.due, phone: b.phone, billRef: b.nid,
+            allocatedLoanId: loan.id, allocatedAt: receivedAt, createdAt: receivedAt,
+          },
+        });
+      }
       await prisma.disbursement.create({ data: { orgId: org.id, loanId: loan.id, amount, phone: b.phone, state: "CONFIRMED", makerId: officerId, checkerId: adminId, receiptRef: `DEMO${daysAgo}${i}`, createdAt: D(daysAgo - 1) } });
       floatBalance = round2(floatBalance - amount);
       await prisma.floatLedger.create({ data: { orgId: org.id, kind: "DISBURSE", amount: -amount, balanceAfter: floatBalance, ref: `DEMO${daysAgo}${i}`, note: `Loan ${loan.id.slice(0, 8)}`, createdBy: adminId, createdAt: D(daysAgo - 1) } });
@@ -369,6 +390,32 @@ async function main() {
         data: { orgId: org.id, borrowerId: borrower.id, applicationId: app.id, kind: "BUSINESS_VERIFICATION", label: `${b.first}'s shop — ${spot.name}`, address: `${spot.name}, Nairobi`, lat: spot.lat, lng: spot.lng, status: "ALLOCATED", agentId: best.id, allocatedAt: new Date(), distanceKm: Number(bestKm.toFixed(2)), createdBy: officerId },
       });
     }
+  }
+
+  // 7) Riri's semantic layer, as a real lender would have shaped it: their own word
+  // for PAR, the target they hold themselves to, and a collections goal. The demo
+  // then SHOWS the overlay working — Riri answers to "delinquency" and says whether
+  // the book is inside target — rather than leaving the catalogue at its defaults
+  // and asking the founder to imagine it.
+  // Only PAR carries a target: the demo book really is 36% delinquent (Martin Kariuki
+  // is 56 days down), so Riri saying "that's outside the target you set" is the
+  // feature doing its job on a true story. A target invented for a metric the demo
+  // can't meet would just teach the founder to distrust the chip.
+  for (const [metricId, overlay] of [
+    ["par30", { label: "Delinquency", synonyms: ["delinquency", "bad book"], target: 5, targetDirection: "below" }],
+    ["collected", { synonyms: ["recoveries"] }],
+    ["olb", { synonyms: ["my book"] }],
+  ] as const) {
+    await prisma.metricDefinition.create({
+      data: {
+        orgId: org.id,
+        metricId,
+        label: "label" in overlay ? overlay.label : null,
+        synonyms: [...overlay.synonyms],
+        target: "target" in overlay ? overlay.target : null,
+        targetDirection: "targetDirection" in overlay ? overlay.targetDirection : null,
+      },
+    });
   }
 
   const counts = {

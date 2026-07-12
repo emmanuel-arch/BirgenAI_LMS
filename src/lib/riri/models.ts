@@ -35,16 +35,18 @@ export const RIRI_MODELS: Record<RiriModelId, RiriModel> = {
     id: "analyst",
     name: "Riri Analyst",
     tag: "2.5",
-    blurb: "Talks to your live loan book — OLB, PAR, disbursed, collected, outcomes.",
+    blurb: "Talks to your live loan book — by period, by product, by borrower. Shows her SQL.",
     icon: "Gauge",
     badge: "LIVE DATA",
+    // Chosen to teach the shape of what she can now do: a period, a slice, a ranking
+    // and a trend — not just the six numbers the old handlers could return.
     suggestions: [
       "What's my outstanding loan book?",
-      "How much did we collect this month?",
-      "What's my PAR 30 right now?",
+      "How much did we collect last month?",
+      "What's my PAR 30 by product?",
       "Top 5 borrowers by balance",
+      "Disbursements over time",
       "How many applications are waiting?",
-      "What's my default rate?",
     ],
   },
   copilot: {

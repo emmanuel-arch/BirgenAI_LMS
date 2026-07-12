@@ -16,7 +16,7 @@
 
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Gauge, Bot, Crown, Send, Loader2, X, ArrowRight, AlertCircle } from "lucide-react";
+import { Gauge, Bot, Crown, Send, Loader2, X, ArrowRight, AlertCircle, Database } from "lucide-react";
 import { RiriAvatar } from "./RiriAvatar";
 import { RIRI_MODELS, RIRI_MODEL_IDS, isRiriModel, type RiriModelId } from "@/lib/riri/models";
 
@@ -32,6 +32,7 @@ type Turn = {
   id: string; question: string; model: RiriModelId; loading: boolean;
   answer?: string; chips?: Chip[] | null; series?: Series | null; table?: Table | null;
   mode?: "live" | "simulation"; error?: string;
+  sql?: string | null; rows?: number | null; ms?: number | null; route?: string;
 };
 
 const placeholderFor: Record<RiriModelId, string> = {
@@ -116,6 +117,35 @@ function MiniTable({ table }: { table: Table }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * The SQL behind the number.
+ *
+ * The blueprint's rule for this tier is "SQL always shown", and it is a trust
+ * feature, not a debugging one: a lender who cannot check a figure cannot act on it.
+ * Collapsed by default because an officer chasing arrears does not want a query in
+ * their face — but one click away, always, and never a different query from the one
+ * that ran.
+ */
+function SqlDisclosure({ sql, rows, ms }: { sql: string; rows?: number | null; ms?: number | null }) {
+  return (
+    <details className="mt-2.5 group">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[10px] font-medium text-zinc-400 hover:text-zinc-700">
+        <Database className="h-2.5 w-2.5" />
+        <span className="group-open:hidden">Show the SQL</span>
+        <span className="hidden group-open:inline">Hide the SQL</span>
+        {rows != null && <span className="tabular-nums">· {rows} row{rows === 1 ? "" : "s"}</span>}
+        {ms != null && <span className="tabular-nums">· {ms}ms</span>}
+      </summary>
+      <pre className="mt-1.5 max-h-40 overflow-auto rounded-lg border border-zinc-900/10 bg-zinc-950/[0.03] px-2.5 py-2 text-[10px] leading-relaxed text-zinc-600">
+        <code>{sql}</code>
+      </pre>
+      <p className="mt-1 text-[9px] leading-snug text-zinc-400">
+        Read-only, and scoped to your organisation by the database itself.
+      </p>
+    </details>
   );
 }
 
@@ -215,7 +245,7 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
       const data = await res.json();
       setTurns((t) => t.map((x) => x.id === id
         ? (data.success
-          ? { ...x, loading: false, answer: data.answer, chips: data.chips, series: data.series, table: data.table, mode: data.mode }
+          ? { ...x, loading: false, answer: data.answer, chips: data.chips, series: data.series, table: data.table, mode: data.mode, sql: data.sql, rows: data.rows, ms: data.ms, route: data.route }
           : { ...x, loading: false, error: data.message || "Riri couldn't answer that." })
         : x));
     } catch {
@@ -334,9 +364,11 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
                             {t.chips && t.chips.length > 0 && <Chips chips={t.chips} />}
                             {t.series && <Sparkline series={t.series} />}
                             {t.table && <MiniTable table={t.table} />}
+                            {t.sql && <SqlDisclosure sql={t.sql} rows={t.rows} ms={t.ms} />}
                             <div className="mt-2.5 flex items-center gap-1.5">
                               <span className="inline-flex items-center gap-1 rounded-full bg-zinc-900/5 px-1.5 py-0.5 text-[9px] font-medium text-zinc-500"><Icon className="h-2.5 w-2.5" /> {RIRI_MODELS[t.model].name}</span>
                               <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium ${t.mode === "live" ? "text-emerald-600" : "text-zinc-400"}`}>{t.mode === "live" ? "Live data" : "Simulated"}</span>
+                              {t.route === "llm" && <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">WRITTEN BY RIRI</span>}
                             </div>
                           </>
                         )}

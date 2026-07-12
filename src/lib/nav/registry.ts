@@ -96,6 +96,7 @@ export const NAV_REGISTRY: NavModule[] = [
     items: [
       { key: "early-warning", label: "Early Warning", href: "/console/intelligence", icon: "Gauge", right: "intelligence.view", feature: "portfolio-scan", exact: true },
       { key: "model-tuning", label: "Model Tuning", href: "/console/intelligence/tuning", icon: "SlidersHorizontal", right: "intelligence.tune", feature: "model-tuning" },
+      { key: "metrics", label: "Metric Catalogue", href: "/console/intelligence/metrics", icon: "Ruler", right: "metrics.view", feature: "riri" },
       { key: "documents", label: "Document Parser", href: "/console/documents", icon: "ScanLine", right: "documents.view", feature: "document-parser" },
       { key: "reports", label: "Reports", href: "/console/report", icon: "FileBarChart", right: "reports.view" },
     ],

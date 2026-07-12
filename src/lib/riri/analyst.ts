@@ -1,30 +1,60 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Riri Analyst — the semantic metric layer. "Talk to your loan book."
+// Riri Analyst — "talk to your loan book", now on the semantic layer.
 //
-// This is the REAL intelligence: a natural-language question is routed to a
-// catalog of governed portfolio metrics, each computed live from the org's own
-// Prisma rows. No LLM, no external credential, no free-form SQL touching the DB —
-// so it is safe, deterministic, tenant-isolated and always truthful. Every
-// answer carries the actual numbers plus, where useful, metric chips, a mini
-// series for a sparkline, or a small table.
+// What changed, and why it matters more than it looks: this file used to hold
+// thirteen hand-written Prisma queries, one per question Riri could answer. It was
+// honest and it worked, but it could only ever answer the thirteen questions someone
+// had thought to write, it could not slice any of them, and it was a second
+// definition of measures the dashboard computed its own way.
 //
-// The seam to a future text-to-SQL/LLM planner is `route()`: swap the keyword
-// router for an intent classifier and the metric handlers stay identical.
+// Now the numbers come from the catalogue (catalog.ts): ONE definition of PAR 30,
+// compiled to SQL, sliced and dated by the plan (planner.ts), guarded (guard.ts),
+// and run on a read-only tenant-stamped path (readpath.ts). This file is what is
+// left over once the data layer is real — the part that turns a number into a
+// sentence a Credit Manager would actually say.
+//
+// THREE RULES IT KEEPS:
+//
+//   1. SHOW THE SQL. Every answer carries the exact statement that produced it. A
+//      lender who cannot check a number cannot act on it, and an analytics assistant
+//      that asks to be taken on trust does not deserve to be.
+//   2. NEVER INVENT. If the catalogue cannot express a question and no model is
+//      configured to write SQL for it, Riri says so and the question is logged. The
+//      failure mode of a confident wrong number in a lending business is a bad loan.
+//   3. DON'T DOUBLE-SELL. Early warning is a Premium engine; Riri ships on Advanced.
+//      Asking her about the watchlist must not become a side door around the package
+//      the lender actually bought.
 // ─────────────────────────────────────────────────────────────────────────────
-import { prisma } from "@/lib/prisma";
 import { hasFeature } from "@/lib/billing/entitlements";
 import { cheapestPlanWith } from "@/lib/billing/plans";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
+import { bind, compile, compileSeries, metricSpec, type CompiledQuery, type MetricSpec, type MetricUnit, type TimeRange } from "./catalog";
+import { metricsFor, targetVerdict, type ResolvedMetric } from "./definitions";
+import { plan, previousRange, proposeSql, ALL_TIME } from "./planner";
+import { validateReadSql } from "./guard";
+import { displaySql, runReadQuery, type Row } from "./readpath";
 
 export type MetricChip = { label: string; value: string; sub?: string; tone?: "good" | "warn" | "bad" };
 export type Series = { unit: "KES" | "count"; points: { x: string; y: number }[] };
 export type MiniTable = { head: string[]; rows: string[][] };
+
+/** How the answer was arrived at. Written to RiriQueryLog, shown as a badge. */
+export type AnalystRoute = "catalog" | "llm" | "engine" | "narrative" | "refused";
+
 export type AnalystResult = {
   answer: string;
   kind: string;
+  route: AnalystRoute;
+  metricId?: string;
   chips?: MetricChip[];
   series?: Series;
   table?: MiniTable;
+  /** The statement that produced these numbers, exactly as it ran. */
+  sql?: string;
+  rows?: number;
+  ms?: number;
+  ok: boolean;
+  error?: string;
 };
 
 // ── Formatting ────────────────────────────────────────────────────────────────
@@ -35,358 +65,368 @@ const kesShort = (n: number) => {
   if (a >= 1_000) return `KES ${(n / 1_000).toFixed(n % 1_000 === 0 ? 0 : 1)}K`;
   return kes(n);
 };
-const pct = (num: number, den: number) => (den > 0 ? (num / den) * 100 : 0);
-const num = (d: unknown) => Number(d ?? 0);
+const num = (v: unknown) => {
+  const n = Number(v ?? 0);
+  return Number.isFinite(n) ? n : 0;
+};
 
-// ── Date ranges (server-local, mirroring the console dashboard tiles) ─────────
-function startOfToday() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
-function startOfWeek() { const d = startOfToday(); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); return d; }
-function startOfMonth() { const d = startOfToday(); d.setDate(1); return d; }
-function startOfYear() { const d = startOfToday(); d.setMonth(0, 1); return d; }
-
-type Range = { start: Date | null; label: string };
-function detectRange(q: string, fallback: Range): Range {
-  if (/\btoday\b|\bso far today\b/.test(q)) return { start: startOfToday(), label: "today" };
-  if (/\bthis week\b|\bthis wk\b|\bweek\b/.test(q)) return { start: startOfWeek(), label: "this week" };
-  if (/\bthis month\b|\bmonth\b|\bmtd\b/.test(q)) return { start: startOfMonth(), label: "this month" };
-  if (/\bthis year\b|\byear\b|\bytd\b|\bannual\b/.test(q)) return { start: startOfYear(), label: "this year" };
-  if (/\ball[- ]?time\b|\bever\b|\bto date\b|\boverall\b|\btotal\b/.test(q)) return { start: null, label: "all-time" };
-  return fallback;
-}
-
-// Bucket signed money rows into the last 6 calendar months for a sparkline.
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-function sixMonthSeries(rows: { at: Date; amount: number }[]): Series {
-  const now = new Date();
-  const buckets: { x: string; y: number; key: string }[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    buckets.push({ x: MONTHS[d.getMonth()], y: 0, key: `${d.getFullYear()}-${d.getMonth()}` });
+function fmt(value: number, unit: MetricUnit, short = false): string {
+  switch (unit) {
+    case "KES": return short ? kesShort(value) : kes(value);
+    case "percent": return `${value.toFixed(1)}%`;
+    case "score": return String(Math.round(value));
+    default: return Math.round(value).toLocaleString();
   }
-  const idx = new Map(buckets.map((b, i) => [b.key, i]));
-  for (const r of rows) {
-    const k = `${r.at.getFullYear()}-${r.at.getMonth()}`;
-    const i = idx.get(k);
-    if (i != null) buckets[i].y += r.amount;
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 || word.endsWith("s") ? "" : "s"}`;
+
+// ── Running a compiled metric ─────────────────────────────────────────────────
+
+type Ran = { rows: Row[]; sql: string; ms: number; ok: true } | { ok: false; error: string; sql: string; ms: number };
+
+/**
+ * Compile → guard → run. Our own SQL goes through the guard exactly as a model's
+ * would: the day this file compiles something malformed, the guard should be what
+ * catches it, not a lender reading a wrong number.
+ */
+async function run(orgId: string, q: CompiledQuery): Promise<Ran> {
+  const { sql, params } = bind(q, orgId);
+  const shown = displaySql(sql, params);
+
+  const guard = validateReadSql(sql);
+  if (!guard.ok) return { ok: false, error: guard.reason, sql: shown, ms: 0 };
+
+  const res = await runReadQuery(orgId, sql, params);
+  if (!res.ok) return { ok: false, error: res.error, sql: shown, ms: res.ms };
+  return { ok: true, rows: res.rows, sql: shown, ms: res.ms };
+}
+
+/** The single number a metric evaluates to, for a period. */
+async function scalar(orgId: string, spec: MetricSpec, range?: TimeRange): Promise<{ value: number; n: number | null } | null> {
+  const r = await run(orgId, compile(spec, { range }));
+  if (!r.ok || !r.rows.length) return null;
+  const row = r.rows[0];
+  return { value: num(row.value), n: row.n == null ? null : num(row.n) };
+}
+
+// ── The metric answer ─────────────────────────────────────────────────────────
+
+async function answerMetric(
+  orgId: string,
+  m: ResolvedMetric,
+  p: Extract<ReturnType<typeof plan>, { kind: "metric" }>,
+): Promise<AnalystResult> {
+  const spec = metricSpec(m.id)!;
+  const label = m.displayLabel;
+
+  // A trend question ("collections over time") is a different shape of answer.
+  if (p.series) {
+    const compiled = compileSeries(spec, 6);
+    if (compiled) {
+      const r = await run(orgId, compiled);
+      if (!r.ok) return failed(m, r);
+      const series = seriesFrom(r.rows, 6, spec.unit === "KES" ? "KES" : "count");
+      const total = series.points.reduce((s, pt) => s + pt.y, 0);
+      return {
+        ok: true, route: "catalog", kind: m.id, metricId: m.id, sql: r.sql, ms: r.ms, rows: r.rows.length,
+        answer: `Here's **${label.toLowerCase()}** month by month. Over the last six months it comes to **${fmt(total, spec.unit)}**.`,
+        series,
+      };
+    }
   }
-  return { unit: "KES", points: buckets.map((b) => ({ x: b.x, y: Math.round(b.y) })) };
-}
 
-// ── Shared portfolio pulse (used by several handlers + the greeting) ──────────
-async function pulse(orgId: string) {
-  const par30Cutoff = new Date(Date.now() - 30 * 86400000);
-  const [olbAgg, activeCount, par30, apps] = await Promise.all([
-    prisma.loan.aggregate({ where: { orgId, status: "ACTIVE" }, _sum: { balance: true } }),
-    prisma.loan.count({ where: { orgId, status: "ACTIVE" } }),
-    prisma.loan.aggregate({
-      where: { orgId, status: "ACTIVE", installments: { some: { status: "OVERDUE", dueDate: { lt: par30Cutoff } } } },
-      _sum: { balance: true }, _count: true,
-    }),
-    prisma.loanApplication.count({ where: { orgId, status: { in: ["SUBMITTED", "AI_PRESCREEN", "OFFICER_REVIEW", "REFERRED"] } } }),
-  ]);
-  const olb = num(olbAgg._sum.balance);
-  const par = num(par30._sum.balance);
-  return { olb, activeCount, parAmount: par, parCount: par30._count, par30: pct(par, olb), appsWaiting: apps };
-}
+  // A sliced question ("by product", "top 5 borrowers").
+  if (p.dimension) {
+    const dim = spec.dimensions![p.dimension]!;
+    const r = await run(orgId, compile(spec, { range: p.range, dimension: p.dimension, limit: p.limit }));
+    if (!r.ok) return failed(m, r);
+    if (!r.rows.length) {
+      return {
+        ok: true, route: "catalog", kind: m.id, metricId: m.id, sql: r.sql, ms: r.ms, rows: 0,
+        answer: `There's nothing to show for **${label.toLowerCase()}** ${periodPhrase(p.range)} yet.`,
+      };
+    }
 
-// ── Intent handlers ───────────────────────────────────────────────────────────
-async function h_olb(orgId: string): Promise<AnalystResult> {
-  const p = await pulse(orgId);
-  const avg = p.activeCount > 0 ? p.olb / p.activeCount : 0;
-  return {
-    kind: "olb",
-    answer: `Your outstanding loan book is **${kes(p.olb)}** across **${p.activeCount}** active loan${p.activeCount === 1 ? "" : "s"} — an average balance of ${kesShort(avg)}.`,
-    chips: [
-      { label: "Outstanding book", value: kesShort(p.olb) },
-      { label: "Active loans", value: String(p.activeCount) },
-      { label: "Avg balance", value: kesShort(avg) },
-    ],
-  };
-}
+    const total = r.rows.reduce((s, row) => s + num(row.value), 0);
+    const top = r.rows[0];
+    const head = [dim.name, label, ...(spec.countExpr ? ["Count"] : [])];
+    const table: MiniTable = {
+      head,
+      rows: r.rows.map((row) => [
+        String(row.label ?? "—"),
+        fmt(num(row.value), spec.unit, true),
+        ...(spec.countExpr ? [String(num(row.n))] : []),
+      ]),
+    };
 
-async function h_par(orgId: string): Promise<AnalystResult> {
-  const p = await pulse(orgId);
-  const tone: MetricChip["tone"] = p.par30 < 5 ? "good" : p.par30 < 10 ? "warn" : "bad";
-  const read = p.par30 < 5 ? "healthy" : p.par30 < 10 ? "worth watching" : "elevated — worth a collections push";
-  return {
-    kind: "par",
-    answer: `Your **PAR 30 is ${p.par30.toFixed(1)}%** — ${kes(p.parAmount)} at risk across ${p.parCount} loan${p.parCount === 1 ? "" : "s"} on a ${kesShort(p.olb)} book. That's ${read}.`,
-    chips: [
-      { label: "PAR 30", value: `${p.par30.toFixed(1)}%`, tone },
-      { label: "At risk", value: kesShort(p.parAmount) },
-      { label: "Loans in arrears", value: String(p.parCount) },
-    ],
-  };
-}
+    // A share only means something when the parts add up to the whole — averages and
+    // percentages do not sum, so we never claim a "share" of one.
+    const additive = spec.unit === "KES" || spec.unit === "count";
+    const share = additive && total > 0 ? ` — **${String(top.label)}** is the biggest at ${((num(top.value) / total) * 100).toFixed(0)}% of the total` : "";
 
-async function h_disbursed(orgId: string, q: string): Promise<AnalystResult> {
-  const range = detectRange(q, { start: startOfMonth(), label: "this month" });
-  const sixStart = new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1);
-  const [agg, sixMo] = await Promise.all([
-    prisma.disbursement.aggregate({
-      where: { orgId, state: { in: ["CONFIRMED", "MANUAL_CONFIRMED"] }, ...(range.start ? { updatedAt: { gte: range.start } } : {}) },
-      _sum: { amount: true }, _count: true,
-    }),
-    prisma.disbursement.findMany({
-      where: { orgId, state: { in: ["CONFIRMED", "MANUAL_CONFIRMED"] }, updatedAt: { gte: sixStart } },
-      select: { amount: true, updatedAt: true },
-    }),
-  ]);
-  const total = num(agg._sum.amount);
-  return {
-    kind: "disbursed",
-    answer: `You disbursed **${kes(total)}** ${range.label} across ${agg._count} loan${agg._count === 1 ? "" : "s"}.`,
-    chips: [{ label: `Disbursed ${range.label}`, value: kesShort(total) }, { label: "Loans", value: String(agg._count) }],
-    series: sixMonthSeries(sixMo.map((r) => ({ at: r.updatedAt, amount: num(r.amount) }))),
-  };
-}
-
-async function h_collected(orgId: string, q: string): Promise<AnalystResult> {
-  const range = detectRange(q, { start: startOfMonth(), label: "this month" });
-  const sixStart = new Date(new Date().getFullYear(), new Date().getMonth() - 5, 1);
-  const [c2b, stk, sixMo] = await Promise.all([
-    prisma.c2BReceipt.aggregate({ where: { orgId, ...(range.start ? { createdAt: { gte: range.start } } : {}) }, _sum: { amount: true }, _count: true }),
-    prisma.paymentIntent.aggregate({ where: { orgId, state: "SUCCESS", ...(range.start ? { updatedAt: { gte: range.start } } : {}) }, _sum: { amount: true } }),
-    prisma.c2BReceipt.findMany({ where: { orgId, createdAt: { gte: sixStart } }, select: { amount: true, createdAt: true } }),
-  ]);
-  const total = num(c2b._sum.amount) + num(stk._sum.amount);
-  return {
-    kind: "collected",
-    answer: `You collected **${kes(total)}** ${range.label} — across paybill receipts and STK repayments.`,
-    chips: [
-      { label: `Collected ${range.label}`, value: kesShort(total), tone: "good" },
-      { label: "Paybill", value: kesShort(num(c2b._sum.amount)) },
-      { label: "STK", value: kesShort(num(stk._sum.amount)) },
-    ],
-    series: sixMonthSeries(sixMo.map((r) => ({ at: r.createdAt, amount: num(r.amount) }))),
-  };
-}
-
-async function h_applications(orgId: string): Promise<AnalystResult> {
-  const grouped = await prisma.loanApplication.groupBy({ by: ["status"], where: { orgId }, _count: true });
-  const by = new Map(grouped.map((g) => [g.status, g._count]));
-  const g = (k: string) => by.get(k as never) ?? 0;
-  const waiting = g("SUBMITTED") + g("AI_PRESCREEN") + g("OFFICER_REVIEW") + g("REFERRED");
-  return {
-    kind: "applications",
-    answer: `You have **${waiting}** application${waiting === 1 ? "" : "s"} waiting for a decision. ${g("REFERRED")} referred, ${g("OFFICER_REVIEW")} in officer review.`,
-    chips: [
-      { label: "Waiting", value: String(waiting), tone: waiting > 0 ? "warn" : "good" },
-      { label: "Approved", value: String(g("APPROVED") + g("DISBURSED")) },
-      { label: "Declined", value: String(g("DECLINED")) },
-    ],
-    table: {
-      head: ["Stage", "Count"],
-      rows: [
-        ["Submitted", String(g("SUBMITTED"))],
-        ["AI pre-screen", String(g("AI_PRESCREEN"))],
-        ["Officer review", String(g("OFFICER_REVIEW"))],
-        ["Referred", String(g("REFERRED"))],
-      ].filter((r) => r[1] !== "0"),
-    },
-  };
-}
-
-async function h_approval(orgId: string): Promise<AnalystResult> {
-  const grouped = await prisma.loanApplication.groupBy({ by: ["status"], where: { orgId }, _count: true });
-  const by = new Map(grouped.map((g) => [g.status, g._count]));
-  const g = (k: string) => by.get(k as never) ?? 0;
-  const approved = g("APPROVED") + g("DISBURSED");
-  const declined = g("DECLINED");
-  const decided = approved + declined;
-  const rate = pct(approved, decided);
-  return {
-    kind: "approval",
-    answer: `Your approval rate is **${rate.toFixed(0)}%** — ${approved} approved vs ${declined} declined of ${decided} decided application${decided === 1 ? "" : "s"}.`,
-    chips: [
-      { label: "Approval rate", value: `${rate.toFixed(0)}%` },
-      { label: "Approved", value: String(approved), tone: "good" },
-      { label: "Declined", value: String(declined) },
-    ],
-  };
-}
-
-async function h_outcomes(orgId: string): Promise<AnalystResult> {
-  const grouped = await prisma.loanApplication.groupBy({ by: ["outcome"], where: { orgId }, _count: true });
-  const by = new Map(grouped.map((g) => [g.outcome, g._count]));
-  const g = (k: string) => by.get(k) ?? 0;
-  const repaid = g("REPAID"), defaulted = g("DEFAULTED"), pending = g("PENDING");
-  const observed = repaid + defaulted;
-  const dr = pct(defaulted, observed);
-  const tone: MetricChip["tone"] = dr < 5 ? "good" : dr < 12 ? "warn" : "bad";
-  return {
-    kind: "outcomes",
-    answer: `On realised outcomes, your **default rate is ${dr.toFixed(1)}%** — ${repaid} repaid, ${defaulted} defaulted, ${pending} still running. These labelled outcomes are what trains the credit models.`,
-    chips: [
-      { label: "Default rate", value: `${dr.toFixed(1)}%`, tone },
-      { label: "Repaid", value: String(repaid), tone: "good" },
-      { label: "Defaulted", value: String(defaulted), tone: "bad" },
-      { label: "Still open", value: String(pending) },
-    ],
-  };
-}
-
-async function h_topBorrowers(orgId: string): Promise<AnalystResult> {
-  const grouped = await prisma.loan.groupBy({
-    by: ["borrowerId"], where: { orgId, status: "ACTIVE" },
-    _sum: { balance: true }, orderBy: { _sum: { balance: "desc" } }, take: 5,
-  });
-  const ids = grouped.map((g) => g.borrowerId);
-  const borrowers = await prisma.borrower.findMany({ where: { id: { in: ids } }, select: { id: true, firstName: true, otherName: true, phone: true } });
-  const nameOf = new Map(borrowers.map((b) => [b.id, `${b.firstName ?? "Borrower"}${b.otherName ? " " + b.otherName : ""}`.trim()]));
-  return {
-    kind: "top-borrowers",
-    answer: `Your five largest active exposures total ${kesShort(grouped.reduce((s, g) => s + num(g._sum.balance), 0))}.`,
-    table: {
-      head: ["Borrower", "Balance"],
-      rows: grouped.map((g) => [nameOf.get(g.borrowerId) ?? "—", kesShort(num(g._sum.balance))]),
-    },
-  };
-}
-
-async function h_byProduct(orgId: string): Promise<AnalystResult> {
-  const grouped = await prisma.loan.groupBy({
-    by: ["productId"], where: { orgId, status: "ACTIVE" },
-    _sum: { balance: true }, _count: true, orderBy: { _sum: { balance: "desc" } },
-  });
-  const products = await prisma.product.findMany({ where: { id: { in: grouped.map((g) => g.productId) } }, select: { id: true, name: true } });
-  const nameOf = new Map(products.map((p) => [p.id, p.name]));
-  return {
-    kind: "by-product",
-    answer: `Here's your outstanding book split by product.`,
-    table: {
-      head: ["Product", "OLB", "Loans"],
-      rows: grouped.map((g) => [nameOf.get(g.productId) ?? "—", kesShort(num(g._sum.balance)), String(g._count)]),
-    },
-  };
-}
-
-async function h_borrowers(orgId: string): Promise<AnalystResult> {
-  const [total, newThisWeek, verified] = await Promise.all([
-    prisma.borrower.count({ where: { orgId } }),
-    prisma.borrower.count({ where: { orgId, createdAt: { gte: startOfWeek() } } }),
-    prisma.borrower.count({ where: { orgId, kycStatus: "VERIFIED" } }),
-  ]);
-  return {
-    kind: "borrowers",
-    answer: `You have **${total}** borrower${total === 1 ? "" : "s"} on the book — ${newThisWeek} joined this week, ${verified} fully KYC-verified.`,
-    chips: [
-      { label: "Borrowers", value: String(total) },
-      { label: "New this week", value: String(newThisWeek), tone: newThisWeek > 0 ? "good" : undefined },
-      { label: "KYC verified", value: String(verified) },
-    ],
-  };
-}
-
-async function h_field(orgId: string): Promise<AnalystResult> {
-  const [visits, agents] = await Promise.all([
-    prisma.fieldVisit.groupBy({ by: ["status"], where: { orgId }, _count: true }),
-    prisma.staffUser.count({ where: { orgId, isFieldAgent: true, status: "ACTIVE" } }),
-  ]);
-  const by = new Map(visits.map((v) => [v.status, v._count]));
-  const g = (k: string) => by.get(k as never) ?? 0;
-  const open = g("QUEUED") + g("ALLOCATED") + g("EN_ROUTE") + g("ARRIVED");
-  return {
-    kind: "field",
-    answer: `**${agents}** field agent${agents === 1 ? "" : "s"} on duty with **${open}** open visit${open === 1 ? "" : "s"}. ${g("VERIFIED")} verified, ${g("QUEUED")} awaiting allocation.`,
-    chips: [
-      { label: "Field agents", value: String(agents) },
-      { label: "Open visits", value: String(open), tone: open > 0 ? "warn" : "good" },
-      { label: "Verified", value: String(g("VERIFIED")), tone: "good" },
-    ],
-  };
-}
-
-async function h_scores(orgId: string): Promise<AnalystResult> {
-  const [agg, bands] = await Promise.all([
-    prisma.scoreSnapshot.aggregate({ where: { orgId }, _avg: { score: true }, _count: true }),
-    prisma.scoreSnapshot.groupBy({ by: ["riskBand"], where: { orgId }, _count: true, orderBy: { _count: { riskBand: "desc" } } }),
-  ]);
-  const avg = agg._avg.score != null ? Math.round(agg._avg.score) : null;
-  return {
-    kind: "scores",
-    answer: `Riri has scored **${agg._count}** application${agg._count === 1 ? "" : "s"} to date${avg != null ? `, averaging **${avg}**` : ""}. Every score is a training row in your closed ML loop.`,
-    chips: [
-      { label: "Scores", value: String(agg._count) },
-      ...(avg != null ? [{ label: "Avg score", value: String(avg) }] : []),
-      ...bands.filter((b) => b.riskBand).slice(0, 2).map((b) => ({ label: b.riskBand ?? "—", value: String(b._count) })),
-    ],
-  };
-}
-
-async function h_watchlist(orgId: string): Promise<AnalystResult> {
-  // Riri ships on Advanced, but early-warning is a Premium engine. Asking her
-  // about it must not become a side door around the package the lender bought.
-  if (!(await hasFeature(orgId, "portfolio-scan"))) {
-    const plan = cheapestPlanWith("portfolio-scan");
     return {
-      kind: "watchlist",
-      answer: `Portfolio early-warning isn't on your package yet. **${plan?.name}** (KES ${plan?.monthlyKes.toLocaleString()}/mo) scores every active loan for the early signs of default. Open **Billing** to add it.`,
+      ok: true, route: "catalog", kind: m.id, metricId: m.id, sql: r.sql, ms: r.ms, rows: r.rows.length,
+      answer: `Here's **${label.toLowerCase()}** by ${dim.label.toLowerCase()}${periodSuffix(p.range)}${share}.`,
+      table,
     };
   }
-  const ew = await portfolioEarlyWarning(orgId);
-  const top = ew.rows.slice(0, 5);
-  const dr = ew.tiles.olb > 0 ? pct(ew.tiles.atRiskValue, ew.tiles.olb) : 0;
+
+  // The plain number.
+  const r = await run(orgId, compile(spec, { range: p.range }));
+  if (!r.ok) return failed(m, r);
+
+  const row = r.rows[0] ?? {};
+  const value = num(row.value);
+  const n = row.n == null ? null : num(row.n);
+
+  const chips: MetricChip[] = [{ label, value: fmt(value, spec.unit, true), tone: toneFor(m, value) }];
+  if (n != null && spec.countNoun) chips.push({ label: titleCase(spec.countNoun), value: String(n) });
+
+  const lines: string[] = [
+    `${sentence(label, p.range, value, spec)}${n != null && spec.countNoun ? ` — across ${plural(n, spec.countNoun)}` : ""}.`,
+  ];
+
+  // "vs the month before" — only for flows, and only against a comparable window.
+  const prev = spec.timeColumn ? previousRange(p.range) : null;
+  if (prev) {
+    const before = await scalar(orgId, spec, prev);
+    if (before && before.value > 0) {
+      const delta = ((value - before.value) / before.value) * 100;
+      const dir = delta >= 0 ? "up" : "down";
+      const good = spec.goodDirection ? (delta >= 0) === (spec.goodDirection === "up") : null;
+      lines.push(`That's **${dir} ${Math.abs(delta).toFixed(0)}%** on ${prev.label} (${fmt(before.value, spec.unit, true)}).`);
+      chips.push({
+        label: `vs ${prev.label}`,
+        value: `${delta >= 0 ? "+" : ""}${delta.toFixed(0)}%`,
+        tone: good == null ? undefined : good ? "good" : "bad",
+      });
+    }
+  }
+
+  if (m.target != null && m.targetDirection) {
+    const verdict = targetVerdict(m, value);
+    chips.push({ label: "Your target", value: `${m.targetDirection === "below" ? "≤" : "≥"} ${fmt(m.target, spec.unit, true)}`, tone: verdict ?? undefined });
+    lines.push(
+      verdict === "good"
+        ? `That's inside the target you set (${m.targetDirection === "below" ? "at or below" : "at or above"} ${fmt(m.target, spec.unit)}).`
+        : `That's outside the target you set (${m.targetDirection === "below" ? "at or below" : "at or above"} ${fmt(m.target, spec.unit)}).`,
+    );
+  } else if (spec.id === "par30") {
+    // The one measure with a conventional reading everyone in microfinance shares.
+    lines.push(value < 5 ? `That's healthy.` : value < 10 ? `That's worth watching.` : `That's elevated — worth a collections push.`);
+  }
+
   return {
+    ok: true, route: "catalog", kind: m.id, metricId: m.id, sql: r.sql, ms: r.ms, rows: r.rows.length,
+    answer: lines.join(" "),
+    chips,
+  };
+}
+
+const titleCase = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+function periodPhrase(range: TimeRange): string {
+  return range.label === "all-time" ? "" : range.label;
+}
+function periodSuffix(range: TimeRange): string {
+  return range.label === "all-time" ? "" : `, ${range.label}`;
+}
+
+/**
+ * The headline sentence. Flows happened over a period; stocks just *are*.
+ *
+ * Counts get a colon rather than a verb: "Your applications waiting is 1" is not a
+ * sentence anyone would say, while "Applications waiting: 1" is how it would appear on
+ * the board pack.
+ */
+function sentence(label: string, range: TimeRange, value: number, spec: MetricSpec): string {
+  const v = `**${fmt(value, spec.unit)}**`;
+  const periodless = !spec.timeColumn || range.label === "all-time";
+  if (spec.unit === "count") return `**${titleCase(label)}**${periodless ? "" : ` ${range.label}`}: ${v}`;
+  if (periodless) return `Your **${label.toLowerCase()}** is ${v}`;
+  return `**${titleCase(label)}** ${range.label}: ${v}`;
+}
+
+function toneFor(m: ResolvedMetric, value: number): MetricChip["tone"] {
+  const verdict = targetVerdict(m, value);
+  if (verdict) return verdict;
+  if (m.id === "par30") return value < 5 ? "good" : value < 10 ? "warn" : "bad";
+  return undefined;
+}
+
+/**
+ * Zero-fill the months the SQL didn't return. A month with no disbursements must
+ * draw a bar of zero rather than vanish, or six sparse months render as six busy
+ * ones and the trend line lies.
+ */
+function seriesFrom(rows: Row[], months: number, unit: "KES" | "count"): Series {
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const now = new Date();
+  const buckets = new Map<string, number>();
+  for (const r of rows) {
+    const at = new Date(String(r.bucket));
+    if (!Number.isNaN(at.getTime())) buckets.set(`${at.getFullYear()}-${at.getMonth()}`, num(r.value));
+  }
+  const points: { x: string; y: number }[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    points.push({ x: MONTHS[d.getMonth()], y: Math.round(buckets.get(`${d.getFullYear()}-${d.getMonth()}`) ?? 0) });
+  }
+  return { unit, points };
+}
+
+function failed(m: ResolvedMetric, r: Extract<Ran, { ok: false }>): AnalystResult {
+  return {
+    ok: false,
+    route: "refused",
+    kind: m.id,
+    metricId: m.id,
+    sql: r.sql,
+    ms: r.ms,
+    error: r.error,
+    answer: `I couldn't read that one: ${r.error}`,
+  };
+}
+
+// ── The early-warning engine (not SQL — a model) ──────────────────────────────
+
+async function answerWatchlist(orgId: string): Promise<AnalystResult> {
+  if (!(await hasFeature(orgId, "portfolio-scan"))) {
+    const p = cheapestPlanWith("portfolio-scan");
+    return {
+      ok: true, route: "narrative", kind: "watchlist",
+      answer: `Portfolio early-warning isn't on your package yet. **${p?.name}** (KES ${p?.monthlyKes.toLocaleString()}/mo) scores every active loan for the early signs of default. Open **Billing** to add it.`,
+    };
+  }
+
+  const ew = await portfolioEarlyWarning(orgId);
+  const pctOfBook = ew.tiles.olb > 0 ? (ew.tiles.atRiskValue / ew.tiles.olb) * 100 : 0;
+
+  return {
+    ok: true,
+    route: "engine",
     kind: "watchlist",
     answer: ew.rows.length === 0
       ? `Nothing on the early-warning watchlist right now — every active loan is behaving. I'll flag them the moment they start to slip.`
-      : `**${ew.rows.length}** borrower${ew.rows.length === 1 ? "" : "s"} on the early-warning watchlist — ${ew.tiles.high} high-risk, ${kesShort(ew.tiles.atRiskValue)} at risk (${dr.toFixed(0)}% of book), ~${kesShort(ew.tiles.projectedLoss)} projected loss. Open **Credit Intelligence** to act on them.`,
+      : `**${ew.rows.length}** borrower${ew.rows.length === 1 ? "" : "s"} on the early-warning watchlist — ${ew.tiles.high} high-risk, ${kesShort(ew.tiles.atRiskValue)} at risk (${pctOfBook.toFixed(0)}% of book), ~${kesShort(ew.tiles.projectedLoss)} projected loss. Open **Credit Intelligence** to act on them.\n\nThis one comes from the risk model rather than a SQL query — it weighs arrears, the score at origination and structural risk together.`,
     chips: [
       { label: "Watchlist", value: String(ew.rows.length), tone: ew.rows.length > 0 ? "warn" : "good" },
       { label: "High risk", value: String(ew.tiles.high), tone: ew.tiles.high > 0 ? "bad" : "good" },
       { label: "Value at risk", value: kesShort(ew.tiles.atRiskValue) },
       { label: "Projected loss", value: kesShort(ew.tiles.projectedLoss), tone: "bad" },
     ],
-    table: top.length ? { head: ["Borrower", "DPD", "Risk", "Balance"], rows: top.map((r) => [r.name, String(r.dpd), r.band, kesShort(r.balance)]) } : undefined,
+    table: ew.rows.length
+      ? { head: ["Borrower", "DPD", "Risk", "Balance"], rows: ew.rows.slice(0, 5).map((r) => [r.name, String(r.dpd), r.band, kesShort(r.balance)]) }
+      : undefined,
   };
 }
 
-async function h_help(orgId: string): Promise<AnalystResult> {
-  const p = await pulse(orgId);
+// ── Help ──────────────────────────────────────────────────────────────────────
+
+async function answerHelp(orgId: string, metrics: ResolvedMetric[]): Promise<AnalystResult> {
+  const olb = metricSpec("olb")!;
+  const par = metricSpec("par30")!;
+  const waiting = metricSpec("apps_waiting")!;
+  const [book, par30, queue] = await Promise.all([
+    scalar(orgId, olb, ALL_TIME),
+    scalar(orgId, par, ALL_TIME),
+    scalar(orgId, waiting, ALL_TIME),
+  ]);
+
+  const live = metrics.filter((m) => m.enabled);
+  const known = live.slice(0, 8).map((m) => m.displayLabel.toLowerCase()).join(", ");
+
   return {
+    ok: true,
+    route: "narrative",
     kind: "help",
     answer:
-      `I'm **Riri Analyst** — I read your live loan book so you don't have to pull a report. Right now you're carrying ${kesShort(p.olb)} across ${p.activeCount} active loans, PAR 30 at ${p.par30.toFixed(1)}%, with ${p.appsWaiting} application${p.appsWaiting === 1 ? "" : "s"} waiting.\n\nTry asking about disbursements, collections, arrears, approval rate, default rate, top borrowers, or your product mix.`,
+      `I'm **Riri Analyst** — I read your live book so you don't have to pull a report. Right now you're carrying ${kesShort(book?.value ?? 0)} across ${plural(book?.n ?? 0, "active loan")}, PAR 30 at ${(par30?.value ?? 0).toFixed(1)}%, with ${plural(queue?.value ?? 0, "application")} waiting on a decision.\n\n` +
+      `I know **${live.length} measures** of your book — ${known}, and more. Ask for any of them by period ("collected last month"), sliced ("PAR by product"), ranked ("top 5 borrowers") or as a trend ("disbursements over time"). Every answer shows you the SQL it came from.`,
     chips: [
-      { label: "Outstanding book", value: kesShort(p.olb) },
-      { label: "PAR 30", value: `${p.par30.toFixed(1)}%`, tone: p.par30 < 5 ? "good" : p.par30 < 10 ? "warn" : "bad" },
-      { label: "Apps waiting", value: String(p.appsWaiting) },
+      { label: "Outstanding book", value: kesShort(book?.value ?? 0) },
+      { label: "PAR 30", value: `${(par30?.value ?? 0).toFixed(1)}%`, tone: (par30?.value ?? 0) < 5 ? "good" : (par30?.value ?? 0) < 10 ? "warn" : "bad" },
+      { label: "Apps waiting", value: String(queue?.value ?? 0) },
     ],
   };
 }
 
-// ── Router (the LLM/text-to-SQL seam) ─────────────────────────────────────────
-type Intent = { id: string; keys: RegExp; run: (orgId: string, q: string) => Promise<AnalystResult> };
-const INTENTS: Intent[] = [
-  { id: "watchlist", keys: /watchlist|early warning|who.*(default|risk|slip)|going to default|might default|about to default|risky borrower|flight risk|who owes/, run: (o) => h_watchlist(o) },
-  { id: "par", keys: /\bpar\b|arrears|overdue|at risk|delinquen|non[- ]?performing|npl/, run: (o) => h_par(o) },
-  { id: "outcomes", keys: /default rate|defaults?|repaid|repayment rate|write[- ]?off|charge[- ]?off|outcome/, run: (o) => h_outcomes(o) },
-  { id: "disbursed", keys: /disburs|paid out|lent|loaned out|payout|booked/, run: (o, q) => h_disbursed(o, q) },
-  { id: "collected", keys: /collect|repay|received|recover|inflow|collections/, run: (o, q) => h_collected(o, q) },
-  { id: "approval", keys: /approval rate|approv|decline rate|declined|rejection/, run: (o) => h_approval(o) },
-  { id: "applications", keys: /applications?|pipeline|queue|waiting|to review|pending app/, run: (o) => h_applications(o) },
-  { id: "top-borrowers", keys: /top borrower|largest|biggest|top 5|top five|exposure|concentration/, run: (o) => h_topBorrowers(o) },
-  { id: "by-product", keys: /by product|per product|product mix|product breakdown|which product/, run: (o) => h_byProduct(o) },
-  { id: "borrowers", keys: /borrowers?|customers?|clients?|how many people/, run: (o) => h_borrowers(o) },
-  { id: "field", keys: /field|agent|visit|verification|route|on the ground/, run: (o) => h_field(o) },
-  { id: "scores", keys: /score|scoring|model|risk band|credit intelligence/, run: (o) => h_scores(o) },
-  { id: "olb", keys: /olb|outstanding|loan book|portfolio|book size|how big|total loans/, run: (o) => h_olb(o) },
-];
+// ── Entry point ───────────────────────────────────────────────────────────────
 
-/** Route a question to the best-matching metric handler (keyword scored). */
+/**
+ * Answer a question about this org's book.
+ *
+ * The order is deliberate: the governed catalogue gets first refusal, because a
+ * definition someone reviewed beats a definition a model improvised. Only what the
+ * catalogue cannot express is offered to the text-to-SQL path — and if there is no
+ * model configured, Riri says what she cannot do rather than guessing.
+ */
 export async function analyze(orgId: string, question: string): Promise<AnalystResult> {
-  const q = question.toLowerCase();
-  if (/^\s*(hi|hey|hello|help|what can you do|who are you)\b/.test(q) || q.trim().length < 3) {
-    return h_help(orgId);
+  const metrics = await metricsFor(orgId);
+  const p = plan(question, metrics);
+
+  if (p.kind === "help") return answerHelp(orgId, metrics);
+  if (p.kind === "engine") return answerWatchlist(orgId);
+
+  if (p.kind === "metric") {
+    const m = metrics.find((x) => x.id === p.metricId);
+    if (m?.enabled) return answerMetric(orgId, m, p);
   }
-  let best: Intent | null = null;
-  let bestScore = 0;
-  for (const it of INTENTS) {
-    const m = q.match(new RegExp(it.keys, "g"));
-    const score = m ? m.length : 0;
-    if (score > bestScore) { bestScore = score; best = it; }
+
+  // Nothing in the catalogue fits. Offer it to a model — which, with no key, declines.
+  const proposal = await proposeSql(orgId, question);
+  if (!proposal) {
+    return {
+      ok: true,
+      route: "narrative",
+      kind: "unknown",
+      answer:
+        `I can't answer that one from my metric catalogue, and I'd rather tell you that than guess a number.\n\n` +
+        `I'm good for: your outstanding book, PAR 30 and value at risk, arrears and what's due today, disbursements and collections, your application pipeline and approval rate, default rate, borrowers, average loan size and scores — each by period, by product, by borrower, or as a trend.`,
+    };
   }
-  if (!best) return h_help(orgId);
-  return best.run(orgId, q);
+
+  // Model-written SQL. It gets NO more trust than the string a user could have typed:
+  // same guard, same read-only tenant-stamped path, same row cap, and it is shown.
+  const guard = validateReadSql(proposal.sql);
+  if (!guard.ok) {
+    return {
+      ok: false, route: "refused", kind: "llm", sql: proposal.sql, error: guard.reason,
+      answer: `I wrote a query for that and then refused to run it: ${guard.reason}`,
+    };
+  }
+
+  const res = await runReadQuery(orgId, guard.sql);
+  if (!res.ok) {
+    return { ok: false, route: "refused", kind: "llm", sql: guard.sql, ms: res.ms, error: res.error, answer: `I couldn't run that: ${res.error}` };
+  }
+
+  return {
+    ok: true,
+    route: "llm",
+    kind: "llm",
+    sql: guard.sql,
+    ms: res.ms,
+    rows: res.rows.length,
+    answer: `Here's what I found. This one isn't a governed metric — I wrote the query for it, so check the SQL below before you act on it.`,
+    table: tableFrom(res.rows),
+  };
+}
+
+/** Render arbitrary result rows as a small table — used only by the text-to-SQL path. */
+function tableFrom(rows: Row[]): MiniTable | undefined {
+  if (!rows.length) return undefined;
+  const head = Object.keys(rows[0]).slice(0, 4);
+  return {
+    head,
+    rows: rows.slice(0, 12).map((r) =>
+      head.map((h) => {
+        const v = r[h];
+        if (v == null) return "—";
+        if (typeof v === "number") return Number.isInteger(v) ? v.toLocaleString() : v.toFixed(2);
+        return String(v);
+      }),
+    ),
+  };
 }

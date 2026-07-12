@@ -48,7 +48,7 @@ const STARTER_ROLES: { title: string; rights: string[] }[] = [
     title: "Loan Officer",
     rights: [
       "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view", "loans.apply",
-      "products.view", "documents.view", "documents.parse", "field.view", "reports.view", "riri.use",
+      "products.view", "documents.view", "documents.parse", "field.view", "reports.view", "riri.use", "metrics.view",
       "collections.view", "collections.manage",
     ],
   },
@@ -58,7 +58,7 @@ const STARTER_ROLES: { title: string; rights: string[] }[] = [
       "borrowers.view", "borrowers.create", "applications.view", "applications.decide", "loans.view", "loans.apply",
       "products.view", "workflows.view", "documents.view", "documents.parse", "field.view", "field.manage",
       "disbursements.view", "disbursements.manage", "float.view", "repayments.view", "repayments.collect",
-      "team.view", "intelligence.view", "reports.view", "riri.use",
+      "team.view", "intelligence.view", "reports.view", "riri.use", "metrics.view", "metrics.manage",
       "collections.view", "collections.manage", "sms.view", "sms.manage",
     ],
   },

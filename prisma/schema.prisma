@@ -134,6 +134,8 @@ model Org {
   tickets       CollectionTicket[]
   smsCampaigns  SmsCampaign[]
   emails        EmailMessage[]
+  metricDefs    MetricDefinition[]
+  ririQueries   RiriQueryLog[]
 }
 
 enum IntegrationKind {
@@ -1412,6 +1414,85 @@ model GeoPin {
   createdAt     DateTime @default(now())
 
   @@index([orgId])
+}
+
+/// The semantic layer's per-org overlay.
+///
+/// The metric CATALOGUE ITSELF IS CODE (src/lib/riri/catalog.ts) — same reasoning
+/// as the billing price book: what a metric MEANS ("PAR 30 is the balance of every
+/// active loan with an installment more than 30 days overdue, over the outstanding
+/// book") changes rarely, deliberately, and under review. It is not CRUD.
+///
+/// What belongs to the lender is how they SPEAK about it and what they hold
+/// themselves to: the words their staff actually use ("delinquency", "my book"),
+/// the number they target, and whether Riri may quote it at all. That is this row.
+/// A metricId absent from the code catalogue cannot be created here.
+model MetricDefinition {
+  id       String @id @default(uuid())
+  orgId    String
+  /// Catalogue key — validated against MetricSpec.id at write time.
+  metricId String
+
+  /// What this lender calls it. Null = the catalogue's own label.
+  label String?
+  /// Extra words their staff use for it. Riri routes on these too.
+  synonyms String[] @default([])
+  /// A metric switched off is never quoted, routed to, or offered as a suggestion.
+  enabled Boolean @default(true)
+
+  /// The number they hold themselves to, in the metric's own unit (PAR 30 ≤ 5).
+  target Float?
+  /// Which side of the target is good: "below" | "above".
+  targetDirection String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, metricId])
+  @@index([orgId])
+}
+
+/// Every question put to Riri, with the SQL that answered it.
+///
+/// The blueprint's rule for the analytics tier is "SQL always shown"; this is the
+/// record of what was shown, kept for the three parties who will one day ask:
+/// the lender (did she read my book correctly?), us (what do lenders actually ask,
+/// and which questions does the catalogue miss?), and a regulator (on what basis
+/// was this number reported?). Refusals are logged too — a question the guard
+/// turned away is exactly the kind we want to see.
+model RiriQueryLog {
+  id      String  @id @default(uuid())
+  orgId   String
+  staffId String?
+
+  model    String // analyst | copilot | max
+  question String
+
+  /// How it was answered:
+  ///   catalog   — a governed metric, compiled to SQL by us
+  ///   llm       — SQL proposed by a model, then put through the same guard
+  ///   engine    — a model, not SQL (early-warning); numbers still real
+  ///   narrative — no data read (Copilot/Max, help)
+  ///   refused   — the guard said no; `error` says why
+  route    String
+  metricId String?
+
+  /// The exact statement that ran, as the lender was shown it. Null when none did.
+  sql  String?
+  rows Int?
+  ms   Int?
+  ok   Boolean @default(true)
+  /// The guard's reason, or the database's error, verbatim. Never paraphrased.
+  error String?
+
+  createdAt DateTime @default(now())
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, createdAt])
+  @@index([orgId, route])
 }
 
 /// Usage metering for Intelligence Suite billing (per-score, per-statement,
