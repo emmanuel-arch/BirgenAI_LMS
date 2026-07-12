@@ -17,6 +17,23 @@ const ok = (name: string, cond: boolean, extra = "") => {
   else { fail++; console.log(`  FAIL  ${name}${extra ? ` — ${extra}` : ""}`); }
 };
 
+/**
+ * A key shaped like the real thing.
+ *
+ * This used to be the string "test-service-role-key", and the moment the provider
+ * learned to VALIDATE the key's shape (so that a founder who pastes their database
+ * password into SUPABASE_SERVICE_ROLE_KEY is told so, instead of getting "Invalid
+ * Compact JWS" from Supabase) this suite started failing — because a 21-character
+ * string with no JWT structure is exactly the mistake the validator exists to catch.
+ * The validator was right and the fixture was wrong. A test double for a credential
+ * has to be shaped like the credential.
+ */
+const FAKE_SERVICE_KEY = [
+  Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url"),
+  Buffer.from(JSON.stringify({ role: "service_role", iss: "supabase" })).toString("base64url"),
+  "fake-signature",
+].join(".");
+
 const b64 = (b: Buffer) => b.toString("base64");
 const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(600, 7)]);
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(600, 7)]);
@@ -39,8 +56,23 @@ function fakeBucket(received: Received[]): Promise<{ server: Server; url: string
           body: Buffer.concat(chunks),
         });
         if (req.method === "POST" && req.url!.startsWith("/storage/v1/object/sign/")) {
-          const objectPath = req.url!.replace("/storage/v1/object/sign/", "");
+          const body = Buffer.concat(chunks).toString() || "{}";
+          const parsed = JSON.parse(body) as { paths?: string[] };
           res.writeHead(200, { "Content-Type": "application/json" });
+
+          // Supabase signs a BATCH at POST /object/sign/<bucket> with { paths } and
+          // answers with an ARRAY — a different shape from the single-key endpoint at
+          // /object/sign/<bucket>/<key>. Speaking both is the whole reason this fake
+          // exists: it is our wire format under test, not Supabase's uptime.
+          if (Array.isArray(parsed.paths)) {
+            const bucket = req.url!.replace("/storage/v1/object/sign/", "");
+            res.end(JSON.stringify(parsed.paths.map((p) => ({
+              error: null, path: p, signedURL: `/object/sign/${bucket}/${p}?token=fake.jwt.token`,
+            }))));
+            return;
+          }
+
+          const objectPath = req.url!.replace("/storage/v1/object/sign/", "");
           res.end(JSON.stringify({ signedURL: `/object/sign/${objectPath}?token=fake.jwt.token` }));
           return;
         }
@@ -94,7 +126,7 @@ async function main() {
   const received: Received[] = [];
   const { server, url } = await fakeBucket(received);
   process.env.SUPABASE_URL = url;
-  process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = FAKE_SERVICE_KEY;
   // Fresh module instance so nothing from the simulation run is cached.
   const live = await import(`../src/lib/storage/provider?live=${Date.now()}`) as typeof sim;
 
@@ -106,7 +138,7 @@ async function main() {
     const put = received.find((r) => r.method === "POST" && r.path.includes("/object/kyc-private/"))!;
     ok("key is <orgId>/<sessionId>/<kind>-<uuid>.jpg", new RegExp(`^${ORG}/${SESSION}/id-front-[0-9a-f-]{36}\\.jpg$`).test(key), key);
     ok("uploaded to the kyc-private bucket at that key", !!put && put.path === `/storage/v1/object/kyc-private/${key}`);
-    ok("upload carried the service-role bearer token", put?.auth === "Bearer test-service-role-key");
+    ok("upload carried the service-role bearer token", put?.auth === `Bearer ${FAKE_SERVICE_KEY}`);
     ok("upload declared the SNIFFED content type", put?.contentType === "image/jpeg");
     ok("the exact image bytes arrived", put?.body.equals(JPEG), `${put?.body.length} bytes`);
 
@@ -116,12 +148,51 @@ async function main() {
     ok("signedUrl returns an absolute URL with the token", signed === `${url}/storage/v1/object/sign/kyc-private/${key}?token=fake.jwt.token`, signed ?? "null");
     ok("the signed URL is NOT the public object path", !!signed && !signed.includes("/object/public/"));
 
+    // A list of fifty borrowers with a face beside each name must not be fifty
+    // sequential round trips to Supabase before the page can render.
+    console.log("\n5. Portraits are signed in ONE round trip");
+    const before = received.filter((r) => r.path.includes("/object/sign/")).length;
+    const keys = [`${ORG}/s1/portrait-a.jpg`, `${ORG}/s2/portrait-b.jpg`, `sim/${ORG}/s3/portrait-c.jpg`];
+    const many = await live.signedUrls(keys, 600);
+    const signCalls = received.filter((r) => r.path.includes("/object/sign/")).length - before;
+    ok("N keys cost ONE request, not N", signCalls === 1, `${signCalls} request(s) for ${keys.length} keys`);
+    ok("…and a sim/ key is never asked for — there are no bytes behind it", many.size === 2);
+    ok("…each real key comes back as an absolute, tokened URL",
+      many.get(keys[0])?.startsWith(`${url}/storage/v1/object/sign/`) === true);
+
     const deleted = await live.deleteKycObjects([key, `sim/${ORG}/x/y.jpg`]);
     const del = received.find((r) => r.method === "DELETE")!;
     ok("deletion targets only real keys", deleted === 1 && JSON.parse(del.body.toString()).prefixes.length === 1);
   } finally {
     server.close();
   }
+
+  // ── The key validator ────────────────────────────────────────────────────────
+  // The three ways a founder actually gets this wrong, each named so the message on
+  // screen tells them which one they made. This section is here because its absence
+  // is why the fixture above went un-caught: a validator with no tests is a guess.
+  console.log("\n6. A wrong service-role key is diagnosed, not passed to Supabase");
+  const probe = async (value: string | undefined) => {
+    if (value === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = value;
+    const m = await import(`../src/lib/storage/provider?probe=${Math.random()}`) as typeof sim;
+    return m.serviceKeyProblem();
+  };
+
+  ok("no key at all is not a problem — that is simulation mode", (await probe(undefined)) === null);
+  ok("a real sb_secret_ key passes", (await probe("sb_secret_abc123")) === null);
+  ok("a real service_role JWT passes", (await probe(FAKE_SERVICE_KEY)) === null);
+  ok("the PUBLISHABLE key is caught by name", /PUBLISHABLE/i.test((await probe("sb_publishable_abc123")) ?? ""));
+
+  const anonJwt = [
+    Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url"),
+    Buffer.from(JSON.stringify({ role: "anon", iss: "supabase" })).toString("base64url"),
+    "sig",
+  ].join(".");
+  ok("the ANON key is caught, and named as the anon key", /"anon" key/.test((await probe(anonJwt)) ?? ""));
+  ok("a database password pasted into the wrong variable is caught",
+    /not a Supabase key/.test((await probe("SomeDbPassw0rd!")) ?? ""),
+    "the exact mistake that broke logo uploads");
 
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail === 0 ? 0 : 1);

@@ -272,6 +272,44 @@ export async function signedUrl(key: string, ttlSec = SIGNED_URL_TTL_SEC, bucket
   return signedURL ? `${supabaseUrl()}/storage/v1${signedURL}` : null;
 }
 
+/**
+ * Sign MANY keys in one round trip.
+ *
+ * A list of fifty borrowers with a face beside each name is fifty signatures. Done
+ * one at a time that is fifty sequential HTTPS calls to Supabase before the page can
+ * render — the feature would be its own argument against itself. Supabase signs a
+ * batch in one POST; this maps the results back by path, since order isn't promised.
+ *
+ * Never throws: a portrait that cannot be signed is a face that doesn't appear, and
+ * a borrowers list must still render. Missing keys simply have no entry.
+ */
+export async function signedUrls(
+  keys: string[],
+  ttlSec = SIGNED_URL_TTL_SEC,
+  bucket: string = KYC_BUCKET,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const real = [...new Set(keys.filter((k) => k && !k.startsWith("sim/")))];
+  if (real.length === 0 || storageMode() === "simulation") return out;
+
+  try {
+    const res = await fetch(`${supabaseUrl()}/storage/v1/object/sign/${bucket}`, {
+      method: "POST",
+      headers: headers({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ paths: real, expiresIn: ttlSec }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return out;
+    const rows = (await res.json()) as { path?: string; signedURL?: string; error?: string | null }[];
+    for (const r of rows) {
+      if (r.path && r.signedURL && !r.error) out.set(r.path, `${supabaseUrl()}/storage/v1${r.signedURL}`);
+    }
+  } catch {
+    // A storage outage costs faces, not the page.
+  }
+  return out;
+}
+
 /** Erasure (DPA right to deletion). Best-effort, never throws. */
 export async function deleteObjects(keys: string[], bucket: string = KYC_BUCKET): Promise<number> {
   const real = keys.filter((k) => k && !k.startsWith("sim/"));

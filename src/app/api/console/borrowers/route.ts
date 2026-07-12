@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { originStamp, resolveScope, borrowerScopeWhere } from "@/lib/rbac/scope";
+import { portraitsFor } from "@/lib/kyc/avatars";
 
 export const runtime = "nodejs";
 
@@ -49,6 +50,9 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  // The face beside the name. One batch signature for the whole page (lib/kyc/avatars).
+  const portraits = await portraitsFor(borrowers.map((b) => b.id));
+
   return NextResponse.json({
     success: true,
     borrowers: borrowers.map((b) => {
@@ -56,6 +60,7 @@ export async function GET(req: NextRequest) {
       const cleared = b.loans.filter((l) => l.status === "CLEARED");
       return {
         id: b.id,
+        portraitUrl: portraits[b.id] ?? null,
         name: `${b.firstName ?? ""} ${b.otherName ?? ""}`.trim() || null,
         phone: b.phone,
         nationalId: b.nationalId,

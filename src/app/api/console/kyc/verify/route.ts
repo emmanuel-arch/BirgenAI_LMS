@@ -1,0 +1,275 @@
+// POST /api/console/kyc/verify — verify a customer standing at the counter.
+//
+// Body: { borrowerId, step, sessionId?, payload }
+//   step: "id" | "liveness-challenges" | "liveness" | "facematch" | "iprs" | "finalize"
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// WHY THIS EXISTS, AND WHY IT IS NOT /api/portal/kyc.
+//
+// The counter flow used to send the officer to /verify — the BORROWER's portal —
+// in a new tab. That page has no session to tell it which lender it is serving, so
+// it works out the org from the address bar: the subdomain, or ?lender=. On the
+// console's own host (localhost, birgenai.com — both reserved labels) it resolves
+// to nothing and falls back to `hub`.
+//
+// So an officer at Techcrast who verified a customer wrote that customer's KYC
+// session, checks and photographs into the HUB org, and at finalize the code went
+// looking for a borrower in HUB with that phone number. There wasn't one. The
+// verification did not fail to save — it saved into another lender's books, and
+// the officer was told "you're verified" while their customer stayed blocked.
+//
+// A staff member's org is not a guess. It is on their session. This route takes it
+// from there and takes the borrower explicitly, so the class of bug cannot recur.
+//
+// WHAT REPLACES THE OTP. On the portal, an OTP proves the person holds the phone —
+// that is what stops someone attaching their own verified face to another person's
+// account. Here the officer IS the proof: they are looking at the customer. So the
+// binding is asserted by a named member of staff, and that assertion is written to
+// the audit log with their id. A machine's word or a human's word — but never
+// nobody's.
+// ─────────────────────────────────────────────────────────────────────────────
+import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
+import { auth } from "@/lib/auth";
+import { requireRight } from "@/lib/rbac/authz";
+import { prisma } from "@/lib/prisma";
+import { resolveScope, canSeeBorrower } from "@/lib/rbac/scope";
+import { rateLimit } from "@/lib/ratelimit";
+import { requireFeature } from "@/lib/billing/entitlements";
+import { meter } from "@/lib/billing/meter";
+import {
+  kycMode, assessIdQuality, extractId, assessLiveness, activeLivenessChallenges, assessActiveLiveness,
+  faceMatch, iprsLookup, portraitIsStandardized,
+} from "@/lib/kyc/provider";
+import { putKycObject, storageMode, InvalidImageError, MAX_IMAGE_BYTES, type KycAssetKind } from "@/lib/storage/provider";
+import { attachKycSession } from "@/lib/kyc/attach";
+
+export const runtime = "nodejs";
+
+type Step = "id" | "liveness-challenges" | "liveness" | "facematch" | "iprs" | "finalize";
+
+/** base64 inflates by 4/3; leave room for the rest of the JSON envelope. */
+const MAX_BODY_BYTES = Math.ceil(MAX_IMAGE_BYTES * 1.4);
+
+export async function POST(req: NextRequest) {
+  const declared = Number(req.headers.get("content-length") ?? 0);
+  if (declared > MAX_BODY_BYTES) {
+    return NextResponse.json({ success: false, message: "That image is too large — retake it." }, { status: 413 });
+  }
+
+  const session = await auth();
+  if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
+  const denied = await requireRight(session, "kyc.verify");
+  if (denied) return denied;
+
+  const orgId = session.user.orgId;
+  const staffId = session.user.id;
+
+  let body: {
+    borrowerId?: string; step?: Step; sessionId?: string;
+    payload?: {
+      bytes?: number; brightness?: number; blurVar?: number; image?: string;
+      frames?: { challenge?: string; bytes?: number; image?: string }[];
+    };
+  };
+  try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
+
+  const borrowerId = (body.borrowerId ?? "").trim();
+  if (!borrowerId) return NextResponse.json({ success: false, message: "Which customer?" }, { status: 400 });
+
+  // An officer may only verify a customer they can actually see. Without this, the
+  // borrowerId in the body is an open door into every book in the org.
+  const scope = await resolveScope(session);
+  if (!(await canSeeBorrower(scope, borrowerId))) {
+    return NextResponse.json({ success: false, message: "That customer isn't on your book." }, { status: 404 });
+  }
+
+  const borrower = await prisma.borrower.findFirst({
+    where: { id: borrowerId, orgId },
+    select: { id: true, firstName: true, otherName: true, phone: true, nationalId: true },
+  });
+  if (!borrower) return NextResponse.json({ success: false, message: "Customer not found." }, { status: 404 });
+
+  const limited = await rateLimit([
+    { name: "kycverify:staff", subject: staffId, max: 300, windowSec: 3600 },
+    { name: "kycverify:borrower", subject: `${orgId}:${borrowerId}`, max: 60, windowSec: 3600 },
+  ]);
+  if (limited) return limited;
+
+  // The licensed identity provider bills the lender's plan, at the counter exactly
+  // as it does on the phone.
+  const gated = await requireFeature(orgId, "id-verify");
+  if (gated) return gated;
+
+  const mode = await kycMode(orgId);
+  const phone = borrower.phone;
+  const nationalId = borrower.nationalId ?? undefined;
+
+  // Resume this borrower's own in-flight session, or open one. Scoped to the org AND
+  // the borrower: a session id is a bearer token for an identity record.
+  const existing = body.sessionId
+    ? await prisma.kycSession.findFirst({ where: { id: body.sessionId, orgId, borrowerId } })
+    : null;
+  const kycSession = existing ?? await prisma.kycSession.create({
+    data: { orgId, borrowerId, phone, nationalId: nationalId || null, provider: mode },
+  });
+
+  // Deterministic simulation seed — the same person is the same person every time.
+  const seed = `${orgId}:${nationalId?.replace(/\D/g, "") || phone}`;
+  const p = body.payload ?? {};
+  const bytes = Number(p.bytes) || 0;
+
+  const writeCheck = (
+    kind: "ID_QUALITY" | "ID_OCR" | "LIVENESS" | "FACE_MATCH" | "IPRS" | "PORTRAIT_STANDARDIZE",
+    passed: boolean | null, score: number | null, payload: unknown,
+  ) =>
+    prisma.kycCheck.create({
+      data: {
+        orgId, sessionId: kycSession.id, borrowerId, kind, passed, score, provider: mode,
+        payload: payload as Prisma.InputJsonValue,
+      },
+    }).catch(() => {});
+
+  /** Persist the step's image — only AFTER it passes, so failed retakes leave no PII behind. */
+  const store = async (kind: KycAssetKind): Promise<string | null> => {
+    if (!p.image) return null;
+    return putKycObject(orgId, kycSession.id, kind, p.image);
+  };
+
+  const step = body.step;
+
+  try {
+    if (step === "id") {
+      const quality = assessIdQuality(seed, bytes, { brightness: p.brightness, blurVar: p.blurVar });
+      await writeCheck("ID_QUALITY", quality.passed, quality.score, quality);
+      if (!quality.passed) {
+        return NextResponse.json({ success: true, sessionId: kycSession.id, mode, step, quality, retake: true });
+      }
+      const idFrontKey = await store("id-front");
+      const ocr = extractId(seed, nationalId);
+      await writeCheck("ID_OCR", true, ocr.confidence, ocr);
+      const typedId = (nationalId || "").replace(/\D/g, "");
+      const idMismatch = typedId && ocr.idNumber && typedId !== ocr.idNumber.replace(/\D/g, "");
+      await prisma.kycSession.update({
+        where: { id: kycSession.id },
+        data: {
+          idQualityScore: quality.score, idOcrName: ocr.fullName, idOcrNumber: ocr.idNumber, idOcrDob: ocr.dob,
+          ...(idFrontKey ? { idFrontKey } : {}),
+        },
+      }).catch(() => {});
+      return NextResponse.json({ success: true, sessionId: kycSession.id, mode, step, quality, ocr, idMismatch: !!idMismatch });
+    }
+
+    if (step === "liveness-challenges") {
+      return NextResponse.json({ success: true, sessionId: kycSession.id, mode, step, challenges: activeLivenessChallenges(seed) });
+    }
+
+    if (step === "liveness") {
+      if (Array.isArray(p.frames) && p.frames.length > 0) {
+        const active = assessActiveLiveness(
+          seed,
+          p.frames.map((f) => ({ challenge: (f.challenge ?? "").trim(), bytes: Number(f.bytes) || 0 })),
+        );
+        await writeCheck("LIVENESS", active.passed, active.score, { mode: "active", ...active });
+        const lastImage = p.frames[p.frames.length - 1]?.image;
+        let selfieKey: string | null = null;
+        if (active.passed && lastImage) selfieKey = await putKycObject(orgId, kycSession.id, "selfie", lastImage);
+        await prisma.kycSession.update({
+          where: { id: kycSession.id },
+          data: { livenessScore: active.score, livenessPassed: active.passed, ...(selfieKey ? { selfieKey } : {}) },
+        });
+        return NextResponse.json({
+          success: true, sessionId: kycSession.id, mode, step,
+          liveness: { score: active.score, passed: active.passed, challenge: "active", frames: active.frames },
+          retake: !active.passed,
+        });
+      }
+
+      const liveness = assessLiveness(seed, bytes);
+      await writeCheck("LIVENESS", liveness.passed, liveness.score, liveness);
+      const selfieKey = liveness.passed ? await store("selfie") : null;
+      await prisma.kycSession.update({
+        where: { id: kycSession.id },
+        data: { livenessScore: liveness.score, livenessPassed: liveness.passed, ...(selfieKey ? { selfieKey } : {}) },
+      });
+      return NextResponse.json({ success: true, sessionId: kycSession.id, mode, step, liveness, retake: !liveness.passed });
+    }
+
+    if (step === "facematch") {
+      const fm = faceMatch(seed);
+      await writeCheck("FACE_MATCH", fm.passed, fm.score, fm);
+
+      const portraitKey = await store("portrait");
+      const standardized = portraitIsStandardized(mode);
+      await writeCheck("PORTRAIT_STANDARDIZE", true, null, { portraitKey, whiteBackground: standardized, stored: storageMode() });
+      await prisma.kycSession.update({
+        where: { id: kycSession.id },
+        data: { faceMatchScore: fm.score, ...(portraitKey ? { portraitKey } : {}) },
+      });
+      return NextResponse.json({ success: true, sessionId: kycSession.id, mode, step, faceMatch: fm, standardized });
+    }
+
+    if (step === "iprs") {
+      const nid = nationalId || kycSession.idOcrNumber || "";
+      const iprs = iprsLookup(seed, nid, kycSession.idOcrName);
+      await writeCheck("IPRS", iprs.matched, iprs.matched ? 100 : 0, iprs);
+      await prisma.kycSession.update({
+        where: { id: kycSession.id },
+        data: { iprsMatched: iprs.matched, iprsName: iprs.name, nationalId: nid.replace(/\D/g, "") || undefined },
+      });
+      return NextResponse.json({ success: true, sessionId: kycSession.id, mode, step, iprs });
+    }
+  } catch (err) {
+    if (err instanceof InvalidImageError) {
+      return NextResponse.json({ success: true, sessionId: kycSession.id, mode, step, retake: true, message: err.message });
+    }
+    console.error("[kyc:console] step failed:", err);
+    return NextResponse.json({ success: false, message: "That step could not be completed. Please try again." }, { status: 500 });
+  }
+
+  if (step === "finalize") {
+    const s = await prisma.kycSession.findUnique({ where: { id: kycSession.id } });
+    if (!s) return NextResponse.json({ success: false, message: "Session expired." }, { status: 404 });
+
+    const flags: string[] = [];
+    if ((s.idQualityScore ?? 0) < 70) flags.push("low-id-quality");
+    if (s.livenessPassed === false) flags.push("liveness-failed");
+    if ((s.faceMatchScore ?? 0) < 70) flags.push("face-mismatch");
+    if (s.iprsMatched === false) flags.push("iprs-unmatched");
+    const faceReview = (s.faceMatchScore ?? 0) >= 70 && (s.faceMatchScore ?? 0) < 85;
+    const status = flags.length > 0 ? "FAILED" : faceReview ? "PENDING_REVIEW" : "VERIFIED";
+
+    await prisma.kycSession.update({
+      where: { id: s.id },
+      data: { status, riskFlags: flags as unknown as Prisma.InputJsonValue, completedAt: new Date() },
+    });
+
+    // One completed session = one verification, however many retakes it took.
+    void meter(orgId, "kyc", 1, { sessionId: s.id, status, mode, channel: "counter" });
+
+    // The borrower is not searched for — they were named at the top of this request.
+    // This is the whole difference between this route and the portal one.
+    const attached = await attachKycSession(orgId, borrowerId, phone, s.nationalId);
+
+    // The officer's assertion that this face belongs to this customer, on the record.
+    await prisma.auditLog.create({
+      data: {
+        orgId, actorId: staffId, actorType: "staff", action: "kyc.verify.counter",
+        meta: { borrowerId, sessionId: s.id, status, flags, mode, witnessed: true },
+        ip: req.headers.get("x-forwarded-for"),
+      },
+    }).catch(() => {});
+
+    const name = `${borrower.firstName ?? ""} ${borrower.otherName ?? ""}`.trim() || borrower.phone;
+    return NextResponse.json({
+      success: true, sessionId: s.id, mode, step, status, flags,
+      borrower: { id: borrowerId, name },
+      // If the promotion onto the Borrower row didn't happen, the officer has NOT
+      // cleared the gate — say so rather than showing a green tick over a blocked
+      // customer. That is precisely the lie the old flow told.
+      attached: attached?.status === status,
+    });
+  }
+
+  return NextResponse.json({ success: false, message: "Unknown step." }, { status: 400 });
+}

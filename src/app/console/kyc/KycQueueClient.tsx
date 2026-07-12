@@ -13,8 +13,11 @@
 //   Remove                — a customer who never applied and never verified is not a
 //                           customer; deleting them is how the queue stays honest.
 import { useState } from "react";
-import { ShieldCheck, Search, Loader2, AlertCircle, Send, Trash2, ExternalLink, Clock, CheckCircle2 } from "lucide-react";
+import Link from "next/link";
+import { ShieldCheck, Search, Loader2, AlertCircle, Send, Trash2, ScanFace, Clock, CheckCircle2 } from "lucide-react";
 import { useLoad } from "@/lib/hooks/useLoad";
+import { PageHeader } from "@/components/shell/PageHeader";
+import { BorrowerAvatar } from "@/components/kyc/BorrowerAvatar";
 
 type Row = {
   id: string;
@@ -121,28 +124,25 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
-      <header>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-zinc-900">
-          <ShieldCheck className="h-6 w-6" style={{ color: "var(--brand)" }} /> KYC Verification
-        </h1>
-        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-zinc-500">
-          Customers you have registered but not yet verified. No money can be disbursed to anyone on this list —
-          verification is the gate. {SCOPE_NOTE[scope] ?? ""}
-        </p>
-      </header>
+      <PageHeader
+        icon={ShieldCheck}
+        title="KYC Verification"
+        subtitle={<>Customers you have registered but not yet verified. No money can be disbursed to anyone on this
+          list — verification is the gate. {SCOPE_NOTE[scope] ?? ""}</>}
+      />
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
-        <div className="flex flex-1 min-w-[220px] items-center gap-2 rounded-xl border border-zinc-900/15 bg-white/80 px-3">
-          <Search className="h-4 w-4 shrink-0 text-zinc-400" />
+        <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-zinc-900/12 bg-white/80 px-3">
+          <Search className="h-4 w-4 shrink-0 text-[color:var(--ink-faint)]" />
           <input
             value={q}
             onChange={(e) => search(e.target.value)}
             placeholder="Search a name, phone or ID number…"
-            className="flex-1 bg-transparent py-2.5 text-sm outline-none placeholder:text-zinc-400"
+            className="flex-1 bg-transparent py-2.5 text-sm outline-none placeholder:text-[color:var(--ink-faint)]"
           />
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-zinc-900/5 px-2.5 py-1 text-[12px] font-semibold text-zinc-600">{rows.length} waiting</span>
+          <span className="rounded-full bg-zinc-900/5 px-2.5 py-1 text-[12px] font-semibold text-[color:var(--ink-muted)]">{rows.length} waiting</span>
           {blocked > 0 && (
             <span className="rounded-full bg-rose-100 px-2.5 py-1 text-[12px] font-bold text-rose-700">{blocked} blocked from disbursement</span>
           )}
@@ -180,9 +180,12 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
                 className={`rounded-xl border bg-white/70 px-4 py-3 ${isFocus ? "border-[color:var(--brand)] ring-2 ring-[color:var(--brand)]/20" : "border-zinc-900/10"}`}
               >
                 <div className="flex flex-wrap items-start gap-3">
+                  {/* Everyone here is unverified by definition, so every frame is dashed.
+                      That is the point: the queue LOOKS unfinished until it is empty. */}
+                  <BorrowerAvatar name={r.name} verified={false} size="sm" className="mt-0.5" />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <a href={`/console/borrowers/${r.id}`} className="text-[15px] font-semibold text-zinc-900 hover:underline">{r.name}</a>
+                      <Link href={`/console/borrowers/${r.id}`} className="text-[15px] font-semibold text-[color:var(--ink)] hover:underline">{r.name}</Link>
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${s.cls}`}>{s.label}</span>
                       {(r.applications > 0 || r.loans > 0) && (
                         <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">
@@ -195,7 +198,7 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-[12px] text-zinc-500">
+                    <p className="mt-0.5 text-[12px] text-[color:var(--ink-muted)]">
                       {r.phone}
                       {r.nationalId ? ` · ID ${r.nationalId}` : " · no ID captured"}
                       {r.branch ? ` · ${r.branch}` : ""}
@@ -206,15 +209,17 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
                   <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                     {canVerify && (
                       <>
-                        <a
-                          href={`/verify?phone=${encodeURIComponent(r.phone)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        {/* Stays INSIDE the console. It used to open the borrower's own
+                            portal in a new tab, which had no way of knowing which lender
+                            it was serving and guessed — filing verifications against the
+                            wrong org. See api/console/kyc/verify/route.ts. */}
+                        <Link
+                          href={`/console/kyc/${r.id}`}
                           className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-white"
                           style={{ backgroundColor: "var(--brand)" }}
                         >
-                          <ExternalLink className="h-3.5 w-3.5" /> Verify at the counter
-                        </a>
+                          <ScanFace className="h-3.5 w-3.5" /> Verify at the counter
+                        </Link>
                         <button
                           disabled={busy === r.id}
                           onClick={() => sendLink(r)}
@@ -252,8 +257,9 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
       )}
 
       <p className="mt-6 text-[12px] leading-relaxed text-zinc-400">
-        &ldquo;Verify at the counter&rdquo; opens the verification wizard for a customer standing in front of you — they confirm the
-        code sent to their phone, then their ID and face are captured. &ldquo;Send link&rdquo; lets them do it themselves.
+        &ldquo;Verify at the counter&rdquo; runs the wizard here, in the console, for a customer standing in front of you —
+        their ID and face are captured, and your name goes on the record as the person who vouched for the match.
+        &ldquo;Send link&rdquo; texts them a link so they can do it themselves, where an SMS code proves the phone is theirs.
         A customer who has never applied and never verified can be removed; one who has applied stays, because a declined
         application is still part of your record.
       </p>

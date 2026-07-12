@@ -1,13 +1,16 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, ScanFace, ShieldAlert, Landmark, MapPin, History, CheckCircle2, XCircle, Clock, FileText,
+  ArrowLeft, ScanFace, ShieldAlert, Landmark, MapPin, History, CheckCircle2, XCircle, Clock, FileText, BadgeCheck,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { resolveScope, borrowerScopeWhere } from "@/lib/rbac/scope";
 import { prisma } from "@/lib/prisma";
 import { hasFeature } from "@/lib/billing/entitlements";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
+import { portraitsFor, PORTRAIT_TTL_SEC } from "@/lib/kyc/avatars";
+import { signedUrl } from "@/lib/storage/provider";
+import { BorrowerAvatar } from "@/components/kyc/BorrowerAvatar";
 import type { CrbReport } from "@/lib/crb/provider";
 import { Customer360Client } from "./Customer360Client";
 import KycGallery from "./KycGallery";
@@ -68,6 +71,11 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
   const initialCrb = (crbCheck?.payload as unknown as CrbReport) ?? null;
 
   const name = `${b.firstName ?? "Borrower"}${b.otherName ? " " + b.otherName : ""}`.trim();
+  const verified = b.kycStatus === "VERIFIED";
+  // The portrait may live on the Borrower row (promoted at attach) or still only on
+  // the session (a verification that hasn't been promoted — which is itself a finding).
+  const portraitUrl = (await portraitsFor([b.id]))[b.id]
+    ?? (kyc?.portraitKey ? await signedUrl(kyc.portraitKey, PORTRAIT_TTL_SEC) : null);
   const activeLoan = b.loans.find((l) => l.status === "ACTIVE") ?? null;
   const olb = b.loans.filter((l) => l.status === "ACTIVE").reduce((s, l) => s + num(l.balance), 0);
   const clearedCount = b.loans.filter((l) => l.status === "CLEARED").length;
@@ -76,13 +84,13 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
     <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
         <Link href="/console/borrowers" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800"><ArrowLeft className="h-4 w-4" /> Borrowers</Link>
 
-        {/* Identity header */}
+        {/* Identity header. The customer's FACE leads — an officer looking for a person
+            is looking for a person, and the fastest fraud check anyone ever runs is
+            noticing that the face beside the name is the wrong one. */}
         <div className="mt-3 glass p-5">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3.5 min-w-0">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl text-lg font-bold text-white shrink-0" style={{ backgroundColor: "var(--brand)" }}>
-                {name.slice(0, 1).toUpperCase()}
-              </div>
+              <BorrowerAvatar name={name} portraitUrl={portraitUrl} verified={verified} size="lg" />
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl font-bold truncate">{name}</h1>
@@ -90,19 +98,28 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
                   <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${KYC_TONE[b.kycStatus] ?? KYC_TONE.NONE}`}>KYC {b.kycStatus}</span>
                   {/* The gate, said out loud on the customer's own page — and a way through
                       it. An unverified borrower cannot be disbursed to, so the officer
-                      looking at them needs to know that here, not at the payout desk. */}
-                  {b.kycStatus !== "VERIFIED" && (
-                    <a
-                      href={`/console/kyc?borrower=${b.id}`}
+                      looking at them needs to know that here, not at the payout desk.
+                      ?from=360 sends them BACK here when it's done, not to the queue. */}
+                  {!verified && (
+                    <Link
+                      href={`/console/kyc/${b.id}?from=360`}
                       className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold text-white"
                       style={{ backgroundColor: "var(--brand)" }}
                     >
                       Start verification →
-                    </a>
+                    </Link>
                   )}
                 </div>
                 <p className="mt-0.5 text-sm text-zinc-500 truncate">{b.phone}{b.nationalId ? ` · ID ${b.nationalId}` : ""}{b.locationAddress ? ` · ${b.locationAddress}` : ""}</p>
-                {b.kycStatus !== "VERIFIED" && (
+                {verified ? (
+                  // Passing KYC is the only moment a customer is unambiguously better off
+                  // than they were an hour ago. Say so — the absence of a warning is not
+                  // the same as good news.
+                  <p className="mt-1 flex items-center gap-1.5 text-[12px] font-medium text-emerald-700">
+                    <BadgeCheck className="h-3.5 w-3.5" />
+                    Identity verified{b.kycVerifiedAt ? ` on ${dateFmt(b.kycVerifiedAt)}` : ""} — cleared for disbursement.
+                  </p>
+                ) : (
                   <p className="mt-1 text-[12px] font-medium text-amber-700">
                     Identity not verified — no money can be disbursed to this borrower yet.
                   </p>
@@ -163,7 +180,10 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
                 </div>
               </div>
             ) : (
-              <p className="mt-3 text-sm text-zinc-500">No KYC session on file. <Link href="/verify" className="font-semibold" style={{ color: "var(--brand)" }}>Start verification</Link></p>
+              <p className="mt-3 text-sm text-zinc-500">
+                No KYC session on file.{" "}
+                <Link href={`/console/kyc/${b.id}?from=360`} className="font-semibold" style={{ color: "var(--brand)" }}>Start verification</Link>
+              </p>
             )}
           </div>
 

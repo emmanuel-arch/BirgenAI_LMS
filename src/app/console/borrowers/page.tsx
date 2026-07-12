@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
 import Link from "next/link";
 import { Loader2, AlertTriangle, CheckCircle2, Users, Search, MapPin, UserPlus } from "lucide-react";
+import { BorrowerAvatar } from "@/components/kyc/BorrowerAvatar";
+import { PageHeader } from "@/components/shell/PageHeader";
 
 type Borrower = {
   id: string; name: string | null; phone: string; nationalId: string | null;
@@ -12,6 +14,8 @@ type Borrower = {
   locationType: string | null; locationAddress: string | null; hasGeo: boolean;
   createdAt: string; loansCount: number; activeLoans: number; clearedLoans: number;
   olb: number; totalBorrowed: number; applications: number; graduated: boolean; lastConsent: string | null;
+  /** Signed, short-lived, and null far more often than not — see lib/kyc/avatars. */
+  portraitUrl: string | null;
 };
 
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
@@ -45,12 +49,15 @@ function Borrowers() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="text-xl font-bold flex items-center gap-2"><Users className="h-5 w-5" style={{ color: "var(--brand)" }} /> Borrowers</h1>
+        <PageHeader
+          icon={Users}
+          title="Borrowers"
+          subtitle="Everyone on your book — their face, their loans, and whether they are cleared to be paid."
+        >
           <button onClick={() => setCreating((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
             <UserPlus className="h-3.5 w-3.5" /> New borrower
           </button>
-        </div>
+        </PageHeader>
 
         {notice && <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50/90 px-3 py-2.5 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> {notice}</div>}
         {error && <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
@@ -77,16 +84,21 @@ function Borrowers() {
             <Link key={b.id} href={`/console/borrowers/${b.id}`} className="glass p-4 block hover:bg-white/80 transition-colors">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0 flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white shrink-0" style={{ backgroundColor: "var(--brand)" }}>
-                    {(b.name ?? b.phone).slice(0, 1).toUpperCase()}
-                  </div>
+                  <BorrowerAvatar
+                    name={b.name ?? b.phone}
+                    portraitUrl={b.portraitUrl}
+                    verified={b.kycStatus === "VERIFIED"}
+                    size="sm"
+                  />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold truncate">
                       {b.name ?? b.phone}
                       {b.graduated && <span className="ml-2 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">GRADUATED</span>}
                     </p>
                     <p className="text-xs text-zinc-500 truncate">
-                      {b.phone}{b.nationalId ? ` · ID ${b.nationalId}` : ""} · KYC {b.kycStatus}
+                      {b.phone}{b.nationalId ? ` · ID ${b.nationalId}` : ""}
+                      {/* The tick on the avatar says "verified". Only the absence needs words. */}
+                      {b.kycStatus !== "VERIFIED" && <span className="font-medium text-amber-700"> · not verified</span>}
                       {b.creditScore != null && <> · score <span className="font-semibold">{b.creditScore}</span></>}
                       {b.hasGeo && <MapPin className="inline h-3 w-3 ml-1 -mt-0.5 text-zinc-400" />}
                     </p>
@@ -126,7 +138,7 @@ function NewBorrowerPanel({ onClose, onCreated, setError }: {
       });
       const data = await res.json();
       if (!data.success) { setError(data.message || "Could not register the borrower."); return; }
-      onCreated(`${name.trim()} registered. Point them at the ID verification wizard (/verify) before their first loan.`);
+      onCreated(`${name.trim()} registered — and now waiting on KYC Verification. No money can be disbursed to them until they are verified.`);
     } catch { setError("Could not register the borrower."); } finally { setBusy(false); }
   };
 

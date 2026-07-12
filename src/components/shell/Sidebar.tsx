@@ -85,7 +85,7 @@ export default function Sidebar({
               <button
                 type="button"
                 onClick={() => toggleModule(mod.key)}
-                className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-zinc-500 hover:text-zinc-800"
+                className="t-label flex w-full items-center justify-between rounded-md px-2.5 py-1.5 transition-colors hover:text-[color:var(--ink)]"
               >
                 {mod.label}
                 <ChevronDown className={`h-3 w-3 transition-transform ${isClosed ? "-rotate-90" : ""}`} />
@@ -97,15 +97,15 @@ export default function Sidebar({
                   const Icon = navIcon(item.icon);
                   const active = item.key === activeKey;
                   const cls = `group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
-                    active ? "text-white shadow-sm" : "text-zinc-700 hover:bg-zinc-900/5"
+                    active ? "text-white shadow-sm" : "text-[color:var(--ink-body)] hover:bg-zinc-900/[0.055] hover:text-[color:var(--ink)]"
                   } ${collapsed ? "justify-center px-0" : ""}`;
                   const style = active ? { backgroundColor: "var(--brand)" } : undefined;
                   const inner = (
                     <>
-                      <Icon className={`h-4 w-4 shrink-0 ${active ? "" : "text-zinc-400 group-hover:text-zinc-600"}`} aria-hidden />
+                      <Icon className={`h-4 w-4 shrink-0 ${active ? "" : "text-[color:var(--ink-faint)] group-hover:text-[color:var(--ink-body)]"}`} aria-hidden />
                       {!collapsed && <span className="truncate">{item.label}</span>}
                       {!collapsed && item.ready === false && (
-                        <span className="ml-auto rounded bg-zinc-900/5 px-1.5 py-0.5 text-[9px] font-semibold text-zinc-400">SOON</span>
+                        <span className="ml-auto rounded bg-zinc-900/5 px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--ink-faint)]">SOON</span>
                       )}
                     </>
                   );

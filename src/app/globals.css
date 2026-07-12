@@ -16,6 +16,27 @@
   --glass-bg: rgba(255, 255, 255, 0.6);
   --glass-border: rgba(255, 255, 255, 0.7);
   --glass-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+
+  /* ── THE INK SCALE ────────────────────────────────────────────────────────
+     Four weights of black, and the rule that goes with each. The old greys
+     (zinc-400/500) were chosen against an imaginary white page; the real page is
+     a photograph with grey waves in it, and on the dark part of a wave they
+     vanished. These are the darkest values that still read as "quieter than the
+     heading" — legibility first, hierarchy second, because a hierarchy you can't
+     read isn't one. --ink-faint is the only one that MUST NOT touch the artwork:
+     it is for labels inside a card, where the surface is guaranteed. */
+  --ink: #0f0f13;         /* headings, figures — the thing you came to read */
+  --ink-body: #3b3b44;    /* sentences */
+  --ink-muted: #5b5b67;   /* meta, captions, secondary rows */
+  --ink-faint: #83838f;   /* labels ON a surface only */
+
+  /* ── THE SURFACES ──────────────────────────────────────────────────────────
+     Three, and no more. Everything on screen is one of them. */
+  --canvas-bg: rgba(255, 255, 255, 0.66);     /* the page sheet: where content lives */
+  --canvas-border: rgba(255, 255, 255, 0.75);
+  --panel-bg: rgba(255, 255, 255, 0.72);      /* floating chrome: sidebar, pills */
+  --panel-border: rgba(255, 255, 255, 0.8);
+  --raise: 0 10px 34px -12px rgba(15, 15, 25, 0.18), 0 2px 8px -2px rgba(15, 15, 25, 0.06);
 }
 
 @theme inline {
@@ -23,6 +44,10 @@
   --color-foreground: var(--foreground);
   --color-brand: var(--brand);
   --color-brand-soft: var(--brand-soft);
+  --color-ink: var(--ink);
+  --color-ink-body: var(--ink-body);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -40,6 +65,78 @@ body {
   background: var(--glass-bg);
   backdrop-filter: blur(24px);
   box-shadow: var(--glass-shadow);
+}
+
+/* ── THE CANVAS — the one rule that makes the background safe ─────────────────
+   The console's backdrop is a photograph, not a colour: light in places, grey in
+   others, and which one is under any given sentence depends on where that
+   sentence happens to land. Darkening the greys only moves the problem, because
+   the next page puts its subtitle somewhere else.
+
+   So: TYPE NEVER TOUCHES THE ARTWORK. Page content sits on this sheet — frosted,
+   not opaque, so the waves still show through and the product still looks like
+   itself — and every text token above is contrast-checked against THIS, which is
+   a known quantity, rather than against a picture, which is not.
+
+   The artwork keeps doing its job: it shows around the sheet, behind the floating
+   chrome, and through it. It just stops being a variable. */
+.canvas {
+  background: var(--canvas-bg);
+  backdrop-filter: blur(30px) saturate(115%);
+  border: 1px solid var(--canvas-border);
+  box-shadow: var(--raise);
+}
+
+/* Floating chrome — the sidebar and the top-bar controls. Slightly more opaque
+   than the canvas: they are furniture, they should feel nearer than the page. */
+.panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(28px) saturate(120%);
+  border: 1px solid var(--panel-border);
+  box-shadow: var(--raise);
+}
+
+/* ── TYPE ─────────────────────────────────────────────────────────────────────
+   One scale, used everywhere, so a heading is a heading on every screen. The
+   tightened tracking on the large sizes is what keeps a 28px bold title from
+   looking like a browser default. */
+.t-display { font-size: 1.75rem; line-height: 1.15; font-weight: 700; letter-spacing: -0.021em; color: var(--ink); }
+.t-title   { font-size: 1.3rem;  line-height: 1.25; font-weight: 700; letter-spacing: -0.014em; color: var(--ink); }
+.t-section { font-size: 0.9375rem; line-height: 1.35; font-weight: 600; letter-spacing: -0.006em; color: var(--ink); }
+.t-body    { font-size: 0.875rem; line-height: 1.6; color: var(--ink-body); }
+.t-meta    { font-size: 0.8125rem; line-height: 1.5; color: var(--ink-muted); }
+.t-label   { font-size: 0.625rem; line-height: 1.4; font-weight: 700; letter-spacing: 0.085em; text-transform: uppercase; color: var(--ink-faint); }
+/* Money and counts. Tabular figures so a column of numbers is a column, not a
+   ransom note — this is the single most-noticed detail in a lending product. */
+.t-num     { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* ── TABLES ───────────────────────────────────────────────────────────────────
+   A report is a document. Its header band is opaque enough to survive whatever is
+   under it, its rows alternate so the eye can track across, and its numbers are
+   tabular and right-aligned. Wrap in a .canvas or .glass; never bare. */
+.data-table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; }
+.data-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(15, 15, 25, 0.09);
+  padding: 0.7rem 1rem;
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.085em; text-transform: uppercase;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+.data-table tbody td { padding: 0.625rem 1rem; border-bottom: 1px solid rgba(15, 15, 25, 0.05); color: var(--ink-body); }
+.data-table tbody tr:last-child td { border-bottom: 0; }
+.data-table tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.4); }
+.data-table tbody tr:hover { background: rgba(255, 255, 255, 0.75); }
+.data-table .num { text-align: right; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* Accessibility and honesty: some people turn transparency off at the OS level,
+   and some machines cannot blur a full-screen layer at 60fps. Both get the same
+   layout with solid surfaces — which is, not by accident, also the legible one. */
+@media (prefers-reduced-transparency: reduce) {
+  .canvas, .panel, .glass { backdrop-filter: none; background: #fff; }
+  .data-table thead th { background: #fff; backdrop-filter: none; }
 }
 
 /* ── Print documents (statements & reports) ──────────────────────────────────
@@ -64,12 +161,18 @@ body {
     display: none !important;
   }
   /* Glass surfaces become plain paper. */
-  .glass, .print-surface {
+  .glass, .canvas, .panel, .print-surface {
     background: #fff !important;
-    border-color: rgba(0, 0, 0, 0.12) !important;
+    border: 0 !important;
     box-shadow: none !important;
     backdrop-filter: none !important;
   }
+  .data-table thead th {
+    background: #fff !important;
+    backdrop-filter: none !important;
+    position: static !important;
+  }
+  .data-table tbody tr:nth-child(even) { background: #fafafa !important; }
   /* Keep brand tints and status colours on paper. */
   .print-exact, .print-exact * {
     -webkit-print-color-adjust: exact;
