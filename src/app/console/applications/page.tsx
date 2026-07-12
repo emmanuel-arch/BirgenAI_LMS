@@ -12,6 +12,7 @@ type App = {
   borrowerName: string | null; phone: string | null; amountRequested: number;
   productName: string | null; score: number | null; pd: number | null; decision: string | null;
   reasonCodes: { factor?: string; detail?: string; direction?: string }[] | null;
+  approvedLimit: number | string | null;
   graduated: boolean; postedToServiceSuite: boolean; serviceSuiteLoanId: string | null;
   deviceSharedWith: number;
   loan: { id: string; status: string } | null;
@@ -136,6 +137,9 @@ function ApplicationsQueue() {
                     <p className="text-xs text-zinc-500 truncate">
                       {a.productName ?? "No product"} · {new Date(a.createdAt).toLocaleString("en-KE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                       {a.score != null && <> · score <span className="font-semibold">{a.score}</span>/900</>}
+                      {a.approvedLimit != null && Number(a.approvedLimit) > 0 && (
+                        <> · qualifies up to <span className="font-semibold">{fmtKES(Number(a.approvedLimit))}</span></>
+                      )}
                     </p>
                   </div>
                   {a.deviceSharedWith > 0 && (

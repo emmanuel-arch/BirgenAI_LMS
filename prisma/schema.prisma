@@ -655,6 +655,10 @@ model LoanApplication {
   decision         String? // APPROVE | REFER | DECLINE
   reasonCodes      Json?
   featuresSnapshot Json? // M-Pesa cashflow features (X)
+  /// The ceiling the limit engine derived at apply time (lib/lending/limits.ts):
+  /// cashflow capacity × risk × the progressive-exposure ladder, inside product
+  /// bounds. The amount requested was validated against it server-side.
+  approvedLimit    Decimal? @db.Decimal(18, 2)
   consentId        String?
   consent          Json? // application-time consent snapshot (versioned, IP-stamped)
   consentVersion   String?

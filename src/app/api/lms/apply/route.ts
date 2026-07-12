@@ -33,6 +33,7 @@ import { postLoan, isPostingEnabled, checkGraduation, type Graduation } from "@/
 import { scoreBorrowerBehavioral } from "@/lib/scoring/behavioral";
 import { scoreOrigination, isOriginationConfigured } from "@/lib/scoring/origination";
 import { fuseScores } from "@/lib/scoring/fusion";
+import { computeApprovedLimit } from "@/lib/lending/limits";
 import { attachKycSession } from "@/lib/kyc/attach";
 
 export const runtime = "nodejs";
@@ -135,18 +136,24 @@ export async function POST(req: NextRequest) {
   let knownName: string | null = grad?.borrowerName?.trim() || null;
   const ssBorrowerId = grad?.borrowerId ?? null;
 
+  let largestCleared: number | null = null;
   if (!grad && org.mode === "NATIVE") {
     const known = await prisma.borrower.findFirst({
       where: { orgId: orgRow.id, phone: { endsWith: phone.slice(-9) } },
       select: { id: true, firstName: true, otherName: true },
     });
     if (known) {
-      const [cleared, active] = await Promise.all([
+      const [cleared, active, biggest] = await Promise.all([
         prisma.loan.count({ where: { orgId: orgRow.id, borrowerId: known.id, status: "CLEARED" } }),
         prisma.loan.count({ where: { orgId: orgRow.id, borrowerId: known.id, status: { in: ["ACTIVE", "PENDING_DISBURSEMENT"] } } }),
+        prisma.loan.aggregate({
+          where: { orgId: orgRow.id, borrowerId: known.id, status: "CLEARED" },
+          _max: { principal: true },
+        }),
       ]);
       graduated = cleared >= 5 && active === 0;
       priorLoanCount = cleared;
+      largestCleared = biggest._max.principal != null ? Number(biggest._max.principal) : null;
       knownName = `${known.firstName ?? ""} ${known.otherName ?? ""}`.trim() || null;
     }
   }
@@ -158,6 +165,7 @@ export async function POST(req: NextRequest) {
   // NATIVE orgs: resolve the chosen product from OUR product table (uuid ref)
   // so the application carries productId and booking can generate the schedule.
   let nativeProductId: string | null = null;
+  let productBounds: { min: number; max: number } | null = null;
   let payee: { name: string | null; paybill: string; account: string | null } | null = null;
   if (org.mode === "NATIVE" && body.productRef) {
     const p = await prisma.product.findFirst({
@@ -166,6 +174,7 @@ export async function POST(req: NextRequest) {
     });
     if (p) {
       nativeProductId = p.id;
+      productBounds = { min: Number(p.minPrincipal), max: Number(p.maxPrincipal) };
       body.productName = body.productName || p.name;
       const min = Number(p.minPrincipal), max = Number(p.maxPrincipal);
       if ((min > 0 && amount < min) || (max > 0 && amount > max)) {
@@ -215,6 +224,37 @@ export async function POST(req: NextRequest) {
     fusionEngine: fused.engine,
     fusionComponents: fused.components,
   };
+
+  // ── The approved limit ───────────────────────────────────────────────────────
+  // Cashflow capacity × risk × the progressive-exposure ladder (lib/lending/limits).
+  // NATIVE books ENFORCE it — the borrower chooses any figure UP TO the limit, and
+  // this is the server-side wall behind the slider. Bridged books get it as an
+  // advisory on the application (the lender's own workflow owns their exposure
+  // rules, and a new cap must not silently block a live Micromart funnel).
+  const limit = computeApprovedLimit({
+    pd: fused.pd,
+    decision: fused.decision,
+    avgMonthlyNet: Number((body.features as { avgMonthlyNet?: number } | undefined)?.avgMonthlyNet) || null,
+    priorLoanCount,
+    graduated,
+    largestCleared,
+    productMin: productBounds?.min ?? 0,
+    productMax: productBounds?.max ?? 0,
+  });
+  if (org.mode === "NATIVE" && fused.decision !== "DECLINE") {
+    if (limit.approvedLimit === 0) {
+      return NextResponse.json({
+        success: false, limitExceeded: true, approvedLimit: 0,
+        message: "Based on the statement and your history, we can't responsibly offer this product right now.",
+      }, { status: 400 });
+    }
+    if (amount > limit.approvedLimit) {
+      return NextResponse.json({
+        success: false, limitExceeded: true, approvedLimit: limit.approvedLimit,
+        message: `You qualify for up to KES ${limit.approvedLimit.toLocaleString()} — choose an amount within your approved limit.`,
+      }, { status: 400 });
+    }
+  }
 
   // Consented location (optional). Coordinates only kept if valid; address always allowed.
   const geoConsented = !!c.geoTagging;
@@ -303,7 +343,13 @@ export async function POST(req: NextRequest) {
         pd: new Prisma.Decimal(scored.pd),
         scoreModelVersion: scored.modelVersion,
         decision: scored.decision,
-        reasonCodes: scored.reasonCodes as unknown as Prisma.InputJsonValue,
+        // The scorer's reasons and the limit engine's reasons, one trail: WHY the
+        // score is the score, then WHY the ceiling is the ceiling.
+        reasonCodes: [
+          ...((scored.reasonCodes as unknown[]) ?? []),
+          ...limit.reasons,
+        ] as unknown as Prisma.InputJsonValue,
+        approvedLimit: new Prisma.Decimal(limit.approvedLimit),
         featuresSnapshot: body.features as unknown as Prisma.InputJsonValue,
         lat,
         lng,

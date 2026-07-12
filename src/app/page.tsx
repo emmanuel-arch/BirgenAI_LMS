@@ -122,6 +122,14 @@ export default function LmsPortal() {
   const [productRef, setProductRef] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoaded, setProductsLoaded] = useState(false);
+  // The approved limit for the chosen product — previewed by the same engine that
+  // enforces it at apply, so the slider's ceiling and the server's wall agree.
+  const [limitInfo, setLimitInfo] = useState<{
+    approvedLimit: number;
+    borrowerClass: string;
+    reasons: { code: string; factor: string; detail: string; direction: string }[];
+  } | null>(null);
+  const [limitLoading, setLimitLoading] = useState(false);
   const [submitted, setSubmitted] = useState<Submitted | null>(null);
   const [offerSigned, setOfferSigned] = useState(false);
 
@@ -265,6 +273,31 @@ export default function LmsPortal() {
 
   const selectedProduct = products.find((p) => String(p.id) === productRef) ?? null;
 
+  // Ask for the approved limit once a product is chosen (and re-ask per product —
+  // the ceiling depends on the product's own bounds).
+  useEffect(() => {
+    if (step !== 5 || !productRef || !features) { setLimitInfo(null); return; }
+    let cancelled = false;
+    setLimitLoading(true);
+    (async () => {
+      try {
+        const res = await fetch("/api/lms/limit", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lenderSlug: lender, productRef, features }),
+        });
+        const data = await res.json();
+        if (!cancelled) setLimitInfo(data?.success && data.available ? { approvedLimit: data.approvedLimit, borrowerClass: data.borrowerClass, reasons: data.reasons ?? [] } : null);
+      } catch {
+        if (!cancelled) setLimitInfo(null); // no preview ≠ no application; the server still enforces
+      } finally {
+        if (!cancelled) setLimitLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [step, productRef, features, lender]);
+
+  const overLimit = limitInfo != null && limitInfo.approvedLimit > 0 && Number(amount) > limitInfo.approvedLimit;
+
   // 0 / null bounds mean "no limit" (e.g. device financing where the amount is the
   // device price). Only enforce a bound when it is a positive number.
   const hasMin = (p: Product) => p.minPrincipal != null && p.minPrincipal > 0;
@@ -312,6 +345,10 @@ export default function LmsPortal() {
       setError("Enter the school's paybill number — this loan is paid directly to the institution.");
       return;
     }
+    if (overLimit && limitInfo) {
+      setError(`You qualify for up to ${fmtKES(limitInfo.approvedLimit)} on this product — choose an amount within your approved limit.`);
+      return;
+    }
     setLoading(true);
     try {
       // Fraud signal, not tracking: a hash of the device's stable traits, so the
@@ -338,7 +375,15 @@ export default function LmsPortal() {
       });
       const data = await res.json();
       if (data.needsOtp) { setStep(0); setError("Your session expired — verify your number again."); return; }
-      if (!data.success) { setError(data.message || "Could not submit."); return; }
+      if (!data.success) {
+        // The server's wall: it recomputed the limit and the ask was above it.
+        // Update the preview so the screen shows the same ceiling the wall used.
+        if (data.limitExceeded) {
+          setLimitInfo((prev) => ({ approvedLimit: data.approvedLimit ?? 0, borrowerClass: prev?.borrowerClass ?? "", reasons: prev?.reasons ?? [] }));
+        }
+        setError(data.message || "Could not submit.");
+        return;
+      }
       setSubmitted(data);
       next();
     } catch { setError("Submission failed."); } finally { setLoading(false); }
@@ -750,6 +795,55 @@ export default function LmsPortal() {
                   <p className="mt-3 text-xs text-zinc-500 flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading products…</p>
                 )}
 
+                {/* The approved limit — the number this whole funnel exists to produce.
+                    Derived from the statement's cashflow, the risk score, and the
+                    borrower's history with this lender; the customer chooses anything
+                    up to it. The server enforces the same figure at submission. */}
+                {selectedProduct && limitLoading && (
+                  <p className="mt-4 flex items-center gap-1.5 text-xs text-zinc-500">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Working out how much you qualify for…
+                  </p>
+                )}
+                {selectedProduct && !limitLoading && limitInfo && limitInfo.approvedLimit > 0 && (
+                  <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: brand.accent, backgroundColor: brand.accentSoft }}>
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">You qualify for up to</p>
+                        <p className="mt-0.5 text-2xl font-bold" style={{ color: brand.accent }}>{fmtKES(limitInfo.approvedLimit)}</p>
+                      </div>
+                      <button
+                        onClick={() => setAmount(String(limitInfo.approvedLimit))}
+                        className="rounded-lg px-3 py-1.5 text-xs font-bold text-white"
+                        style={{ backgroundColor: brand.accent }}
+                      >
+                        Use the maximum
+                      </button>
+                    </div>
+                    {limitInfo.borrowerClass && (
+                      <p className="mt-1 text-[11px] font-semibold text-zinc-600">
+                        {limitInfo.borrowerClass === "NEW" ? "First loan with this lender — repaying it raises your limit."
+                          : limitInfo.borrowerClass === "GRADUATED" ? "Graduated customer — your repayment record earned this ceiling."
+                          : "Returning customer — your limit grows with every loan you clear."}
+                      </p>
+                    )}
+                    {limitInfo.reasons.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {limitInfo.reasons.slice(0, 4).map((r) => (
+                          <li key={r.code} className="flex items-start gap-1.5 text-[11px] text-zinc-600">
+                            <span className={`mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full ${r.direction === "up" ? "bg-emerald-500" : "bg-amber-500"}`} />
+                            {r.detail}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+                {selectedProduct && !limitLoading && limitInfo && limitInfo.approvedLimit === 0 && (
+                  <p className="mt-4 rounded-lg border border-amber-300 bg-amber-50/90 px-3 py-2.5 text-xs text-amber-800">
+                    Based on the statement and your history, this product isn&apos;t available right now — a smaller product may be, or try again after your next repayment.
+                  </p>
+                )}
+
                 <label className="mt-4 block text-sm font-medium">How much would you like?</label>
                 <div className="mt-2 flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3">
                   <Banknote className="h-4 w-4 text-zinc-400 shrink-0" />
@@ -757,6 +851,11 @@ export default function LmsPortal() {
                   <input value={amount ? Number(amount).toLocaleString() : ""} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))} placeholder="10,000" inputMode="numeric"
                     className="flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-zinc-400" />
                 </div>
+                {overLimit && limitInfo && (
+                  <p className="mt-2 text-xs font-semibold text-amber-600">
+                    Your approved limit on this product is {fmtKES(limitInfo.approvedLimit)} — choose an amount up to that.
+                  </p>
+                )}
                 {amountOutOfRange && selectedProduct && (
                   <p className="mt-2 text-xs text-amber-600">
                     {selectedProduct.name} allows {hasMin(selectedProduct) ? fmtKES(selectedProduct.minPrincipal!) : "—"}

@@ -42,6 +42,7 @@
     "db:seed:demo": "tsx prisma/seed-demo.ts",
     "test:kyc-counter": "tsx scripts/verify-kyc-counter.ts",
     "test:portfolio": "tsx scripts/verify-portfolio.ts",
+    "test:limits": "tsx scripts/verify-limits.ts",
     "test:storage-live": "tsx scripts/verify-storage-live.ts"
   },
   "dependencies": {

@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       id: true, createdAt: true, status: true, stageTitle: true, currentStageId: true,
       borrowerName: true, phone: true, amountRequested: true,
       productName: true, productId: true, productRef: true,
-      score: true, pd: true, decision: true, reasonCodes: true, graduated: true,
+      score: true, pd: true, decision: true, reasonCodes: true, graduated: true, approvedLimit: true,
       postedToServiceSuite: true, serviceSuiteLoanId: true, deviceFingerprint: true,
       loan: { select: { id: true, status: true } },
     },
