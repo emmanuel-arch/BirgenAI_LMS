@@ -34,11 +34,41 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const disb = await prisma.disbursement.findFirst({
     where: { id, orgId: session.user.orgId },
     include: {
-      loan: { select: { id: true, expectedClearDate: true, borrowerId: true } },
+      loan: {
+        select: {
+          id: true, expectedClearDate: true, borrowerId: true,
+          borrower: { select: { id: true, firstName: true, otherName: true, kycStatus: true } },
+        },
+      },
       // org fields for gating + slug for callback registration
     },
   });
   if (!disb) return NextResponse.json({ success: false, message: "Disbursement not found." }, { status: 404 });
+
+  // ── THE KYC GATE ───────────────────────────────────────────────────────────
+  //
+  // Money does not leave for a borrower whose identity was never verified. Fraud is
+  // cheapest to stop before the money moves and effectively impossible to collect
+  // after: an unverified borrower is precisely the one who defaults and cannot be
+  // traced. So the gate sits HERE, at the last moment before funds are released —
+  // not at registration (an officer must be able to capture a walk-in's details while
+  // they are standing at the counter) and not at application (a lead is not a loss).
+  //
+  // It is enforced on the ACTION, not just hidden in the UI: a queue that greys out a
+  // button while the endpoint still pays is not a gate.
+  const RELEASES_MONEY = ["approve", "manual", "retry"];
+  if (RELEASES_MONEY.includes(body.action ?? "")) {
+    const borrower = disb.loan?.borrower;
+    if (borrower && borrower.kycStatus !== "VERIFIED") {
+      const name = `${borrower.firstName ?? ""} ${borrower.otherName ?? ""}`.trim() || "This borrower";
+      return NextResponse.json({
+        success: false,
+        code: "KYC_NOT_VERIFIED",
+        borrowerId: borrower.id,
+        message: `${name}'s identity has not been verified, so this money can't be released. Verify them in KYC Verification first.`,
+      }, { status: 409 });
+    }
+  }
 
   const org = await prisma.org.findUnique({ where: { id: disb.orgId }, select: { slug: true, name: true, status: true } });
   if (!org) return NextResponse.json({ success: false, message: "Org missing." }, { status: 500 });

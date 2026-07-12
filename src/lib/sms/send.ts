@@ -39,6 +39,10 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
   // much — and what it costs them if the borrower does not repay. Not "tap to continue".
   guarantor_invite: "{org}: {borrower} has asked you to guarantee their loan of KES {amount}. If they do not repay, you would be asked to. Read the terms and decide: {link}",
   guarantor_sign: "{code} is your code to GUARANTEE a loan of KES {amount} from {org}. Entering it makes you liable if the borrower does not repay. Only enter it if you agree. Expires in 5 minutes.",
+  // Sent from the KYC queue when a customer was registered but never verified. It says
+  // what it unlocks, because "complete your verification" motivates nobody — being told
+  // your loan cannot be paid out until you do, does.
+  kyc_link: "{org}: Hi {name}, your registration is not complete — we still need to verify your identity, and no loan can be paid out until it is. It takes two minutes: {link}",
   reminder: "{org}: A friendly reminder — KES {amount} is due on {date}. Pay early, pay less. Dial your paybill or use Pay Now.",
   due_today: "{org}: KES {amount} is due TODAY on loan {ref}. Pay via your paybill or the Pay Now link to stay on track.",
   arrears: "{org}: Your installment of KES {amount} on loan {ref} is overdue. Please pay today to avoid penalties and protect your limit.",

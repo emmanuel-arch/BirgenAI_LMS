@@ -88,8 +88,25 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
                   <h1 className="text-xl font-bold truncate">{name}</h1>
                   {b.graduationCount > 0 && <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">GRADUATED ×{b.graduationCount}</span>}
                   <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${KYC_TONE[b.kycStatus] ?? KYC_TONE.NONE}`}>KYC {b.kycStatus}</span>
+                  {/* The gate, said out loud on the customer's own page — and a way through
+                      it. An unverified borrower cannot be disbursed to, so the officer
+                      looking at them needs to know that here, not at the payout desk. */}
+                  {b.kycStatus !== "VERIFIED" && (
+                    <a
+                      href={`/console/kyc?borrower=${b.id}`}
+                      className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold text-white"
+                      style={{ backgroundColor: "var(--brand)" }}
+                    >
+                      Start verification →
+                    </a>
+                  )}
                 </div>
                 <p className="mt-0.5 text-sm text-zinc-500 truncate">{b.phone}{b.nationalId ? ` · ID ${b.nationalId}` : ""}{b.locationAddress ? ` · ${b.locationAddress}` : ""}</p>
+                {b.kycStatus !== "VERIFIED" && (
+                  <p className="mt-1 text-[12px] font-medium text-amber-700">
+                    Identity not verified — no money can be disbursed to this borrower yet.
+                  </p>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 shrink-0">

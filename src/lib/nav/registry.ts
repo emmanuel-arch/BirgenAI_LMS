@@ -55,6 +55,9 @@ export const NAV_REGISTRY: NavModule[] = [
     items: [
       { key: "borrowers-list", label: "Borrowers List", href: "/console/borrowers", icon: "Users", right: "borrowers.view" },
       { key: "borrowers-new", label: "New Borrower", href: "/console/borrowers?new=1", icon: "UserPlus", right: "borrowers.create", exact: true },
+      // The gate between a registered customer and their money. Sits under Borrowers
+      // because that is where the officer who created the problem will look for it.
+      { key: "kyc-queue", label: "KYC Verification", href: "/console/kyc", icon: "ShieldCheck", right: "borrowers.view" },
     ],
   },
   {
