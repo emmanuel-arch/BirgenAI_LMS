@@ -51,8 +51,14 @@ export async function POST(req: NextRequest) {
   if (!product) return NextResponse.json({ success: false, message: "Choose a product." }, { status: 400 });
 
   // The same server-authoritative score the apply route computes — the preview
-  // must never flatter, or the wall at apply reads as a betrayal.
-  const thinFile = scoreThinFileAuto(body.features);
+  // must never flatter, or the wall at apply reads as a betrayal. `features` is
+  // client-supplied JSON, so a mangled payload is a 400, never a crash.
+  let thinFile: ReturnType<typeof scoreThinFileAuto>;
+  try {
+    thinFile = scoreThinFileAuto(body.features);
+  } catch {
+    return NextResponse.json({ success: false, message: "The statement features are incomplete — run the M-Pesa statement check again." }, { status: 400 });
+  }
 
   const row = await prisma.borrower.findFirst({
 

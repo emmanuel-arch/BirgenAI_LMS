@@ -113,7 +113,13 @@ export async function POST(req: NextRequest) {
   }
 
   // Server-authoritative thin-file (cashflow) score from the submitted features.
-  const thinFile = scoreThinFileAuto(body.features);
+  // Client-supplied JSON: a mangled payload is a 400, never a crash.
+  let thinFile: ReturnType<typeof scoreThinFileAuto>;
+  try {
+    thinFile = scoreThinFileAuto(body.features);
+  } catch {
+    return NextResponse.json({ success: false, message: "The statement features are incomplete — run the M-Pesa statement check again." }, { status: 400 });
+  }
   const entityId = org.entityId;
   const orgRow = { id: org.id };
 

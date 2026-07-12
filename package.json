@@ -40,6 +40,7 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:seed:demo": "tsx prisma/seed-demo.ts",
+    "db:seed:book": "tsx prisma/seed-book.ts",
     "test:kyc-counter": "tsx scripts/verify-kyc-counter.ts",
     "test:portfolio": "tsx scripts/verify-portfolio.ts",
     "test:limits": "tsx scripts/verify-limits.ts",
