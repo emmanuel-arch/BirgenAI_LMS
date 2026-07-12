@@ -25,17 +25,22 @@
      heading" — legibility first, hierarchy second, because a hierarchy you can't
      read isn't one. --ink-faint is the only one that MUST NOT touch the artwork:
      it is for labels inside a card, where the surface is guaranteed. */
-  --ink: #0f0f13;         /* headings, figures — the thing you came to read */
-  --ink-body: #3b3b44;    /* sentences */
-  --ink-muted: #5b5b67;   /* meta, captions, secondary rows */
-  --ink-faint: #83838f;   /* labels ON a surface only */
+  --ink: #0c0c10;         /* headings, figures — the thing you came to read */
+  --ink-body: #2c2c34;    /* sentences */
+  --ink-muted: #494955;   /* meta, captions, secondary rows */
+  --ink-faint: #6c6c79;   /* labels ON a surface only */
 
   /* ── THE SURFACES ──────────────────────────────────────────────────────────
-     Three, and no more. Everything on screen is one of them. */
-  --canvas-bg: rgba(255, 255, 255, 0.66);     /* the page sheet: where content lives */
-  --canvas-border: rgba(255, 255, 255, 0.75);
-  --panel-bg: rgba(255, 255, 255, 0.72);      /* floating chrome: sidebar, pills */
-  --panel-border: rgba(255, 255, 255, 0.8);
+     Three, and no more. Everything on screen is one of them.
+     The canvas runs MORE transparent than it used to (founder: the artwork should
+     be present through the page, not hinted at) and the ink scale above runs
+     darker to buy that contrast back — the two values move together or not at
+     all. The extra blur is what keeps the artwork's dark waves from ever forming
+     a hard edge underneath a sentence. */
+  --canvas-bg: rgba(255, 255, 255, 0.52);     /* the page sheet: where content lives */
+  --canvas-border: rgba(255, 255, 255, 0.66);
+  --panel-bg: rgba(255, 255, 255, 0.68);      /* floating chrome: sidebar, pills */
+  --panel-border: rgba(255, 255, 255, 0.78);
   --raise: 0 10px 34px -12px rgba(15, 15, 25, 0.18), 0 2px 8px -2px rgba(15, 15, 25, 0.06);
 }
 
@@ -82,7 +87,7 @@ body {
    chrome, and through it. It just stops being a variable. */
 .canvas {
   background: var(--canvas-bg);
-  backdrop-filter: blur(30px) saturate(115%);
+  backdrop-filter: blur(38px) saturate(115%);
   border: 1px solid var(--canvas-border);
   box-shadow: var(--raise);
 }

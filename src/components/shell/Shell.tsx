@@ -28,7 +28,7 @@ import { useLoad } from "@/lib/hooks/useLoad";
 import { X } from "lucide-react";
 import type { NavModule } from "@/lib/nav/registry";
 import Sidebar from "./Sidebar";
-import TopBar, { OrgLogo, type ShellOrg, type ShellUser } from "./TopBar";
+import TopBar, { type ShellOrg, type ShellUser } from "./TopBar";
 import ImpersonationBanner from "./ImpersonationBanner";
 
 export default function Shell({
@@ -82,12 +82,12 @@ export default function Shell({
             between them and around the edges of the screen. */}
         <div className="flex flex-1 gap-3 px-3 pb-3 sm:px-4 sm:pb-4">
           <aside
-            className={`no-print panel sticky top-[4.5rem] hidden h-[calc(100vh-5.5rem)] shrink-0 overflow-hidden rounded-2xl transition-[width] duration-200 lg:block ${
-              collapsed ? "w-14" : "w-60"
+            className={`no-print panel sticky top-[4rem] hidden h-[calc(100vh-5rem)] shrink-0 overflow-hidden rounded-2xl transition-[width] duration-200 lg:block ${
+              collapsed ? "w-16" : "w-60"
             }`}
           >
             <Suspense fallback={null}>
-              <Sidebar nav={nav} collapsed={collapsed} />
+              <Sidebar nav={nav} org={org} collapsed={collapsed} />
             </Suspense>
           </aside>
 
@@ -100,15 +100,19 @@ export default function Shell({
         <div className="no-print fixed inset-0 z-50 lg:hidden">
           <div aria-hidden className="absolute inset-0 bg-zinc-950/40 backdrop-blur-sm" onClick={() => setDrawer(false)} />
           <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-white shadow-2xl">
-            <div className="flex h-16 items-center justify-between border-b border-zinc-900/8 px-4">
-              <OrgLogo org={org} size="lg" />
-              <button type="button" onClick={() => setDrawer(false)} aria-label="Close navigation" className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-900/5">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1">
+            {/* The brand card at the head of the Sidebar is the drawer's header;
+                the close button floats over its corner. */}
+            <button
+              type="button"
+              onClick={() => setDrawer(false)}
+              aria-label="Close navigation"
+              className="absolute right-2 top-2 z-10 rounded-lg bg-white/80 p-2 text-zinc-500 shadow-sm hover:bg-zinc-900/5"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="min-h-0 flex-1 pt-1">
               <Suspense fallback={null}>
-                <Sidebar nav={nav} collapsed={false} onNavigate={() => setDrawer(false)} />
+                <Sidebar nav={nav} org={org} collapsed={false} onNavigate={() => setDrawer(false)} />
               </Suspense>
             </div>
           </div>

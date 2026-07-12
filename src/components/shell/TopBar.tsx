@@ -10,17 +10,16 @@
 // drew a hard line across the top of the screen, so the console read as three
 // separate rectangles — bar, sidebar, page — rather than as one product.
 //
-// Now the bar has no background at all. The logo floats directly on the artwork,
-// big, in the corner where the sidebar and the top bar meet — the focal point the
-// founder asked for — and the only other things up here are controls, each on its
-// own floating pane of glass. The same treatment as the Riri dock, and the reason
-// it reads as expensive: ONE background, things hovering over it, no seams.
+// Now the bar has no background at all. The lender's mark lives at the head of
+// the SIDEBAR on a white letterhead card (see Sidebar's BrandBlock — transparent
+// logos need the surface they were designed for), so the only things up here are
+// controls, each on its own floating pane of glass. The same treatment as the
+// Riri dock, and the reason it reads as expensive: ONE background, things
+// hovering over it, no seams.
 //
-// The two invariants survive, because they were always the right ones:
-//   · the org's mark sits at the FAR LEFT, and it goes home;
-//   · the profile sits at the FAR RIGHT whenever someone is signed in.
+// The invariant that survives: the profile sits at the FAR RIGHT whenever
+// someone is signed in.
 // ─────────────────────────────────────────────────────────────────────────────
-import Link from "next/link";
 import { Menu, PanelLeftClose, PanelLeftOpen, ShieldCheck } from "lucide-react";
 import ProfileMenu from "./ProfileMenu";
 
@@ -37,35 +36,6 @@ export type ShellUser = {
   email?: string | null;
   role?: string | null;
 };
-
-/**
- * The org's mark, given room to actually be seen — a logo is the most expensive
- * thing a lender owns and it was being rendered at 32px beside its own name in
- * 13px type.
- *
- * An uploaded logo gets NO plate and NO rounding: these are transparent PNGs, and
- * the mark should sit on the background the way it sits on a letterhead. Only the
- * fallback — a lender who hasn't uploaded one yet — gets a coloured tile, because
- * a bare initial floating in space looks like a rendering bug.
- */
-export function OrgLogo({ org, size = "md" }: {
-  org: Pick<ShellOrg, "name" | "logoUrl">;
-  size?: "md" | "lg";
-}) {
-  const box = size === "lg" ? "h-12 w-12" : "h-9 w-9";
-  if (org.logoUrl) {
-    // Org logos are tiny and often data-URLs (simulation mode) or public-bucket
-    // URLs; next/image adds nothing here but a remotePatterns config burden.
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={org.logoUrl} alt={`${org.name} logo`} className={`${box} shrink-0 object-contain drop-shadow-sm`} />;
-  }
-  const tile = size === "lg" ? "h-12 w-12 rounded-2xl text-lg" : "h-9 w-9 rounded-xl text-sm";
-  return (
-    <div className={`${tile} flex shrink-0 items-center justify-center font-bold text-white shadow-sm`} style={{ backgroundColor: "var(--brand)" }}>
-      {org.name.slice(0, 1).toUpperCase()}
-    </div>
-  );
-}
 
 export default function TopBar({
   org,
@@ -93,20 +63,10 @@ export default function TopBar({
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-white/80 via-white/45 to-transparent backdrop-blur-[6px] [mask-image:linear-gradient(to_bottom,black_50%,transparent)]"
       />
-      <div className="flex h-16 items-center gap-2 px-3 sm:px-4">
-        {/* The corner. The logo owns it — at the seam where the two navs meet, sized
-            to be the first thing the eye lands on. It is not IN the top bar and it is
-            not IN the sidebar; it is the thing they meet at. The width tracks the
-            sidebar so the mark stays aligned to the column beneath it. */}
-        <Link
-          href="/console"
-          aria-label={`${org.name} — console home`}
-          title={org.name}
-          className={`flex shrink-0 items-center transition-[width] duration-200 ${collapsed ? "lg:w-14 lg:justify-center" : "lg:w-60"}`}
-        >
-          <OrgLogo org={org} size="lg" />
-        </Link>
-
+      <div className="flex h-14 items-center gap-2 px-3 sm:px-4">
+        {/* The logo now heads the SIDEBAR, on its own white card — the letterhead
+            treatment the founder asked for. Up here only controls remain, each on
+            its own pane of glass. */}
         <button type="button" onClick={onOpenDrawer} className={`${pill} lg:hidden`} aria-label="Open navigation">
           <Menu className="h-4 w-4" />
         </button>

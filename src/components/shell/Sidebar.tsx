@@ -10,7 +10,56 @@ import { useState } from "react";
 import { useLoad } from "@/lib/hooks/useLoad";
 import { ChevronDown } from "lucide-react";
 import type { NavModule, NavItem } from "@/lib/nav/registry";
+import type { ShellOrg } from "./TopBar";
 import { navIcon } from "./icons";
+
+/**
+ * The lender's mark, at the head of their own navigation — the first thing the
+ * eye lands on, and the thing that says "this is OUR system".
+ *
+ * It sits on a solid white card ON PURPOSE. Lenders upload transparent PNGs that
+ * were designed against white letterhead; floated straight onto the artwork they
+ * landed on whatever grey wave happened to be in that corner and looked broken.
+ * The card is the letterhead. Inside it the logo gets the full width of the
+ * column and centres itself — `object-contain` absorbs every aspect ratio a
+ * lender can upload, so a wide wordmark and a square crest both fill the frame
+ * without distortion and without us needing to know the file's dimensions.
+ */
+function BrandBlock({ org, collapsed, onNavigate }: { org: ShellOrg; collapsed: boolean; onNavigate?: () => void }) {
+  return (
+    <Link
+      href="/console"
+      onClick={onNavigate}
+      aria-label={`${org.name} — console home`}
+      title={org.name}
+      className={`mx-2 mt-2 mb-2 flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-900/[0.06] bg-white shadow-sm transition-all ${
+        collapsed ? "h-12 px-1.5" : "h-20 px-4"
+      }`}
+    >
+      {org.logoUrl ? (
+        // Logos are data-URLs in simulation or public-bucket files live;
+        // next/image buys nothing here but a remotePatterns config burden.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={org.logoUrl}
+          alt={`${org.name} logo`}
+          className={`w-full object-contain ${collapsed ? "max-h-9" : "max-h-14"}`}
+        />
+      ) : collapsed ? (
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold text-white" style={{ backgroundColor: "var(--brand)" }}>
+          {org.name.slice(0, 1).toUpperCase()}
+        </span>
+      ) : (
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white" style={{ backgroundColor: "var(--brand)" }}>
+            {org.name.slice(0, 1).toUpperCase()}
+          </span>
+          <span className="truncate text-sm font-bold text-[color:var(--ink)]">{org.name}</span>
+        </span>
+      )}
+    </Link>
+  );
+}
 
 function parseHref(href: string): { base: string; query: [string, string][] } {
   const q = href.indexOf("?");
@@ -36,10 +85,12 @@ function scoreItem(item: NavItem, pathname: string, search: URLSearchParams): nu
 
 export default function Sidebar({
   nav,
+  org,
   collapsed,
   onNavigate,
 }: {
   nav: NavModule[];
+  org: ShellOrg;
   collapsed: boolean;
   /** Called on any link click — the mobile drawer closes itself with this. */
   onNavigate?: () => void;
@@ -75,7 +126,9 @@ export default function Sidebar({
   }
 
   return (
-    <nav aria-label="Console" className="flex h-full flex-col gap-0.5 overflow-y-auto px-2 py-3">
+    <nav aria-label="Console" className="flex h-full flex-col">
+      <BrandBlock org={org} collapsed={collapsed} onNavigate={onNavigate} />
+      <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-3">
       {nav.map((mod) => {
         const isClosed = collapsed ? false : closedModules.includes(mod.key) && !mod.items.some((i) => i.key === activeKey);
         const single = mod.items.length === 1 && mod.items[0].label.toLowerCase() === mod.label.toLowerCase();
@@ -134,6 +187,7 @@ export default function Sidebar({
           </div>
         );
       })}
+      </div>
     </nav>
   );
 }
