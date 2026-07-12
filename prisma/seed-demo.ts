@@ -12,11 +12,14 @@
 // All demo accounts share the password: Demo1234! (shown on /demo).
 // ─────────────────────────────────────────────────────────────────────────────
 import "dotenv/config";
-import { OrgMode, OrgStatus, OrgPlan } from "@prisma/client";
+import { OrgMode, OrgStatus, OrgPlan, type Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { platformPrisma } from "./seed-client";
 import { buildSchedule } from "../src/lib/lending/schedule";
 import { hashTerms } from "../src/lib/lending/terms";
+import { runWithOrg } from "../src/lib/db/context";
+import { portfolioEarlyWarning } from "../src/lib/intelligence/earlywarning";
+import { runPortfolio, compactRows, movementBetween, type CompactRow } from "../src/lib/intelligence/portfolio";
 
 // Seeds write across orgs, so they connect platform-scoped (see seed-client.ts).
 const prisma = platformPrisma();
@@ -69,7 +72,7 @@ async function wipe(orgId: string) {
   for (const m of [
     "smsMessage", "smsCampaign", "emailMessage", "c2BReceipt", "paymentIntent", "floatLedger", "otpChallenge",
     "promiseToPay", "collectionCall", "collectionTicket", "ririQueryLog", "metricDefinition",
-    "reconciliationException", "usageEvent", "invoiceLine", "invoice", "smsTopUp", "smsWallet",
+    "reconciliationException", "usageEvent", "invoiceLine", "invoice", "smsTopUp", "smsWallet", "portfolioRun",
     "installment", "guarantor", "collateral", "disbursement", "loanOffer", "loan",
     "loanApplication", "consent", "geoPin", "scoreSnapshot", "kycCheck", "kycSession",
     "fieldVisit", "document", "borrower", "product", "workflowStage", "workflow",
@@ -465,6 +468,75 @@ async function main() {
     });
   }
 
+  // 8) Model-drift signal + portfolio run history.
+  //
+  // Drift needs what a two-week-old lender cannot have: months of scoring history
+  // and enough realised outcomes to be judged by. So the demo plants two snapshot
+  // cohorts — an older baseline (24 resolved outcomes, 3 of them defaults) and a
+  // recent window scored slightly weaker — giving the model-health card a real
+  // calibration read and a mild population shift to talk about.
+  const demoBorrowers = await prisma.borrower.findMany({ where: { orgId: org.id }, select: { id: true } });
+  if (demoBorrowers.length) {
+    const cohort: Prisma.ScoreSnapshotCreateManyInput[] = [];
+    for (let i = 0; i < 28; i++) {
+      // Baseline: 220–112 days ago, scores centred ~708, PDs 6–12%.
+      const outcome = i >= 24 ? "PENDING" : [4, 13, 22].includes(i) ? "DEFAULTED" : "REPAID";
+      cohort.push({
+        orgId: org.id, borrowerId: pick(demoBorrowers, i).id, modelKind: "pooled-v3", modelVersion: "pooled-v3.1",
+        score: 620 + ((i * 13) % 182), pd: 0.06 + (i % 7) * 0.01, riskBand: "Moderate risk",
+        outcome, outcomeObservedAt: outcome !== "PENDING" ? D(220 - i * 4 - 45) : null,
+        capturedBy: "demo-seed", createdAt: D(220 - i * 4),
+      });
+    }
+    for (let i = 0; i < 18; i++) {
+      // Recent window: last ~80 days, centred ~665 — a mildly weaker pool, still unresolved.
+      cohort.push({
+        orgId: org.id, borrowerId: pick(demoBorrowers, i + 3).id, modelKind: "pooled-v3", modelVersion: "pooled-v3.1",
+        score: 605 + ((i * 13) % 182), pd: 0.1 + (i % 6) * 0.015, riskBand: "Moderate risk",
+        outcome: "PENDING", capturedBy: "demo-seed", createdAt: D(80 - i * 4),
+      });
+    }
+    await prisma.scoreSnapshot.createMany({ data: cohort });
+  }
+
+  // Two weeks of nightly runs, then TODAY'S run made by the real engine over the
+  // real book (same code path as the cron — the seed only backfills the line
+  // behind it). Yesterday's planted point holds the riskiest borrower a band
+  // lower (and, when the list has more than one, is a member short), so the
+  // founder opens the page to genuine movement — an escalation the engine
+  // recomputed for itself, not a stored claim.
+  const ewNow = await runWithOrg(org.id, () => portfolioEarlyWarning(org.id));
+  if (ewNow.rows.length) {
+    const rowsNow = compactRows(ewNow.rows);
+    let prevRows: CompactRow[] | null = null;
+    for (let d = 13; d >= 1; d--) {
+      const ramp = 0.8 + (0.2 * (13 - d)) / 13; // at-risk value grinding upward toward today
+      let rows = rowsNow.map((r) => ({ ...r, dpd: Math.max(0, r.dpd - d), s: Math.max(20, r.s - d) }));
+      if (d === 1) {
+        if (rows.length > 1) rows = rows.slice(0, -1); // the newest arrival is not there yesterday
+        if (rows[0]?.band === "HIGH") rows[0] = { ...rows[0], band: "ELEVATED", s: Math.min(rows[0].s, 60) };
+      }
+      const move = movementBetween(prevRows, rows);
+      await prisma.portfolioRun.create({
+        data: {
+          orgId: org.id, ranAt: D(d), trigger: "cron", policy: "default",
+          activeLoans: ewNow.rows.length + 1,
+          olb: money(ewNow.tiles.olb),
+          atRiskValue: money(ewNow.tiles.atRiskValue * ramp),
+          projectedLoss: money(ewNow.tiles.projectedLoss * ramp),
+          watchlist: rows.length,
+          high: rows.filter((r) => r.band === "HIGH").length,
+          elevated: rows.filter((r) => r.band === "ELEVATED").length,
+          entered: prevRows ? move.entered.length : 0, left: move.left.length,
+          escalated: move.escalated.length, improved: move.improved.length,
+          rows: rows as never,
+        },
+      });
+      prevRows = rows;
+    }
+    await runWithOrg(org.id, () => runPortfolio(org.id, "cron"));
+  }
+
   const counts = {
     staff: await prisma.staffUser.count({ where: { orgId: org.id } }),
     borrowers: await prisma.borrower.count({ where: { orgId: org.id } }),
@@ -472,6 +544,7 @@ async function main() {
     snapshots: await prisma.scoreSnapshot.count({ where: { orgId: org.id } }),
     outcomes: await prisma.scoreSnapshot.count({ where: { orgId: org.id, outcome: { not: "PENDING" } } }),
     visits: await prisma.fieldVisit.count({ where: { orgId: org.id } }),
+    portfolioRuns: await prisma.portfolioRun.count({ where: { orgId: org.id } }),
   };
   console.log("Demo org rebuilt:", JSON.stringify(counts));
   console.log(`Sign in at /login with any @demo.birgenai.com account · password ${PASSWORD}`);

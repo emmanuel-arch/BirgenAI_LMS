@@ -6,7 +6,9 @@ import { hasFeature } from "@/lib/billing/entitlements";
 import { UpgradeCard } from "@/components/billing/UpgradeCard";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
 import { tuningFor, isDefault } from "@/lib/intelligence/tuning";
+import { portfolioTrend, latestRun } from "@/lib/intelligence/portfolio";
 import { Watchlist } from "./Watchlist";
+import { TrendPanel } from "./TrendPanel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,10 +33,12 @@ export default async function IntelligencePage() {
 
   // Premium can shape this policy. Everyone else is scored on the BirgenAI defaults,
   // and the page says which — a risk score with no stated policy behind it is a rumour.
-  const [ew, tuneEntitled, tuning] = await Promise.all([
+  const [ew, tuneEntitled, tuning, trend, lastRun] = await Promise.all([
     portfolioEarlyWarning(session.user.orgId),
     hasFeature(session.user.orgId, "model-tuning"),
     tuningFor(session.user.orgId),
+    portfolioTrend(session.user.orgId),
+    latestRun(session.user.orgId),
   ]);
   const isTuned = !isDefault(tuning);
   const parPct = ew.tiles.olb > 0 ? (ew.tiles.atRiskValue / ew.tiles.olb) * 100 : 0;
@@ -78,6 +82,11 @@ export default async function IntelligencePage() {
             </div>
           ))}
         </div>
+
+        <TrendPanel
+          trend={trend}
+          latest={lastRun ? { ranAt: lastRun.ranAt, trigger: lastRun.trigger, policy: lastRun.policy, drift: lastRun.drift, counts: lastRun.counts } : null}
+        />
 
         {ew.rows.length === 0 ? (
           <div className="mt-8 glass p-10 text-center">

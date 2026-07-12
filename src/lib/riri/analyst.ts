@@ -28,6 +28,8 @@
 import { hasFeature } from "@/lib/billing/entitlements";
 import { cheapestPlanWith } from "@/lib/billing/plans";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
+import { latestRun, portfolioTrend } from "@/lib/intelligence/portfolio";
+import { modelDrift, MIN_RESOLVED, type DriftReport } from "@/lib/intelligence/drift";
 import { bind, compile, compileSeries, metricSpec, type CompiledQuery, type MetricSpec, type MetricUnit, type TimeRange } from "./catalog";
 import { metricsFor, targetVerdict, type ResolvedMetric } from "./definitions";
 import { plan, previousRange, proposeSql, ALL_TIME } from "./planner";
@@ -322,6 +324,56 @@ async function answerWatchlist(orgId: string): Promise<AnalystResult> {
   };
 }
 
+async function answerDrift(orgId: string): Promise<AnalystResult> {
+  if (!(await hasFeature(orgId, "portfolio-scan"))) {
+    const p = cheapestPlanWith("portfolio-scan");
+    return {
+      ok: true, route: "narrative", kind: "drift",
+      answer: `Model-health monitoring rides on portfolio early-warning, which isn't on your package yet. **${p?.name}** (KES ${p?.monthlyKes.toLocaleString()}/mo) adds it. Open **Billing** to upgrade.`,
+    };
+  }
+
+  // Prefer the recorded run (it also gives the trend); compute live only when no
+  // run exists yet — same numbers, just not yet a point on a line.
+  const [last, trend] = await Promise.all([latestRun(orgId), portfolioTrend(orgId, 30)]);
+  const drift: DriftReport = last?.drift ?? (await modelDrift(orgId));
+  const cal = drift.calibration;
+  const pop = drift.population;
+
+  const trendLine = (() => {
+    if (trend.length < 2) return "";
+    const first = trend[0], lastPt = trend[trend.length - 1];
+    const delta = lastPt.atRiskPct - first.atRiskPct;
+    const dir = Math.abs(delta) < 0.05 ? "flat" : delta > 0 ? `up ${delta.toFixed(1)}pp` : `down ${Math.abs(delta).toFixed(1)}pp`;
+    return ` Over the last ${trend.length} runs the at-risk share of the book is ${dir} (${first.atRiskPct.toFixed(1)}% → ${lastPt.atRiskPct.toFixed(1)}%).`;
+  })();
+
+  const headline =
+    drift.status === "INSUFFICIENT"
+      ? `Honest answer: **not enough outcomes yet to judge the model.** ${cal.note}`
+      : drift.status === "STABLE"
+        ? `The model is holding up. ${cal.note}`
+        : drift.status === "WATCH"
+          ? `Worth watching. ${cal.verdict !== "STABLE" && cal.verdict !== "INSUFFICIENT" ? cal.note : pop.note}`
+          : `**The model is drifting.** ${cal.verdict === "DRIFTING" ? cal.note : pop.note}`;
+
+  const tone = (v: string): "good" | "warn" | "bad" | undefined =>
+    v === "STABLE" ? "good" : v === "WATCH" ? "warn" : v === "DRIFTING" ? "bad" : undefined;
+
+  return {
+    ok: true,
+    route: "engine",
+    kind: "drift",
+    answer:
+      `${headline}${trendLine}\n\nThis comes from the closed ML loop, not a SQL query — every score the platform issued, joined back to what the loan actually did. The full report is on **Credit Intelligence**.`,
+    chips: [
+      { label: "Model health", value: drift.status === "INSUFFICIENT" ? "TOO EARLY" : drift.status, tone: tone(drift.status) },
+      { label: "Calibration", value: cal.realisedRate != null ? `${(cal.realisedRate * 100).toFixed(1)}% vs ${(cal.predictedRate! * 100).toFixed(1)}%` : `${cal.resolved} outcomes`, sub: cal.realisedRate != null ? "realised vs predicted" : `of ${MIN_RESOLVED} needed`, tone: tone(cal.verdict) },
+      { label: "Population PSI", value: pop.psi != null ? pop.psi.toFixed(2) : "—", tone: tone(pop.verdict) },
+    ],
+  };
+}
+
 // ── Help ──────────────────────────────────────────────────────────────────────
 
 async function answerHelp(orgId: string, metrics: ResolvedMetric[]): Promise<AnalystResult> {
@@ -367,7 +419,7 @@ export async function analyze(orgId: string, question: string): Promise<AnalystR
   const p = plan(question, metrics);
 
   if (p.kind === "help") return answerHelp(orgId, metrics);
-  if (p.kind === "engine") return answerWatchlist(orgId);
+  if (p.kind === "engine") return p.engine === "drift" ? answerDrift(orgId) : answerWatchlist(orgId);
 
   if (p.kind === "metric") {
     const m = metrics.find((x) => x.id === p.metricId);

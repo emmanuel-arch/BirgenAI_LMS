@@ -1441,6 +1441,44 @@ model ScoreSnapshot {
   @@index([orgId, outcome])
 }
 
+/// One batch sweep of an org's live book by the early-warning engine, frozen in
+/// time — so portfolio risk becomes a trend a Credit Manager can watch, not a
+/// number that overwrites itself. Each run records the tiles, who was on the
+/// watchlist (compact rows, for movement between runs), which policy scored it,
+/// and the model-drift report computed against realised ScoreSnapshot outcomes.
+model PortfolioRun {
+  id      String   @id @default(uuid())
+  orgId   String
+  ranAt   DateTime @default(now())
+  trigger String // cron | manual | seed
+  /// The scoring policy in force: "default" or "custom v<n>" — a risk trend
+  /// where the policy silently changed mid-line is a lie, so every point says.
+  policy  String
+
+  activeLoans   Int
+  olb           Decimal @db.Decimal(18, 2)
+  atRiskValue   Decimal @db.Decimal(18, 2)
+  projectedLoss Decimal @db.Decimal(18, 2)
+  watchlist     Int
+  high          Int
+  elevated      Int
+
+  // Movement vs the previous run (borrowers, not loans).
+  entered   Int @default(0)
+  left      Int @default(0)
+  escalated Int @default(0)
+  improved  Int @default(0)
+
+  /// Compact watchlist snapshot [{b,l,n,s,band,dpd,bal}] — enough to diff runs
+  /// and name who moved, never the full risk row (that is recomputed live).
+  rows  Json
+  /// DriftReport (lib/intelligence/drift.ts) as of this run; null when the org
+  /// has no scoring history to measure.
+  drift Json?
+
+  @@index([orgId, ranAt])
+}
+
 model GeoPin {
   id            String   @id @default(uuid())
   orgId         String

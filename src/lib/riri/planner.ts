@@ -31,8 +31,8 @@ import { READ_SURFACE } from "./guard";
 export type Plan =
   /** A governed metric — the overwhelmingly common case. */
   | { kind: "metric"; metricId: string; dimension?: DimensionId; range: TimeRange; limit?: number; series: boolean }
-  /** Not a SQL question: the early-warning model. */
-  | { kind: "engine"; engine: "watchlist" }
+  /** Not a SQL question: the early-warning model, or the health of the model itself. */
+  | { kind: "engine"; engine: "watchlist" | "drift" }
   /** Riri introduces herself and reads the pulse of the book. */
   | { kind: "help" }
   /**
@@ -157,6 +157,10 @@ const WANTS_SERIES = /\btrend\b|\bover time\b|\bhistory\b|\bchart\b|\bgraph\b|\b
 // ── Routing ───────────────────────────────────────────────────────────────────
 
 const WATCHLIST = /\bwatchlist\b|\bearly warning\b|who.*(default|risk|slip)|going to default|might default|about to default|risky borrower|flight risk/;
+// The model itself, not the borrowers it scores: drift, calibration, "can I still
+// trust the scores". Checked BEFORE the watchlist regex — "is the model still
+// predicting defaults right" contains default-shaped words but asks about the model.
+const DRIFT = /\bdrift(ing|ed)?\b|\bcalibrat|\bmodel (health|accura|still|right|wrong|ok|okay|reliable|trust)|\bis the (model|scoring)\b|trust the (score|model)|\bpsi\b|risk trend|book (getting|trending) (better|worse)/;
 const GREETING = /^\s*(hi|hey|hello|help|good (morning|afternoon|evening)|what can you do|who are you|what do you do)\b/;
 
 /**
@@ -195,6 +199,7 @@ export function plan(question: string, metrics: ResolvedMetric[]): Plan {
   const q = question.toLowerCase().trim();
 
   if (!q || q.length < 3 || GREETING.test(q)) return { kind: "help" };
+  if (DRIFT.test(q)) return { kind: "engine", engine: "drift" };
   if (WATCHLIST.test(q)) return { kind: "engine", engine: "watchlist" };
 
   const live = metrics.filter((m) => m.enabled);
