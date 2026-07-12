@@ -38,7 +38,7 @@ import { rateLimit } from "@/lib/ratelimit";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
 import {
-  kycMode, assessIdQuality, extractId, assessLiveness, activeLivenessChallenges, assessActiveLiveness,
+  kycMode, assessIdQuality, performIdOcr, assessLiveness, activeLivenessChallenges, assessActiveLiveness,
   faceMatch, iprsLookup, portraitIsStandardized,
 } from "@/lib/kyc/provider";
 import { putKycObject, storageMode, InvalidImageError, MAX_IMAGE_BYTES, type KycAssetKind } from "@/lib/storage/provider";
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, sessionId: kycSession.id, mode, step, quality, retake: true });
       }
       const idFrontKey = await store("id-front");
-      const ocr = extractId(seed, nationalId);
+      const ocr = await performIdOcr(seed, nationalId, typeof p.image === "string" ? p.image : null);
       await writeCheck("ID_OCR", true, ocr.confidence, ocr);
       const typedId = (nationalId || "").replace(/\D/g, "");
       const idMismatch = typedId && ocr.idNumber && typedId !== ocr.idNumber.replace(/\D/g, "");

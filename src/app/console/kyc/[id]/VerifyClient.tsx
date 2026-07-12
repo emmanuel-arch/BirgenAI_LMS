@@ -58,7 +58,7 @@ export function VerifyClient({ borrower, returnTo, returnLabel }: {
   const verified = outcome?.status === "VERIFIED" && attached;
 
   return (
-    <main className="mx-auto max-w-md px-4 py-8 sm:px-6">
+    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <Link href={returnTo} className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
         <ArrowLeft className="h-4 w-4" /> Back to {returnLabel}
       </Link>

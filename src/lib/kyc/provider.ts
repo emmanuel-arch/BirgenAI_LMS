@@ -83,6 +83,32 @@ export function assessIdQuality(
 }
 
 // ── ID OCR ────────────────────────────────────────────────────────────────────
+
+/**
+ * The OCR seam. With a Google Cloud Vision key configured (GOOGLE_CLOUD_API_KEY /
+ * OCR_API_KEY), the captured ID front is read for REAL and the Kenyan-ID fields
+ * parsed out of it; anything less — no key, Vision down, an unreadable card —
+ * falls back to the seeded simulation so the pipeline never dies on a vendor.
+ * The returned `engine` is recorded on the ID_OCR check, so a session can always
+ * say whether its fields came from the document or from the simulator.
+ */
+export async function performIdOcr(
+  seed: string,
+  nationalId?: string | null,
+  imageDataUrl?: string | null,
+): Promise<IdOcrResult & { engine: "google-vision" | "simulation" }> {
+  if (imageDataUrl) {
+    const { visionIdOcr, ocrMode } = await import("./vision");
+    if (ocrMode() === "live") {
+      const live = await visionIdOcr(imageDataUrl);
+      // A live read that found the essentials wins; a partial read that found
+      // NEITHER a name nor an ID number is a failed read, not a worse answer.
+      if (live && (live.idNumber || live.fullName)) return { ...live, engine: "google-vision" };
+    }
+  }
+  return { ...extractId(seed, nationalId ?? undefined), engine: "simulation" };
+}
+
 export function extractId(seed: string, nationalId?: string): IdOcrResult {
   const id = (nationalId || "").replace(/\D/g, "");
   const year = 1970 + Math.floor(seeded(seed, "yr") * 30);

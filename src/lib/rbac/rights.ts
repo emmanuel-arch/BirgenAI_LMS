@@ -19,6 +19,7 @@ export const ALL_RIGHTS = [
   "borrowers.create", // register a borrower / run KYC checks
   "borrowers.manage", // edit identity fields, reassign, DELETE an unverified borrower
   "kyc.verify", // work the KYC verification queue: verify, reject
+  "kyc.vouch", // override a failed face-match/liveness by vouching — audited, head-office level
   // Origination
   "applications.view", // see the applications queue
   "applications.decide", // act on a stage: approve, refer, decline, offers, security
@@ -156,6 +157,7 @@ export const MODERN_RIGHTS: Right[] = [
   "branches.manage",
   "borrowers.manage",
   "kyc.verify",
+  "kyc.vouch",
 ];
 
 /**
@@ -164,7 +166,7 @@ export const MODERN_RIGHTS: Right[] = [
  * verify-rbac asserts every right appears in exactly one group.
  */
 export const RIGHT_GROUPS: { key: string; label: string; rights: Right[] }[] = [
-  { key: "borrowers", label: "Borrowers", rights: ["borrowers.view", "borrowers.create", "borrowers.manage", "kyc.verify"] },
+  { key: "borrowers", label: "Borrowers", rights: ["borrowers.view", "borrowers.create", "borrowers.manage", "kyc.verify", "kyc.vouch"] },
   { key: "loans", label: "Loans", rights: ["applications.view", "applications.decide", "loans.view", "loans.apply"] },
   { key: "payments", label: "Payments", rights: ["disbursements.view", "disbursements.manage", "float.view", "float.manage", "repayments.view", "repayments.collect", "reconciliation.view", "reconciliation.resolve"] },
   { key: "collections", label: "Collections", rights: ["collections.view", "collections.manage"] },
@@ -186,6 +188,7 @@ export const RIGHT_LABELS: Record<Right, string> = {
   "borrowers.create": "Can register new borrowers and run KYC checks",
   "borrowers.manage": "Can reassign borrowers and delete unverified ones",
   "kyc.verify": "Can verify a customer's identity from the KYC queue",
+  "kyc.vouch": "Can vouch for a customer the machine could not confirm (worn ID photo, failed face match) — every vouch is recorded under their name",
   "applications.view": "Can see the loan applications queue",
   "applications.decide": "Can approve, refer or decline applications and manage offers",
   "loans.view": "Can see booked loans and print statements",

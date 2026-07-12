@@ -91,7 +91,7 @@ export default function VerifyPage() {
   return (
     <div className="relative min-h-screen text-zinc-900" style={brandStyle}>
       <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <div className="relative z-10 mx-auto max-w-md px-4 py-8">
+      <div className="relative z-10 mx-auto max-w-3xl px-4 py-8">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5" style={{ color: "var(--brand)" }} />
           <span className="text-sm font-bold">Identity verification</span>

@@ -14,10 +14,22 @@
 //                           customer; deleting them is how the queue stays honest.
 import { useState } from "react";
 import Link from "next/link";
-import { ShieldCheck, Search, Loader2, AlertCircle, Send, Trash2, ScanFace, Clock, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Search, Loader2, AlertCircle, Send, Trash2, ScanFace, Clock, CheckCircle2, UserCheck, Eye, XCircle } from "lucide-react";
 import { useLoad } from "@/lib/hooks/useLoad";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { BorrowerAvatar } from "@/components/kyc/BorrowerAvatar";
+
+type Review = {
+  sessionId: string;
+  faceMatchScore: number | null;
+  livenessScore: number | null;
+  livenessPassed: boolean | null;
+  iprsMatched: boolean | null;
+  flags: string[];
+  idFrontKey: string | null;
+  selfieKey: string | null;
+  vouchable: boolean;
+};
 
 type Row = {
   id: string;
@@ -31,6 +43,7 @@ type Row = {
   waitingDays: number;
   applications: number;
   loans: number;
+  review: Review | null;
 };
 
 const STATUS: Record<Row["kycStatus"], { label: string; cls: string }> = {
@@ -52,6 +65,7 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
   const [q, setQ] = useState("");
   const [canVerify, setCanVerify] = useState(false);
   const [canDelete, setCanDelete] = useState(false);
+  const [canVouch, setCanVouch] = useState(false);
   const [scope, setScope] = useState<string>("ORG");
   const [blocked, setBlocked] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -67,6 +81,7 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
     setRows(data.borrowers);
     setCanVerify(data.canVerify);
     setCanDelete(data.canDelete);
+    setCanVouch(data.canVouch);
     setScope(data.scope);
     setBlocked(data.blocked);
   };
@@ -250,6 +265,17 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
                     )}
                   </div>
                 </div>
+
+                {/* The review case: what the machine measured, the evidence, and —
+                    for the appointed few — the override with their name on it. */}
+                {r.review && (
+                  <ReviewPanel
+                    row={r}
+                    canVouch={canVouch}
+                    onVouched={async (msg) => { setNotice(msg); await load(); }}
+                    onError={setError}
+                  />
+                )}
               </div>
             );
           })}
@@ -257,6 +283,12 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
       )}
 
       <p className="mt-6 text-[12px] leading-relaxed text-zinc-400">
+        Cases marked &ldquo;needs a human look&rdquo; or &ldquo;failed&rdquo; carry the machine&rsquo;s scores right on the card. A worn
+        fifteen-year-old ID photo will fail an honest face-match on an honest customer — that is what
+        &ldquo;vouch&rdquo; is for: someone senior compares the two faces themselves and puts their name on the
+        override. A vouch can never clear an ID the national registry does not recognise.
+      </p>
+      <p className="mt-2 text-[12px] leading-relaxed text-zinc-400">
         &ldquo;Verify at the counter&rdquo; runs the wizard here, in the console, for a customer standing in front of you —
         their ID and face are captured, and your name goes on the record as the person who vouched for the match.
         &ldquo;Send link&rdquo; texts them a link so they can do it themselves, where an SMS code proves the phone is theirs.
@@ -264,5 +296,148 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
         application is still part of your record.
       </p>
     </main>
+  );
+}
+
+// ── The review case, inline on the queue row ─────────────────────────────────
+
+const FLAG_LABEL: Record<string, string> = {
+  "low-id-quality": "ID photo quality below the bar",
+  "liveness-failed": "Liveness not confirmed",
+  "face-mismatch": "Face didn't match the ID portrait",
+  "iprs-unmatched": "No record at the national registry",
+};
+
+function ReviewPanel({ row, canVouch, onVouched, onError }: {
+  row: Row;
+  canVouch: boolean;
+  onVouched: (msg: string) => void | Promise<void>;
+  onError: (msg: string) => void;
+}) {
+  const r = row.review!;
+  const [comparing, setComparing] = useState(false);
+  const [images, setImages] = useState<{ id?: string; selfie?: string } | null>(null);
+  const [vouching, setVouching] = useState(false);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  // Each reveal mints a short-lived signed URL — and writes the audit row that
+  // says this person looked at this document. That is why it is a click.
+  const compare = async () => {
+    if (comparing) { setComparing(false); return; }
+    setComparing(true);
+    if (images) return;
+    const fetchOne = async (key: string | null) => {
+      if (!key) return undefined;
+      const res = await fetch(`/api/console/kyc/asset?key=${encodeURIComponent(key)}`);
+      const data = await res.json();
+      return data.success ? (data.url as string) : undefined;
+    };
+    try {
+      const [id, selfie] = await Promise.all([fetchOne(r.idFrontKey), fetchOne(r.selfieKey)]);
+      setImages({ id, selfie });
+    } catch { setImages({}); }
+  };
+
+  const vouch = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/console/kyc/vouch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: r.sessionId, note }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message);
+      await onVouched(data.message);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "The vouch could not be recorded.");
+    } finally { setBusy(false); }
+  };
+
+  const score = (label: string, value: number | null, good: boolean | null) => (
+    <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold ring-1 ring-zinc-900/10">
+      <span className="text-[color:var(--ink-muted)]">{label}</span>
+      <span className={`tabular-nums ${good === false ? "text-rose-600" : good ? "text-emerald-600" : "text-[color:var(--ink)]"}`}>
+        {value != null ? `${value}%` : "—"}
+      </span>
+    </span>
+  );
+
+  return (
+    <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50/60 p-3">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {score("Face match", r.faceMatchScore, r.faceMatchScore != null ? r.faceMatchScore >= 85 : null)}
+        {score("Liveness", r.livenessScore, r.livenessPassed)}
+        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${r.iprsMatched === false ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}>
+          {r.iprsMatched === false ? <XCircle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />} Registry
+        </span>
+        {r.flags.map((f) => (
+          <span key={f} className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">{FLAG_LABEL[f] ?? f}</span>
+        ))}
+        <span className="flex-1" />
+        {(r.idFrontKey || r.selfieKey) && (
+          <button onClick={compare} className="inline-flex items-center gap-1 rounded-lg border border-zinc-900/12 bg-white px-2 py-1 text-[11px] font-semibold text-zinc-600 hover:text-zinc-900">
+            <Eye className="h-3 w-3" /> {comparing ? "Hide the evidence" : "Compare the faces"}
+          </button>
+        )}
+        {canVouch && r.vouchable && !vouching && (
+          <button onClick={() => setVouching(true)} className="inline-flex items-center gap-1 rounded-lg bg-sky-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-sky-700">
+            <UserCheck className="h-3 w-3" /> Vouch for this match
+          </button>
+        )}
+      </div>
+
+      {comparing && (
+        <div className="mt-2.5 grid max-w-sm grid-cols-2 gap-2">
+          {[{ src: images?.id, label: "ID front" }, { src: images?.selfie, label: "Selfie" }].map((f) => (
+            <div key={f.label}>
+              <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[color:var(--ink-faint)]">{f.label}</p>
+              <div className="relative aspect-square overflow-hidden rounded-lg bg-zinc-900/10">
+                {f.src ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={f.src} alt={f.label} className="h-full w-full object-cover" />
+                ) : images ? (
+                  <span className="absolute inset-0 flex items-center justify-center px-2 text-center text-[10px] text-[color:var(--ink-faint)]">not stored</span>
+                ) : (
+                  <span className="absolute inset-0 flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-zinc-400" /></span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {vouching && (
+        <div className="mt-2.5">
+          <p className="text-[11px] font-semibold text-sky-900">
+            You are overriding the machine on {row.name}. Look at both faces first. Your name goes on the record.
+          </p>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            placeholder="Why you are sure it's them — e.g. “ID photo is 15 years old; scars and features match, customer known to the Gikomba branch since 2021.”"
+            className="mt-1.5 w-full rounded-lg border border-sky-300 bg-white px-2.5 py-2 text-[12px] outline-none placeholder:text-zinc-400"
+          />
+          <div className="mt-1.5 flex items-center gap-2">
+            <button
+              disabled={busy || note.trim().length < 10}
+              onClick={vouch}
+              className="inline-flex items-center gap-1 rounded-lg bg-sky-600 px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserCheck className="h-3 w-3" />} Verify on my word
+            </button>
+            <button onClick={() => setVouching(false)} className="text-[11px] font-semibold text-zinc-500 hover:text-zinc-800">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {!r.vouchable && (
+        <p className="mt-2 text-[11px] font-medium text-rose-700">
+          The national registry has no record of this ID — a vouch cannot clear that. Re-check the document itself.
+        </p>
+      )}
+    </div>
   );
 }

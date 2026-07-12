@@ -88,6 +88,24 @@ export async function GET(req: NextRequest) {
   const officerOf = new Map(officers.map((o) => [o.id, `${o.firstName} ${o.otherName ?? ""}`.trim()]));
   const branchOf = new Map(branches.map((b) => [b.id, b.name]));
 
+  // Review cases: a completed check the machine could not clear. The newest failed
+  // session's scores ride on the row, so a senior reviewer can see WHAT failed and
+  // by how much — and, holding kyc.vouch, put their name on an override.
+  const reviewIds = rows.filter((r) => r.kycStatus === "PENDING_REVIEW" || r.kycStatus === "FAILED").map((r) => r.id);
+  const reviewSessions = reviewIds.length
+    ? await prisma.kycSession.findMany({
+        where: { orgId, borrowerId: { in: reviewIds }, status: { in: ["PENDING_REVIEW", "FAILED"] } },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true, borrowerId: true, faceMatchScore: true, livenessScore: true,
+          livenessPassed: true, iprsMatched: true, riskFlags: true,
+          idFrontKey: true, selfieKey: true,
+        },
+      })
+    : [];
+  const reviewOf = new Map<string, (typeof reviewSessions)[number]>();
+  for (const x of reviewSessions) if (x.borrowerId && !reviewOf.has(x.borrowerId)) reviewOf.set(x.borrowerId, x);
+
   // What the lender is actually paying for this queue not being empty: customers who
   // have already asked for money and cannot legally be given it.
   const blocked = rows.filter((r) => r._count.applications > 0 || r._count.loans > 0).length;
@@ -96,6 +114,7 @@ export async function GET(req: NextRequest) {
     success: true,
     canVerify: !(await requireRight(session, "kyc.verify")),
     canDelete: !(await requireRight(session, "borrowers.manage")),
+    canVouch: !(await requireRight(session, "kyc.vouch")),
     scope: scope.kind,
     blocked,
     borrowers: rows.map((r) => ({
@@ -111,6 +130,22 @@ export async function GET(req: NextRequest) {
       waitingDays: days(r.createdAt),
       applications: r._count.applications,
       loans: r._count.loans,
+      review: (() => {
+        const x = reviewOf.get(r.id);
+        if (!x) return null;
+        return {
+          sessionId: x.id,
+          faceMatchScore: x.faceMatchScore,
+          livenessScore: x.livenessScore,
+          livenessPassed: x.livenessPassed,
+          iprsMatched: x.iprsMatched,
+          flags: (x.riskFlags as string[] | null) ?? [],
+          idFrontKey: x.idFrontKey,
+          selfieKey: x.selfieKey,
+          // A vouch confirms a face; it cannot make an unmatched ID real.
+          vouchable: x.iprsMatched !== false,
+        };
+      })(),
     })),
   });
 }

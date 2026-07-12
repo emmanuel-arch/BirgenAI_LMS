@@ -23,7 +23,7 @@ import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
 import {
-  kycMode, assessIdQuality, extractId, assessLiveness, activeLivenessChallenges, assessActiveLiveness, faceMatch, iprsLookup, portraitIsStandardized,
+  kycMode, assessIdQuality, performIdOcr, assessLiveness, activeLivenessChallenges, assessActiveLiveness, faceMatch, iprsLookup, portraitIsStandardized,
 } from "@/lib/kyc/provider";
 import { putKycObject, storageMode, InvalidImageError, MAX_IMAGE_BYTES, type KycAssetKind } from "@/lib/storage/provider";
 import { attachKycSession } from "@/lib/kyc/attach";
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, sessionId: session.id, mode, step, quality, retake: true });
       }
       const idFrontKey = await store("id-front");
-      const ocr = extractId(seed, body.nationalId);
+      const ocr = await performIdOcr(seed, body.nationalId, typeof p.image === "string" ? p.image : null);
       await writeCheck("ID_OCR", true, ocr.confidence, ocr);
       // Cross-check typed ID vs OCR when the borrower entered one.
       const typedId = (body.nationalId || "").replace(/\D/g, "");

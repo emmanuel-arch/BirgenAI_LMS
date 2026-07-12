@@ -510,6 +510,9 @@ enum KycCheckKind {
   IPRS
   CRB
   DEVICE
+  /// A human override of a failed face-match/liveness, recorded with the
+  /// voucher's staffId and mandatory note. Can never override IPRS.
+  VOUCH
 }
 
 model KycCheck {
