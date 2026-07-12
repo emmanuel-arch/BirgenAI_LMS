@@ -35,7 +35,9 @@ export function PageHeader({
             what keeps a subtitle from running the full width of a 27" monitor. */}
         {subtitle && <p className="t-body mt-2 max-w-[68ch]">{subtitle}</p>}
       </div>
-      {children && <div className="flex shrink-0 flex-wrap items-center gap-2">{children}</div>}
+      {/* min-w-0, not shrink-0: a shrink-proof action group holds its full one-line
+          width and walks off a 360px screen instead of wrapping its buttons. */}
+      {children && <div className="flex min-w-0 flex-wrap items-center gap-2">{children}</div>}
     </header>
   );
 }

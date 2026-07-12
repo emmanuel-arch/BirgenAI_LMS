@@ -221,7 +221,7 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
                     </p>
                   </div>
 
-                  <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                     {canVerify && (
                       <>
                         {/* Stays INSIDE the console. It used to open the borrower's own

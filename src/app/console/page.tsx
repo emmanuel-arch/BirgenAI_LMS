@@ -127,16 +127,18 @@ export default async function Console() {
         ))}
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Two-up on phones: eighteen full-width cards is a minute of scrolling on a
+          360px Android — the launcher grid keeps the whole operation on two screens. */}
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         {visible.map(({ icon: Icon, title, desc, ready, ...m }) => {
           const card = (
-            <div className={`glass p-5 h-full ${ready ? "hover:bg-white/80 transition-colors" : "opacity-60"}`}>
+            <div className={`glass p-3.5 sm:p-5 h-full ${ready ? "hover:bg-white/80 transition-colors" : "opacity-60"}`}>
               <div className="flex items-center justify-between">
-                <Icon className="h-6 w-6" style={{ color: "var(--brand)" }} aria-hidden />
+                <Icon className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: "var(--brand)" }} aria-hidden />
                 {!ready && <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">COMING UP</span>}
               </div>
-              <h2 className="mt-3 text-sm font-semibold">{title}</h2>
-              <p className="mt-1 text-sm leading-relaxed text-zinc-600">{desc}</p>
+              <h2 className="mt-2.5 sm:mt-3 text-[13px] sm:text-sm font-semibold leading-snug">{title}</h2>
+              <p className="mt-1 text-[11px] sm:text-sm leading-snug sm:leading-relaxed text-zinc-600 line-clamp-2 sm:line-clamp-none">{desc}</p>
             </div>
           );
           if (m.href && ready) return <a key={title} href={m.href}>{card}</a>;

@@ -235,7 +235,7 @@ function QueueTab({ onChanged, setNotice, setError }: { onChanged: () => void; s
                     )}
                   </div>
                 </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <a href={`tel:${r.phone}`} className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold text-white" style={{ backgroundColor: "var(--brand)" }}>
                     <Phone className="h-3.5 w-3.5" /> Call
                   </a>
@@ -475,7 +475,7 @@ function TicketsTab({ setNotice, setError }: { setNotice: (s: string | null) => 
                   {t.resolution && <p className="mt-1 text-[11px] text-emerald-700">Resolved: {t.resolution}</p>}
                 </div>
                 {(t.status === "OPEN" || t.status === "IN_PROGRESS") && (
-                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <select
                       value={t.assignedTo?.id ?? ""}
                       onChange={(e) => update({ id: t.id, assignedToId: e.target.value || null, ...(e.target.value ? { status: "IN_PROGRESS" } : {}) }, "Assignment updated.")}

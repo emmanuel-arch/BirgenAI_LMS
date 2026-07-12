@@ -505,7 +505,7 @@ export default function LmsPortal() {
                   <div className="mt-5 flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3">
                     <Phone className="h-4 w-4 text-zinc-400 shrink-0" />
                     <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel"
-                      placeholder={scoped ? "07XX XXX XXX" : "Phone number registered with your lender"}
+                      placeholder={scoped ? "07XX XXX XXX" : "Phone number (07XX XXX XXX)"}
                       className="flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-zinc-400" />
                   </div>
 

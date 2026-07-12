@@ -170,7 +170,7 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
                           </p>
                         </div>
                       </div>
-                      <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
                         {o.activationRequestedAt && o.status === "PENDING" && (
                           <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-700">
                             <BadgeCheck className="h-3 w-3" /> requested {day(o.activationRequestedAt)}

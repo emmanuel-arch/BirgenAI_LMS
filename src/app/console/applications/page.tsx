@@ -131,10 +131,12 @@ function ApplicationsQueue() {
             const live = ["SUBMITTED", "AI_PRESCREEN", "OFFICER_REVIEW", "REFERRED"].includes(a.status);
             return (
               <div key={a.id} className="glass p-4">
-                <button className="w-full flex items-center gap-3 text-left" onClick={() => setOpen(expanded ? null : a.id)}>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate">{a.borrowerName || a.phone || "Applicant"} · {fmtKES(a.amountRequested)}</p>
-                    <p className="text-xs text-zinc-500 truncate">
+                {/* basis-52 lets the status chips wrap under the name on a phone
+                    instead of crushing it to a few letters; one line on anything wider. */}
+                <button className="w-full flex flex-wrap items-center gap-x-3 gap-y-1.5 text-left" onClick={() => setOpen(expanded ? null : a.id)}>
+                  <div className="min-w-0 flex-1 basis-52">
+                    <p className="text-sm font-semibold sm:truncate">{a.borrowerName || a.phone || "Applicant"} · {fmtKES(a.amountRequested)}</p>
+                    <p className="text-xs text-zinc-500 sm:truncate">
                       {a.productName ?? "No product"} · {new Date(a.createdAt).toLocaleString("en-KE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                       {a.score != null && <> · score <span className="font-semibold">{a.score}</span>/900</>}
                       {a.approvedLimit != null && Number(a.approvedLimit) > 0 && (

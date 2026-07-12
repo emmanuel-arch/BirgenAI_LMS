@@ -113,10 +113,12 @@ export default function DisbursementsPage() {
             <div key={d.id} className="glass p-4">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold truncate">
+                  {/* Phones wrap; wider screens keep the one-line row. A cut-off
+                      destination number is the one thing this queue cannot afford. */}
+                  <p className="text-sm font-semibold sm:truncate">
                     {d.borrower} · {fmtKES(d.amount)} → {d.payee ? (d.payee.name || `paybill ${d.payee.paybill}`) : d.phone}
                   </p>
-                  <p className="text-xs text-zinc-500 truncate">
+                  <p className="text-xs text-zinc-500 sm:truncate">
                     {d.product} · loan {d.loanId.slice(0, 8)} · {new Date(d.createdAt).toLocaleString("en-KE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     {d.receiptRef && <> · ref {d.receiptRef}</>}
                   </p>

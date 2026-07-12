@@ -91,11 +91,13 @@ function Borrowers() {
                     size="sm"
                   />
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">
+                    <p className="text-sm font-semibold sm:truncate">
                       {b.name ?? b.phone}
                       {b.graduated && <span className="ml-2 rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">GRADUATED</span>}
                     </p>
-                    <p className="text-xs text-zinc-500 truncate">
+                    {/* Phones wrap to a second line — a truncated score or a hidden
+                        "not verified" is worse than a taller row. */}
+                    <p className="text-xs text-zinc-500 sm:truncate">
                       {b.phone}{b.nationalId ? ` · ID ${b.nationalId}` : ""}
                       {/* The tick on the avatar says "verified". Only the absence needs words. */}
                       {b.kycStatus !== "VERIFIED" && <span className="font-medium text-amber-700"> · not verified</span>}

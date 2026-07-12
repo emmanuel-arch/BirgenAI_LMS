@@ -126,7 +126,9 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2 shrink-0">
+            {/* Full-width row under the identity on a phone (shrink-0 alone would
+                push the third tile off the screen); a fixed strip beside it on sm+. */}
+            <div className="grid w-full grid-cols-3 gap-2 sm:w-auto sm:shrink-0">
               <Stat label="OLB" value={fmtKES(olb)} tone="text-[color:var(--brand)]" />
               <Stat label="Internal score" value={b.creditScore != null ? String(b.creditScore) : "—"} />
               <Stat label="Loans" value={`${b.loans.filter((l) => l.status === "ACTIVE").length}/${b.loans.length}`} />
