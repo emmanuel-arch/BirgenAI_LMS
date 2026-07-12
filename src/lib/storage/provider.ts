@@ -81,7 +81,56 @@ export function storageMode(): StorageMode {
   return serviceKey() && supabaseUrl() ? "live" : "simulation";
 }
 
+/** A misconfigured key, not a bad image and not a bug. Carries the fix in its message. */
+export class StorageConfigError extends Error {}
+
+/**
+ * Why the configured key cannot work — in words that name the fix. Null when it can.
+ *
+ * This exists because of a real 40-minute debugging session: `SUPABASE_SERVICE_ROLE_KEY`
+ * held a 31-character string that was not a key at all, `storageMode()` saw *a* value
+ * and cheerfully declared itself live, and the first sign of trouble was Supabase
+ * refusing an upload with `{"statusCode":"403","message":"Invalid Compact JWS"}` —
+ * which tells you nothing about which of your environment variables is wrong.
+ *
+ * A credential we can recognise as broken should be rejected where it is READ, with a
+ * sentence that says what to paste and where to get it. Note we deliberately do NOT
+ * fall back to simulation on a bad key: silently degrading would mean a lender's KYC
+ * photographs quietly stop being persisted while every screen still says "verified".
+ */
+export function serviceKeyProblem(): string | null {
+  const key = serviceKey();
+  if (!key) return null; // Absent is a legitimate state: simulation mode.
+
+  // New-style Supabase API keys.
+  if (key.startsWith("sb_secret_")) return null;
+  if (key.startsWith("sb_publishable_")) {
+    return "SUPABASE_SERVICE_ROLE_KEY holds the PUBLISHABLE key (sb_publishable_…), which is the browser-safe one and cannot write to storage. Copy the SECRET key (sb_secret_…) from Supabase → Project Settings → API keys.";
+  }
+
+  // Legacy JWT keys: readable, so we can tell service_role from anon before Supabase does.
+  const parts = key.split(".");
+  if (parts.length === 3 && key.startsWith("eyJ")) {
+    try {
+      const claims = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as { role?: string };
+      if (!claims.role || claims.role === "service_role") return null;
+      return `SUPABASE_SERVICE_ROLE_KEY holds the "${claims.role}" key, not the service_role key. The anon key cannot write to a private bucket. Copy the service_role key from Supabase → Project Settings → API.`;
+    } catch {
+      return "SUPABASE_SERVICE_ROLE_KEY looks like a JWT but its payload cannot be read. Re-copy the service_role key from Supabase → Project Settings → API.";
+    }
+  }
+
+  return (
+    `SUPABASE_SERVICE_ROLE_KEY is not a Supabase key — it is ${key.length} characters with no JWT structure ` +
+    `(a service_role key is a long "eyJ…" JWT, or an "sb_secret_…" key). This is most often the database password ` +
+    `pasted into the wrong variable. Get the right value from Supabase → Project Settings → API.`
+  );
+}
+
+/** The one choke point every live storage call passes through. */
 function headers(extra?: Record<string, string>): Record<string, string> {
+  const problem = serviceKeyProblem();
+  if (problem) throw new StorageConfigError(problem);
   const key = serviceKey()!;
   return { Authorization: `Bearer ${key}`, apikey: key, ...extra };
 }

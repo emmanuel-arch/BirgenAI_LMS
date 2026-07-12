@@ -14,7 +14,7 @@
 // both private, but they are not the same class of data — separate buckets let a
 // retention or erasure policy apply to one without touching the other.
 import "dotenv/config";
-import { KYC_BUCKET, DOCS_BUCKET, BRAND_BUCKET, MAX_IMAGE_BYTES, MAX_LOGO_BYTES, storageMode, supabaseUrl } from "../src/lib/storage/provider";
+import { KYC_BUCKET, DOCS_BUCKET, BRAND_BUCKET, MAX_IMAGE_BYTES, MAX_LOGO_BYTES, storageMode, supabaseUrl, serviceKeyProblem } from "../src/lib/storage/provider";
 import { MAX_DOCUMENT_BYTES } from "../src/lib/documents/parse";
 
 const SPECS = [
@@ -30,6 +30,14 @@ async function main() {
     console.log("SUPABASE_SERVICE_ROLE_KEY is not set — storage stays in simulation.");
     console.log("KYC images and documents will not be persisted. Set the key and re-run to go live.");
     return;
+  }
+
+  // Catch a wrong-but-present key HERE, where someone is watching a terminal, rather
+  // than at 2am when an officer uploads a national ID and gets "Invalid Compact JWS".
+  const problem = serviceKeyProblem();
+  if (problem) {
+    console.error(`\n✗ ${problem}\n`);
+    process.exit(1);
   }
 
   const url = supabaseUrl()!;

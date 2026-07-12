@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireRight } from "@/lib/rbac/authz";
-import { putBrandLogo, deleteBrandLogo, storageMode, InvalidImageError } from "@/lib/storage/provider";
+import { putBrandLogo, deleteBrandLogo, storageMode, InvalidImageError, StorageConfigError } from "@/lib/storage/provider";
 import { isHexColor, isCssRgba } from "@/lib/branding/palette";
 
 export const runtime = "nodejs";
@@ -57,6 +57,13 @@ export async function PUT(req: NextRequest) {
       logoUrl = await putBrandLogo(orgId, body.logoDataUrl);
     } catch (e) {
       if (e instanceof InvalidImageError) return NextResponse.json({ success: false, message: e.message }, { status: 400 });
+      // A broken storage credential is OUR misconfiguration, not the admin's bad file.
+      // Say so, and say it where they can read it — the alternative was a 500 whose
+      // only clue was "Invalid Compact JWS" buried in the server log.
+      if (e instanceof StorageConfigError) {
+        console.error("[branding] storage is misconfigured:", e.message);
+        return NextResponse.json({ success: false, message: `Your colours are fine — the logo couldn't be stored because object storage is misconfigured. ${e.message}` }, { status: 503 });
+      }
       throw e;
     }
   }
