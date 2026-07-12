@@ -10,7 +10,7 @@
 // approved contextual set (Gauge/Bot/Crown) — no lucide "Sparkles" family.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type RiriModelId = "analyst" | "copilot" | "max";
+export type RiriModelId = "support" | "analyst" | "copilot" | "max";
 
 export type RiriModel = {
   id: RiriModelId;
@@ -21,7 +21,7 @@ export type RiriModel = {
   /** Short "what this model is for" line. */
   blurb: string;
   /** lucide icon name (resolved in the client). */
-  icon: "Gauge" | "Bot" | "Crown";
+  icon: "Gauge" | "Bot" | "Crown" | "LifeBuoy";
   /** Badge shown on the model: LIVE data vs a simulated/premium capability. */
   badge: "LIVE DATA" | "SIMULATED" | "PRO";
   /** Premium tier gets the subtle sheen treatment (simulated subscription). */
@@ -31,6 +31,21 @@ export type RiriModel = {
 };
 
 export const RIRI_MODELS: Record<RiriModelId, RiriModel> = {
+  support: {
+    id: "support",
+    name: "Riri Support",
+    tag: "2.5",
+    blurb: "Knows this platform inside out — how to do anything, and why something is blocked.",
+    icon: "LifeBuoy",
+    badge: "LIVE DATA",
+    suggestions: [
+      "What do I do next?",
+      "How do I apply for a loan for a customer?",
+      "Why can't I disburse this loan?",
+      "Who can see whose customers?",
+      "How do I upgrade my package?",
+    ],
+  },
   analyst: {
     id: "analyst",
     name: "Riri Analyst",
@@ -80,8 +95,8 @@ export const RIRI_MODELS: Record<RiriModelId, RiriModel> = {
   },
 };
 
-export const RIRI_MODEL_IDS: RiriModelId[] = ["analyst", "copilot", "max"];
+export const RIRI_MODEL_IDS: RiriModelId[] = ["support", "analyst", "copilot", "max"];
 
 export function isRiriModel(v: unknown): v is RiriModelId {
-  return v === "analyst" || v === "copilot" || v === "max";
+  return v === "support" || v === "analyst" || v === "copilot" || v === "max";
 }

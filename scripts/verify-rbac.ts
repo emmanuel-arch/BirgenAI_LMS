@@ -129,8 +129,15 @@ async function main() {
   ok("Starter admin keeps the document parser (sold on Starter)", starterItems.has("documents"));
   ok("Starter admin keeps team, roles, settings, billing", ["team", "roles", "settings", "billing"].every((k) => starterItems.has(k)));
 
+  // With NO rights at all, exactly two things survive, and both are deliberate: the
+  // dashboard, and Riri's Help & How-to. Support carries no right and no plan feature —
+  // a person who cannot yet do anything is precisely the person who most needs to be
+  // able to ask why. Everything that touches the book still requires a right.
   const nobody = navFor(new Set(), allFeatures);
-  ok("no rights ⇒ only the dashboard survives", nobody.length === 1 && nobody[0].key === "dashboard");
+  const nobodyItems = new Set(nobody.flatMap((m) => m.items.map((i) => i.key)));
+  ok("no rights ⇒ only the dashboard and Riri Support survive", nobody.length === 2, nobody.map((m) => m.key).join(", "));
+  ok("…and Help & How-to is the ungated one (support is never sold)", nobodyItems.has("riri-support") && !nobodyItems.has("riri"));
+  ok("…while nothing that touches the book is reachable", !["borrowers-list", "loans-list", "disbursements", "team"].some((k) => nobodyItems.has(k)));
 
   console.log("\n5. rightsSetFrom — Role.rights JSON is normalized defensively");
   ok("non-array is nothing", rightsSetFrom({ evil: true }).size === 0 && rightsSetFrom("*").size === 0);

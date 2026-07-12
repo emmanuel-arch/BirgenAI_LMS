@@ -22,7 +22,7 @@ export type NavItem = {
   /** Route target. Query-string deep links land on existing screens' filters. */
   href?: string;
   /** Opens the Riri dock instead of navigating (data-riri-open value). */
-  open?: "analyst" | "copilot" | "max";
+  open?: "support" | "analyst" | "copilot" | "max";
   icon: string; // lucide icon name — mapped to a component in the client shell
   /** Right that admits the caller. Absent ⇒ visible to every signed-in staff. */
   right?: Right;
@@ -158,6 +158,9 @@ export const NAV_REGISTRY: NavModule[] = [
     label: "Riri",
     icon: "Bot",
     items: [
+      // Support is FIRST and needs no plan: a lender on the 10k package who cannot get
+      // help is a lender who churns. The analytics tiers are the ones that are sold.
+      { key: "riri-support", label: "Help & How-to", open: "support", icon: "LifeBuoy" },
       { key: "riri", label: "Ask Riri", open: "analyst", icon: "Bot", right: "riri.use", feature: "riri" },
     ],
   },

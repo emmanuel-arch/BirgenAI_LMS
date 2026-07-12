@@ -9,12 +9,13 @@
 // catalogue could not yet express.
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { requireRight } from "@/lib/rbac/authz";
-import { requireFeature } from "@/lib/billing/entitlements";
+import { requireRight, getRights } from "@/lib/rbac/authz";
+import { requireFeature, entitlementsFor } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
 import { isRiriModel } from "@/lib/riri/models";
 import { analyze } from "@/lib/riri/analyst";
 import { answerReasoning } from "@/lib/riri/copilot";
+import { answerSupport } from "@/lib/riri/support";
 import { logRiriQuery } from "@/lib/riri/log";
 
 export const runtime = "nodejs";
@@ -22,13 +23,8 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
-  const denied = await requireRight(session, "riri.use");
-  if (denied) return denied;
   const orgId = session.user.orgId;
   const staffId = session.user.id ?? null;
-
-  const gated = await requireFeature(orgId, "riri");
-  if (gated) return gated;
 
   let body: { question?: string; model?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
@@ -37,6 +33,45 @@ export async function POST(req: NextRequest) {
   const model = isRiriModel(body.model) ? body.model : "analyst";
   if (!question) return NextResponse.json({ success: false, message: "Ask Riri something." }, { status: 400 });
   if (question.length > 500) return NextResponse.json({ success: false, message: "That's a bit long — try a shorter question." }, { status: 400 });
+
+  // ── SUPPORT IS NOT SOLD, AND IS NOT GATED ──────────────────────────────────
+  //
+  // Every other Riri tier needs `riri.use` and the `riri` plan feature. Support needs
+  // neither, deliberately: a lender on the 10,000/mo package who cannot get help is a
+  // lender who churns, and metering "how do I disburse a loan?" would be a tax on not
+  // understanding our own software. It is also the surface that makes the rest of the
+  // product usable, so putting it behind the paywall would be self-defeating.
+  //
+  // It IS still rights-aware — just in the opposite direction: Riri reads the caller's
+  // rights so she never explains a screen they cannot open (src/lib/riri/support.ts).
+  if (model === "support") {
+    const [rights, ent] = await Promise.all([getRights(session), entitlementsFor(orgId)]);
+    const features = new Set<string>(ent.features);
+
+    const r = await answerSupport(orgId, question, {
+      rights,
+      features,
+      firstName: session.user.name?.split(" ")[0] ?? null,
+      orgName: session.user.orgSlug ?? undefined,
+    });
+
+    void logRiriQuery({
+      orgId, staffId, model, question,
+      route: "knowledge", metricId: r.articleId ?? null, ok: true,
+    });
+
+    return NextResponse.json({
+      success: true, model, mode: "live", route: "knowledge",
+      answer: r.answer, kind: "support",
+      actions: r.actions, suggestions: r.suggestions,
+    });
+  }
+
+  const denied = await requireRight(session, "riri.use");
+  if (denied) return denied;
+
+  const gated = await requireFeature(orgId, "riri");
+  if (gated) return gated;
 
   try {
     if (model === "analyst") {
