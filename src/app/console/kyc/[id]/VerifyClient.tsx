@@ -20,6 +20,7 @@ import {
   ArrowLeft, ShieldCheck, Check, UserCheck, AlertTriangle, Phone, IdCard, ArrowRight, Loader2,
 } from "lucide-react";
 import { VerifyFlow, type FlowOutcome, type KycPost } from "@/components/kyc/VerifyFlow";
+import { LangToggle } from "@/components/portal/LangToggle";
 
 type Borrower = {
   id: string;
@@ -59,9 +60,14 @@ export function VerifyClient({ borrower, returnTo, returnLabel }: {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-      <Link href={returnTo} className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
-        <ArrowLeft className="h-4 w-4" /> Back to {returnLabel}
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link href={returnTo} className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
+          <ArrowLeft className="h-4 w-4" /> Back to {returnLabel}
+        </Link>
+        {/* The wizard speaks to the CUSTOMER facing the camera — the officer can
+            flip it to Kiswahili for them. Console chrome around it stays English. */}
+        <LangToggle />
+      </div>
 
       <div className="glass mt-3 p-5">
         <div className="flex items-center gap-3">

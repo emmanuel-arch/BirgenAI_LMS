@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Camera, Upload, RefreshCw, Loader2, CheckCircle2 } from "lucide-react";
+import { useLang } from "@/lib/i18n/useLang";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Camera / upload capture surface — now with a LIVE COACH.
@@ -24,7 +25,10 @@ import { Camera, Upload, RefreshCw, Loader2, CheckCircle2 } from "lucide-react";
 
 export type CaptureSignals = { bytes: number; brightness?: number; blurVar?: number; dataUrl: string };
 
-type Coach = { hint: string | null; readiness: number };
+// The coach computes a hint KEY; the render maps it through the dictionary, so
+// the same loop coaches in English and Kiswahili without re-running.
+type CoachHint = "tooDark" | "glare" | "holdSteady" | "bringFace" | "moveCloser" | "moveBack" | "centreFace";
+type Coach = { hint: CoachHint | null; readiness: number };
 
 // Minimal typing for the (Chromium-only) shape detection API.
 type DetectedFaceBox = { boundingBox: { x: number; y: number; width: number; height: number } };
@@ -46,6 +50,7 @@ export function Capture({
   const coachCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const detectorRef = useRef<FaceDetectorLike | null>(null);
+  const { t } = useLang();
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [camError, setCamError] = useState(false);
   const [coach, setCoach] = useState<Coach>({ hint: null, readiness: 0 });
@@ -83,25 +88,25 @@ export function Capture({
       ctx.drawImage(video, 0, 0, w, h);
       const { brightness, blurVar } = analyzeCanvas(c);
 
-      let hint: string | null = null;
+      let hint: CoachHint | null = null;
       let readiness = 100;
-      if (brightness < 55) { hint = "Too dark — find more light"; readiness -= 45; }
-      else if (brightness > 228) { hint = "Too much glare — tilt away from the light"; readiness -= 40; }
-      if (blurVar < 90) { hint ??= "Hold steady…"; readiness -= 30; }
+      if (brightness < 55) { hint = "tooDark"; readiness -= 45; }
+      else if (brightness > 228) { hint = "glare"; readiness -= 40; }
+      if (blurVar < 90) { hint ??= "holdSteady"; readiness -= 30; }
 
       // Face framing, where the browser can see one.
       if (frame === "face" && detectorRef.current) {
         try {
           const faces = await detectorRef.current.detect(video);
-          if (!faces.length) { hint = "Bring your face into the frame"; readiness = Math.min(readiness, 25); }
+          if (!faces.length) { hint = "bringFace"; readiness = Math.min(readiness, 25); }
           else {
             const b = faces[0].boundingBox;
             const areaRatio = (b.width * b.height) / (video.videoWidth * video.videoHeight);
             const cx = (b.x + b.width / 2) / video.videoWidth;
             const cy = (b.y + b.height / 2) / video.videoHeight;
-            if (areaRatio < 0.10) { hint = "Move closer"; readiness -= 35; }
-            else if (areaRatio > 0.55) { hint = "Move back a little"; readiness -= 25; }
-            else if (Math.abs(cx - 0.5) > 0.18 || Math.abs(cy - 0.5) > 0.2) { hint = "Centre your face"; readiness -= 20; }
+            if (areaRatio < 0.10) { hint = "moveCloser"; readiness -= 35; }
+            else if (areaRatio > 0.55) { hint = "moveBack"; readiness -= 25; }
+            else if (Math.abs(cx - 0.5) > 0.18 || Math.abs(cy - 0.5) > 0.2) { hint = "centreFace"; readiness -= 20; }
           }
         } catch { /* detector flaked — light/focus coaching continues */ }
       }
@@ -162,7 +167,7 @@ export function Capture({
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-white/70">
             <Camera className="h-8 w-8" />
-            <p className="text-xs">Camera unavailable — upload a photo instead</p>
+            <p className="text-xs">{t.capture.cameraUnavailable}</p>
           </div>
         )}
         {/* Framing guide */}
@@ -179,7 +184,7 @@ export function Capture({
             <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold backdrop-blur-sm ${
               ready ? "bg-emerald-500/85 text-white" : "bg-black/55 text-white"
             }`}>
-              {ready ? (<><CheckCircle2 className="h-3.5 w-3.5" /> Looks good — capture</>) : (coach.hint ?? "Reading the frame…")}
+              {ready ? (<><CheckCircle2 className="h-3.5 w-3.5" /> {t.capture.looksGood}</>) : (coach.hint ? t.capture[coach.hint] : t.capture.reading)}
             </span>
             {/* Readiness meter */}
             <span className="flex h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-white/25">
@@ -192,7 +197,7 @@ export function Capture({
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-2 text-white">
               <Loader2 className="h-7 w-7 animate-spin" />
-              <p className="text-xs font-medium">Analysing…</p>
+              <p className="text-xs font-medium">{t.capture.analysing}</p>
             </div>
           </div>
         )}
@@ -202,12 +207,12 @@ export function Capture({
         {!camError && (
           <button onClick={shoot} disabled={busy}
             className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />} Capture
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />} {t.capture.capture}
           </button>
         )}
         <button onClick={() => fileRef.current?.click()} disabled={busy}
           className={`${camError ? "flex-1" : ""} inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-white disabled:opacity-60`}>
-          <Upload className="h-4 w-4" /> Upload
+          <Upload className="h-4 w-4" /> {t.capture.upload}
         </button>
         <input ref={fileRef} type="file" accept="image/*" capture={frame === "face" ? "user" : "environment"} onChange={onFile} className="hidden" />
       </div>
@@ -232,9 +237,10 @@ function analyzeCanvas(canvas: HTMLCanvasElement): { brightness: number; blurVar
 }
 
 export function RetakeButton({ onClick }: { onClick: () => void }) {
+  const { t } = useLang();
   return (
     <button onClick={onClick} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-white">
-      <RefreshCw className="h-3.5 w-3.5" /> Retake
+      <RefreshCw className="h-3.5 w-3.5" /> {t.capture.retake}
     </button>
   );
 }

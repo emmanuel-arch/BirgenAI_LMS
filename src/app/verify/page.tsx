@@ -28,12 +28,16 @@ import {
   ShieldCheck, ScanFace, UserCheck, AlertTriangle, ArrowRight, Lock, Loader2, PartyPopper, Building2,
 } from "lucide-react";
 import { useBrand, lenderFromLocation } from "@/lib/lms/useBrand";
+import { useLang } from "@/lib/i18n/useLang";
+import { fmt, type PortalDict } from "@/lib/i18n/portal";
+import { LangToggle } from "@/components/portal/LangToggle";
 import { VerifyFlow, type FlowOutcome, type KycPost } from "@/components/kyc/VerifyFlow";
 import OtpCard, { type OtpIssue } from "@/components/portal/OtpCard";
 
 type Gate = "resolving" | "no-lender" | "intro" | "otp" | "pipeline" | "done";
 
 export default function VerifyPage() {
+  const { lang, t } = useLang();
   const [lender, setLender] = useState<string | null>(null);
   const [gate, setGate] = useState<Gate>("resolving");
   const [phone, setPhone] = useState("");
@@ -65,7 +69,7 @@ export default function VerifyPage() {
 
   const startVerification = async () => {
     setError(null);
-    if (!phone.trim() || !nationalId.trim()) { setError("Enter your phone and ID to begin."); return; }
+    if (!phone.trim() || !nationalId.trim()) { setError(t.verify.enterPhoneAndId); return; }
     setBusy(true);
     try {
       // Already verified this number with this lender? Don't spend another SMS.
@@ -76,13 +80,13 @@ export default function VerifyPage() {
 
       const res = await fetch("/api/portal/otp", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lenderSlug: lender, phone: phone.trim() }),
+        body: JSON.stringify({ lenderSlug: lender, phone: phone.trim(), lang }),
       });
       const data = await res.json();
-      if (!data.success) { setError(data.message || "Could not send a code."); return; }
+      if (!data.success) { setError(data.message || t.errors.couldNotSendCode); return; }
       setOtpIssue({ delivered: !!data.delivered, devCode: data.devCode });
       setGate("otp");
-    } catch { setError("Could not send a code."); } finally { setBusy(false); }
+    } catch { setError(t.errors.couldNotSendCode); } finally { setBusy(false); }
   };
 
   const startStyle = "flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3";
@@ -92,9 +96,12 @@ export default function VerifyPage() {
     <div className="relative min-h-screen text-zinc-900" style={brandStyle}>
       <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
       <div className="relative z-10 mx-auto max-w-3xl px-4 py-8">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5" style={{ color: "var(--brand)" }} />
-          <span className="text-sm font-bold">Identity verification</span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5" style={{ color: "var(--brand)" }} />
+            <span className="text-sm font-bold">{t.verify.heading}</span>
+          </div>
+          <LangToggle />
         </div>
 
         {error && (
@@ -113,11 +120,9 @@ export default function VerifyPage() {
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900/5">
               <Building2 className="h-7 w-7 text-zinc-400" />
             </div>
-            <h1 className="mt-4 text-xl font-bold">We don&apos;t know who you&apos;re verifying with</h1>
+            <h1 className="mt-4 text-xl font-bold">{t.verify.noLenderTitle}</h1>
             <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-              This link is missing the lender it belongs to, and your identity is not something we
-              are willing to file under a guess. Open the link your lender texted you, or go to their
-              own address — it will look like <span className="font-semibold text-zinc-700">yourlender.birgenai.com</span>.
+              {t.verify.noLenderBody} <span className="font-semibold text-zinc-700">yourlender.birgenai.com</span>.
             </p>
           </div>
         )}
@@ -128,21 +133,20 @@ export default function VerifyPage() {
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: "var(--brand-soft)" }}>
                 <ScanFace className="h-7 w-7" style={{ color: "var(--brand)" }} />
               </div>
-              <h1 className="mt-4 text-2xl font-bold">Let&apos;s confirm it&apos;s really you</h1>
+              <h1 className="mt-4 text-2xl font-bold">{t.verify.introTitle}</h1>
               <p className="mt-2 text-sm text-zinc-500">
-                A 60-second check for {brand.name}: your ID, a quick selfie, and a registry match.
-                Bank-grade, encrypted, and done once.
+                {fmt(t.verify.introSub, { name: brand.name })}
               </p>
             </div>
             <div className="mt-5 space-y-3">
-              <div className={startStyle}><input className={input} inputMode="tel" placeholder="Phone number (07XX…)" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
-              <div className={startStyle}><input className={input} inputMode="numeric" placeholder="National ID number" value={nationalId} onChange={(e) => setNationalId(e.target.value)} /></div>
+              <div className={startStyle}><input className={input} inputMode="tel" placeholder={t.verify.phonePlaceholder} value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
+              <div className={startStyle}><input className={input} inputMode="numeric" placeholder={t.verify.idPlaceholder} value={nationalId} onChange={(e) => setNationalId(e.target.value)} /></div>
             </div>
             <button onClick={startVerification} disabled={busy}
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: "var(--brand)" }}>
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Start verification <ArrowRight className="h-4 w-4" />
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {t.verify.start} <ArrowRight className="h-4 w-4" />
             </button>
-            <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-400"><Lock className="h-3 w-3" /> Protected under the Data Protection Act</p>
+            <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-400"><Lock className="h-3 w-3" /> {t.verify.dpaNote}</p>
           </div>
         )}
 
@@ -162,17 +166,17 @@ export default function VerifyPage() {
           <VerifyFlow
             post={post}
             onDone={(o) => { setOutcome(o); setGate("done"); }}
-            onSessionExpired={() => { setOtpIssue(null); setGate("intro"); setError("Your session expired — verify your number again."); }}
+            onSessionExpired={() => { setOtpIssue(null); setGate("intro"); setError(t.errors.sessionExpired); }}
           />
         )}
 
-        {gate === "done" && outcome && <DoneCard outcome={outcome} brandName={brand.name} lender={lender ?? ""} />}
+        {gate === "done" && outcome && <DoneCard outcome={outcome} brandName={brand.name} lender={lender ?? ""} t={t} />}
       </div>
     </div>
   );
 }
 
-function DoneCard({ outcome, brandName, lender }: { outcome: FlowOutcome; brandName: string; lender: string }) {
+function DoneCard({ outcome, brandName, lender, t }: { outcome: FlowOutcome; brandName: string; lender: string; t: PortalDict }) {
   const verified = outcome.status === "VERIFIED";
   const review = outcome.status === "PENDING_REVIEW";
   const fm = (outcome.results.facematch as { faceMatch?: { score: number } })?.faceMatch;
@@ -187,14 +191,14 @@ function DoneCard({ outcome, brandName, lender }: { outcome: FlowOutcome; brandN
       >
         {verified ? <PartyPopper className="h-8 w-8 text-emerald-600" /> : review ? <UserCheck className="h-8 w-8 text-amber-600" /> : <AlertTriangle className="h-8 w-8 text-red-600" />}
       </motion.div>
-      <h1 className="mt-4 text-2xl font-bold">{verified ? "You're verified!" : review ? "Almost there" : "We need another look"}</h1>
+      <h1 className="mt-4 text-2xl font-bold">{verified ? t.verify.doneVerified : review ? t.verify.doneReview : t.verify.doneFailed}</h1>
       <p className="mt-2 text-sm text-zinc-500">
-        {verified ? `Your identity is confirmed with ${brandName}. You can now apply for a loan.`
-          : review ? "Your face match needs a quick human review — an officer will confirm shortly."
-          : "Some checks didn't pass. An officer will reach out to help."}
+        {verified ? fmt(t.verify.doneVerifiedSub, { name: brandName })
+          : review ? t.verify.doneReviewSub
+          : t.verify.doneFailedSub}
       </p>
       <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-        {([["Liveness", live?.score], ["Face", fm?.score], ["Registry", iprs?.matched ? 100 : 0]] as const).map(([k, v]) => (
+        {([[t.verify.liveness, live?.score], [t.verify.face, fm?.score], [t.verify.registry, iprs?.matched ? 100 : 0]] as const).map(([k, v]) => (
           <div key={k} className="rounded-xl border border-zinc-900/10 bg-white/70 p-2.5">
             <p className="text-lg font-bold" style={{ color: "var(--brand)" }}>{v != null ? `${v}%` : "—"}</p>
             <p className="text-[10px] uppercase tracking-wide text-zinc-500">{k}</p>
@@ -203,7 +207,7 @@ function DoneCard({ outcome, brandName, lender }: { outcome: FlowOutcome; brandN
       </div>
       {verified && lender && (
         <Link href={`/?lender=${lender}`} className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold text-white" style={{ backgroundColor: "var(--brand)" }}>
-          Continue to your loan <ArrowRight className="h-4 w-4" />
+          {t.verify.continueToLoan} <ArrowRight className="h-4 w-4" />
         </Link>
       )}
     </motion.div>

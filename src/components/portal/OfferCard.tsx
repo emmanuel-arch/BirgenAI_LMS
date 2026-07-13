@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, ShieldCheck, FileText, CheckCircle2, AlertTriangle } from "lucide-react";
+import { useLang } from "@/lib/i18n/useLang";
+import { fmt } from "@/lib/i18n/portal";
 import OtpCard, { type OtpIssue } from "./OtpCard";
 
 // The credit agreement, as the borrower reads it before signing.
@@ -10,6 +12,10 @@ import OtpCard, { type OtpIssue } from "./OtpCard";
 // date, the total they will repay. A borrower who has to tap "see schedule" to
 // find out what a loan costs has not really been shown it. Mobile-first: the
 // schedule scrolls inside its own box, the totals never leave the viewport.
+//
+// It reads in the borrower's language — a person is entitled to understand a
+// credit agreement in the language they think in, and Kiswahili is exactly the
+// screen where that stops being a nicety (blueprint §5.1).
 
 type Row = { seq: number; dueDate: string; amountDue: number; principalDue: number; interestDue: number };
 type Offer = {
@@ -22,8 +28,6 @@ type Offer = {
 };
 
 const kes = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
-const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
-const fullDay = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
 export function OfferCard({
   offerId, lenderSlug, phone, onAccepted,
@@ -34,6 +38,11 @@ export function OfferCard({
   phone: string;
   onAccepted: () => void;
 }) {
+  const { lang, t } = useLang();
+  const locale = lang === "sw" ? "sw-KE" : "en-GB";
+  const day = (iso: string) => new Date(iso).toLocaleDateString(locale, { day: "2-digit", month: "short" });
+  const fullDay = (iso: string) => new Date(iso).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
+
   const [offer, setOffer] = useState<Offer | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -43,9 +52,11 @@ export function OfferCard({
     try {
       const res = await fetch(`/api/portal/offer/${offerId}`);
       const d = await res.json();
-      if (!d.success) { setError(d.message || "Could not load your offer."); return; }
+      if (!d.success) { setError(d.message || t.offer.couldNotLoad); return; }
       setOffer(d.offer);
-    } catch { setError("Could not load your offer."); }
+    } catch { setError(t.offer.couldNotLoad); }
+    // t is stable per language; reloading on a language flip would be wasteful
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offerId]);
 
   useEffect(() => { void load(); }, [load]);
@@ -53,10 +64,10 @@ export function OfferCard({
   /** Issue a signing code. Shared by the "Accept and sign" button and OtpCard's resend. */
   const requestCode = async (): Promise<OtpIssue> => {
     const res = await fetch(`/api/portal/offer/${offerId}`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sign" }),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sign", lang }),
     });
     const d = await res.json();
-    if (!d.success) throw new Error(d.message || "Could not send the code.");
+    if (!d.success) throw new Error(d.message || t.offer.couldNotSendCode);
     return { delivered: !!d.delivered, devCode: d.devCode };
   };
 
@@ -65,7 +76,7 @@ export function OfferCard({
     try {
       setIssue(await requestCode());
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not send the code.");
+      setError(e instanceof Error ? e.message : t.offer.couldNotSendCode);
     } finally { setBusy(false); }
   };
 
@@ -74,11 +85,11 @@ export function OfferCard({
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sign", code }),
     });
     const d = await res.json();
-    if (!d.success) throw new Error(d.message || "That code isn't right.");
+    if (!d.success) throw new Error(d.message || t.offer.wrongCode);
   };
 
   const decline = async () => {
-    if (!confirm("Decline this offer? You can apply again later.")) return;
+    if (!confirm(t.offer.declineConfirm)) return;
     setBusy(true);
     try {
       await fetch(`/api/portal/offer/${offerId}`, {
@@ -103,9 +114,9 @@ export function OfferCard({
     return (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center">
         <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-600" />
-        <p className="mt-2 font-semibold text-emerald-900">You signed this agreement</p>
+        <p className="mt-2 font-semibold text-emerald-900">{t.offer.signedTitle}</p>
         <p className="mt-1 text-xs text-emerald-800">
-          {kes(offer.totalRepayable)} repayable by {fullDay(offer.expectedClearDate)}. {offer.lender} will review and disburse.
+          {fmt(t.offer.signedNote, { total: kes(offer.totalRepayable), date: fullDay(offer.expectedClearDate), lender: offer.lender })}
         </p>
       </div>
     );
@@ -113,7 +124,7 @@ export function OfferCard({
   if (offer.status !== "OFFERED") {
     return (
       <div className="rounded-2xl border border-zinc-900/10 bg-white/70 p-5 text-center text-sm text-zinc-600">
-        This offer was {offer.status.toLowerCase()}. Talk to {offer.lender} to get a new one.
+        {fmt(t.offer.statusNote, { status: t.offer.statusWord[offer.status] ?? offer.status.toLowerCase(), lender: offer.lender })}
       </div>
     );
   }
@@ -123,22 +134,22 @@ export function OfferCard({
       <div>
         {/* What is being signed stays on screen while they type the code. */}
         <div className="mb-4 rounded-2xl border border-zinc-900/10 bg-white/70 p-4 text-center">
-          <p className="text-[11px] uppercase tracking-wide text-zinc-500">You are signing for</p>
+          <p className="text-[11px] uppercase tracking-wide text-zinc-500">{t.offer.signingFor}</p>
           <p className="mt-1 text-2xl font-bold">{kes(offer.principal)}</p>
-          <p className="text-xs text-zinc-500">repaying {kes(offer.totalRepayable)} by {fullDay(offer.expectedClearDate)}</p>
+          <p className="text-xs text-zinc-500">{fmt(t.offer.repayingBy, { total: kes(offer.totalRepayable), date: fullDay(offer.expectedClearDate) })}</p>
         </div>
         <OtpCard
           lenderSlug={lenderSlug}
           phone={phone}
           issue={issue}
-          title="Sign your agreement"
+          title={t.offer.signTitle}
           verifyCode={submitCode}
           resendCode={requestCode}
           onVerified={onAccepted}
           onChangeNumber={() => setIssue(null)}
         />
         <button onClick={() => setIssue(null)} className="mt-3 w-full text-xs text-zinc-500 hover:text-zinc-800">
-          Back to the agreement
+          {t.offer.backToAgreement}
         </button>
       </div>
     );
@@ -148,35 +159,37 @@ export function OfferCard({
     <div className="text-left">
       <div className="flex items-center gap-2">
         <FileText className="h-4 w-4" style={{ color: "var(--brand)" }} />
-        <h2 className="text-sm font-semibold">Your loan offer from {offer.lender}</h2>
+        <h2 className="text-sm font-semibold">{fmt(t.offer.fromLender, { lender: offer.lender })}</h2>
       </div>
 
       {/* The two numbers that matter, before anything else. */}
       <div className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-zinc-900/10 bg-white/70 p-4">
-          <p className="text-[11px] uppercase tracking-wide text-zinc-500">You receive</p>
+          <p className="text-[11px] uppercase tracking-wide text-zinc-500">{t.offer.youReceive}</p>
           <p className="mt-1 text-2xl font-bold">{kes(offer.principal)}</p>
         </div>
         <div className="rounded-2xl border border-zinc-900/10 bg-white/70 p-4">
-          <p className="text-[11px] uppercase tracking-wide text-zinc-500">You repay</p>
+          <p className="text-[11px] uppercase tracking-wide text-zinc-500">{t.offer.youRepay}</p>
           <p className="mt-1 text-2xl font-bold">{kes(offer.totalRepayable)}</p>
         </div>
       </div>
 
       <dl className="mt-3 rounded-2xl border border-zinc-900/10 bg-white/70 p-4 text-sm">
-        <Line label="Interest" value={`${kes(offer.totalInterest)} · ${offer.interestRate}% ${offer.interestMethod}`} />
-        <Line label="Repayments" value={`${offer.termCount} × ${offer.termUnit.toLowerCase()}${offer.termCount > 1 ? "s" : ""}`} />
-        <Line label="First payment" value={fullDay(offer.firstDueDate)} />
-        <Line label="Fully repaid by" value={fullDay(offer.expectedClearDate)} />
-        <Line label="Offer valid until" value={fullDay(offer.expiresAt)} />
+        <Line label={t.offer.interest} value={`${kes(offer.totalInterest)} · ${offer.interestRate}% ${offer.interestMethod}`} />
+        <Line label={t.offer.repayments} value={`${offer.termCount} × ${unitWord(offer.termUnit, offer.termCount, t.offer)}`} />
+        <Line label={t.offer.firstPayment} value={fullDay(offer.firstDueDate)} />
+        <Line label={t.offer.fullyRepaidBy} value={fullDay(offer.expectedClearDate)} />
+        <Line label={t.offer.validUntil} value={fullDay(offer.expiresAt)} />
       </dl>
 
       {/* Pay early, pay less — but only where that is true. */}
       <div className={`mt-3 rounded-2xl border p-3 text-xs ${offer.payEarly.applies ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-zinc-900/10 bg-white/60 text-zinc-600"}`}>
         {offer.payEarly.applies && offer.payEarly.savingKes > 0 && (
-          <p className="font-semibold">Settle at the halfway point and save about {kes(offer.payEarly.savingKes)}.</p>
+          <p className="font-semibold">{fmt(t.offer.saveHalf, { kes: kes(offer.payEarly.savingKes) })}</p>
         )}
-        <p className={offer.payEarly.applies && offer.payEarly.savingKes > 0 ? "mt-0.5" : ""}>{offer.payEarly.note}</p>
+        <p className={offer.payEarly.applies && offer.payEarly.savingKes > 0 ? "mt-0.5" : ""}>
+          {t.offer.payEarlyNotes[offer.payEarly.note] ?? offer.payEarly.note}
+        </p>
       </div>
 
       {/* Every installment, on the same screen. */}
@@ -185,11 +198,11 @@ export function OfferCard({
           <table className="w-full text-xs">
             <thead className="sticky top-0 bg-white/95 backdrop-blur">
               <tr className="text-left text-zinc-500">
-                <th className="px-3 py-2 font-medium">#</th>
-                <th className="px-3 py-2 font-medium">Due</th>
-                <th className="px-3 py-2 text-right font-medium">Principal</th>
-                <th className="px-3 py-2 text-right font-medium">Interest</th>
-                <th className="px-3 py-2 text-right font-medium">Total</th>
+                <th className="px-3 py-2 font-medium">{t.offer.seq}</th>
+                <th className="px-3 py-2 font-medium">{t.offer.due}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.offer.principal}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.offer.interestCol}</th>
+                <th className="px-3 py-2 text-right font-medium">{t.offer.total}</th>
               </tr>
             </thead>
             <tbody>
@@ -216,17 +229,31 @@ export function OfferCard({
         style={{ backgroundColor: "var(--brand)" }}
       >
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-        Accept and sign
+        {t.offer.acceptAndSign}
       </button>
       <button onClick={decline} disabled={busy} className="mt-2 w-full rounded-lg border border-zinc-900/15 bg-white/70 px-5 py-3 text-sm text-zinc-700 hover:bg-white disabled:opacity-60">
-        No thanks
+        {t.offer.noThanks}
       </button>
 
       <p className="mt-3 text-center text-[11px] text-zinc-500">
-        We will send a code to your phone. Entering it signs this agreement.
+        {t.offer.codeNote}
       </p>
     </div>
   );
+}
+
+/** WEEK/MONTH/DAY → the word the borrower reads, pluralised per language. */
+function unitWord(
+  termUnit: string,
+  count: number,
+  o: { unitWeek: string; unitWeeks: string; unitMonth: string; unitMonths: string; unitDay: string; unitDays: string },
+): string {
+  const u = termUnit.toUpperCase();
+  const many = count > 1;
+  if (u.startsWith("WEEK")) return many ? o.unitWeeks : o.unitWeek;
+  if (u.startsWith("MONTH")) return many ? o.unitMonths : o.unitMonth;
+  if (u.startsWith("DAY")) return many ? o.unitDays : o.unitDay;
+  return termUnit.toLowerCase();
 }
 
 function Line({ label, value }: { label: string; value: string }) {

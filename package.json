@@ -44,7 +44,8 @@
     "test:kyc-counter": "tsx scripts/verify-kyc-counter.ts",
     "test:portfolio": "tsx scripts/verify-portfolio.ts",
     "test:limits": "tsx scripts/verify-limits.ts",
-    "test:storage-live": "tsx scripts/verify-storage-live.ts"
+    "test:storage-live": "tsx scripts/verify-storage-live.ts",
+    "test:i18n": "tsx scripts/verify-i18n.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

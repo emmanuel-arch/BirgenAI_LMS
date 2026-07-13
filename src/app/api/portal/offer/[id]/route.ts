@@ -95,7 +95,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
 
-  let body: { action?: string; code?: string };
+  let body: { action?: string; code?: string; lang?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
   const { session, offer } = await loadForBorrower(id);
@@ -135,11 +135,14 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     ]);
     if (limited) return limited;
 
+    // The signing SMS matches the language of the agreement on their screen —
+    // a legal consent should not arrive in a different language than its terms.
+    const lang = body.lang === "sw" ? "sw" as const : body.lang === "en" ? "en" as const : "auto" as const;
     const { delivered, devCode } = await issueBorrowerOtp(offer.orgId, offer.org.name, session.phone, purpose, {
       principal: terms.principal.toLocaleString(),
       repayable: terms.totalRepayable.toLocaleString(),
-      clearDate: offer.expectedClearDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-    });
+      clearDate: offer.expectedClearDate.toLocaleDateString(lang === "sw" ? "sw-KE" : "en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+    }, lang);
     return NextResponse.json({
       success: true,
       codeSent: true,

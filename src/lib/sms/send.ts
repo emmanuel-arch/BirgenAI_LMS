@@ -48,8 +48,52 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
   arrears: "{org}: Your installment of KES {amount} on loan {ref} is overdue. Please pay today to avoid penalties and protect your limit.",
 };
 
+// The BORROWER-facing templates, in Kiswahili (item 20, blueprint §5.1). A key's
+// absence here is a statement, not an omission: staff messages (otp, login_code)
+// never localise — the console works in English — so the catalogue itself defines
+// which messages can ever switch language. Same placeholders as the English twin,
+// pinned by scripts/verify-i18n.ts.
+const SW_TEMPLATES: Record<string, string> = {
+  approved: "Hongera {name}! Mkopo wako wa KES {amount} umeidhinishwa na unaandaliwa kutumwa.",
+  disbursed: "{org}: KES {amount} imetumwa kwenye M-PESA yako {phone}. Lipa ifikapo {due}. Kumbukumbu ya mkopo {ref}.",
+  payment: "{org}: Tumepokea KES {amount}. Salio la mkopo: KES {balance}. Asante!",
+  cleared: "{org}: Mkopo wako umelipwa kikamilifu. Asante — kikomo chako hukua kwa kila mkopo unaolipwa kwa wakati!",
+  declined: "{org}: Hatukuweza kuidhinisha ombi lako wakati huu. Jibu HELP kupata sababu na jinsi ya kukata rufaa.",
+  verify: "{code} ni nambari yako ya uthibitisho ya {org}. Inaisha baada ya dakika 5. Usimpe mtu yeyote — {org} haitawahi kukuuliza nambari hii.",
+  offer_sign: "{code} ni nambari yako ya KUTIA SAHIHI na kukubali mkopo wa KES {principal} kutoka {org}, ukilipa KES {repayable} ifikapo {clearDate}. Iweke tu ikiwa unakubali. Inaisha baada ya dakika 5.",
+  guarantor_invite: "{org}: {borrower} amekuomba udhamini mkopo wake wa KES {amount}. Asipolipa, utaombwa ulipe wewe. Soma masharti kisha uamue: {link}",
+  guarantor_sign: "{code} ni nambari yako ya KUDHAMINI mkopo wa KES {amount} kutoka {org}. Kuiweka kunakufanya uwajibike ikiwa mkopaji hatalipa. Iweke tu ikiwa unakubali. Inaisha baada ya dakika 5.",
+  kyc_link: "{org}: Habari {name}, usajili wako haujakamilika — bado tunahitaji kuthibitisha utambulisho wako, na hakuna mkopo utakaotolewa hadi ukamilike. Inachukua dakika mbili: {link}",
+  reminder: "{org}: Kumbusho — KES {amount} inastahili kulipwa tarehe {date}. Lipa mapema, lipa kidogo. Tumia paybill yako au Lipa Sasa.",
+  due_today: "{org}: KES {amount} inastahili kulipwa LEO kwa mkopo {ref}. Lipa kupitia paybill yako au kiungo cha Lipa Sasa ili usibaki nyuma.",
+  arrears: "{org}: Awamu yako ya KES {amount} kwa mkopo {ref} imechelewa. Tafadhali lipa leo kuepuka adhabu na kulinda kikomo chako.",
+};
+
+export type SmsLang = "en" | "sw" | "auto";
+
 function render(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? String(vars[k]) : ""));
+}
+
+/**
+ * Which language this message should speak. Explicit wins (the borrower is looking
+ * at a Kiswahili screen right now); otherwise the Borrower row's saved preference —
+ * set when they applied — decides; otherwise English. Only consulted for keys that
+ * HAVE a Kiswahili twin, so staff codes never trigger a lookup at all. An org's own
+ * template override wins over all of this: they wrote it, they chose its language.
+ */
+async function resolveSmsLang(orgId: string, msisdn: string, templateKey: string, lang: SmsLang): Promise<"en" | "sw"> {
+  if (!SW_TEMPLATES[templateKey]) return "en";
+  if (lang === "en" || lang === "sw") return lang;
+  try {
+    const b = await prisma.borrower.findUnique({
+      where: { orgId_phone: { orgId, phone: msisdn } },
+      select: { language: true },
+    });
+    return b?.language === "sw" ? "sw" : "en";
+  } catch {
+    return "en"; // a language lookup must never sink a message
+  }
 }
 
 type ResolvedProvider = {
@@ -164,11 +208,17 @@ export async function sendSms(
   phone: string,
   templateKey: keyof typeof DEFAULT_TEMPLATES | (string & {}),
   vars: Record<string, string | number>,
+  lang: SmsLang = "auto",
 ): Promise<string | null> {
   try {
     const msisdn = normalizeMsisdn(phone);
     const custom = await prisma.smsTemplate.findUnique({ where: { orgId_key: { orgId, key: templateKey } } }).catch(() => null);
-    const body = custom?.active ? custom.body : DEFAULT_TEMPLATES[templateKey];
+    const smsLang = custom?.active ? null : await resolveSmsLang(orgId, msisdn, templateKey, lang);
+    const body = custom?.active
+      ? custom.body
+      : smsLang === "sw"
+        ? SW_TEMPLATES[templateKey] ?? DEFAULT_TEMPLATES[templateKey]
+        : DEFAULT_TEMPLATES[templateKey];
     if (!body) return null;
     const message = render(body, vars);
 
@@ -192,6 +242,11 @@ export async function sendSms(
 /** The built-in template catalogue, for the console's template editor. */
 export function defaultSmsTemplates(): { key: string; body: string }[] {
   return Object.entries(DEFAULT_TEMPLATES).map(([key, body]) => ({ key, body }));
+}
+
+/** The Kiswahili twins — exported for the template editor and the i18n test suite. */
+export function swahiliSmsTemplates(): { key: string; body: string }[] {
+  return Object.entries(SW_TEMPLATES).map(([key, body]) => ({ key, body }));
 }
 
 /**

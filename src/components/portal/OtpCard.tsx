@@ -9,6 +9,8 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { motion } from "framer-motion";
 import { Loader2, ArrowLeft, AlertTriangle, MessageSquare, FlaskConical } from "lucide-react";
+import { useLang } from "@/lib/i18n/useLang";
+import { fmt } from "@/lib/i18n/portal";
 
 const LEN = 6;
 const RESEND_COOLDOWN_S = 30;
@@ -43,6 +45,7 @@ export default function OtpCard({
   /** Where a resend goes. Defaults to re-issuing an identity code. */
   resendCode?: () => Promise<OtpIssue | void>;
 }) {
+  const { lang, t } = useLang();
   const [digits, setDigits] = useState<string[]>(Array(LEN).fill(""));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +57,8 @@ export default function OtpCard({
 
   useEffect(() => {
     if (cooldown <= 0) return;
-    const t = setTimeout(() => setCooldown((s) => s - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
   }, [cooldown]);
 
   const clearBoxes = () => {
@@ -79,13 +82,13 @@ export default function OtpCard({
       });
       const data = await res.json();
       if (!data.success) {
-        setError(data.message || "That code isn't right.");
+        setError(data.message || t.otp.wrongCode);
         clearBoxes();
         return;
       }
       onVerified();
     } catch (err) {
-      setError(err instanceof Error && verifyCode ? err.message : "Couldn't verify the code. Check your connection and try again.");
+      setError(err instanceof Error && verifyCode ? err.message : t.otp.couldNotVerify);
       if (verifyCode) clearBoxes();
     } finally {
       setBusy(false);
@@ -136,16 +139,16 @@ export default function OtpCard({
         const res = await fetch("/api/portal/otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lenderSlug, phone }),
+          body: JSON.stringify({ lenderSlug, phone, lang }),
         });
         const data = await res.json();
-        if (!data.success) { setError(data.message || "Couldn't resend the code."); return; }
+        if (!data.success) { setError(data.message || t.otp.couldNotResend); return; }
         setDevCode(data.devCode ?? null);
       }
       clearBoxes();
       setCooldown(RESEND_COOLDOWN_S);
     } catch {
-      setError("Couldn't resend the code.");
+      setError(t.otp.couldNotResend);
     } finally {
       setBusy(false);
     }
@@ -158,9 +161,9 @@ export default function OtpCard({
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: "var(--brand-soft, #f4f4f5)" }}>
           <MessageSquare className="h-7 w-7" style={{ color: "var(--brand, #18181b)" }} />
         </div>
-        <h1 className="mt-4 text-2xl font-bold">{title ?? "Enter your code"}</h1>
+        <h1 className="mt-4 text-2xl font-bold">{title ?? t.otp.title}</h1>
         <p className="mt-2 text-sm text-zinc-500">
-          {issue.delivered ? "We sent a 6-digit code to" : "Verification code for"}{" "}
+          {issue.delivered ? t.otp.sentTo : t.otp.codeFor}{" "}
           <span className="font-semibold text-zinc-900">{phone}</span>
         </p>
       </div>
@@ -168,7 +171,7 @@ export default function OtpCard({
       {devCode && (
         <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50/90 px-3 py-2.5 text-sm text-amber-800">
           <FlaskConical className="h-4 w-4 mt-0.5 shrink-0" />
-          <span>No SMS provider configured. Your code is <span className="font-mono font-bold">{devCode}</span>.</span>
+          <span>{t.otp.devCode} <span className="font-mono font-bold">{devCode}</span>.</span>
         </div>
       )}
 
@@ -189,7 +192,7 @@ export default function OtpCard({
             onFocus={(e) => e.target.select()}
             inputMode="numeric"
             autoComplete={i === 0 ? "one-time-code" : "off"}
-            aria-label={`Digit ${i + 1}`}
+            aria-label={fmt(t.otp.digit, { n: i + 1 })}
             disabled={busy}
             className="h-14 w-11 sm:h-16 sm:w-13 rounded-xl border border-zinc-900/15 bg-white/80 text-center text-2xl font-bold outline-none transition-colors focus:border-[var(--brand,#18181b)] focus:ring-2 focus:ring-[var(--brand-soft,#e4e4e7)] disabled:opacity-60"
           />
@@ -198,19 +201,19 @@ export default function OtpCard({
 
       {busy && (
         <p className="mt-4 flex items-center justify-center gap-2 text-sm text-zinc-500">
-          <Loader2 className="h-4 w-4 animate-spin" /> Verifying…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t.otp.verifying}
         </p>
       )}
 
       <div className="mt-6 flex items-center justify-between gap-3">
         <button onClick={onChangeNumber} disabled={busy}
           className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 px-3.5 py-2.5 text-sm text-zinc-600 hover:bg-zinc-900/5 disabled:opacity-60">
-          <ArrowLeft className="h-4 w-4" /> Change number
+          <ArrowLeft className="h-4 w-4" /> {t.otp.changeNumber}
         </button>
         <button onClick={resend} disabled={cooldown > 0 || busy}
           className="text-sm font-semibold disabled:text-zinc-400"
           style={cooldown > 0 || busy ? undefined : { color: "var(--brand, #18181b)" }}>
-          {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
+          {cooldown > 0 ? fmt(t.otp.resendIn, { s: cooldown }) : t.otp.resend}
         </button>
       </div>
     </motion.div>

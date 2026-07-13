@@ -14,7 +14,7 @@
 import { randomInt } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { sendSms, hasSmsProvider } from "@/lib/sms/send";
+import { sendSms, hasSmsProvider, type SmsLang } from "@/lib/sms/send";
 
 export const OTP_TTL_SEC = 5 * 60;
 const MAX_ATTEMPTS = 5;
@@ -59,6 +59,8 @@ export async function issueBorrowerOtp(
   msisdn: string,
   purpose: string = PURPOSE_VERIFY,
   vars: Record<string, string | number> = {},
+  /** The language of the screen that asked — the SMS should match what they are reading. */
+  lang: SmsLang = "auto",
 ): Promise<IssueResult> {
   // randomInt is CSPRNG-backed; Math.random is not, and this guards a loan book.
   const code = String(randomInt(100000, 1000000));
@@ -70,7 +72,7 @@ export async function issueBorrowerOtp(
   });
 
   const delivered = await hasSmsProvider(orgId);
-  await sendSms(orgId, msisdn, templateFor(purpose), { code, org: orgName, ...vars });
+  await sendSms(orgId, msisdn, templateFor(purpose), { code, org: orgName, ...vars }, lang);
 
   if (delivered) return { delivered: true };
 

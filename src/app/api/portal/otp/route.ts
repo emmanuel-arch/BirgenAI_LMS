@@ -14,7 +14,7 @@ import { toMsisdn, isKenyanMsisdn } from "@/lib/portal/session";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  let body: { lenderSlug?: string; phone?: string };
+  let body: { lenderSlug?: string; phone?: string; lang?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
   const msisdn = toMsisdn(body.phone ?? "");
@@ -40,7 +40,10 @@ export async function POST(req: NextRequest) {
   );
   if (limited) return limited;
 
-  const { delivered, devCode } = await issueBorrowerOtp(org.id, org.name, msisdn);
+  // The SMS speaks the language of the screen that asked for it. A first-time
+  // applicant has no Borrower row yet, so the client's choice is the only signal.
+  const lang = body.lang === "sw" ? "sw" as const : body.lang === "en" ? "en" as const : "auto" as const;
+  const { delivered, devCode } = await issueBorrowerOtp(org.id, org.name, msisdn, undefined, {}, lang);
 
   return NextResponse.json({
     success: true,

@@ -435,6 +435,9 @@ model Borrower {
   email      String?
   dob        DateTime?
   gender     String?
+  /// "en" | "sw" — the language they chose on the portal. Every borrower-facing
+  /// SMS (reminders, receipts, signing codes) follows it (src/lib/sms/send.ts).
+  language   String    @default("en")
   // KYC artifacts (private storage keys, not public URLs)
   portraitKey     String? // white-background canonical portrait
   selfieKey       String?

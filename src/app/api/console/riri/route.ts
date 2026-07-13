@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const orgId = session.user.orgId;
   const staffId = session.user.id ?? null;
 
-  let body: { question?: string; model?: string };
+  let body: { question?: string; model?: string; lang?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
   const question = (body.question ?? "").trim();
@@ -53,6 +53,9 @@ export async function POST(req: NextRequest) {
       features,
       firstName: session.user.name?.split(" ")[0] ?? null,
       orgName: session.user.orgSlug ?? undefined,
+      // The voice path knows what the microphone was set to; typed questions
+      // let the words themselves decide (detectLang in knowledge.ts).
+      lang: body.lang === "sw" || body.lang === "en" ? body.lang : undefined,
     });
 
     void logRiriQuery({

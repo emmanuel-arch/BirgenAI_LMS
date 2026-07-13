@@ -66,6 +66,8 @@ type Body = {
   /** Pay-to-institution products: where the money actually goes (§7). */
   payee?: { name?: string; paybill?: string; account?: string };
   locationAddress?: string;
+  /** "en" | "sw" — the language they read the funnel (and will read every SMS) in. */
+  language?: string;
 };
 
 const validCoord = (lat: unknown, lng: unknown): lat is number =>
@@ -281,6 +283,11 @@ export async function POST(req: NextRequest) {
   // branch-scoped manager would never see them and the lead would rot unclaimed.
   const portalOrigin = await originStamp(orgRow.id, null);
 
+  // Their language is a preference they SET (by using the funnel in it), so it is
+  // written on every apply — a borrower who switched to Kiswahili this time wants
+  // their reminders in Kiswahili from now on.
+  const language = body.language === "sw" ? "sw" : body.language === "en" ? "en" : undefined;
+
   let app;
   let borrowerRowId: string | null = null;
   try {
@@ -296,6 +303,7 @@ export async function POST(req: NextRequest) {
         locationType: locationType ?? undefined,
         locationAddress: locationAddress ?? undefined,
         hubUserId: session?.user?.id ?? undefined,
+        language,
       },
       create: {
         orgId: orgRow.id,
@@ -310,6 +318,7 @@ export async function POST(req: NextRequest) {
         locationType,
         locationAddress,
         hubUserId: session?.user?.id ?? null,
+        language: language ?? "en",
       },
     });
     borrowerRowId = borrower.id;

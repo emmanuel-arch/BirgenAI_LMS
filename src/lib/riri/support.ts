@@ -13,6 +13,11 @@
 //   WHERE THEY ARE  — how far their lender is through setup, so "what do I do now"
 //                     has a real answer on day one instead of a menu.
 //
+//   ...and now WHAT LANGUAGE THEY ASKED IN. A question in Kiswahili gets its answer in
+//   Kiswahili — the article, the steps, the refusal and the who-to-ask are all served
+//   from the same corpus's `sw` voice (knowledge.ts), so the honesty machinery is
+//   shared: there is no weaker Kiswahili support path, only a second voice.
+//
 // AND SHE OFFERS TO ACT. An answer ends in a destination, not in "navigate to Products".
 // The consent model is deliberate and it is the founder's: Riri PROPOSES, a human
 // ACCEPTS. She will take you somewhere; she will not do the thing for you. Nothing here
@@ -24,7 +29,7 @@
 import { prisma } from "@/lib/prisma";
 import { runWithOrg } from "@/lib/db/context";
 import { cheapestPlanWith } from "@/lib/billing/plans";
-import { search, articlesFor, type Article } from "./knowledge";
+import { search, articlesFor, detectLang, type Article, type SupportLang } from "./knowledge";
 
 /** Something Riri offers to do. She never does it herself — the user taps. */
 export type SupportAction = {
@@ -93,6 +98,21 @@ export async function setupState(orgId: string): Promise<SetupState> {
   return { ...state, next };
 }
 
+// ── Kiswahili voices of the setup steps ───────────────────────────────────────
+// setupState() speaks English (it also feeds the English welcome + checklists);
+// the Kiswahili voice is looked up by the step's href — the one thing that cannot
+// drift, because it is the screen itself.
+const NEXT_SW: Record<string, { title: string; why: string }> = {
+  "/console/branches": { title: "Jenga muundo wako", why: "Kila kitu kingine — wafanyakazi, wakopaji, mikopo — ni mali ya ofisi fulani. Anza na makao makuu." },
+  "/console/products": { title: "Tengeneza bidhaa ya mkopo", why: "Bidhaa ndiyo unayokopesha: kiasi gani, muda gani, riba gani. Hakuna kinachoweza kuombwa hadi moja iwepo." },
+  "/console/team": { title: "Alika timu yako", why: "Mpe kila mtu jukumu — huamua wanachoweza kufanya na wateja wa nani wanaowaona." },
+  "/console/settings": { title: "Unganisha njia zako za pesa", why: "Vitambulisho vyako vya M-Pesa, ili ukusanye malipo na utoe mikopo." },
+  "/console": { title: "Omba kuwashwa", why: "Umemaliza usanidi. Tuombe tukuwashe ili ukopeshe kwa kweli." },
+};
+
+const nextInLang = (next: NonNullable<SetupState["next"]>, lang: SupportLang) =>
+  lang === "sw" ? { ...next, ...(NEXT_SW[next.href] ?? {}) } : next;
+
 /** The first thing a new admin ever hears from Riri. */
 export function welcome(firstName: string | null, orgName: string, setup: SetupState): SupportAnswer {
   const who = firstName ? `, ${firstName}` : "";
@@ -103,7 +123,7 @@ export function welcome(firstName: string | null, orgName: string, setup: SetupS
         `Welcome to **${orgName}**${who} 👋 I'm Riri.\n\n` +
         `I'll stay with you the whole way through. You're not set up yet, and there's an order that works — so let's do the next thing:\n\n` +
         `**${setup.next.title}** — ${setup.next.why}\n\n` +
-        `Ask me anything at any point: how to price a loan, who can see what, why a payout is blocked. You can talk to me out loud with the microphone if it's easier.`,
+        `Ask me anything at any point: how to price a loan, who can see what, why a payout is blocked. You can talk to me out loud with the microphone if it's easier — Kiswahili works too.`,
       actions: [{ kind: "navigate", label: setup.next.title, href: setup.next.href }],
       suggestions: ["What do I do first?", "How do I create a loan product?", "Who can see whose customers?"],
     };
@@ -112,16 +132,73 @@ export function welcome(firstName: string | null, orgName: string, setup: SetupS
   return {
     answer:
       `Welcome back${who} 👋\n\n` +
-      `**${orgName}** is set up and lending. I can walk you through anything on the platform, explain why something is blocked, or take you straight to the screen you need.\n\n` +
+      `**${orgName}** is set up and lending. I can walk you through anything on the platform, explain why something is blocked, or take you straight to the screen you need — in English or Kiswahili, whichever you ask in.\n\n` +
       `For your actual numbers — what you're owed, what you collected, who's about to default — switch me to **Analyst**.`,
     actions: [],
     suggestions: ["How do I apply for a loan on someone's behalf?", "Why can't I disburse this loan?", "How do I chase arrears?"],
   };
 }
 
-/** Who to send someone to when the thing they asked about is not theirs to do. */
-const NOT_YOURS = (a: Article) =>
-  `That one isn't on your access — **${a.title.toLowerCase()}** needs a permission you don't have. Ask an administrator at your lender; they can grant it in Roles & Rights, or just do it for you.`;
+// ── The framing sentences, in both voices ─────────────────────────────────────
+// The corpus carries the CONTENT in two languages; these are the sentences Riri
+// wraps around it — the refusal, the who-to-ask, the upgrade line. Kept as one
+// table so neither voice can gain a sentence the other lacks.
+const S = {
+  en: {
+    notYours: (title: string) =>
+      `That one isn't on your access — **${title.toLowerCase()}** needs a permission you don't have. Ask an administrator at your lender; they can grant it in Roles & Rights, or just do it for you.`,
+    notYoursSuggestions: ["Who can see whose customers?", "What can my role do?"],
+    notOnPackage: (title: string) => `**${title}** isn't on your package yet.`,
+    comesWith: (plan: string, price: string) =>
+      `It comes with **${plan}** (KES ${price}/mo). Your loan book keeps working exactly as it does now either way — packages change which intelligence tools you get, never whether you can lend.`,
+    notAvailable: `It isn't available yet.`,
+    seePackages: "See packages",
+    upgradeSuggestions: ["What do the packages include?", "How do I upgrade?"],
+    dontKnow: (canDo: string) =>
+      `I don't have an answer for that one, and I'd rather say so than send you to a screen that doesn't exist.\n\n` +
+      `I can help with: ${canDo} — and quite a bit more. Try asking it another way, or ask your administrator.\n\n` +
+      `If it's about your NUMBERS rather than how the platform works, switch me to **Analyst** — I read your live book there.`,
+    dontKnowSuggestions: ["What do I do next?", "How do I apply for a loan?", "Why can't I disburse this loan?"],
+    hereIsNext: (title: string, why: string, after: string) =>
+      `Here's where you are, and the next thing that matters:\n\n**${title}** — ${why}\n\nAfter that: ${after}.`,
+    afterItems: { product: "a loan product", team: "your team", vault: "your M-Pesa credentials", activation: "activation" },
+    readyToLend: "you're ready to lend",
+    nextSuggestions: ["How do I create a loan product?", "How do I invite my team?", "Why can't I disburse?"],
+    allSet:
+      `You're fully set up and active — there's nothing outstanding. Ask me about anything you want to run: taking an application, chasing arrears, paying out a loan.`,
+    allSetSuggestions: ["How do I apply for a loan on someone's behalf?", "How do I chase arrears?", "How does scoring work?"],
+  },
+  sw: {
+    notYours: (title: string) =>
+      `Hilo haliko kwenye ruhusa zako — **${title.toLowerCase()}** linahitaji ruhusa usiyokuwa nayo. Muulize msimamizi wa shirika lako; anaweza kuikupatia katika Roles & Rights, au akufanyie mwenyewe.`,
+    notYoursSuggestions: ["Nani anaweza kuona wateja wa nani?", "Jukumu langu linaweza kufanya nini?"],
+    notOnPackage: (title: string) => `**${title}** bado haiko kwenye kifurushi chako.`,
+    comesWith: (plan: string, price: string) =>
+      `Huja na **${plan}** (KES ${price}/mwezi). Kitabu chako cha mikopo kinaendelea kufanya kazi vilevile kwa vyovyote — vifurushi hubadilisha zana za akili unazozipata, kamwe si kama unaweza kukopesha.`,
+    notAvailable: `Bado haipatikani.`,
+    seePackages: "Ona vifurushi",
+    upgradeSuggestions: ["Vifurushi vinajumuisha nini?", "Ninawezaje kupandisha daraja?"],
+    dontKnow: (canDo: string) =>
+      `Sina jibu la hilo, na ni afadhali kusema hivyo kuliko kukupeleka kwenye skrini isiyokuwepo.\n\n` +
+      `Naweza kusaidia na: ${canDo} — na mengine mengi. Jaribu kuliuliza kwa njia nyingine, au muulize msimamizi wako.\n\n` +
+      `Ikiwa ni kuhusu TAKWIMU zako badala ya jinsi jukwaa linavyofanya kazi, nibadilishe kuwa **Analyst** — huko nasoma kitabu chako halisi.`,
+    dontKnowSuggestions: ["Nifanye nini sasa?", "Ninawezaje kuomba mkopo?", "Kwa nini siwezi kutoa mkopo huu?"],
+    hereIsNext: (title: string, why: string, after: string) =>
+      `Hapa ndipo ulipo, na jambo linalofuata lenye maana:\n\n**${title}** — ${why}\n\nBaada ya hapo: ${after}.`,
+    afterItems: { product: "bidhaa ya mkopo", team: "timu yako", vault: "vitambulisho vyako vya M-Pesa", activation: "kuwashwa" },
+    readyToLend: "uko tayari kukopesha",
+    nextSuggestions: ["Ninawezaje kutengeneza bidhaa ya mkopo?", "Ninawezaje kualika timu yangu?", "Kwa nini siwezi kutoa pesa?"],
+    allSet:
+      `Umekamilisha usanidi na umewashwa — hakuna kinachosalia. Niulize chochote unachotaka kuendesha: kupokea ombi, kufuatilia madeni, kutoa mkopo.`,
+    allSetSuggestions: ["Ninawezaje kumwombea mtu mkopo?", "Ninawezaje kufuatilia madeni?", "Upimaji unafanyaje kazi?"],
+  },
+} as const;
+
+/** The article's voice in the answer's language. */
+const voiced = (a: Article, lang: SupportLang) =>
+  lang === "sw"
+    ? { title: a.sw.title, body: a.sw.body, steps: a.sw.steps, actionLabel: a.sw.actionLabel ?? a.action?.label, firstAsk: a.sw.asks[0] }
+    : { title: a.title, body: a.body, steps: a.steps, actionLabel: a.action?.label, firstAsk: a.asks[0] };
 
 /**
  * Answer a support question, for this person, at this lender.
@@ -131,35 +208,42 @@ const NOT_YOURS = (a: Article) =>
  * a generic model does, is to invent a plausible menu path; and a lender who follows
  * invented instructions and finds nothing there concludes the SOFTWARE is broken, not
  * the assistant.
+ *
+ * `lang` may be passed explicitly (the voice path knows what the microphone was set
+ * to); otherwise the question itself decides.
  */
 export async function answerSupport(
   orgId: string,
   question: string,
-  ctx: { rights: ReadonlySet<string>; features: ReadonlySet<string>; firstName?: string | null; orgName?: string },
+  ctx: { rights: ReadonlySet<string>; features: ReadonlySet<string>; firstName?: string | null; orgName?: string; lang?: SupportLang },
 ): Promise<SupportAnswer> {
   const q = question.toLowerCase().trim();
+  const lang: SupportLang = ctx.lang ?? detectLang(q);
+  const s = S[lang];
 
   // "What do I do now?" is a question about THIS lender, not about the platform.
-  if (/^(what|where)\b.*(next|now|do i (do|start)|should i do)|^(what do i do|where do i start|help me get started|guide me)/.test(q)) {
+  const whatNextEn = /^(what|where)\b.*(next|now|do i (do|start)|should i do)|^(what do i do|where do i start|help me get started|guide me)/.test(q);
+  const whatNextSw = /^(nifanye nini|nianze wapi|nianzie wapi|nini kifuatacho|nisaidie kuanza|niongoze)/.test(q) || /nifanye nini/.test(q);
+  if (whatNextEn || whatNextSw) {
     const setup = await setupState(orgId);
     if (setup.next) {
+      const next = nextInLang(setup.next, lang);
+      const after = [
+        !setup.hasProduct && s.afterItems.product,
+        !setup.hasTeam && s.afterItems.team,
+        !setup.hasVault && s.afterItems.vault,
+        !setup.isActive && s.afterItems.activation,
+      ].filter(Boolean).join(", ") || s.readyToLend;
       return {
-        answer:
-          `Here's where you are, and the next thing that matters:\n\n**${setup.next.title}** — ${setup.next.why}\n\n` +
-          `After that: ${[
-            !setup.hasProduct && "a loan product",
-            !setup.hasTeam && "your team",
-            !setup.hasVault && "your M-Pesa credentials",
-            !setup.isActive && "activation",
-          ].filter(Boolean).join(", ") || "you're ready to lend"}.`,
-        actions: [{ kind: "navigate", label: setup.next.title, href: setup.next.href }],
-        suggestions: ["How do I create a loan product?", "How do I invite my team?", "Why can't I disburse?"],
+        answer: s.hereIsNext(next.title, next.why, after),
+        actions: [{ kind: "navigate", label: next.title, href: next.href }],
+        suggestions: [...s.nextSuggestions],
       };
     }
     return {
-      answer: `You're fully set up and active — there's nothing outstanding. Ask me about anything you want to run: taking an application, chasing arrears, paying out a loan.`,
+      answer: s.allSet,
       actions: [],
-      suggestions: ["How do I apply for a loan on someone's behalf?", "How do I chase arrears?", "How does scoring work?"],
+      suggestions: [...s.allSetSuggestions],
     };
   }
 
@@ -167,23 +251,21 @@ export async function answerSupport(
 
   if (!hits.length) {
     // The honest failure. She does NOT guess a menu path.
-    const canDo = articlesFor(ctx.rights).slice(0, 6).map((a) => a.title.toLowerCase());
+    const canDo = articlesFor(ctx.rights).slice(0, 6).map((a) => voiced(a, lang).title.toLowerCase());
     return {
-      answer:
-        `I don't have an answer for that one, and I'd rather say so than send you to a screen that doesn't exist.\n\n` +
-        `I can help with: ${canDo.join(", ")} — and quite a bit more. Try asking it another way, or ask your administrator.\n\n` +
-        `If it's about your NUMBERS rather than how the platform works, switch me to **Analyst** — I read your live book there.`,
+      answer: s.dontKnow(canDo.join(", ")),
       actions: [],
-      suggestions: ["What do I do next?", "How do I apply for a loan?", "Why can't I disburse this loan?"],
+      suggestions: [...s.dontKnowSuggestions],
     };
   }
 
   const top = hits[0];
   const a = top.article;
+  const v = voiced(a, lang);
 
   // They asked about something real that they are not allowed to do. Say who can.
   if (!top.permitted) {
-    return { answer: NOT_YOURS(a), actions: [], articleId: a.id, suggestions: ["Who can see whose customers?", "What can my role do?"] };
+    return { answer: s.notYours(v.title), actions: [], articleId: a.id, suggestions: [...s.notYoursSuggestions] };
   }
 
   // They asked about something real that their package does not include. Name the price
@@ -192,18 +274,16 @@ export async function answerSupport(
     const plan = cheapestPlanWith(a.feature);
     return {
       answer:
-        `**${a.title}** isn't on your package yet.\n\n${a.body}\n\n` +
-        (plan
-          ? `It comes with **${plan.name}** (KES ${plan.monthlyKes.toLocaleString()}/mo). Your loan book keeps working exactly as it does now either way — packages change which intelligence tools you get, never whether you can lend.`
-          : `It isn't available yet.`),
-      actions: [{ kind: "navigate", label: "See packages", href: "/console/billing" }],
+        `${s.notOnPackage(v.title)}\n\n${v.body}\n\n` +
+        (plan ? s.comesWith(plan.name, plan.monthlyKes.toLocaleString()) : s.notAvailable),
+      actions: [{ kind: "navigate", label: s.seePackages, href: "/console/billing" }],
       articleId: a.id,
-      suggestions: ["What do the packages include?", "How do I upgrade?"],
+      suggestions: [...s.upgradeSuggestions],
     };
   }
 
-  const steps = a.steps?.length
-    ? "\n\n" + a.steps.map((s, i) => `${i + 1}. ${s}`).join("\n")
+  const steps = v.steps?.length
+    ? "\n\n" + v.steps.map((st, i) => `${i + 1}. ${st}`).join("\n")
     : "";
 
   const related = (a.related ?? [])
@@ -211,12 +291,12 @@ export async function answerSupport(
     .filter(Boolean) as Article[];
 
   return {
-    answer: `**${a.title}**\n\n${a.body}${steps}`,
-    actions: a.action ? [{ kind: "navigate", label: a.action.label, href: a.action.href }] : [],
+    answer: `**${v.title}**\n\n${v.body}${steps}`,
+    actions: a.action ? [{ kind: "navigate", label: v.actionLabel ?? a.action.label, href: a.action.href }] : [],
     articleId: a.id,
     suggestions: [
-      ...related.slice(0, 2).map((r) => r.asks[0]).filter(Boolean),
-      ...hits.slice(1, 2).map((h) => h.article.asks[0]),
+      ...related.slice(0, 2).map((r) => voiced(r, lang).firstAsk).filter(Boolean),
+      ...hits.slice(1, 2).map((h) => voiced(h.article, lang).firstAsk),
     ].slice(0, 3),
   };
 }

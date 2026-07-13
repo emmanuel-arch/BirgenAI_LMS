@@ -289,7 +289,9 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
     setTurns((t) => [...t, { id, question, model: m, loading: true }]);
     setInput(""); setBusy(true);
     try {
-      const res = await fetch("/api/console/riri", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question, model: m }) });
+      // The voice toggle is an explicit language choice — support answers follow it.
+      // Typed questions with the toggle on English still flip via detectLang server-side.
+      const res = await fetch("/api/console/riri", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question, model: m, ...(voice.lang === "sw-KE" ? { lang: "sw" } : {}) }) });
       const data = await res.json();
       setTurns((t) => t.map((x) => x.id === id
         ? (data.success

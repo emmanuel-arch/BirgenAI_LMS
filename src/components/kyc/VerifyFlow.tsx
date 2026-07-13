@@ -26,12 +26,20 @@
 // score the server stored, and the evidence tray shows the exact frames that were
 // submitted. Nothing animates its way past a failed check. (Same contract as the
 // statement cruncher's CrunchTheatre.)
+//
+// THE WIZARD SPEAKS THE CUSTOMER'S LANGUAGE (useLang). At the counter that means
+// the officer can flip it to Kiswahili for the person facing the camera — the
+// coach chips and challenge prompts are read by the CUSTOMER, not the officer.
+// The server's challenge strings stay English on the wire (they are re-derived
+// and verified server-side); the dictionary translates the known set for display.
 // ─────────────────────────────────────────────────────────────────────────────
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   IdCard, ScanFace, UserCheck, Landmark, CheckCircle2, AlertTriangle, ShieldCheck, Loader2, FlaskConical, ArrowRight, XCircle,
 } from "lucide-react";
+import { useLang } from "@/lib/i18n/useLang";
+import { fmt, type PortalDict } from "@/lib/i18n/portal";
 import { ConfidenceRing } from "./ConfidenceRing";
 import { Capture, type CaptureSignals } from "./Capture";
 
@@ -47,29 +55,29 @@ export type FlowOutcome = {
   results: StepResults;
 };
 
-const STEPS: { key: PipelineStep; label: string; icon: typeof IdCard }[] = [
-  { key: "id", label: "ID document", icon: IdCard },
-  { key: "liveness", label: "Liveness", icon: ScanFace },
-  { key: "facematch", label: "Face match", icon: UserCheck },
-  { key: "iprs", label: "Registry", icon: Landmark },
+const STEPS: { key: PipelineStep; icon: typeof IdCard }[] = [
+  { key: "id", icon: IdCard },
+  { key: "liveness", icon: ScanFace },
+  { key: "facematch", icon: UserCheck },
+  { key: "iprs", icon: Landmark },
 ];
 
+const stepLabel = (key: PipelineStep, t: PortalDict): string =>
+  key === "id" ? t.kyc.stepId : key === "liveness" ? t.kyc.stepLiveness : key === "facematch" ? t.kyc.stepFace : t.kyc.stepRegistry;
+
+/** The server's challenge string, in the customer's language (unknown → as sent). */
+const challengeText = (challenge: string, t: PortalDict): string =>
+  t.kyc.challenges[challenge] ?? challenge.charAt(0).toUpperCase() + challenge.slice(1);
+
 /** Turn a machine's quality verdict into something a person can act on. */
-function gateMessage(d: Record<string, unknown>): string {
+function gateMessage(d: Record<string, unknown>, t: PortalDict): string {
   const q = d.quality as { issues?: string[] } | undefined;
   const l = d.liveness as { passed?: boolean } | undefined;
   if (q?.issues?.length) {
-    const map: Record<string, string> = {
-      "resolution-too-low": "Image is too small — move closer and fill the frame.",
-      "low-resolution": "A little blurry — hold steady and retake.",
-      "glare-detected": "Too much glare — tilt away from the light.",
-      "too-dark": "Too dark — find better lighting.",
-      "image-blurry": "Out of focus — hold steady and retake.",
-    };
-    return map[q.issues[0]] ?? "Please retake a clearer photo.";
+    return t.kyc.gates[q.issues[0]] ?? t.kyc.gateDefault;
   }
-  if (l && !l.passed) return "Couldn't confirm liveness — face the camera in good light and retake.";
-  return "Please retake.";
+  if (l && !l.passed) return t.kyc.gateLiveness;
+  return t.kyc.gateDefault;
 }
 
 /** How long a successful step's result stays on screen before auto-advancing. */
@@ -88,6 +96,7 @@ export function VerifyFlow({
   onSessionExpired?: () => void;
   header?: React.ReactNode;
 }) {
+  const { t } = useLang();
   const [step, setStep] = useState<PipelineStep>("id");
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [mode, setMode] = useState<"simulation" | "live">("simulation");
@@ -112,12 +121,12 @@ export function VerifyFlow({
   /** Every response passes through here, so "your session died" is handled once. */
   const accept = (data: Record<string, unknown>): boolean => {
     if (data.needsOtp) {
-      setError("The verification session expired — start again.");
+      setError(t.kyc.sessionExpired);
       onSessionExpired?.();
       return false;
     }
     if (!data.success) {
-      setError((data.message as string) || "That step could not be completed.");
+      setError((data.message as string) || t.kyc.stepFailed);
       return false;
     }
     if (data.sessionId) setSessionId(data.sessionId as string);
@@ -155,11 +164,11 @@ export function VerifyFlow({
       const data = await call(stepKey, { bytes: sig.bytes, brightness: sig.brightness, blurVar: sig.blurVar, image: sig.dataUrl });
       if (!accept(data)) { setAnalysing(null); return; }
       setResults((r) => ({ ...r, [stepKey]: data }));
-      if (data.retake) { setAnalysing(null); setError(gateMessage(data)); return; }
+      if (data.retake) { setAnalysing(null); setError(gateMessage(data, t)); return; }
       revealThenAdvance(stepKey);
     } catch {
       setAnalysing(null);
-      setError("Something went wrong — try again.");
+      setError(t.kyc.somethingWrong);
     } finally {
       setBusy(false);
     }
@@ -176,7 +185,7 @@ export function VerifyFlow({
       setChallenges(data.challenges as string[]);
       setFrames([]);
     } catch {
-      setError("Could not start the liveness check.");
+      setError(t.kyc.couldNotStartLiveness);
     } finally {
       setBusy(false);
     }
@@ -198,13 +207,13 @@ export function VerifyFlow({
       if (data.retake) {
         setFrames([]);
         setAnalysing(null);
-        setError("Couldn't confirm liveness — follow each prompt in good light and try again.");
+        setError(t.kyc.livenessRetakeAll);
         return;
       }
       setFrames([]);
       revealThenAdvance("liveness");
     } catch {
-      setError("Something went wrong — try again.");
+      setError(t.kyc.somethingWrong);
       setFrames([]);
       setAnalysing(null);
     } finally {
@@ -230,7 +239,7 @@ export function VerifyFlow({
         results: { ...withIprs, finalize: fin },
       });
     } catch {
-      setError("Registry check failed.");
+      setError(t.kyc.registryFailed);
     } finally {
       setBusy(false);
     }
@@ -246,14 +255,14 @@ export function VerifyFlow({
 
       {mode === "simulation" && (
         <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-700">
-          <FlaskConical className="h-3 w-3" /> DEMO MODE — no licensed identity provider connected
+          <FlaskConical className="h-3 w-3" /> {t.kyc.demoBadge}
         </p>
       )}
 
       {/* ── Mission progress: the bar fills a quarter per completed check. ── */}
       <div className="mt-4">
         <div className="flex items-baseline justify-between">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[color:var(--ink-faint)]">Identity verification</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[color:var(--ink-faint)]">{t.kyc.progressLabel}</p>
           <p className="text-xs font-bold tabular-nums" style={{ color: "var(--brand)" }}>{pct}%</p>
         </div>
         <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-zinc-900/[0.08]">
@@ -269,6 +278,7 @@ export function VerifyFlow({
           {STEPS.map((s, i) => {
             const done = i < stepIndex || (i === stepIndex && reveal === s.key);
             const current = i === stepIndex && !done;
+            const label = stepLabel(s.key, t);
             return (
               <div key={s.key} className="flex flex-1 items-center gap-1.5">
                 <div
@@ -276,12 +286,12 @@ export function VerifyFlow({
                     done ? "bg-emerald-500 text-white" : current ? "text-white" : "bg-zinc-900/5 text-zinc-400"
                   }`}
                   style={current ? { backgroundColor: "var(--brand)" } : undefined}
-                  title={s.label}
+                  title={label}
                 >
                   {done ? <CheckCircle2 className="h-4 w-4" /> : <s.icon className="h-4 w-4" />}
                 </div>
                 <span className={`hidden truncate text-[11px] font-medium sm:block ${done ? "text-emerald-600" : current ? "text-[color:var(--ink)]" : "text-[color:var(--ink-faint)]"}`}>
-                  {s.label}
+                  {label}
                 </span>
               </div>
             );
@@ -309,11 +319,11 @@ export function VerifyFlow({
               {/* ID DOCUMENT */}
               {step === "id" && reveal !== "id" && (
                 <div className="glass rounded-3xl bg-white/65 p-5">
-                  <h2 className="text-base font-bold">Scan the front of the ID</h2>
-                  <p className="mt-1 text-xs text-zinc-500">Lay it flat, fill the frame, avoid glare — the coach on the viewfinder will say when it looks right.</p>
+                  <h2 className="text-base font-bold">{t.kyc.scanIdTitle}</h2>
+                  <p className="mt-1 text-xs text-zinc-500">{t.kyc.scanIdSub}</p>
                   <div className="mt-4">
                     {analysing ? (
-                      <ScanTheatre image={analysing} aspect="id" lines={["Measuring sharpness…", "Checking for glare…", "Reading the document…", "Extracting the details…"]} />
+                      <ScanTheatre image={analysing} aspect="id" lines={t.kyc.idLines} />
                     ) : (
                       <Capture frame="id" facing="environment" busy={busy} onCapture={(s) => captureStep("id", s)} />
                     )}
@@ -322,12 +332,13 @@ export function VerifyFlow({
               )}
               {step === "id" && reveal === "id" && (
                 <StepReveal
-                  title="Document read"
+                  title={t.kyc.documentRead}
+                  continueLabel={t.kyc.continue}
                   onContinue={() => goNext("id")}
-                  ring={{ value: (results.id as { quality?: { score?: number } })?.quality?.score ?? 0, label: "image quality" }}
+                  ring={{ value: (results.id as { quality?: { score?: number } })?.quality?.score ?? 0, label: t.kyc.imageQualityRing }}
                 >
                   {(results.id as { ocr?: { fullName?: string } })?.ocr && (
-                    <ExtractedCard ocr={(results.id as { ocr: { fullName: string; idNumber: string; dob: string; confidence: number } }).ocr} />
+                    <ExtractedCard ocr={(results.id as { ocr: { fullName: string; idNumber: string; dob: string; confidence: number } }).ocr} t={t} />
                   )}
                 </StepReveal>
               )}
@@ -335,11 +346,11 @@ export function VerifyFlow({
               {/* LIVENESS */}
               {step === "liveness" && reveal !== "liveness" && (
                 <div className="glass rounded-3xl bg-white/65 p-5">
-                  <h2 className="text-base font-bold">Liveness check</h2>
+                  <h2 className="text-base font-bold">{t.kyc.livenessTitle}</h2>
                   {!challenges ? (
                     <>
                       <p className="mt-1 text-xs text-zinc-500">
-                        Two quick things a photograph cannot do — that is how we know this is a live person.
+                        {t.kyc.livenessIntro}
                       </p>
                       <button
                         onClick={startLiveness}
@@ -347,24 +358,24 @@ export function VerifyFlow({
                         className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
                         style={{ backgroundColor: "var(--brand)" }}
                       >
-                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanFace className="h-4 w-4" />} Start the check
+                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanFace className="h-4 w-4" />} {t.kyc.startCheck}
                       </button>
                     </>
                   ) : analysing ? (
                     <div className="mt-3">
-                      <ScanTheatre image={analysing} aspect="face" lines={["Comparing the frames…", "Looking for motion a photo can't fake…", "Scoring liveness…"]} />
+                      <ScanTheatre image={analysing} aspect="face" lines={t.kyc.livenessLines} />
                     </div>
                   ) : (
                     <>
                       <div className="mt-2 flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-white" style={{ backgroundColor: "var(--brand)" }}>
-                        <span>{challenges[frames.length].charAt(0).toUpperCase() + challenges[frames.length].slice(1)}</span>
+                        <span>{challengeText(challenges[frames.length], t)}</span>
                         <span className="flex items-center gap-1">
                           {challenges.map((_, i) => (
                             <span key={i} className={`h-1.5 w-4 rounded-full ${i < frames.length ? "bg-white" : "bg-white/35"}`} />
                           ))}
                         </span>
                       </div>
-                      <p className="mt-1.5 text-xs text-zinc-500">Do it, then capture — face the camera in good light.</p>
+                      <p className="mt-1.5 text-xs text-zinc-500">{t.kyc.challengeNote}</p>
                       <div className="mt-3">
                         <Capture frame="face" facing="user" busy={busy} onCapture={captureLivenessFrame} />
                       </div>
@@ -374,24 +385,25 @@ export function VerifyFlow({
               )}
               {step === "liveness" && reveal === "liveness" && (
                 <StepReveal
-                  title="Live person confirmed"
+                  title={t.kyc.livePersonConfirmed}
+                  continueLabel={t.kyc.continue}
                   onContinue={() => goNext("liveness")}
-                  ring={{ value: (results.liveness as { liveness?: { score?: number } })?.liveness?.score ?? 0, label: "liveness" }}
+                  ring={{ value: (results.liveness as { liveness?: { score?: number } })?.liveness?.score ?? 0, label: t.kyc.livenessRing }}
                 >
-                  <ChallengeList result={results.liveness as never} />
+                  <ChallengeList result={results.liveness as never} t={t} />
                 </StepReveal>
               )}
 
               {/* FACE MATCH */}
               {step === "facematch" && reveal !== "facematch" && (
                 <div className="glass rounded-3xl bg-white/65 p-5">
-                  <h2 className="text-base font-bold">Matching the face to the ID</h2>
-                  <p className="mt-1 text-xs text-zinc-500">One more selfie, compared against the portrait on the document.</p>
+                  <h2 className="text-base font-bold">{t.kyc.faceTitle}</h2>
+                  <p className="mt-1 text-xs text-zinc-500">{t.kyc.faceSub}</p>
                   <div className="mt-4">
                     {analysing && idImage ? (
-                      <MatchTheatre idImage={idImage} selfie={analysing} />
+                      <MatchTheatre idImage={idImage} selfie={analysing} t={t} />
                     ) : analysing ? (
-                      <ScanTheatre image={analysing} aspect="face" lines={["Mapping facial geometry…", "Comparing against the ID portrait…", "Scoring similarity…"]} />
+                      <ScanTheatre image={analysing} aspect="face" lines={t.kyc.faceLines} />
                     ) : (
                       <Capture frame="face" facing="user" busy={busy} onCapture={(s) => captureStep("facematch", s)} />
                     )}
@@ -404,6 +416,7 @@ export function VerifyFlow({
                   selfie={selfieImage}
                   result={results.facematch as never}
                   onContinue={() => goNext("facematch")}
+                  t={t}
                 />
               )}
 
@@ -411,19 +424,19 @@ export function VerifyFlow({
               {step === "iprs" && (
                 <div className="glass rounded-3xl bg-white/65 p-6 text-center">
                   {busy ? (
-                    <RegistryTheatre />
+                    <RegistryTheatre t={t} />
                   ) : (
                     <>
                       <Landmark className="mx-auto h-10 w-10" style={{ color: "var(--brand)" }} />
-                      <h2 className="mt-3 text-base font-bold">Government registry match</h2>
-                      <p className="mt-1 text-xs text-zinc-500">The ID is confirmed against the national registry (IPRS).</p>
+                      <h2 className="mt-3 text-base font-bold">{t.kyc.registryTitle}</h2>
+                      <p className="mt-1 text-xs text-zinc-500">{t.kyc.registrySub}</p>
                       <button
                         onClick={runIprs}
                         disabled={busy}
                         className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
                         style={{ backgroundColor: "var(--brand)" }}
                       >
-                        <ShieldCheck className="h-4 w-4" /> Run registry check
+                        <ShieldCheck className="h-4 w-4" /> {t.kyc.runRegistry}
                       </button>
                     </>
                   )}
@@ -434,7 +447,7 @@ export function VerifyFlow({
         </div>
 
         {/* ── The dossier: everything captured and confirmed so far, always visible. ── */}
-        <Dossier idImage={idImage} selfie={selfieImage} results={results} mode={mode} />
+        <Dossier idImage={idImage} selfie={selfieImage} results={results} mode={mode} t={t} />
       </div>
     </div>
   );
@@ -463,7 +476,7 @@ function ScanTheatre({ image, lines, aspect }: { image: string; lines: string[];
   return (
     <div className={`relative w-full overflow-hidden rounded-2xl bg-zinc-900 ${aspect === "id" ? "aspect-[1.586/1]" : "aspect-square"}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={image} alt="Captured frame under analysis" className="h-full w-full object-cover opacity-80" />
+      <img src={image} alt="" className="h-full w-full object-cover opacity-80" />
       <motion.div
         className="pointer-events-none absolute inset-x-0 h-10 bg-gradient-to-b from-transparent via-[var(--brand)]/35 to-transparent motion-reduce:hidden"
         initial={{ top: "-10%" }} animate={{ top: ["-10%", "95%", "-10%"] }} transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut" }}
@@ -482,12 +495,12 @@ function ScanTheatre({ image, lines, aspect }: { image: string; lines: string[];
 }
 
 /** ID portrait and selfie side by side, both under the scanner, similarity climbing. */
-function MatchTheatre({ idImage, selfie }: { idImage: string; selfie: string }) {
+function MatchTheatre({ idImage, selfie, t }: { idImage: string; selfie: string; t: PortalDict }) {
   const p = useClimb(92, 2800);
   return (
     <div>
       <div className="grid grid-cols-2 gap-2">
-        {[{ src: idImage, label: "ID PORTRAIT" }, { src: selfie, label: "LIVE SELFIE" }].map((f) => (
+        {[{ src: idImage, label: t.kyc.idPortrait }, { src: selfie, label: t.kyc.liveSelfie }].map((f) => (
           <div key={f.label} className="relative aspect-square overflow-hidden rounded-xl bg-zinc-900">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={f.src} alt={f.label.toLowerCase()} className="h-full w-full object-cover opacity-85" />
@@ -504,7 +517,7 @@ function MatchTheatre({ idImage, selfie }: { idImage: string; selfie: string }) 
         ))}
       </div>
       <div className="mt-3 flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-xs font-medium text-zinc-600"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Comparing facial geometry…</span>
+        <span className="flex items-center gap-1.5 text-xs font-medium text-zinc-600"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t.kyc.comparingGeometry}</span>
         <span className="text-sm font-bold tabular-nums" style={{ color: "var(--brand)" }}>{p}%</span>
       </div>
       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-900/10">
@@ -514,13 +527,13 @@ function MatchTheatre({ idImage, selfie }: { idImage: string; selfie: string }) 
   );
 }
 
-function RegistryTheatre() {
+function RegistryTheatre({ t }: { t: PortalDict }) {
   const p = useClimb(92, 2200);
-  const LINES = ["Connecting to the registry…", "Locating the record…", "Comparing name and date of birth…"];
+  const lines = t.kyc.registryLines;
   return (
     <div className="py-4">
       <Landmark className="mx-auto h-10 w-10 animate-pulse" style={{ color: "var(--brand)" }} />
-      <p className="mt-3 text-sm font-semibold">{LINES[Math.min(LINES.length - 1, Math.floor((p / 92) * LINES.length))]}</p>
+      <p className="mt-3 text-sm font-semibold">{lines[Math.min(lines.length - 1, Math.floor((p / 92) * lines.length))]}</p>
       <div className="mx-auto mt-4 h-1.5 max-w-xs overflow-hidden rounded-full bg-zinc-900/10">
         <div className="h-full rounded-full bg-[var(--brand)] transition-all duration-150" style={{ width: `${p}%` }} />
       </div>
@@ -530,11 +543,12 @@ function RegistryTheatre() {
 
 // ── Result reveals ───────────────────────────────────────────────────────────
 
-function StepReveal({ title, ring, children, onContinue }: {
+function StepReveal({ title, ring, children, onContinue, continueLabel }: {
   title: string;
   ring: { value: number; label: string };
   children?: React.ReactNode;
   onContinue: () => void;
+  continueLabel: string;
 }) {
   return (
     <div className="glass rounded-3xl bg-white/65 p-6 text-center">
@@ -545,17 +559,18 @@ function StepReveal({ title, ring, children, onContinue }: {
       <div className="mt-4 flex justify-center"><ConfidenceRing value={ring.value} label={ring.label} /></div>
       {children}
       <button onClick={onContinue} className="mt-5 inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--brand)" }}>
-        Continue <ArrowRight className="h-3.5 w-3.5" />
+        {continueLabel} <ArrowRight className="h-3.5 w-3.5" />
       </button>
     </div>
   );
 }
 
-function FaceMatchReveal({ idImage, selfie, result, onContinue }: {
+function FaceMatchReveal({ idImage, selfie, result, onContinue, t }: {
   idImage: string | null;
   selfie: string | null;
   result: { faceMatch?: { score: number; band: string } } | undefined;
   onContinue: () => void;
+  t: PortalDict;
 }) {
   const fm = result?.faceMatch;
   if (!fm) return null;
@@ -567,27 +582,27 @@ function FaceMatchReveal({ idImage, selfie, result, onContinue }: {
         {[idImage, selfie].map((src, i) => src && (
           <div key={i} className={`relative aspect-square overflow-hidden rounded-xl ring-2 ${good ? "ring-emerald-500" : review ? "ring-amber-500" : "ring-red-500"}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={i === 0 ? "ID portrait" : "Live selfie"} className="h-full w-full object-cover" />
+            <img src={src} alt={i === 0 ? t.kyc.idPortrait.toLowerCase() : t.kyc.liveSelfie.toLowerCase()} className="h-full w-full object-cover" />
           </div>
         ))}
       </div>
       <div className="mt-4 flex flex-col items-center">
-        <ConfidenceRing value={fm.score} label="similarity" />
+        <ConfidenceRing value={fm.score} label={t.kyc.similarityRing} />
         <motion.p initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
           className={`mt-3 inline-flex items-center gap-1.5 text-sm font-bold ${good ? "text-emerald-600" : review ? "text-amber-600" : "text-red-600"}`}>
           {good ? <CheckCircle2 className="h-4 w-4" /> : review ? <AlertTriangle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-          {good ? "Match confirmed" : review ? "Needs a human review" : "Not a match"}
+          {good ? t.kyc.matchConfirmed : review ? t.kyc.needsHumanReview : t.kyc.notAMatch}
         </motion.p>
-        <p className="mt-1 text-[11px] text-zinc-400">Background removed · standardized to a white portrait</p>
+        <p className="mt-1 text-[11px] text-zinc-400">{t.kyc.bgRemoved}</p>
         <button onClick={onContinue} className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--brand)" }}>
-          Continue <ArrowRight className="h-3.5 w-3.5" />
+          {t.kyc.continue} <ArrowRight className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
   );
 }
 
-function ChallengeList({ result }: { result: { liveness?: { frames?: { challenge: string; passed: boolean }[] } } | undefined }) {
+function ChallengeList({ result, t }: { result: { liveness?: { frames?: { challenge: string; passed: boolean }[] } } | undefined; t: PortalDict }) {
   const frames = result?.liveness?.frames;
   if (!frames?.length) return null;
   return (
@@ -595,23 +610,23 @@ function ChallengeList({ result }: { result: { liveness?: { frames?: { challenge
       {frames.map((f) => (
         <p key={f.challenge} className="flex items-center gap-1.5 text-xs text-zinc-600">
           {f.passed ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <XCircle className="h-3.5 w-3.5 text-red-500" />}
-          {f.challenge.charAt(0).toUpperCase() + f.challenge.slice(1)}
+          {challengeText(f.challenge, t)}
         </p>
       ))}
     </div>
   );
 }
 
-function ExtractedCard({ ocr }: { ocr: { fullName: string; idNumber: string; dob: string; confidence: number } }) {
+function ExtractedCard({ ocr, t }: { ocr: { fullName: string; idNumber: string; dob: string; confidence: number }; t: PortalDict }) {
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mx-auto mt-4 max-w-sm rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-left">
       <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-        <CheckCircle2 className="h-3.5 w-3.5" /> Details read ({ocr.confidence}% confidence)
+        <CheckCircle2 className="h-3.5 w-3.5" /> {fmt(t.kyc.detailsRead, { conf: ocr.confidence })}
       </p>
       <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-        <div><span className="text-zinc-400">Name</span><p className="font-semibold">{ocr.fullName}</p></div>
-        <div><span className="text-zinc-400">ID No.</span><p className="font-semibold">{ocr.idNumber}</p></div>
-        <div><span className="text-zinc-400">DOB</span><p className="font-semibold">{ocr.dob}</p></div>
+        <div><span className="text-zinc-400">{t.kyc.name}</span><p className="font-semibold">{ocr.fullName}</p></div>
+        <div><span className="text-zinc-400">{t.kyc.idNo}</span><p className="font-semibold">{ocr.idNumber}</p></div>
+        <div><span className="text-zinc-400">{t.kyc.dob}</span><p className="font-semibold">{ocr.dob}</p></div>
       </div>
     </motion.div>
   );
@@ -619,11 +634,12 @@ function ExtractedCard({ ocr }: { ocr: { fullName: string; idNumber: string; dob
 
 // ── The dossier: the case file building up beside the stage ──────────────────
 
-function Dossier({ idImage, selfie, results, mode }: {
+function Dossier({ idImage, selfie, results, mode, t }: {
   idImage: string | null;
   selfie: string | null;
   results: StepResults;
   mode: "simulation" | "live";
+  t: PortalDict;
 }) {
   const id = results.id as { quality?: { score?: number }; ocr?: { fullName?: string; idNumber?: string } } | undefined;
   const live = (results.liveness as { liveness?: { score?: number; passed?: boolean } })?.liveness;
@@ -631,18 +647,18 @@ function Dossier({ idImage, selfie, results, mode }: {
   const iprs = (results.iprs as { iprs?: { matched?: boolean; name?: string | null } })?.iprs;
 
   const rows: { label: string; value: string; good: boolean }[] = [];
-  if (id?.quality?.score != null) rows.push({ label: "Image quality", value: `${id.quality.score}%`, good: id.quality.score >= 70 });
-  if (live?.score != null) rows.push({ label: "Liveness", value: `${live.score}%`, good: !!live.passed });
-  if (fm?.score != null) rows.push({ label: "Face similarity", value: `${fm.score}%`, good: fm.band === "match" });
-  if (iprs) rows.push({ label: "Registry", value: iprs.matched ? "Matched" : "No record", good: !!iprs.matched });
+  if (id?.quality?.score != null) rows.push({ label: t.kyc.imageQuality, value: `${id.quality.score}%`, good: id.quality.score >= 70 });
+  if (live?.score != null) rows.push({ label: t.kyc.livenessRow, value: `${live.score}%`, good: !!live.passed });
+  if (fm?.score != null) rows.push({ label: t.kyc.faceSimilarity, value: `${fm.score}%`, good: fm.band === "match" });
+  if (iprs) rows.push({ label: t.kyc.registryRow, value: iprs.matched ? t.kyc.matched : t.kyc.noRecord, good: !!iprs.matched });
 
   return (
     <aside className="glass h-fit rounded-3xl bg-white/65 p-4 lg:sticky lg:top-24">
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[color:var(--ink-faint)]">Case file</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[color:var(--ink-faint)]">{t.kyc.caseFile}</p>
 
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <EvidenceSlot label="ID front" image={idImage} wide />
-        <EvidenceSlot label="Selfie" image={selfie} />
+        <EvidenceSlot label={t.kyc.idFront} pendingLabel={t.kyc.pending} image={idImage} wide />
+        <EvidenceSlot label={t.kyc.selfie} pendingLabel={t.kyc.pending} image={selfie} />
       </div>
 
       {id?.ocr?.fullName && (
@@ -667,18 +683,18 @@ function Dossier({ idImage, selfie, results, mode }: {
 
       {rows.length === 0 && !idImage && (
         <p className="mt-3 text-xs leading-relaxed text-[color:var(--ink-muted)]">
-          Every capture and every score lands here as the checks run — the whole case on one card.
+          {t.kyc.dossierEmpty}
         </p>
       )}
 
       <p className="mt-3 border-t border-zinc-900/10 pt-2 text-[10px] text-[color:var(--ink-faint)]">
-        {mode === "live" ? "Live identity provider" : "Simulated provider — same pipeline, same gates"}
+        {mode === "live" ? t.kyc.liveProvider : t.kyc.simProvider}
       </p>
     </aside>
   );
 }
 
-function EvidenceSlot({ label, image, wide }: { label: string; image: string | null; wide?: boolean }) {
+function EvidenceSlot({ label, pendingLabel, image, wide }: { label: string; pendingLabel: string; image: string | null; wide?: boolean }) {
   return (
     <div>
       <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[color:var(--ink-faint)]">{label}</p>
@@ -687,7 +703,7 @@ function EvidenceSlot({ label, image, wide }: { label: string; image: string | n
           // eslint-disable-next-line @next/next/no-img-element
           <img src={image} alt={label} className="h-full w-full object-cover" />
         ) : (
-          <span className="absolute inset-0 flex items-center justify-center text-[9px] text-[color:var(--ink-faint)]">pending</span>
+          <span className="absolute inset-0 flex items-center justify-center text-[9px] text-[color:var(--ink-faint)]">{pendingLabel}</span>
         )}
       </div>
     </div>
