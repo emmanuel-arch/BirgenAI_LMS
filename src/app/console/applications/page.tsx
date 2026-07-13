@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
-import { Loader2, AlertTriangle, CheckCircle2, XCircle, FileText, ChevronDown, FilePlus2, Search } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2, XCircle, FileText, ChevronDown, FilePlus2, Search, Gauge, X } from "lucide-react";
 import { OfferPanel } from "./OfferPanel";
 import { SecurityPanel } from "./SecurityPanel";
 
@@ -213,6 +213,12 @@ function ApplicationsQueue() {
 // An officer applies on a walk-in borrower's behalf. The application enters the
 // same approval chain as a funnel one — same offer signature before booking
 // (BRANCH channel exists for the counter), same audit trail, no invented score.
+type CrunchHandoff = {
+  borrower: { id: string; name: string | null; phone: string } | null;
+  features: Record<string, unknown>;
+  score: { score: number; band: string; decision: string };
+};
+
 function AssistedApplyPanel({ onClose, onCreated, setError }: {
   onClose: () => void; onCreated: (msg: string) => void; setError: (s: string | null) => void;
 }) {
@@ -224,8 +230,21 @@ function AssistedApplyPanel({ onClose, onCreated, setError }: {
   const [amount, setAmount] = useState("");
   const [payee, setPayee] = useState({ name: "", paybill: "", account: "" });
   const [busy, setBusy] = useState(false);
+  // A statement crunched at /console/crunch rides in via sessionStorage. Only
+  // the FEATURES travel — the server rescores them itself at submission.
+  const [crunch, setCrunch] = useState<CrunchHandoff | null>(null);
 
   useLoad(async () => {
+    try {
+      const raw = sessionStorage.getItem("lms_crunch");
+      if (raw) {
+        const h = JSON.parse(raw) as CrunchHandoff;
+        if (h?.features && h?.score) {
+          setCrunch(h);
+          if (h.borrower) setBorrower(h.borrower);
+        }
+      }
+    } catch { /* a stale handoff is not an error */ }
     const res = await fetch("/api/console/products");
     const data = await res.json().catch(() => ({}));
     if (data.success) {
@@ -253,12 +272,18 @@ function AssistedApplyPanel({ onClose, onCreated, setError }: {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           borrowerId: borrower.id, productId, amount: Number(amount),
+          ...(crunch ? { features: crunch.features } : {}),
           ...(toSchool ? { payee: { name: payee.name.trim() || undefined, paybill: payee.paybill, account: payee.account.trim() || undefined } } : {}),
         }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.message || "Could not create the application."); return; }
-      onCreated(`Application created for ${borrower.name ?? borrower.phone} — it's in the queue below, entering your approval workflow at stage 1.`);
+      sessionStorage.removeItem("lms_crunch");
+      onCreated(
+        crunch
+          ? `Application created for ${borrower.name ?? borrower.phone} with their statement score attached — it's in the queue below.`
+          : `Application created for ${borrower.name ?? borrower.phone} — it's in the queue below, entering your approval workflow at stage 1.`,
+      );
     } catch { setError("Could not create the application."); } finally { setBusy(false); }
   };
 
@@ -271,6 +296,22 @@ function AssistedApplyPanel({ onClose, onCreated, setError }: {
         Walk-in customer at the counter. The application joins the same queue and approval workflow — booking still
         requires the borrower&apos;s signed offer (a paper signature at the branch counts).
       </p>
+
+      {/* The crunched statement, riding along. Detachable — but an application
+          with a real score beats one without, and the queue will show it. */}
+      {crunch && (
+        <div className="mt-3 flex max-w-2xl items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50/80 px-3 py-2">
+          <span className="flex items-center gap-2 text-xs text-emerald-800">
+            <Gauge className="h-4 w-4 shrink-0" />
+            Statement attached — <span className="font-bold">{crunch.score.score} / 900</span> · {crunch.score.band} · {crunch.score.decision}.
+            The server rescores it at submission and enforces the approved limit.
+          </span>
+          <button onClick={() => { setCrunch(null); sessionStorage.removeItem("lms_crunch"); }}
+            className="shrink-0 rounded p-1 text-emerald-700 hover:bg-emerald-100" aria-label="Detach the statement">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       {!borrower ? (
         <>

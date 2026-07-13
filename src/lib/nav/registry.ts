@@ -98,9 +98,13 @@ export const NAV_REGISTRY: NavModule[] = [
     icon: "BrainCircuit",
     items: [
       { key: "early-warning", label: "Early Warning", href: "/console/intelligence", icon: "Gauge", right: "intelligence.view", feature: "portfolio-scan", exact: true },
+      { key: "scoring", label: "Credit Scoring", href: "/console/intelligence/scoring", icon: "Target", right: "intelligence.view", feature: "portfolio-scan" },
+      { key: "analytics", label: "Analytics Studio", href: "/console/intelligence/analytics", icon: "LineChart", right: "reports.view" },
+      { key: "crunch", label: "Statement Cruncher", href: "/console/crunch", icon: "Calculator", right: "loans.apply", feature: "statement-cruncher" },
       { key: "model-tuning", label: "Model Tuning", href: "/console/intelligence/tuning", icon: "SlidersHorizontal", right: "intelligence.tune", feature: "model-tuning" },
       { key: "metrics", label: "Metric Catalogue", href: "/console/intelligence/metrics", icon: "Ruler", right: "metrics.view", feature: "riri" },
       { key: "documents", label: "Document Parser", href: "/console/documents", icon: "ScanLine", right: "documents.view", feature: "document-parser" },
+      { key: "report-builder", label: "Report Builder", href: "/console/intelligence/reports", icon: "FilePlus2", right: "reports.view", feature: "riri" },
       { key: "reports", label: "Reports", href: "/console/report", icon: "FileBarChart", right: "reports.view" },
     ],
   },

@@ -1,11 +1,15 @@
 // GET /api/console/applications — the org's application queue (staff).
 // ?scope=live (default: SUBMITTED/AI_PRESCREEN/OFFICER_REVIEW/REFERRED) | all
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { originStamp, resolveScope, applicationScopeWhere } from "@/lib/rbac/scope";
 import { autoScheduleVerification } from "@/lib/field/auto";
+import { scoreThinFileAuto } from "@/lib/statement/score-thinfile";
+import type { CashflowFeatures } from "@/lib/statement/features";
+import { computeApprovedLimit } from "@/lib/lending/limits";
 
 export const runtime = "nodejs";
 
@@ -82,6 +86,10 @@ export async function POST(req: NextRequest) {
   let body: {
     borrowerId?: string; productId?: string; amount?: number; note?: string;
     payee?: { name?: string; paybill?: string; account?: string };
+    /** Cashflow features from a crunched M-Pesa statement (/console/crunch). The
+        SCORE is never accepted from the client — it is recomputed here from the
+        features, by the same engine the portal uses. */
+    features?: Record<string, unknown>;
   };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
@@ -133,6 +141,53 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, message: "This borrower already has an application in the queue." }, { status: 409 });
   }
 
+  // ── The statement, when the officer crunched one first (/console/crunch) ────
+  // The features come from the cruncher; the SCORE is recomputed here — a number
+  // the client sent is a claim, the number this engine derives is a decision.
+  // The same approved-limit wall the funnel enforces applies: the counter must
+  // not be the door that ignores what the statement said.
+  let scored: ReturnType<typeof scoreThinFileAuto> | null = null;
+  let approvedLimit: number | null = null;
+  if (body.features && typeof body.features === "object" && Object.keys(body.features).length > 0) {
+    try {
+      scored = scoreThinFileAuto(body.features as unknown as CashflowFeatures);
+    } catch {
+      // Partial payloads throw inside the scorer (the /api/lms/limit lesson) —
+      // a 400 the officer can act on, never a 500.
+      return NextResponse.json({ success: false, message: "The statement features are incomplete — crunch the statement again." }, { status: 400 });
+    }
+    const book = await prisma.loan.findMany({
+      where: { orgId, borrowerId: borrower.id },
+      select: { status: true, loanAmount: true },
+    });
+    const cleared = book.filter((l) => l.status === "CLEARED");
+    const limit = computeApprovedLimit({
+      pd: scored.pd,
+      decision: scored.decision,
+      avgMonthlyNet: Number((body.features as { avgMonthlyNet?: number }).avgMonthlyNet) || null,
+      priorLoanCount: book.length,
+      graduated: borrower.graduationCount > 0,
+      largestCleared: cleared.reduce((m, l) => Math.max(m, Number(l.loanAmount)), 0),
+      productMin: min,
+      productMax: max,
+    });
+    approvedLimit = limit.approvedLimit;
+    if (scored.decision !== "DECLINE") {
+      if (approvedLimit === 0) {
+        return NextResponse.json({
+          success: false, limitExceeded: true, approvedLimit: 0,
+          message: "Based on the statement and their history, this product can't responsibly be offered right now.",
+        }, { status: 400 });
+      }
+      if (amount > approvedLimit) {
+        return NextResponse.json({
+          success: false, limitExceeded: true, approvedLimit,
+          message: `They qualify for up to KES ${approvedLimit.toLocaleString()} on this product — lower the amount.`,
+        }, { status: 400 });
+      }
+    }
+  }
+
   // Whose application this is. Inherited from the borrower's owning officer where there
   // is one, so an application does not change hands just because a different officer
   // happened to key it in; falls back to the officer keying it in.
@@ -155,8 +210,19 @@ export async function POST(req: NextRequest) {
       borrowerName: `${borrower.firstName ?? ""}${borrower.otherName ? " " + borrower.otherName : ""}`.trim() || null,
       amountRequested: amount,
       status: "OFFICER_REVIEW",
-      stageTitle: "Officer review (assisted)",
-      fusionEngine: "assisted",
+      stageTitle: scored ? "Officer review (statement scored)" : "Officer review (assisted)",
+      fusionEngine: scored ? "assisted-statement" : "assisted",
+      ...(scored
+        ? {
+            score: scored.score,
+            pd: scored.pd,
+            decision: scored.decision,
+            scoreModelVersion: scored.modelVersion,
+            reasonCodes: scored.reasonCodes as unknown as Prisma.InputJsonValue,
+            featuresSnapshot: body.features as Prisma.InputJsonValue,
+            approvedLimit,
+          }
+        : {}),
       lat: borrower.lat,
       lng: borrower.lng,
       locationType: borrower.locationType,
@@ -171,7 +237,10 @@ export async function POST(req: NextRequest) {
     data: {
       orgId, actorId: session!.user!.id, actorType: "staff", action: "application.assisted",
       entity: "LoanApplication", entityId: app.id,
-      meta: { borrowerId: borrower.id, product: product.name, amount, note: body.note?.trim() || null },
+      meta: {
+        borrowerId: borrower.id, product: product.name, amount, note: body.note?.trim() || null,
+        ...(scored ? { statementScore: scored.score, decision: scored.decision } : {}),
+      },
     },
   }).catch(() => {});
 
