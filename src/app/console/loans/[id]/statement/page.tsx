@@ -71,19 +71,16 @@ export default async function LoanStatement({ params }: { params: Promise<{ id: 
               the fallback for an org that hasn't uploaded a logo yet. */}
           {org?.logoUrl ? (
             <div className="min-w-0">
+              {/* The mark stands alone — a letterhead does not caption itself. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={org.logoUrl} alt={`${org.name} logo`} className="h-12 max-w-[220px] object-contain object-left" />
-              <p className="mt-1 text-[11px] leading-tight text-zinc-500">{org.slug}.birgenai.com</p>
             </div>
           ) : (
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl text-lg font-bold text-white" style={{ backgroundColor: org?.accent ?? "#000" }}>
                 {org?.name.slice(0, 1)}
               </div>
-              <div>
-                <p className="text-base font-bold leading-tight">{org?.name}</p>
-                <p className="text-[11px] text-zinc-500 leading-tight">{org?.slug}.birgenai.com</p>
-              </div>
+              <p className="text-base font-bold leading-tight">{org?.name}</p>
             </div>
           )}
           <div className="text-right">
