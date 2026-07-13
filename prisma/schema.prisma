@@ -438,6 +438,9 @@ model Borrower {
   /// "en" | "sw" — the language they chose on the portal. Every borrower-facing
   /// SMS (reminders, receipts, signing codes) follows it (src/lib/sms/send.ts).
   language   String    @default("en")
+  /// { name, relationship, phone } — who to call when the borrower cannot be
+  /// reached. Captured from Customer-360; a collections tool, never a guarantor.
+  nextOfKin  Json?
   // KYC artifacts (private storage keys, not public URLs)
   portraitKey     String? // white-background canonical portrait
   selfieKey       String?

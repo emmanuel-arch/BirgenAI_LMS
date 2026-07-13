@@ -13,6 +13,7 @@ import { signedUrl } from "@/lib/storage/provider";
 import { BorrowerAvatar } from "@/components/kyc/BorrowerAvatar";
 import type { CrbReport } from "@/lib/crb/provider";
 import { Customer360Client } from "./Customer360Client";
+import { BorrowerMenu } from "./BorrowerMenu";
 import KycGallery from "./KycGallery";
 
 export const runtime = "nodejs";
@@ -86,8 +87,10 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
 
         {/* Identity header. The customer's FACE leads — an officer looking for a person
             is looking for a person, and the fastest fraud check anyone ever runs is
-            noticing that the face beside the name is the wrong one. */}
-        <div className="mt-3 glass p-5">
+            noticing that the face beside the name is the wrong one.
+            relative z-20: every glass panel is its own stacking context (backdrop
+            blur), so without this the kebab dropdown paints UNDER the panels below. */}
+        <div className="relative z-20 mt-3 glass p-5">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3.5 min-w-0">
               <BorrowerAvatar name={name} portraitUrl={portraitUrl} verified={verified} size="lg" />
@@ -128,10 +131,28 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
             </div>
             {/* Full-width row under the identity on a phone (shrink-0 alone would
                 push the third tile off the screen); a fixed strip beside it on sm+. */}
-            <div className="grid w-full grid-cols-3 gap-2 sm:w-auto sm:shrink-0">
-              <Stat label="OLB" value={fmtKES(olb)} tone="text-[color:var(--brand)]" />
-              <Stat label="Internal score" value={b.creditScore != null ? String(b.creditScore) : "—"} />
-              <Stat label="Loans" value={`${b.loans.filter((l) => l.status === "ACTIVE").length}/${b.loans.length}`} />
+            <div className="flex w-full items-start gap-2 sm:w-auto sm:shrink-0">
+              <div className="grid flex-1 grid-cols-3 gap-2 sm:flex-none">
+                <Stat label="OLB" value={fmtKES(olb)} tone="text-[color:var(--brand)]" />
+                <Stat label="Internal score" value={b.creditScore != null ? String(b.creditScore) : "—"} />
+                <Stat label="Loans" value={`${b.loans.filter((l) => l.status === "ACTIVE").length}/${b.loans.length}`} />
+              </div>
+              {/* Everything an officer may CHANGE about this account lives behind
+                  the kebab — the card itself stays a read. */}
+              <BorrowerMenu
+                borrowerId={b.id}
+                name={name}
+                phone={b.phone}
+                email={b.email}
+                nationalId={b.nationalId}
+                locationType={b.locationType}
+                locationAddress={b.locationAddress}
+                loanLimit={b.loanLimit != null ? Number(b.loanLimit) : null}
+                creditScore={b.creditScore}
+                riskBand={b.riskBand}
+                nextOfKin={(b.nextOfKin as { name?: string; relationship?: string; phone?: string } | null) ?? null}
+                verified={verified}
+              />
             </div>
           </div>
         </div>
