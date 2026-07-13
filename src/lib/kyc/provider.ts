@@ -178,6 +178,45 @@ export function faceMatch(seed: string): FaceMatchResult {
 }
 
 // ── IPRS (government registry) ─────────────────────────────────────────────────
+
+/**
+ * The IPRS seam. With Spinmobile credentials in the env (IPRS_*), the national
+ * registry is queried for REAL; a transport failure falls back to the seeded
+ * simulation so the pipeline never dies on a vendor — but a live "no record
+ * found" is an ANSWER, not a failure, and is returned as unmatched rather than
+ * papered over with a simulated match. `engine` is recorded on the check so a
+ * session can always say which registry answered.
+ */
+export async function performIprs(
+  seed: string,
+  nationalId: string,
+  ocrName: string | null | undefined,
+  consentCollectedBy: string,
+  /** Demo orgs stay simulated — every live lookup is a real, billed registry call. */
+  opts?: { forceSimulation?: boolean },
+): Promise<IprsResult & { engine: "spinmobile" | "simulation"; person?: import("./iprs").IprsPerson }> {
+  const { iprsMode, spinIprsIdentity } = await import("./iprs");
+  if (!opts?.forceSimulation && iprsMode() === "live") {
+    const r = await spinIprsIdentity(nationalId, consentCollectedBy);
+    if (r.ok) {
+      return {
+        matched: true,
+        name: r.person.fullName,
+        dob: r.person.dob,
+        gender: r.person.gender,
+        note: "Matched against the national registry (IPRS · live).",
+        engine: "spinmobile",
+        person: r.person,
+      };
+    }
+    if (r.mode === "live" && r.notFound) {
+      return { matched: false, name: null, dob: null, gender: null, note: r.error, engine: "spinmobile" };
+    }
+    // Transport/auth failure → simulation below, and the engine field says so.
+  }
+  return { ...iprsLookup(seed, nationalId, ocrName), engine: "simulation" };
+}
+
 export function iprsLookup(seed: string, nationalId: string, ocrName?: string | null): IprsResult {
   const id = (nationalId || "").replace(/\D/g, "");
   if (id.length < 6) return { matched: false, name: null, dob: null, gender: null, note: "ID number too short for a registry lookup." };

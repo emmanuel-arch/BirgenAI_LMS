@@ -97,6 +97,9 @@ export async function POST(req: NextRequest) {
   let body: {
     name?: string; phone?: string; nationalId?: string; email?: string;
     locationType?: string; locationAddress?: string; lat?: number; lng?: number;
+    dob?: string; gender?: string;
+    /** Registry-first onboarding: the IPRS payload the officer reviewed (frozen as a KycCheck). */
+    iprs?: { mode?: string; fullName?: string; gender?: string; dob?: string; citizenship?: string; serialNumber?: string; placeOfBirth?: string; placeOfLive?: string };
   };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
@@ -114,6 +117,11 @@ export async function POST(req: NextRequest) {
 
   const [first, ...rest] = name.split(/\s+/);
   const hasGeo = Number.isFinite(Number(body.lat)) && Number.isFinite(Number(body.lng));
+
+  // Registry dates arrive in whatever the bureau prints ("14/03/1988",
+  // "1988-03-14", "14. 03. 1988") — parse best-effort, store null over garbage.
+  const dob = parseDob(body.dob ?? body.iprs?.dob);
+  const gender = (body.gender ?? body.iprs?.gender ?? "").trim() || null;
 
   // The officer who registers a walk-in OWNS them: this stamp is what later lets an
   // OWN-scoped officer see their own book and nobody else's (src/lib/rbac/scope.ts).
@@ -133,6 +141,8 @@ export async function POST(req: NextRequest) {
       otherName: rest.join(" ") || null,
       nationalId: body.nationalId?.trim() || null,
       email: body.email?.trim() || null,
+      dob,
+      gender,
       locationType: body.locationType === "business" || body.locationType === "home" ? body.locationType : null,
       locationAddress: body.locationAddress?.trim() || null,
       lat: hasGeo ? Number(body.lat) : null,
@@ -140,12 +150,58 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // Registry-first onboarding: the IPRS prefill the officer reviewed is frozen
+  // onto the record as a KycCheck — the identity fields on this borrower came
+  // from the registry, and this row is what says so. It is a PREFILL, not a
+  // verification: kycStatus stays NONE until the full pipeline (face, liveness)
+  // runs, because a registry says the ID exists, not that this person owns it.
+  if (body.iprs?.fullName) {
+    await prisma.kycCheck.create({
+      data: {
+        orgId,
+        borrowerId: borrower.id,
+        kind: "IPRS",
+        passed: true,
+        score: 100,
+        payload: {
+          context: "onboarding-prefill",
+          engine: body.iprs.mode === "live" ? "spinmobile" : "simulation",
+          name: body.iprs.fullName,
+          gender: body.iprs.gender ?? null,
+          dob: body.iprs.dob ?? null,
+          citizenship: body.iprs.citizenship ?? null,
+          serialNumber: body.iprs.serialNumber ?? null,
+          placeOfBirth: body.iprs.placeOfBirth ?? null,
+          placeOfLive: body.iprs.placeOfLive ?? null,
+          collectedBy: session!.user!.name ?? session!.user!.id,
+        },
+      },
+    }).catch(() => {});
+  }
+
   await prisma.auditLog.create({
     data: {
       orgId, actorId: session!.user!.id, actorType: "staff", action: "borrower.create",
-      entity: "Borrower", entityId: borrower.id, meta: { channel: "console", phone },
+      entity: "Borrower", entityId: borrower.id,
+      meta: { channel: "console", phone, iprsPrefill: !!body.iprs?.fullName },
     },
   }).catch(() => {});
 
   return NextResponse.json({ success: true, borrowerId: borrower.id });
+}
+
+/** "14/03/1988" · "1988-03-14" · "14. 03. 1988" → Date, or null — never garbage. */
+function parseDob(raw?: string | null): Date | null {
+  const v = (raw ?? "").trim();
+  if (!v) return null;
+  const iso = v.match(/^(\d{4})[-/. ]+(\d{1,2})[-/. ]+(\d{1,2})$/);
+  const dmy = v.match(/^(\d{1,2})[-/. ]+(\d{1,2})[-/. ]+(\d{4})$/);
+  const [y, m, d] = iso
+    ? [Number(iso[1]), Number(iso[2]), Number(iso[3])]
+    : dmy
+      ? [Number(dmy[3]), Number(dmy[2]), Number(dmy[1])]
+      : [NaN, NaN, NaN];
+  if (!Number.isFinite(y) || y < 1900 || y > new Date().getFullYear() || m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return Number.isNaN(date.getTime()) ? null : date;
 }

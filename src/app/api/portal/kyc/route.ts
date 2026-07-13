@@ -23,7 +23,7 @@ import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
 import {
-  kycMode, assessIdQuality, performIdOcr, assessLiveness, activeLivenessChallenges, assessActiveLiveness, faceMatch, iprsLookup, portraitIsStandardized,
+  kycMode, assessIdQuality, performIdOcr, assessLiveness, activeLivenessChallenges, assessActiveLiveness, faceMatch, performIprs, portraitIsStandardized,
 } from "@/lib/kyc/provider";
 import { putKycObject, storageMode, InvalidImageError, MAX_IMAGE_BYTES, type KycAssetKind } from "@/lib/storage/provider";
 import { attachKycSession } from "@/lib/kyc/attach";
@@ -201,7 +201,11 @@ export async function POST(req: NextRequest) {
 
     if (step === "iprs") {
       const nid = body.nationalId || session.idOcrNumber || "";
-      const iprs = iprsLookup(seed, nid, session.idOcrName);
+      // Self-service: the borrower consented on their own screen (the DPA consent
+      // block gates the funnel), so consent_collected_by names the channel. Demo
+      // orgs never reach the live registry — a demo click must not cost money.
+      const demo = await prisma.org.findUnique({ where: { id: org.id }, select: { isDemo: true } });
+      const iprs = await performIprs(seed, nid, session.idOcrName, "borrower — self-service portal", { forceSimulation: !!demo?.isDemo });
       await writeCheck("IPRS", iprs.matched, iprs.matched ? 100 : 0, iprs);
       await prisma.kycSession.update({
         where: { id: session.id },

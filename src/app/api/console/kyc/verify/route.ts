@@ -39,7 +39,7 @@ import { requireFeature } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
 import {
   kycMode, assessIdQuality, performIdOcr, assessLiveness, activeLivenessChallenges, assessActiveLiveness,
-  faceMatch, iprsLookup, portraitIsStandardized,
+  faceMatch, performIprs, portraitIsStandardized,
 } from "@/lib/kyc/provider";
 import { putKycObject, storageMode, InvalidImageError, MAX_IMAGE_BYTES, type KycAssetKind } from "@/lib/storage/provider";
 import { attachKycSession } from "@/lib/kyc/attach";
@@ -211,7 +211,11 @@ export async function POST(req: NextRequest) {
 
     if (step === "iprs") {
       const nid = nationalId || kycSession.idOcrNumber || "";
-      const iprs = iprsLookup(seed, nid, kycSession.idOcrName);
+      // At the counter the OFFICER collects the customer's consent — their name
+      // goes on the registry lookup, the same way their name goes on the vouch.
+      // Demo orgs never reach the live registry — a demo click must not cost money.
+      const demo = await prisma.org.findUnique({ where: { id: orgId }, select: { isDemo: true } });
+      const iprs = await performIprs(seed, nid, kycSession.idOcrName, session.user.name ?? `staff:${staffId}`, { forceSimulation: !!demo?.isDemo });
       await writeCheck("IPRS", iprs.matched, iprs.matched ? 100 : 0, iprs);
       await prisma.kycSession.update({
         where: { id: kycSession.id },
