@@ -17,6 +17,7 @@ import { analyze } from "@/lib/riri/analyst";
 import { answerReasoning } from "@/lib/riri/copilot";
 import { answerSupport } from "@/lib/riri/support";
 import { logRiriQuery } from "@/lib/riri/log";
+import { actorContext, borrowerContext, contextPreamble } from "@/lib/riri/context";
 
 export const runtime = "nodejs";
 
@@ -26,11 +27,17 @@ export async function POST(req: NextRequest) {
   const orgId = session.user.orgId;
   const staffId = session.user.id ?? null;
 
-  let body: { question?: string; model?: string; lang?: string };
+  let body: { question?: string; model?: string; lang?: string; subject?: { kind?: string; id?: string } };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
   const question = (body.question ?? "").trim();
   const model = isRiriModel(body.model) ? body.model : "analyst";
+
+  // The caller may say WHO they are asking about — an id, never the facts. Everything
+  // Riri is told about that customer is read here, from the org-scoped row, so a client
+  // cannot invent a customer or edit one's balance before asking about them. RLS means
+  // an id from another lender's book resolves to nothing. See lib/riri/context.ts.
+  const subjectId = body.subject?.kind === "borrower" && typeof body.subject.id === "string" ? body.subject.id : null;
   if (!question) return NextResponse.json({ success: false, message: "Ask Riri something." }, { status: 400 });
   if (question.length > 500) return NextResponse.json({ success: false, message: "That's a bit long — try a shorter question." }, { status: 400 });
 
@@ -104,7 +111,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const r = await answerReasoning(model, orgId, question);
+    // Who is asking, and who they have on screen. Both server-built — see
+    // lib/riri/context.ts for why neither is ever taken from the browser.
+    const [rights, subject] = await Promise.all([
+      getRights(session),
+      subjectId ? borrowerContext(orgId, subjectId) : Promise.resolve(null),
+    ]);
+    const actor = await actorContext(orgId, staffId, rights);
+    const r = await answerReasoning(model, orgId, question, contextPreamble(actor, subject));
 
     void meter(orgId, "riri_query", 1, { model, mode: r.mode });
     void logRiriQuery({ orgId, staffId, model, question, route: "narrative", ok: true });

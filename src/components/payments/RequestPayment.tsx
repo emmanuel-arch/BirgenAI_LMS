@@ -41,6 +41,7 @@ export function RequestPaymentButton({
   channel,
   className,
   label = "Request payment",
+  icon,
   onSent,
 }: {
   borrowerId: string;
@@ -49,6 +50,8 @@ export function RequestPaymentButton({
   channel: string;
   className?: string;
   label?: string;
+  /** Overrides the default phone glyph where a surface wants a payment-first read. */
+  icon?: React.ReactNode;
   onSent?: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -58,7 +61,7 @@ export function RequestPaymentButton({
         onClick={() => setOpen(true)}
         className={className ?? "inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700"}
       >
-        <Smartphone className="h-3.5 w-3.5" /> {label}
+        {icon ?? <Smartphone className="h-3.5 w-3.5" />} {label}
       </button>
       {open && (
         <RequestPaymentModal

@@ -186,10 +186,26 @@ export function answerMax(question: string): string {
 }
 
 /** Unified entry for the API. Simulation for now; the live seam is llmMode. */
-export async function answerReasoning(model: Exclude<RiriModelId, "analyst">, orgId: string, question: string): Promise<{ answer: string; mode: LlmMode }> {
+export async function answerReasoning(
+  model: Exclude<RiriModelId, "analyst">,
+  orgId: string,
+  question: string,
+  /**
+   * Who is asking and who they have on screen, built server-side by lib/riri/context.ts.
+   *
+   * It is threaded through now and handed to the model the moment RIRI_LLM_KEY exists.
+   * It deliberately does NOT touch the curated corpus: those answers are keyword-matched
+   * text about how the console works, and dressing them up with a customer's name would
+   * imply a reasoning that has not happened. Until the key lands, what the officer gets
+   * about a specific customer is the BRIEFING (api/console/riri/brief) — real rows, no
+   * model, no guessing.
+   */
+  preamble?: string,
+): Promise<{ answer: string; mode: LlmMode }> {
   const mode = await llmMode(orgId);
-  // When mode === "live", a real LLM call would slot in here behind the same
-  // contract; until an AI key is provisioned we serve the curated corpus.
+  // When mode === "live", a real LLM call slots in here behind the same contract and
+  // `preamble` becomes its system context; until then we serve the curated corpus.
+  void preamble;
   const answer = model === "max" ? answerMax(question) : answerCopilot(question);
   return { answer, mode };
 }

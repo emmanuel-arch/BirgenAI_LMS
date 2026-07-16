@@ -14,7 +14,7 @@ import { BorrowerAvatar } from "@/components/kyc/BorrowerAvatar";
 import type { CrbReport } from "@/lib/crb/provider";
 import { Customer360Client } from "./Customer360Client";
 import { BorrowerMenu } from "./BorrowerMenu";
-import { RequestPaymentButton } from "@/components/payments/RequestPayment";
+import { BorrowerActions } from "./BorrowerActions";
 import { RiskBandCard } from "@/components/risk/RiskBandCard";
 import { bandForScore, bandForBehavioural, defaultProbability, normaliseBandName, BAND_BY_KEY } from "@/lib/risk/bands";
 import { assessGraduation } from "@/lib/risk/graduation";
@@ -97,7 +97,6 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
   // the session (a verification that hasn't been promoted — which is itself a finding).
   const portraitUrl = (await portraitsFor([b.id]))[b.id]
     ?? (kyc?.portraitKey ? await signedUrl(kyc.portraitKey, PORTRAIT_TTL_SEC) : null);
-  const activeLoan = b.loans.find((l) => l.status === "ACTIVE") ?? null;
   const olb = b.loans.filter((l) => l.status === "ACTIVE").reduce((s, l) => s + num(l.balance), 0);
   const clearedCount = b.loans.filter((l) => l.status === "CLEARED").length;
 
@@ -156,6 +155,7 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
               lng={b.lng}
               homeLat={b.homeLat}
               homeLng={b.homeLng}
+              homeAddress={b.homeAddress}
               loanLimit={b.loanLimit != null ? Number(b.loanLimit) : null}
               creditScore={b.creditScore}
               riskBand={b.riskBand}
@@ -203,21 +203,24 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
             </div>
             {/* Full-width row under the identity on a phone (shrink-0 alone would
                 push the third tile off the screen); a fixed strip beside it on sm+. */}
-            <div className="flex w-full items-start gap-2 sm:w-auto sm:shrink-0">
-              <div className="grid flex-1 grid-cols-3 gap-2 sm:flex-none">
+            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:shrink-0 sm:items-end">
+              <div className="grid grid-cols-3 gap-2">
                 <Stat label="OLB" value={fmtKES(olb)} tone="text-[color:var(--brand)]" />
                 <Stat label="Internal score" value={b.creditScore != null ? String(b.creditScore) : "—"} />
                 <Stat label="Loans" value={`${b.loans.filter((l) => l.status === "ACTIVE").length}/${b.loans.length}`} />
               </div>
-              {/* ASKING FOR MONEY IS A PRIMARY ACT, not a menu item buried behind a
-                  kebab. Same component, same endpoint, same fees as the collections
-                  queue and the counter — see components/payments/RequestPayment. */}
-              <RequestPaymentButton
+              {/* THE THREE PRIMARY ACTS, together. Asking for money, sending a human, and
+                  asking Riri are what an officer DOES on this page — they are not menu
+                  items to hunt for, and they were previously split between here and a
+                  strip buried under the CRB panel half a page down. The kebab beside
+                  them stays what an officer may CHANGE. */}
+              <BorrowerActions
                 borrowerId={b.id}
-                borrowerName={name}
-                channel="c360"
-                label="Request payment"
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                name={name}
+                lat={b.lat}
+                lng={b.lng}
+                fieldEntitled={fieldEntitled}
+                subject={{ kind: "borrower", id: b.id, label: name }}
               />
             </div>
           </div>
@@ -376,17 +379,9 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
             </div>
           )}
 
-          {/* CRB + recovery actions (client) */}
-          <Customer360Client
-            borrowerId={b.id}
-            activeLoanId={activeLoan?.id ?? null}
-            phone={b.phone}
-            lat={b.lat}
-            lng={b.lng}
-            name={name}
-            initialCrb={initialCrb}
-            fieldEntitled={fieldEntitled}
-          />
+          {/* The credit bureau panel. The actions that used to sit under it now live in
+              the header strip — see BorrowerActions. */}
+          <Customer360Client borrowerId={b.id} initialCrb={initialCrb} />
         </div>
       </main>
   );

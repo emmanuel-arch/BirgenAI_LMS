@@ -1,7 +1,14 @@
 "use client";
 
+// The credit-bureau panel, and only that.
+//
+// It used to carry a second set of action buttons — a "Request payment" that posted to
+// the old bespoke /api/console/loans/[id]/stk while the header's button used the one
+// payment spine, plus its own Dispatch and Ask Riri. Two buttons with the same name
+// taking different roads on one page is how an officer learns to trust neither. They
+// now live once, together, at the top: see BorrowerActions.tsx.
 import { useState } from "react";
-import { FileSearch, FlaskConical, Loader2, Banknote, MapPin, Send, CheckCircle2, AlertCircle, ShieldCheck, RefreshCw } from "lucide-react";
+import { FileSearch, FlaskConical, Loader2, ShieldCheck, RefreshCw } from "lucide-react";
 import type { CrbReport } from "@/lib/crb/provider";
 
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
@@ -13,17 +20,9 @@ const VERDICT: Record<CrbReport["verdict"], { text: string; cls: string }> = {
   ADVERSE: { text: "Adverse — decline / secure", cls: "bg-rose-100 text-rose-700" },
 };
 
-export function Customer360Client({
-  borrowerId, activeLoanId, phone, lat, lng, name, initialCrb, fieldEntitled,
-}: {
-  borrowerId: string; activeLoanId: string | null; phone: string; lat: number | null; lng: number | null; name: string; initialCrb: CrbReport | null;
-  /** Dispatching allocates the nearest officer — that is the route planner, so it is gated. */
-  fieldEntitled: boolean;
-}) {
+export function Customer360Client({ borrowerId, initialCrb }: { borrowerId: string; initialCrb: CrbReport | null }) {
   const [report, setReport] = useState<CrbReport | null>(initialCrb);
   const [crbBusy, setCrbBusy] = useState(false);
-  const [act, setAct] = useState<{ busy?: boolean; ok?: boolean; msg?: string }>({});
-  const hasGeo = lat != null && lng != null;
 
   const runCrb = async () => {
     setCrbBusy(true);
@@ -32,27 +31,6 @@ export function Customer360Client({
       const d = await res.json();
       if (d.success) setReport(d.report);
     } catch { /* leave prior report */ } finally { setCrbBusy(false); }
-  };
-
-  const requestPayment = async () => {
-    if (!activeLoanId) return;
-    setAct({ busy: true });
-    try {
-      const res = await fetch(`/api/console/loans/${activeLoanId}/stk`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
-      const d = await res.json();
-      setAct({ ok: !!d.success, msg: d.success ? `STK sent to ${phone}` : (d.message || "Could not send STK") });
-    } catch { setAct({ ok: false, msg: "Network error" }); }
-  };
-
-  const dispatch = async () => {
-    if (!hasGeo) return;
-    setAct({ busy: true });
-    try {
-      const res = await fetch("/api/console/field", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label: `Visit — ${name}`, lat, lng, kind: "COLLECTION_VISIT", borrowerId }) });
-      const d = await res.json();
-      const a = d.allocation;
-      setAct({ ok: !!d.success, msg: d.success ? (a ? `Assigned to ${a.agentName} · ${a.distanceKm?.toFixed?.(1) ?? a.distanceKm} km` : "Queued — no field agent available") : (d.message || "Could not dispatch") });
-    } catch { setAct({ ok: false, msg: "Network error" }); }
   };
 
   const scorePct = report ? Math.max(2, Math.min(100, ((report.score - 200) / 700) * 100)) : 0;
@@ -118,26 +96,6 @@ export function Customer360Client({
         </div>
       )}
 
-      {/* Recovery / engagement actions */}
-      <div className="mt-4 pt-4 border-t border-zinc-900/10 flex items-center gap-2 flex-wrap">
-        <button onClick={requestPayment} disabled={!activeLoanId || act.busy} title={activeLoanId ? "" : "No active loan"}
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40" style={{ backgroundColor: "var(--brand)" }}>
-          {act.busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />} Request payment
-        </button>
-        {hasGeo && fieldEntitled && (
-          <button onClick={dispatch} disabled={act.busy} className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900/5 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-900/10 disabled:opacity-40">
-            {act.busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />} Dispatch agent
-          </button>
-        )}
-        <button data-riri-open="analyst" className="inline-flex items-center gap-1.5 rounded-lg bg-white/70 border border-zinc-900/10 px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:text-zinc-900">
-          <Send className="h-3.5 w-3.5" /> Ask Riri
-        </button>
-        {act.msg && (
-          <span className={`inline-flex items-center gap-1 text-[11px] ${act.ok ? "text-emerald-600" : "text-rose-600"}`}>
-            {act.ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertCircle className="h-3.5 w-3.5" />} {act.msg}
-          </span>
-        )}
-      </div>
     </div>
   );
 }

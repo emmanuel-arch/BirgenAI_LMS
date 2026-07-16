@@ -20,6 +20,7 @@ import {
   MoreVertical, UserPen, Users, Banknote, Gauge, Paperclip, UserCog, MessageSquare,
   Loader2, X, CheckCircle2, AlertTriangle, FileText, Upload, ScanFace, Calculator,
   Download, Trash2, Scale, MapPin, User, Receipt, ChevronRight, ShieldCheck,
+  Building2, Home, Navigation,
 } from "lucide-react";
 import { PinDropMap, type LatLng } from "@/components/maps/PinDropMap";
 
@@ -36,6 +37,7 @@ type Props = {
   lng: number | null;
   homeLat: number | null;
   homeLng: number | null;
+  homeAddress: string | null;
   loanLimit: number | null;
   creditScore: number | null;
   riskBand: string | null;
@@ -43,7 +45,39 @@ type Props = {
   verified: boolean;
 };
 
-type ModalKind = "info" | "kin" | "limit" | "score" | "assign" | "attachments" | "erase" | "location" | "profile" | "limitcheck" | null;
+type ModalKind = "info" | "kin" | "limit" | "score" | "assign" | "attachments" | "erase" | "location" | "locations" | "profile" | "limitcheck" | null;
+
+/** Where a customer can be found. `address` may be null — a pin without one still routes. */
+export type Place = {
+  kind: "business" | "home";
+  lat: number;
+  lng: number;
+  address: string | null;
+};
+
+/**
+ * The places we hold for this customer.
+ *
+ * The primary pin (lat/lng) is whichever place was captured first — locationType says
+ * which — and homeLat/homeLng holds a home captured alongside a business. So "which
+ * pin is the business?" is a question about locationType, not about the column name.
+ */
+export function placesOf(p: {
+  lat: number | null; lng: number | null; locationType: string | null; locationAddress: string | null;
+  homeLat: number | null; homeLng: number | null; homeAddress: string | null;
+}): Place[] {
+  const out: Place[] = [];
+  if (p.lat != null && p.lng != null) {
+    out.push({
+      kind: p.locationType === "home" ? "home" : "business",
+      lat: p.lat, lng: p.lng, address: p.locationAddress,
+    });
+  }
+  if (p.homeLat != null && p.homeLng != null && !out.some((x) => x.kind === "home")) {
+    out.push({ kind: "home", lat: p.homeLat, lng: p.homeLng, address: p.homeAddress });
+  }
+  return out;
+}
 
 /** The browser takes it from here — the route answers with a Content-Disposition. */
 function download(url: string) {
@@ -68,6 +102,7 @@ export function BorrowerMenu(props: Props) {
   );
   const [toast, setToast] = useState<string | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
+  const places = placesOf(props);
 
   // The drawer closes on its own backdrop; Escape closes it from anywhere.
   useEffect(() => {
@@ -136,29 +171,36 @@ export function BorrowerMenu(props: Props) {
 
       {mounted && (
         <div className="fixed inset-0 z-50">
-          {/* Backdrop — click to close. Fades with the panel. */}
+          {/* THE ICE. The whole page behind freezes over — top to bottom, edge to edge —
+              so the drawer reads as the only live thing on screen. A 1px blur (what this
+              used to be) is not an effect, it is a rounding error: the page stayed sharp,
+              the drawer looked pasted on, and nothing told the eye where to go.
+              Click anywhere on it to close. */}
           <div
-            className={`absolute inset-0 bg-black/30 backdrop-blur-[1px] transition-opacity duration-300 ${shown ? "opacity-100" : "opacity-0"}`}
+            className={`absolute inset-0 bg-zinc-900/25 backdrop-blur-md backdrop-saturate-[0.85] transition-opacity duration-300 ${shown ? "opacity-100" : "opacity-0"}`}
             onClick={() => closeDrawer()}
           />
           {/* The drawer. SOLID white — .glass's translucent background beats bg-* in the
-              cascade, and the labels must stay readable over whatever is behind. */}
+              cascade, and the labels must stay readable over whatever is behind.
+              A three-part column: the header and footer never move, only the middle
+              scrolls, so the way out is always on screen. */}
           <div
-            className={`absolute inset-y-0 right-0 flex w-[min(360px,90vw)] flex-col bg-white shadow-[0_0_60px_rgba(0,0,0,0.3)] transition-transform duration-300 ease-out ${shown ? "translate-x-0" : "translate-x-full"}`}
+            className={`absolute inset-y-0 right-0 flex w-[min(380px,92vw)] flex-col bg-white shadow-[0_0_80px_rgba(0,0,0,0.35)] transition-transform duration-300 ease-out ${shown ? "translate-x-0" : "translate-x-full"}`}
             role="dialog"
+            aria-modal="true"
             aria-label={`Manage ${props.name}`}
           >
-            <div className="flex items-center justify-between gap-2 border-b border-zinc-900/10 px-4 py-3.5">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-900/10 px-4 py-3.5">
               <div className="min-w-0">
                 <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">Borrower menu</p>
                 <p className="truncate text-sm font-bold text-zinc-800">{props.name}</p>
               </div>
-              <button onClick={() => closeDrawer()} className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-900/5 hover:text-zinc-700" aria-label="Close">
+              <button onClick={() => closeDrawer()} className="shrink-0 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-900/5 hover:text-zinc-700" aria-label="Close the borrower menu">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-1.5">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
               {groupLabel("Overview")}
               {item(<User {...ic} />, "Profile", "KYC, age, branch, officer, guarantor, limit & score", () => { closeDrawer(); setModal("profile"); })}
               {item(<Scale {...ic} />, "Check limit", "What they qualify for right now, per product", () => { closeDrawer(); setModal("limitcheck"); })}
@@ -169,9 +211,11 @@ export function BorrowerMenu(props: Props) {
               {item(<Users {...ic} />, "Next of kin", props.nextOfKin?.name ? `${props.nextOfKin.name} · ${props.nextOfKin.relationship}` : "Who to call when they can't be reached", () => { closeDrawer(); setModal("kin"); })}
               {item(<UserCog {...ic} />, "Officer & branch", "Move them to a different book", () => { closeDrawer(); setModal("assign"); })}
               {item(
-                <MapPin {...ic} />, "Location pin",
-                props.lat != null || props.homeLat != null ? "On file — update where they are" : "No pin yet — drop it so they appear on routes",
-                () => { closeDrawer(); setModal("location"); },
+                <MapPin {...ic} />, "Locations",
+                places.length
+                  ? `${places.map((x) => (x.kind === "business" ? "Business" : "Home")).join(" · ")} — open a route to them`
+                  : "No pin yet — drop it so they can be found and routed to",
+                () => { closeDrawer(); setModal("locations"); },
               )}
 
               {groupLabel("Credit")}
@@ -211,6 +255,9 @@ export function BorrowerMenu(props: Props) {
       {modal === "score" && <ScoreModal {...props} onClose={() => setModal(null)} onDone={done} />}
       {modal === "assign" && <AssignModal {...props} onClose={() => setModal(null)} onDone={done} />}
       {modal === "location" && <LocationModal {...props} onClose={() => setModal(null)} onDone={done} />}
+      {modal === "locations" && (
+        <LocationsModal {...props} onClose={() => setModal(null)} onPin={() => setModal("location")} />
+      )}
       {modal === "attachments" && <AttachmentsModal {...props} onClose={() => setModal(null)} />}
       {modal === "erase" && <EraseModal {...props} onClose={() => setModal(null)} onDone={done} />}
     </div>
@@ -610,6 +657,85 @@ function InfoModal(p: Props & { onClose: () => void; onDone: (m: string) => void
 // The officer is standing with the customer and drops their pin by hand — the
 // business (or home) they were registered without. Once saved, they surface on
 // field routes and the disbursement location gate is satisfied.
+// ── Locations ────────────────────────────────────────────────────────────────
+//
+// Where this customer can actually be found, and the one click that turns that into a
+// route. An officer asking "where are they?" is almost never asking out of curiosity —
+// they are about to go, or about to send someone. So the answer and the going are the
+// same screen.
+//
+// The handoff to the Route Map is by ID, not coordinates: /console/field/map?to=<id>.
+// The map re-reads the pin server-side, so a link that gets pasted into a chat cannot
+// quietly send an agent to coordinates somebody edited in the URL bar.
+
+function LocationsModal(p: Props & { onClose: () => void; onPin: () => void }) {
+  const router = useRouter();
+  const places = placesOf(p);
+
+  const navigate = (place: Place) => {
+    router.push(`/console/field/map?to=${p.borrowerId}&place=${place.kind}`);
+  };
+
+  return (
+    <Modal title="Locations" sub={`Where ${p.name} can be found`} onClose={p.onClose}>
+      {places.length === 0 ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-zinc-900/15 bg-zinc-50/60 p-5 text-center">
+          <MapPin className="mx-auto h-6 w-6 text-zinc-300" />
+          <p className="mt-2 text-sm font-semibold text-zinc-700">No location on file</p>
+          <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-zinc-500">
+            Nobody can be routed to them, and a disbursement will be refused while this lender
+            requires a pin. Drop one while you are with them — the map reads their GPS.
+          </p>
+          <button
+            onClick={() => { p.onClose(); p.onPin(); }}
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white"
+            style={{ backgroundColor: "var(--brand)" }}
+          >
+            <MapPin className="h-3.5 w-3.5" /> Drop their pin
+          </button>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {places.map((place) => (
+            <div key={place.kind} className="rounded-2xl border border-zinc-900/10 bg-white/70 p-3.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-[13px] font-bold text-zinc-800">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-lg" style={{ backgroundColor: "var(--brand-soft)" }}>
+                      {place.kind === "business" ? <Building2 className="h-3.5 w-3.5" style={{ color: "var(--brand)" }} /> : <Home className="h-3.5 w-3.5" style={{ color: "var(--brand)" }} />}
+                    </span>
+                    {place.kind === "business" ? "Business" : "Home"}
+                  </p>
+                  <p className="mt-1.5 text-xs leading-snug text-zinc-600">
+                    {place.address ?? <span className="text-zinc-400">Pin dropped, no address written down</span>}
+                  </p>
+                  <p className="mt-1 font-mono text-[10px] text-zinc-400">
+                    {place.lat.toFixed(5)}, {place.lng.toFixed(5)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate(place)}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-[11px] font-semibold text-white"
+                  style={{ backgroundColor: "var(--brand)" }}
+                >
+                  <Navigation className="h-3.5 w-3.5" /> Directions
+                </button>
+              </div>
+            </div>
+          ))}
+          <button
+            onClick={() => { p.onClose(); p.onPin(); }}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-900/15 py-2.5 text-xs font-semibold text-zinc-500 hover:bg-zinc-900/[0.03] hover:text-zinc-700"
+          >
+            <MapPin className="h-3.5 w-3.5" />
+            {places.length === 1 ? `Add their ${places[0].kind === "business" ? "home" : "business"}` : "Update a pin"}
+          </button>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 function LocationModal(p: Props & { onClose: () => void; onDone: (m: string) => void }) {
   const [which, setWhich] = useState<"business" | "home">(
     // Default to whichever pin is still MISSING, so the officer fills the gap.

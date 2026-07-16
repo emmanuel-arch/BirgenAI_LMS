@@ -14,7 +14,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Gauge, Bot, Crown, LifeBuoy, Send, Loader2, X, ArrowRight, AlertCircle, Database, Mic, Volume2, VolumeX } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -155,45 +155,80 @@ function SqlDisclosure({ sql, rows, ms }: { sql: string; rows?: number | null; m
   );
 }
 
+// ── Two external things React needs to read: the browser, and its size ────────
+//
+// Both are asked for with useSyncExternalStore rather than setState-in-an-effect.
+// The effect version cost an extra render on every mount and is banned by the current
+// react-hooks rules for exactly that reason: an effect should SUBSCRIBE to an external
+// system, not copy it into state on arrival.
+
+const subscribeNothing = () => () => {};
+
+/** One stored preference. Returns null on the server, or if storage is unavailable. */
+function pref(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+/** The viewport, cached — getSnapshot must return a stable reference or it loops forever. */
+let vpCache = { w: 1200, h: 800 };
+const VP_SERVER = { w: 1200, h: 800 };
+
+function subscribeViewport(onChange: () => void) {
+  const onResize = () => {
+    if (vpCache.w !== window.innerWidth || vpCache.h !== window.innerHeight) {
+      vpCache = { w: window.innerWidth, h: window.innerHeight };
+      onChange();
+    }
+  };
+  window.addEventListener("resize", onResize);
+  return () => window.removeEventListener("resize", onResize);
+}
+
+function viewportSnapshot() {
+  if (vpCache.w !== window.innerWidth || vpCache.h !== window.innerHeight) {
+    vpCache = { w: window.innerWidth, h: window.innerHeight };
+  }
+  return vpCache;
+}
+
 export default function RiriDock({ orgName, userName }: { orgName: string; userName?: string | null }) {
-  const [mounted, setMounted] = useState(false);
-  const [vp, setVp] = useState({ w: 1200, h: 800 });
-  const [open, setOpen] = useState(false);
-  const [corner, setCorner] = useState<"br" | "bl">("br");
-  const [model, setModel] = useState<RiriModelId>("support");
+  // Are we on the client yet? The server snapshot is false, the client's is true —
+  // hydration-safe, and no render is wasted announcing it.
+  const mounted = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  const vp = useSyncExternalStore(subscribeViewport, viewportSnapshot, () => VP_SERVER);
+  // Prefs are restored in the INITIALISER, not an effect. Safe despite SSR because the
+  // dock renders null until `mounted`, so the server's markup does not depend on any of
+  // them and there is nothing to mismatch on hydration.
+  const [open, setOpen] = useState(() => pref("riri:open") === "1");
+  const [corner, setCorner] = useState<"br" | "bl">(() => (pref("riri:corner") === "bl" ? "bl" : "br"));
+  const [model, setModel] = useState<RiriModelId>(() => {
+    const m = pref("riri:model");
+    return isRiriModel(m) ? m : "support";
+  });
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
-  const [greet, setGreet] = useState(false);
+  const [greet, setGreet] = useState(() => pref("riri:greeted") !== "1");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   // Voice preferences. Both OFF by default — an assistant that starts talking, or
   // navigates on its own, before anyone asked it to is a hostile assistant.
-  const [voiceOn, setVoiceOn] = useState(false);
-  const [autoGo, setAutoGo] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(() => pref("riri:voice") === "1");
+  const [autoGo, setAutoGo] = useState(() => pref("riri:autogo") === "1");
   const down = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   // `ask` is declared below; the hook only ever calls this after a spoken utterance, so
   // it is held in a ref rather than referenced before its declaration.
   const askRef = useRef<(q: string) => void>(() => {});
+  // Who Riri is currently looking at, if she was opened from a customer's page. A ref,
+  // not state: it is read inside handlers, and re-rendering the whole dock because the
+  // subject changed would buy nothing.
+  const subjectRef = useRef<{ kind: string; id: string } | null>(null);
+  const briefRef = useRef<(s: { kind: string; id: string }) => void>(() => {});
   const voice = useVoice({ onTranscript: (text) => askRef.current(text) });
 
-  // Mount: read persisted prefs + viewport.
-  useEffect(() => {
-    setMounted(true);
-    setVp({ w: window.innerWidth, h: window.innerHeight });
-    try {
-      const c = localStorage.getItem("riri:corner"); if (c === "br" || c === "bl") setCorner(c);
-      const m = localStorage.getItem("riri:model"); if (isRiriModel(m)) setModel(m);
-      if (localStorage.getItem("riri:open") === "1") setOpen(true);
-      if (localStorage.getItem("riri:greeted") !== "1") setGreet(true);
-      if (localStorage.getItem("riri:voice") === "1") setVoiceOn(true);
-      if (localStorage.getItem("riri:autogo") === "1") setAutoGo(true);
-    } catch { /* ignore */ }
-    const onResize = () => setVp({ w: window.innerWidth, h: window.innerHeight });
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+  const dismissGreet = () => { setGreet(false); try { localStorage.setItem("riri:greeted", "1"); } catch {} };
 
   // Persist prefs.
   useEffect(() => { try { localStorage.setItem("riri:corner", corner); } catch {} }, [corner]);
@@ -223,6 +258,13 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
       if (typeof detail.prompt === "string" && detail.prompt.trim()) {
         setTimeout(() => askRef.current(detail.prompt.trim()), 300);
       }
+      // Or a caller may point her at someone. She opens by saying what she can see,
+      // and every question after that stays about them.
+      const s = detail.subject;
+      if (s && typeof s.id === "string" && typeof s.kind === "string") {
+        subjectRef.current = { kind: s.kind, id: s.id };
+        briefRef.current({ kind: s.kind, id: s.id });
+      }
       setOpen(true); dismissGreet();
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
@@ -231,8 +273,6 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
     window.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("click", onClick); window.removeEventListener("riri:open", onEvent as EventListener); window.removeEventListener("keydown", onKey); };
   }, []);
-
-  const dismissGreet = () => { setGreet(false); try { localStorage.setItem("riri:greeted", "1"); } catch {} };
 
   // THE WELCOME. Fetched the first time the panel is ever opened on Support, and pushed
   // in as Riri's opening turn — so a new admin's first experience of the console is
@@ -296,7 +336,19 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
     try {
       // The voice toggle is an explicit language choice — support answers follow it.
       // Typed questions with the toggle on English still flip via detectLang server-side.
-      const res = await fetch("/api/console/riri", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question, model: m, ...(voice.lang === "sw-KE" ? { lang: "sw" } : {}) }) });
+      // If Riri was opened from a customer's page, every question stays about THEM
+      // until she is opened from somewhere else — an officer who asked "why is their
+      // limit so low?" should not have to say who "they" are. Only the id travels; the
+      // server reads the facts (see lib/riri/context.ts).
+      const res = await fetch("/api/console/riri", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question, model: m,
+          ...(voice.lang === "sw-KE" ? { lang: "sw" } : {}),
+          ...(subjectRef.current ? { subject: subjectRef.current } : {}),
+        }),
+      });
       const data = await res.json();
       setTurns((t) => t.map((x) => x.id === id
         ? (data.success
@@ -318,7 +370,39 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
       setTurns((t) => t.map((x) => x.id === id ? { ...x, loading: false, error: "Network error. Try again." } : x));
     } finally { setBusy(false); }
   };
-  askRef.current = ask;
+  /**
+   * Open on a customer by saying what we hold about them.
+   *
+   * Pushed as a turn with no question, exactly like the Support welcome — because it is
+   * not an answer to anything. It is a READ of our own rows (api/console/riri/brief),
+   * not a model output, so it is marked live: it is true whether or not an LLM key
+   * exists, and mislabelling it as reasoning would be the lie.
+   */
+  const brief = async (s: { kind: string; id: string }) => {
+    const id = crypto.randomUUID();
+    setTurns((t) => [...t, { id, question: "", model, loading: true }]);
+    try {
+      const res = await fetch("/api/console/riri/brief", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(s),
+      });
+      const data = await res.json();
+      setTurns((t) => t.map((x) => x.id === id
+        ? (data.success
+          ? { ...x, loading: false, answer: data.answer, mode: "live", route: "record" }
+          : { ...x, loading: false, error: data.message || "Could not read that customer." })
+        : x));
+    } catch {
+      setTurns((t) => t.map((x) => x.id === id ? { ...x, loading: false, error: "Network error. Try again." } : x));
+    }
+  };
+  // The mount-only listeners and the voice hook call whichever version of these exists
+  // NOW, so the refs are re-pointed after every render — in an effect, because a ref
+  // written during render is a write to something React may not have committed yet.
+  useEffect(() => {
+    askRef.current = ask;
+    briefRef.current = brief;
+  });
 
   if (!mounted) return null;
   const active = RIRI_MODELS[model];
