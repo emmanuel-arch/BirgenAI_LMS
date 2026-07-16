@@ -1,7 +1,22 @@
 "use client";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// THE KYC PIPELINE — ID → liveness → face match → registry.
+// THE KYC PIPELINE — three steps, three questions, three vendors.
+//
+//   1. ID + REGISTRY  Google Vision reads the card; IPRS says who that number
+//                     belongs to; and THE NAME ON THE CARD MUST BE THE NAME IN THE
+//                     REGISTRY. That is the fraud gate. A borrowed or altered ID
+//                     dies here, before a photograph is ever taken, and the wizard
+//                     will not advance past it.
+//   2. FACE MATCH     One selfie, compared by AWS Rekognition against the portrait
+//                     printed on the document we just stored.
+//   3. REGISTRY       The government record, shown. (Not re-queried — the lookup is
+//                     billed, and step 1 already asked.)
+//
+// LIVENESS CHALLENGES ARE GONE. "Blink twice, now smile" is theatre against a photo
+// held up to a webcam, and it cost the customer thirty seconds. The real anti-spoof
+// signal is Rekognition's face detection — one face, front-on, eyes open — and it
+// now runs inside step 2 where it belongs.
 //
 // One wizard, two front doors, and that is the whole point of extracting it.
 //
@@ -36,14 +51,14 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  IdCard, ScanFace, UserCheck, Landmark, CheckCircle2, AlertTriangle, ShieldCheck, Loader2, FlaskConical, ArrowRight, XCircle,
+  IdCard, UserCheck, Landmark, CheckCircle2, AlertTriangle, ShieldCheck, Loader2, FlaskConical, ArrowRight, XCircle,
 } from "lucide-react";
 import { useLang } from "@/lib/i18n/useLang";
 import { fmt, type PortalDict } from "@/lib/i18n/portal";
 import { ConfidenceRing } from "./ConfidenceRing";
 import { Capture, type CaptureSignals } from "./Capture";
 
-export type PipelineStep = "id" | "liveness" | "facematch" | "iprs";
+export type PipelineStep = "id" | "facematch" | "iprs";
 export type StepResults = Record<string, unknown>;
 
 /** The one seam: how this flow talks to a server. Portal and console pass different ones. */
@@ -57,26 +72,38 @@ export type FlowOutcome = {
 
 const STEPS: { key: PipelineStep; icon: typeof IdCard }[] = [
   { key: "id", icon: IdCard },
-  { key: "liveness", icon: ScanFace },
   { key: "facematch", icon: UserCheck },
   { key: "iprs", icon: Landmark },
 ];
 
 const stepLabel = (key: PipelineStep, t: PortalDict): string =>
-  key === "id" ? t.kyc.stepId : key === "liveness" ? t.kyc.stepLiveness : key === "facematch" ? t.kyc.stepFace : t.kyc.stepRegistry;
+  key === "id" ? t.kyc.stepId : key === "facematch" ? t.kyc.stepFace : t.kyc.stepRegistry;
 
-/** The server's challenge string, in the customer's language (unknown → as sent). */
-const challengeText = (challenge: string, t: PortalDict): string =>
-  t.kyc.challenges[challenge] ?? challenge.charAt(0).toUpperCase() + challenge.slice(1);
+/** What the pipeline can actually do right now, leg by leg (see kyc/provider.ts). */
+export type Capabilities = { ocr: "live" | "simulation"; registry: "live" | "simulation"; face: "live" | "simulation" };
 
-/** Turn a machine's quality verdict into something a person can act on. */
+/** The registry's verdict on the name printed on the card. */
+type NameGate = {
+  verdict: "exact" | "strong" | "partial" | "none";
+  score: number;
+  shared: string[];
+  onlyOnDocument: string[];
+  onlyInRegistry: string[];
+  summary: string;
+};
+
+/**
+ * Turn a machine's verdict into something a person can act on.
+ *
+ * The server now sends a written `message` for the two cases where the words matter
+ * most — a name that does not match the registry, and a selfie it could not use. It
+ * is a whole sentence, aimed at whoever is standing there, so it wins over any
+ * generic string we could pick from a table.
+ */
 function gateMessage(d: Record<string, unknown>, t: PortalDict): string {
+  if (typeof d.message === "string" && d.message.trim()) return d.message;
   const q = d.quality as { issues?: string[] } | undefined;
-  const l = d.liveness as { passed?: boolean } | undefined;
-  if (q?.issues?.length) {
-    return t.kyc.gates[q.issues[0]] ?? t.kyc.gateDefault;
-  }
-  if (l && !l.passed) return t.kyc.gateLiveness;
+  if (q?.issues?.length) return t.kyc.gates[q.issues[0]] ?? t.kyc.gateDefault;
   return t.kyc.gateDefault;
 }
 
@@ -100,6 +127,7 @@ export function VerifyFlow({
   const [step, setStep] = useState<PipelineStep>("id");
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [mode, setMode] = useState<"simulation" | "live">("simulation");
+  const [caps, setCaps] = useState<Capabilities | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<StepResults>({});
@@ -110,9 +138,10 @@ export function VerifyFlow({
   const [idImage, setIdImage] = useState<string | null>(null);
   const [selfieImage, setSelfieImage] = useState<string | null>(null);
   const [analysing, setAnalysing] = useState<string | null>(null); // the frame under the scanner right now
-  // Active liveness: the server issues the challenges, one captured frame each.
-  const [challenges, setChallenges] = useState<string[] | null>(null);
-  const [frames, setFrames] = useState<{ challenge: string; bytes: number; image: string }[]>([]);
+  // The id step FAILED to bind to this customer (wrong person's ID). We keep the
+  // extraction on screen — mismatch highlighted — instead of silently returning to
+  // the camera, so the officer sees WHY, and there is no Continue.
+  const [idBlocked, setIdBlocked] = useState(false);
 
   useEffect(() => () => { if (advanceTimer.current) clearTimeout(advanceTimer.current); }, []);
 
@@ -131,6 +160,7 @@ export function VerifyFlow({
     }
     if (data.sessionId) setSessionId(data.sessionId as string);
     if (data.mode) setMode(data.mode as "simulation" | "live");
+    if (data.capabilities) setCaps(data.capabilities as Capabilities);
     return true;
   };
 
@@ -139,9 +169,18 @@ export function VerifyFlow({
     setReveal(null);
     setError(null);
     setAnalysing(null);
-    if (from === "id") setStep("liveness");
-    else if (from === "liveness") setStep("facematch");
+    setIdBlocked(false);
+    if (from === "id") setStep("facematch");
     else if (from === "facematch") setStep("iprs");
+  };
+
+  /** Throw away the rejected ID and re-open the camera to try another document. */
+  const retakeId = () => {
+    setIdBlocked(false);
+    setReveal(null);
+    setError(null);
+    setIdImage(null);
+    setResults((r) => { const next = { ...r }; delete next.id; return next; });
   };
 
   /** Hold the step's result on screen, then move on (or let Continue skip the wait). */
@@ -165,57 +204,20 @@ export function VerifyFlow({
       if (!accept(data)) { setAnalysing(null); return; }
       setResults((r) => ({ ...r, [stepKey]: data }));
       if (data.retake) { setAnalysing(null); setError(gateMessage(data, t)); return; }
+      // THE GATES. Two things must hold before a photograph is ever taken: the card
+      // must belong to the person the registry holds for that number (the name gate),
+      // AND that person must be the customer whose account this is (the binding gate).
+      // A blocked identity does NOT advance — but we keep the extraction on screen with
+      // the mismatch highlighted, so the officer sees exactly which name disagrees,
+      // rather than a bare error over an empty camera.
+      if (data.blocked) { setAnalysing(null); setIdBlocked(true); setReveal(null); setError(gateMessage(data, t)); return; }
+      // The ID step never auto-advances: the officer reads the three-way name
+      // comparison and confirms it is this customer before we open the camera.
+      if (stepKey === "id") { setAnalysing(null); setReveal("id"); return; }
       revealThenAdvance(stepKey);
     } catch {
       setAnalysing(null);
       setError(t.kyc.somethingWrong);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // What to DO arrives before the camera opens. The server derives the same
-  // challenges again at verification time, so these cannot be swapped for easier ones.
-  const startLiveness = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const data = await call("liveness-challenges", {});
-      if (!accept(data)) return;
-      setChallenges(data.challenges as string[]);
-      setFrames([]);
-    } catch {
-      setError(t.kyc.couldNotStartLiveness);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const captureLivenessFrame = async (sig: CaptureSignals) => {
-    if (!challenges) return;
-    const next = [...frames, { challenge: challenges[frames.length], bytes: sig.bytes, image: sig.dataUrl }];
-    if (next.length < challenges.length) { setFrames(next); return; }
-
-    setBusy(true);
-    setError(null);
-    setAnalysing(sig.dataUrl);
-    await new Promise((r) => setTimeout(r, 1400));
-    try {
-      const data = await call("liveness", { frames: next });
-      if (!accept(data)) { setFrames([]); setAnalysing(null); return; }
-      setResults((r) => ({ ...r, liveness: data }));
-      if (data.retake) {
-        setFrames([]);
-        setAnalysing(null);
-        setError(t.kyc.livenessRetakeAll);
-        return;
-      }
-      setFrames([]);
-      revealThenAdvance("liveness");
-    } catch {
-      setError(t.kyc.somethingWrong);
-      setFrames([]);
-      setAnalysing(null);
     } finally {
       setBusy(false);
     }
@@ -253,10 +255,17 @@ export function VerifyFlow({
     <div>
       {header}
 
-      {mode === "simulation" && (
-        <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-700">
-          <FlaskConical className="h-3 w-3" /> {t.kyc.demoBadge}
-        </p>
+      {/* WHAT IS ACTUALLY LIVE, LEG BY LEG.
+          The old badge was a single "DEMO MODE — no licensed identity provider", which
+          became a lie the moment the registry went live while face matching had not:
+          it said nothing was real when two thirds of it was. Three vendors do three
+          jobs here, and each one is either connected or it isn't — so say which. */}
+      {caps && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <CapChip label={t.kyc.capOcr} live={caps.ocr === "live"} t={t} />
+          <CapChip label={t.kyc.capRegistry} live={caps.registry === "live"} t={t} />
+          <CapChip label={t.kyc.capFace} live={caps.face === "live"} t={t} />
+        </div>
       )}
 
       {/* ── Mission progress: the bar fills a quarter per completed check. ── */}
@@ -305,7 +314,21 @@ export function VerifyFlow({
         </div>
       )}
 
-      {/* ── The stage + the dossier. Mobile stacks; desktop is a control room. ── */}
+      {/* ── THE IDENTITY BIND, FULL WIDTH. Before any camera opens, the officer reads
+             the name off the card beside the name the registry returned beside the
+             customer whose account this is — and confirms all three are one person.
+             This is the fraud gate made visible: a borrowed ID is caught here. ── */}
+      {step === "id" && (reveal === "id" || idBlocked) ? (
+        <IdExtractionReveal
+          result={results.id as IdStepResult}
+          idImage={idImage}
+          blocked={idBlocked}
+          onContinue={() => goNext("id")}
+          onRetake={retakeId}
+          t={t}
+        />
+      ) : (
+      /* ── The stage + the dossier. Mobile stacks; desktop is a control room. ── */
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0">
           <AnimatePresence mode="wait">
@@ -317,7 +340,7 @@ export function VerifyFlow({
               transition={{ duration: 0.25 }}
             >
               {/* ID DOCUMENT */}
-              {step === "id" && reveal !== "id" && (
+              {step === "id" && (
                 <div className="glass rounded-3xl bg-white/65 p-5">
                   <h2 className="text-base font-bold">{t.kyc.scanIdTitle}</h2>
                   <p className="mt-1 text-xs text-zinc-500">{t.kyc.scanIdSub}</p>
@@ -329,69 +352,6 @@ export function VerifyFlow({
                     )}
                   </div>
                 </div>
-              )}
-              {step === "id" && reveal === "id" && (
-                <StepReveal
-                  title={t.kyc.documentRead}
-                  continueLabel={t.kyc.continue}
-                  onContinue={() => goNext("id")}
-                  ring={{ value: (results.id as { quality?: { score?: number } })?.quality?.score ?? 0, label: t.kyc.imageQualityRing }}
-                >
-                  {(results.id as { ocr?: { fullName?: string } })?.ocr && (
-                    <ExtractedCard ocr={(results.id as { ocr: { fullName: string; idNumber: string; dob: string; confidence: number } }).ocr} t={t} />
-                  )}
-                </StepReveal>
-              )}
-
-              {/* LIVENESS */}
-              {step === "liveness" && reveal !== "liveness" && (
-                <div className="glass rounded-3xl bg-white/65 p-5">
-                  <h2 className="text-base font-bold">{t.kyc.livenessTitle}</h2>
-                  {!challenges ? (
-                    <>
-                      <p className="mt-1 text-xs text-zinc-500">
-                        {t.kyc.livenessIntro}
-                      </p>
-                      <button
-                        onClick={startLiveness}
-                        disabled={busy}
-                        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                        style={{ backgroundColor: "var(--brand)" }}
-                      >
-                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanFace className="h-4 w-4" />} {t.kyc.startCheck}
-                      </button>
-                    </>
-                  ) : analysing ? (
-                    <div className="mt-3">
-                      <ScanTheatre image={analysing} aspect="face" lines={t.kyc.livenessLines} />
-                    </div>
-                  ) : (
-                    <>
-                      <div className="mt-2 flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-white" style={{ backgroundColor: "var(--brand)" }}>
-                        <span>{challengeText(challenges[frames.length], t)}</span>
-                        <span className="flex items-center gap-1">
-                          {challenges.map((_, i) => (
-                            <span key={i} className={`h-1.5 w-4 rounded-full ${i < frames.length ? "bg-white" : "bg-white/35"}`} />
-                          ))}
-                        </span>
-                      </div>
-                      <p className="mt-1.5 text-xs text-zinc-500">{t.kyc.challengeNote}</p>
-                      <div className="mt-3">
-                        <Capture frame="face" facing="user" busy={busy} onCapture={captureLivenessFrame} />
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-              {step === "liveness" && reveal === "liveness" && (
-                <StepReveal
-                  title={t.kyc.livePersonConfirmed}
-                  continueLabel={t.kyc.continue}
-                  onContinue={() => goNext("liveness")}
-                  ring={{ value: (results.liveness as { liveness?: { score?: number } })?.liveness?.score ?? 0, label: t.kyc.livenessRing }}
-                >
-                  <ChallengeList result={results.liveness as never} t={t} />
-                </StepReveal>
               )}
 
               {/* FACE MATCH */}
@@ -449,6 +409,7 @@ export function VerifyFlow({
         {/* ── The dossier: everything captured and confirmed so far, always visible. ── */}
         <Dossier idImage={idImage} selfie={selfieImage} results={results} mode={mode} t={t} />
       </div>
+      )}
     </div>
   );
 }
@@ -543,25 +504,174 @@ function RegistryTheatre({ t }: { t: PortalDict }) {
 
 // ── Result reveals ───────────────────────────────────────────────────────────
 
-function StepReveal({ title, ring, children, onContinue, continueLabel }: {
-  title: string;
-  ring: { value: number; label: string };
-  children?: React.ReactNode;
+/** The shape the "id" step returns — OCR + registry + the binding to this customer. */
+type IdStepResult = {
+  ocr?: { fullName: string; idNumber: string; dob: string; confidence: number };
+  iprs?: { name?: string | null; matched?: boolean };
+  name?: NameGate;
+  registryFound?: boolean;
+  binding?: {
+    borrowerName: string;
+    borrowerId: string;
+    cardId: string;
+    idBinds: boolean | null;
+    identityVerdict: "exact" | "strong" | "partial" | "none";
+    passed: boolean;
+  };
+};
+
+/**
+ * THE IDENTITY BIND, FULL WIDTH — the fraud gate made visible.
+ *
+ * The old reveal showed a small centred card: the card name beside the registry
+ * name. It proved the DOCUMENT was honest, but never that the document was THIS
+ * customer's — so an officer could verify Julia's account with Emmanuel's genuine
+ * ID and Emmanuel's genuine face, and every check went green.
+ *
+ * This panel puts three names side by side and makes the officer read them: what
+ * the camera pulled off the card, what the national registry returned for that
+ * number, and the customer whose account is open. Only when all three are one
+ * person does "continue" appear. When they are not, the row that disagrees is lit
+ * red and there is no way forward but to scan the right person's ID.
+ */
+function IdExtractionReveal({ result, idImage, blocked, onContinue, onRetake, t }: {
+  result: IdStepResult | undefined;
+  idImage: string | null;
+  blocked: boolean;
   onContinue: () => void;
-  continueLabel: string;
+  onRetake: () => void;
+  t: PortalDict;
 }) {
+  const b = t.kyc.bind;
+  const ocr = result?.ocr;
+  const registryName = result?.iprs?.name ?? null;
+  const binding = result?.binding;
+  const borrowerName = binding?.borrowerName || "";
+  const borrowerId = binding?.borrowerId || "";
+  const noRecord = result?.registryFound === false || !registryName;
+
+  // Does the card ↔ registry pair agree? (the original name gate)
+  const docAgrees = !noRecord && (result?.name?.verdict === "exact" || result?.name?.verdict === "strong");
+  // Does the registry identity ↔ this customer's record agree? (the new bind)
+  const recordAgrees = !!binding?.passed;
+  const allMatch = !blocked && docAgrees && recordAgrees;
+
+  const rows: { key: string; label: string; value: string | null; agrees: boolean; sub?: string | null }[] = [
+    { key: "read", label: b.read, value: ocr?.fullName ?? null, agrees: !noRecord, sub: ocr?.idNumber ? `${b.idNo} ${ocr.idNumber}` : null },
+    { key: "registry", label: b.registry, value: registryName, agrees: docAgrees, sub: null },
+    { key: "record", label: b.record, value: borrowerName || null, agrees: recordAgrees, sub: borrowerId ? `${b.idNo} ${borrowerId}` : null },
+  ];
+
   return (
-    <div className="glass rounded-3xl bg-white/65 p-6 text-center">
-      <motion.p initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
-        <CheckCircle2 className="h-3.5 w-3.5" /> {title}
-      </motion.p>
-      <div className="mt-4 flex justify-center"><ConfidenceRing value={ring.value} label={ring.label} /></div>
-      {children}
-      <button onClick={onContinue} className="mt-5 inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--brand)" }}>
-        {continueLabel} <ArrowRight className="h-3.5 w-3.5" />
-      </button>
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass mt-5 rounded-3xl bg-white/70 p-5 sm:p-7"
+    >
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+        {/* LEFT — the evidence: the card, and the fields lifted straight off it. */}
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[color:var(--ink-faint)]">{b.extracted}</p>
+          {idImage && (
+            <div className="mt-2 overflow-hidden rounded-2xl ring-1 ring-zinc-900/10">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={idImage} alt="" className="aspect-[1.586/1] w-full object-cover" />
+            </div>
+          )}
+          <dl className="mt-3 space-y-2">
+            {[
+              { k: t.kyc.name, v: ocr?.fullName },
+              { k: b.idNo, v: ocr?.idNumber },
+              { k: b.dob, v: ocr?.dob },
+            ].map((f) => (
+              <div key={f.k} className="flex items-baseline justify-between gap-3 rounded-lg bg-zinc-900/[0.04] px-3 py-2">
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{f.k}</dt>
+                <dd className="min-w-0 truncate text-right text-sm font-bold text-zinc-800">{f.v || "—"}</dd>
+              </div>
+            ))}
+          </dl>
+          {ocr?.confidence != null && (
+            <p className="mt-2 text-right text-[11px] text-[color:var(--ink-faint)]">
+              {fmt(b.confidence, { conf: ocr.confidence })}
+            </p>
+          )}
+        </div>
+
+        {/* RIGHT — the three names, read top to bottom, each with its own verdict. */}
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold text-zinc-900">{b.title}</h2>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500">{b.sub}</p>
+
+          <div className="mt-4 space-y-2.5">
+            {rows.map((r, i) => (
+              <div key={r.key}>
+                <motion.div
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.08 * i }}
+                  className={`flex items-center gap-3 rounded-xl border p-3 ${
+                    r.agrees ? "border-emerald-200 bg-emerald-50/70" : "border-rose-300 bg-rose-50/80"
+                  }`}
+                >
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${r.agrees ? "bg-emerald-500" : "bg-rose-500"} text-white`}>
+                    {r.agrees ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">{r.label}</p>
+                    <p className={`truncate text-base font-bold ${r.agrees ? "text-zinc-900" : "text-rose-700"}`}>{r.value || "—"}</p>
+                    {r.sub && <p className="truncate text-[11px] text-zinc-500">{r.sub}</p>}
+                  </div>
+                  <span className={`shrink-0 text-[11px] font-semibold ${r.agrees ? "text-emerald-600" : "text-rose-600"}`}>
+                    {r.agrees ? b.agrees : b.disagrees}
+                  </span>
+                </motion.div>
+                {/* connective seam between the rows */}
+                {i < rows.length - 1 && (
+                  <div className="ml-[1.15rem] h-2 w-px bg-zinc-900/15" aria-hidden />
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* The verdict, and the only way forward. */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.34 }}
+            className={`mt-4 rounded-2xl border p-4 ${allMatch ? "border-emerald-300 bg-emerald-50/70" : "border-rose-300 bg-rose-50/80"}`}
+          >
+            <p className={`flex items-center gap-2 text-sm font-bold ${allMatch ? "text-emerald-700" : "text-rose-700"}`}>
+              {allMatch ? <ShieldCheck className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+              {allMatch ? b.confirmedTitle : noRecord ? t.kyc.gateNoRecord : b.mismatchTitle}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+              {allMatch
+                ? fmt(b.confirmedBody, { name: borrowerName || registryName || "" })
+                : noRecord
+                  ? b.noRecordBody
+                  : fmt(b.mismatchBody, { name: borrowerName || "this customer" })}
+            </p>
+
+            {allMatch ? (
+              <button
+                onClick={onContinue}
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white sm:w-auto"
+                style={{ backgroundColor: "var(--brand)" }}
+              >
+                {b.continue} <ArrowRight className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                onClick={onRetake}
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300 bg-white/80 px-5 py-3 text-sm font-semibold text-rose-700 hover:bg-white sm:w-auto"
+              >
+                {b.retake} <ArrowRight className="h-4 w-4" />
+              </button>
+            )}
+          </motion.div>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -602,33 +712,17 @@ function FaceMatchReveal({ idImage, selfie, result, onContinue, t }: {
   );
 }
 
-function ChallengeList({ result, t }: { result: { liveness?: { frames?: { challenge: string; passed: boolean }[] } } | undefined; t: PortalDict }) {
-  const frames = result?.liveness?.frames;
-  if (!frames?.length) return null;
+/** One leg of the pipeline, and whether it is actually connected to anything. */
+function CapChip({ label, live, t }: { label: string; live: boolean; t: PortalDict }) {
   return (
-    <div className="mx-auto mt-3 max-w-xs space-y-1 text-left">
-      {frames.map((f) => (
-        <p key={f.challenge} className="flex items-center gap-1.5 text-xs text-zinc-600">
-          {f.passed ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : <XCircle className="h-3.5 w-3.5 text-red-500" />}
-          {challengeText(f.challenge, t)}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-function ExtractedCard({ ocr, t }: { ocr: { fullName: string; idNumber: string; dob: string; confidence: number }; t: PortalDict }) {
-  return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mx-auto mt-4 max-w-sm rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-left">
-      <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-        <CheckCircle2 className="h-3.5 w-3.5" /> {fmt(t.kyc.detailsRead, { conf: ocr.confidence })}
-      </p>
-      <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-        <div><span className="text-zinc-400">{t.kyc.name}</span><p className="font-semibold">{ocr.fullName}</p></div>
-        <div><span className="text-zinc-400">{t.kyc.idNo}</span><p className="font-semibold">{ocr.idNumber}</p></div>
-        <div><span className="text-zinc-400">{t.kyc.dob}</span><p className="font-semibold">{ocr.dob}</p></div>
-      </div>
-    </motion.div>
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+        live ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+      }`}
+    >
+      {live ? <ShieldCheck className="h-3 w-3" /> : <FlaskConical className="h-3 w-3" />}
+      {label} · {live ? t.kyc.capLive : t.kyc.capSim}
+    </span>
   );
 }
 

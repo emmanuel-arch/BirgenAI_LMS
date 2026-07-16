@@ -6,7 +6,7 @@ import {
   FilePlus2, Banknote, Wallet, HandCoins, Scale, PhoneCall, CalendarClock, BrainCircuit,
   SlidersHorizontal, ScanLine, FileBarChart, MapPin, MessageSquare, Building2, Package,
   GitBranch, Palette, Settings2, KeyRound, Crown, Bot, Ticket, Mail, Ruler, LifeBuoy,
-  Calculator, Target, LineChart, Circle, type LucideIcon,
+  Calculator, Target, LineChart, Navigation, Send, Map, FileLock2, Coins, MapPinOff, Circle, type LucideIcon,
 } from "lucide-react";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -14,7 +14,7 @@ const ICONS: Record<string, LucideIcon> = {
   FilePlus2, Banknote, Wallet, HandCoins, Scale, PhoneCall, CalendarClock, BrainCircuit,
   SlidersHorizontal, ScanLine, FileBarChart, MapPin, MessageSquare, Building2, Package,
   GitBranch, Palette, Settings2, KeyRound, Crown, Bot, Ticket, Mail, Ruler, LifeBuoy,
-  Calculator, Target, LineChart,
+  Calculator, Target, LineChart, Navigation, Send, Map, FileLock2, Coins, MapPinOff,
 };
 
 export function navIcon(name: string): LucideIcon {

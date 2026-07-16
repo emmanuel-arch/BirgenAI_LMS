@@ -41,6 +41,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Never commit borrower statements / test PDFs
+# Never commit real identity documents or borrower statements.
+# Anything in public/ is served publicly — a real ID left here is downloadable from
+# the internet the moment it deploys, and committing one puts it in git history for
+# good. Test fixtures (MYIDFRONT.jpeg, M-Pesa statements) live here and stay local.
+# Scoped to the public/ ROOT so genuine assets in images/ and lenders/ still ship.
 public/*.pdf
+public/*.jpeg
+public/*.jpg
+public/*.png
 *.tmp.ts

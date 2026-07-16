@@ -21,10 +21,16 @@ export default function PlatformLogin() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
+      // A cold backend can answer with an HTML error page, not JSON — guard the parse
+      // so a reachability blip never masquerades as a wrong password.
+      const data = await res.json().catch(() => null);
+      if (res.status === 503 || data?.wakingUp) {
+        setError(data?.message || "The service is waking up — please try again in a moment."); return;
+      }
+      if (!data) { setError("Couldn't reach the sign-in service. Please try again in a moment."); return; }
       if (!data.success) { setError(data.message || "Sign-in failed."); return; }
       router.replace("/platform");
-    } catch { setError("Sign-in failed."); } finally { setLoading(false); }
+    } catch { setError("Couldn't reach the sign-in service. Please try again in a moment."); } finally { setLoading(false); }
   };
 
   return (

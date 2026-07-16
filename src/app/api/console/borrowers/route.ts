@@ -98,6 +98,13 @@ export async function POST(req: NextRequest) {
     name?: string; phone?: string; nationalId?: string; email?: string;
     locationType?: string; locationAddress?: string; lat?: number; lng?: number;
     dob?: string; gender?: string;
+    /** Consented one-time location snapshots from the onboarding page. Business
+        is the primary pin when both are captured (it's what dispatch routes on). */
+    geo?: {
+      consent?: boolean;
+      business?: { lat?: number; lng?: number; address?: string } | null;
+      home?: { lat?: number; lng?: number; address?: string } | null;
+    };
     /** Registry-first onboarding: the IPRS payload the officer reviewed (frozen as a KycCheck). */
     iprs?: { mode?: string; fullName?: string; gender?: string; dob?: string; citizenship?: string; serialNumber?: string; placeOfBirth?: string; placeOfLive?: string };
   };
@@ -117,6 +124,28 @@ export async function POST(req: NextRequest) {
 
   const [first, ...rest] = name.split(/\s+/);
   const hasGeo = Number.isFinite(Number(body.lat)) && Number.isFinite(Number(body.lng));
+
+  // Location snapshots (new onboarding shape). The pin only lands with consent;
+  // business becomes the primary lat/lng, home rides in its own columns unless
+  // it is the only pin (then IT is primary and locationType says so).
+  const pin = (p?: { lat?: number; lng?: number } | null) =>
+    p && Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng)) ? { lat: Number(p.lat), lng: Number(p.lng) } : null;
+  const consented = body.geo?.consent === true;
+  const biz = consented ? pin(body.geo?.business) : null;
+  const home = consented ? pin(body.geo?.home) : null;
+  const primary = biz ?? home;
+  const geoData = primary
+    ? {
+        lat: primary.lat,
+        lng: primary.lng,
+        locationType: biz ? "business" : "home",
+        locationAddress: (biz ? body.geo?.business?.address : body.geo?.home?.address)?.trim() || null,
+        homeLat: biz && home ? home.lat : null,
+        homeLng: biz && home ? home.lng : null,
+        homeAddress: body.geo?.home?.address?.trim() || null,
+        geoConsentAt: new Date(),
+      }
+    : null;
 
   // Registry dates arrive in whatever the bureau prints ("14/03/1988",
   // "1988-03-14", "14. 03. 1988") — parse best-effort, store null over garbage.
@@ -147,6 +176,7 @@ export async function POST(req: NextRequest) {
       locationAddress: body.locationAddress?.trim() || null,
       lat: hasGeo ? Number(body.lat) : null,
       lng: hasGeo ? Number(body.lng) : null,
+      ...(geoData ?? {}),
     },
   });
 
@@ -183,7 +213,7 @@ export async function POST(req: NextRequest) {
     data: {
       orgId, actorId: session!.user!.id, actorType: "staff", action: "borrower.create",
       entity: "Borrower", entityId: borrower.id,
-      meta: { channel: "console", phone, iprsPrefill: !!body.iprs?.fullName },
+      meta: { channel: "console", phone, iprsPrefill: !!body.iprs?.fullName, geoPinned: geoData ? (biz && home ? "business+home" : biz ? "business" : "home") : "none" },
     },
   }).catch(() => {});
 

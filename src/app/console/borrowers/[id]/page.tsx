@@ -14,6 +14,10 @@ import { BorrowerAvatar } from "@/components/kyc/BorrowerAvatar";
 import type { CrbReport } from "@/lib/crb/provider";
 import { Customer360Client } from "./Customer360Client";
 import { BorrowerMenu } from "./BorrowerMenu";
+import { RequestPaymentButton } from "@/components/payments/RequestPayment";
+import { RiskBandCard } from "@/components/risk/RiskBandCard";
+import { bandForScore, bandForBehavioural, defaultProbability, normaliseBandName, BAND_BY_KEY } from "@/lib/risk/bands";
+import { assessGraduation } from "@/lib/risk/graduation";
 import KycGallery from "./KycGallery";
 
 export const runtime = "nodejs";
@@ -52,6 +56,7 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
     include: {
       loans: { orderBy: { createdAt: "desc" }, include: { product: { select: { name: true } }, installments: { select: { status: true, amountDue: true, amountPaid: true, dueDate: true } } } },
       fieldVisits: { orderBy: { createdAt: "desc" }, take: 5, include: { agent: { select: { firstName: true, otherName: true } } } },
+      applications: { select: { id: true, status: true }, orderBy: { createdAt: "desc" }, take: 5 },
     },
   });
   if (!b) redirect("/console/borrowers");
@@ -73,6 +78,21 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
 
   const name = `${b.firstName ?? "Borrower"}${b.otherName ? " " + b.otherName : ""}`.trim();
   const verified = b.kycStatus === "VERIFIED";
+
+  // Where this account is on the road from walk-in to money: registered →
+  // KYC → statement crunched → application → active. Shown on the page so the
+  // officer never has to reconstruct "what's next" from four different panels.
+  const hasScore = b.creditScore != null || scores.length > 0;
+  const hasApplication = b.applications.length > 0 || b.loans.length > 0;
+  const hasActive = b.loans.some((l) => l.status === "ACTIVE" || l.status === "PENDING_DISBURSEMENT" || l.status === "CLEARED");
+  const journey: { label: string; done: boolean; href?: string }[] = [
+    { label: "Registered", done: true },
+    { label: "KYC verified", done: verified, href: verified ? undefined : `/console/kyc/${b.id}?from=360` },
+    { label: "Statement crunched", done: hasScore, href: hasScore ? undefined : `/console/crunch?borrowerId=${b.id}&from=360` },
+    { label: "Application", done: hasApplication },
+    { label: "Active loan", done: hasActive },
+  ];
+  const currentStep = journey.findIndex((s) => !s.done);
   // The portrait may live on the Borrower row (promoted at attach) or still only on
   // the session (a verification that hasn't been promoted — which is itself a finding).
   const portraitUrl = (await portraitsFor([b.id]))[b.id]
@@ -80,6 +100,36 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
   const activeLoan = b.loans.find((l) => l.status === "ACTIVE") ?? null;
   const olb = b.loans.filter((l) => l.status === "ACTIVE").reduce((s, l) => s + num(l.balance), 0);
   const clearedCount = b.loans.filter((l) => l.status === "CLEARED").length;
+
+  // ── Where this customer sits, and what it would take to move them ───────────
+  //
+  // The band is taken from whichever engine has actually spoken. Their REPAYMENT
+  // record outranks their statement score, and deliberately: a statement tells you
+  // what someone earns, a repayment record tells you what they DO — and once we have
+  // watched them clear two loans, what they do is the better predictor of what they
+  // will do next. Before that, the crunch score is all we have.
+  const latestSnapshot = scores[0] ?? null;
+  const bandFromBehaviour = bandForBehavioural(b.behaviouralScore);
+  const bandFromScore = bandForScore(b.creditScore);
+  const band = bandFromBehaviour ?? bandFromScore ?? (b.riskBand ? BAND_BY_KEY.get(normaliseBandName(b.riskBand) ?? "HIGH") ?? null : null);
+
+  const riskView = {
+    band: band
+      ? {
+          key: band.key, label: band.label, meaning: band.meaning,
+          from: band.from, to: band.to, ink: band.ink, soft: band.soft, icon: band.icon,
+          graduationPercent: band.graduationPercent,
+        }
+      : null,
+    score: b.creditScore,
+    behavioural: b.behaviouralScore,
+    pd: defaultProbability(band, latestSnapshot?.pd != null ? Number(latestSnapshot.pd) : null),
+  };
+
+  // The ladder is only meaningful once they have repaid something.
+  const graduation = clearedCount > 0
+    ? await assessGraduation(orgId, b.id).then((g) => ({ eligible: g.eligible, reason: g.reason, newLimit: g.newLimit }))
+    : null;
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
@@ -91,9 +141,31 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
             relative z-20: every glass panel is its own stacking context (backdrop
             blur), so without this the kebab dropdown paints UNDER the panels below. */}
         <div className="relative z-20 mt-3 glass p-5">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <BorrowerAvatar name={name} portraitUrl={portraitUrl} verified={verified} size="lg" />
+          {/* The one way to MANAGE this account — pinned to the furthest top-right of
+              the card, opening a drawer from the right. The card itself stays a read. */}
+          <div className="absolute right-3 top-3 z-30">
+            <BorrowerMenu
+              borrowerId={b.id}
+              name={name}
+              phone={b.phone}
+              email={b.email}
+              nationalId={b.nationalId}
+              locationType={b.locationType}
+              locationAddress={b.locationAddress}
+              lat={b.lat}
+              lng={b.lng}
+              homeLat={b.homeLat}
+              homeLng={b.homeLng}
+              loanLimit={b.loanLimit != null ? Number(b.loanLimit) : null}
+              creditScore={b.creditScore}
+              riskBand={b.riskBand}
+              nextOfKin={(b.nextOfKin as { name?: string; relationship?: string; phone?: string } | null) ?? null}
+              verified={verified}
+            />
+          </div>
+          <div className="flex items-start justify-between gap-4 flex-wrap pr-8 sm:pr-10">
+            <div className="flex items-center gap-4 min-w-0">
+              <BorrowerAvatar name={name} portraitUrl={portraitUrl} verified={verified} size="xl" />
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl font-bold truncate">{name}</h1>
@@ -137,24 +209,55 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
                 <Stat label="Internal score" value={b.creditScore != null ? String(b.creditScore) : "—"} />
                 <Stat label="Loans" value={`${b.loans.filter((l) => l.status === "ACTIVE").length}/${b.loans.length}`} />
               </div>
-              {/* Everything an officer may CHANGE about this account lives behind
-                  the kebab — the card itself stays a read. */}
-              <BorrowerMenu
+              {/* ASKING FOR MONEY IS A PRIMARY ACT, not a menu item buried behind a
+                  kebab. Same component, same endpoint, same fees as the collections
+                  queue and the counter — see components/payments/RequestPayment. */}
+              <RequestPaymentButton
                 borrowerId={b.id}
-                name={name}
-                phone={b.phone}
-                email={b.email}
-                nationalId={b.nationalId}
-                locationType={b.locationType}
-                locationAddress={b.locationAddress}
-                loanLimit={b.loanLimit != null ? Number(b.loanLimit) : null}
-                creditScore={b.creditScore}
-                riskBand={b.riskBand}
-                nextOfKin={(b.nextOfKin as { name?: string; relationship?: string; phone?: string } | null) ?? null}
-                verified={verified}
+                borrowerName={name}
+                channel="c360"
+                label="Request payment"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700"
               />
             </div>
           </div>
+
+          {/* The journey strip — which step this account is on, and a way into
+              the step it is waiting for. */}
+          <div className="mt-4 border-t border-zinc-900/10 pt-3">
+            <div className="flex items-center gap-0 overflow-x-auto">
+              {journey.map((s, i) => {
+                const isCurrent = i === currentStep;
+                const dot = s.done ? (
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white"><CheckCircle2 className="h-3.5 w-3.5" /></span>
+                ) : (
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${isCurrent ? "text-white" : "bg-zinc-900/10 text-zinc-500"}`}
+                    style={isCurrent ? { backgroundColor: "var(--brand)" } : undefined}>{i + 1}</span>
+                );
+                const label = (
+                  <span className={`ml-1.5 whitespace-nowrap text-[11px] ${s.done ? "font-medium text-zinc-600" : isCurrent ? "font-bold text-zinc-900" : "text-zinc-400"}`}>
+                    {s.label}{isCurrent && <span className="ml-1 rounded bg-zinc-900/5 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-zinc-500">current step</span>}
+                  </span>
+                );
+                return (
+                  <div key={s.label} className="flex items-center">
+                    {i > 0 && <span className={`mx-2 h-px w-4 sm:w-7 ${journey[i - 1].done ? "bg-emerald-400" : "bg-zinc-900/15"}`} />}
+                    {s.href && isCurrent
+                      ? <Link href={s.href} className="flex items-center hover:opacity-80">{dot}{label}</Link>
+                      : <span className="flex items-center">{dot}{label}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* WHAT THIS CUSTOMER IS, IN ONE LOOK. Directly under the identity, above
+            everything else, because it is the question every other panel on this page
+            is evidence for. The bare "Internal score: 747" tile in the strip above is
+            a number on a scale nobody has memorised; this says what it MEANS. */}
+        <div className="mt-4">
+          <RiskBandCard view={riskView} graduation={graduation} />
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">

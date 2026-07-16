@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   }
   const product = await prisma.product.findFirst({
     where: { id: String(body.productRef ?? ""), orgId: org.id, isActive: true },
-    select: { minPrincipal: true, maxPrincipal: true },
+    select: { minPrincipal: true, maxPrincipal: true, interestRate: true, repaymentPeriod: true, repaymentPeriodUnit: true, minLoanLimit: true },
   });
   if (!product) return NextResponse.json({ success: false, message: "Choose a product." }, { status: 400 });
 
@@ -92,6 +92,10 @@ export async function POST(req: NextRequest) {
     largestCleared,
     productMin: Number(product.minPrincipal),
     productMax: Number(product.maxPrincipal),
+    productRate: Number(product.interestRate),
+    repaymentPeriod: product.repaymentPeriod,
+    repaymentPeriodUnit: product.repaymentPeriodUnit,
+    minLoanLimit: product.minLoanLimit != null ? Number(product.minLoanLimit) : null,
   });
 
   return NextResponse.json({
@@ -100,5 +104,8 @@ export async function POST(req: NextRequest) {
     approvedLimit: limit.approvedLimit,
     borrowerClass: limit.borrowerClass,
     reasons: limit.reasons,
+    affordableInstallment: limit.affordableInstallment,
+    installmentCount: limit.installmentCount,
+    installmentUnit: limit.installmentUnit,
   });
 }

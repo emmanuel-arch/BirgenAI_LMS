@@ -91,18 +91,27 @@ async function stkWith(cfg: MpesaStkConfig, orgId: string, orgSlug: string, args
   try {
     const token = await getToken(`stk:${orgId}`, cfg.consumerKey, cfg.consumerSecret, cfg.environment);
     const ts = timestamp();
+
+    // BUY GOODS AND PAYBILL ARE NOT THE SAME SHAPE, and getting it wrong does not
+    // error — it pushes the customer a prompt that credits the wrong number, or none.
+    // The shortcode always signs the password and always fills BusinessShortCode; what
+    // changes is PartyB, which is the till on a Buy Goods request and the paybill on a
+    // PayBill one.
+    const txType = cfg.transactionType ?? "CustomerPayBillOnline";
+    const partyB = txType === "CustomerBuyGoodsOnline" ? (cfg.tillNumber || cfg.shortCode) : cfg.shortCode;
+
     const body = {
       BusinessShortCode: cfg.shortCode,
       Password: Buffer.from(`${cfg.shortCode}${cfg.passkey}${ts}`).toString("base64"),
       Timestamp: ts,
-      TransactionType: "CustomerPayBillOnline",
+      TransactionType: txType,
       Amount: String(Math.max(1, Math.round(args.amount))),
       PartyA: normalizeMsisdn(args.phone),
-      PartyB: cfg.shortCode,
+      PartyB: partyB,
       PhoneNumber: normalizeMsisdn(args.phone),
       CallBackURL: cfg.callbackUrl || stkCallbackUrl(orgSlug),
       AccountReference: args.accountReference.slice(0, 12),
-      TransactionDesc: (args.description || "Loan repayment").slice(0, 13),
+      TransactionDesc: (args.description || "Payment").slice(0, 13),
     };
     const res = await fetch(`${baseFor(cfg.environment)}/mpesa/stkpush/v1/processrequest`, {
       method: "POST",

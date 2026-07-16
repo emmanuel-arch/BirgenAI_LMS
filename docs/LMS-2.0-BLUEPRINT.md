@@ -296,6 +296,30 @@ input hash, reason codes; adverse outcomes always human-reviewed; consent gates 
 Plan gating: **Starter** (Scorer + Cruncher + Parser, usage-based) · **Growth** (+ CRB, ID Verifier,
 Riri seats) · **Enterprise** (+ Early Warning, custom model tuning, priority support).
 
+### 9.1 Field Ops — Geo-tagging (mandatory location snapshot) ✅ BUILT
+
+Every borrower must have a **business or home location snapshot** on file. A customer
+with no pin is invisible to routes and cannot be lent to — you should know where your
+borrower's business is before you lend against it, and a quiet loan you can't visit is
+a loss you can't chase.
+
+- **Capture paths.** (a) Onboarding: the customer's own device, GPS + consent, into
+  the funnel (existing). (b) **Drop-live-location (NEW):** when a field agent is WITH a
+  customer who never saved one, they search the customer up, open **Customer 360 →
+  Location pin**, place it on a Google map (tap / drag / "use current location"), pick
+  business or home, and add the **landmark / street / lane** that a lat-lng alone never
+  tells a rider. A home-only pin is promoted to the primary pin so the customer stops
+  being invisible. (`PATCH /api/console/borrowers/[id]` action `location`; audited.)
+- **The worklist (NEW):** Field Ops → **Needs Location** (`/console/field/needs-location`)
+  lists exactly the customers on the officer's book with no pin — a live loan you can't
+  visit first, then biggest exposure — each linking straight into the 360 pin-drop
+  (`?drop=location`).
+- **The gate (NEW):** money is not released to a borrower with no pin. Enforced on the
+  disbursement ACTION (approve/manual/retry) beside the KYC gate, at the last moment
+  before funds move — a queue that greys a button while the endpoint still pays is not a
+  gate. Configurable per org: `Org.requireGeoForDisbursement` (default **ON**; a purely
+  digital lender can switch it off). Returns `code: "LOCATION_NOT_CAPTURED"` + borrowerId.
+
 ---
 
 ## 10. Core data model (Postgres, first cut)

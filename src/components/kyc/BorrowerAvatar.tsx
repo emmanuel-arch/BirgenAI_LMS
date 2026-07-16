@@ -20,13 +20,14 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 
-export type AvatarSize = "sm" | "md" | "lg";
+export type AvatarSize = "sm" | "md" | "lg" | "xl";
 
-const BOX: Record<AvatarSize, string> = { sm: "h-10 w-10", md: "h-12 w-12", lg: "h-16 w-16" };
-const RADIUS: Record<AvatarSize, string> = { sm: "rounded-xl", md: "rounded-2xl", lg: "rounded-2xl" };
-const TEXT: Record<AvatarSize, string> = { sm: "text-sm", md: "text-base", lg: "text-xl" };
-const TICK: Record<AvatarSize, string> = { sm: "h-3.5 w-3.5 -bottom-0.5 -right-0.5", md: "h-4 w-4 -bottom-1 -right-1", lg: "h-5 w-5 -bottom-1 -right-1" };
-const PAD: Record<AvatarSize, string> = { sm: "p-[2px]", md: "p-[2.5px]", lg: "p-[3px]" };
+// xl is the Customer-360 hero portrait — double lg, because the face IS the page.
+const BOX: Record<AvatarSize, string> = { sm: "h-10 w-10", md: "h-12 w-12", lg: "h-16 w-16", xl: "h-32 w-32" };
+const RADIUS: Record<AvatarSize, string> = { sm: "rounded-xl", md: "rounded-2xl", lg: "rounded-2xl", xl: "rounded-3xl" };
+const TEXT: Record<AvatarSize, string> = { sm: "text-sm", md: "text-base", lg: "text-xl", xl: "text-4xl" };
+const TICK: Record<AvatarSize, string> = { sm: "h-3.5 w-3.5 -bottom-0.5 -right-0.5", md: "h-4 w-4 -bottom-1 -right-1", lg: "h-5 w-5 -bottom-1 -right-1", xl: "h-7 w-7 -bottom-1 -right-1" };
+const PAD: Record<AvatarSize, string> = { sm: "p-[2px]", md: "p-[2.5px]", lg: "p-[3px]", xl: "p-[4px]" };
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -84,7 +85,7 @@ export function BorrowerAvatar({
           className={`absolute ${TICK[size]} flex items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-white`}
           title="Identity verified"
         >
-          <Check className="h-2.5 w-2.5" strokeWidth={4} />
+          <Check className={size === "xl" ? "h-4 w-4" : "h-2.5 w-2.5"} strokeWidth={4} />
         </span>
       )}
     </div>

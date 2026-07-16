@@ -34,7 +34,13 @@ export default function StaffLogin() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), password, ...(withOtp ? { otp: withOtp } : {}) }),
       });
-      const data = await res.json();
+      // Guard the parse: a cold backend can answer with an HTML error page, and a
+      // reachability blip must never read as a wrong password.
+      const data = await res.json().catch(() => null);
+      if (res.status === 503 || data?.wakingUp) {
+        setError(data?.message || "The service is waking up — please try again in a moment."); return;
+      }
+      if (!data) { setError("Couldn't reach the sign-in service. Please try again in a moment."); return; }
       if (data.otpRequired) {
         setMode("otp");
         setDevCode(data.devCode ?? null);
@@ -44,7 +50,7 @@ export default function StaffLogin() {
       }
       if (!data.success) { setError(data.message || "Sign-in failed."); return; }
       router.replace("/console");
-    } catch { setError("Sign-in failed. Try again."); } finally { setLoading(false); }
+    } catch { setError("Couldn't reach the sign-in service. Please try again in a moment."); } finally { setLoading(false); }
   };
 
   const requestCode = async () => {

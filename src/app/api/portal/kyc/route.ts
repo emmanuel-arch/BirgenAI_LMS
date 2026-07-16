@@ -23,14 +23,15 @@ import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
 import {
-  kycMode, assessIdQuality, performIdOcr, assessLiveness, activeLivenessChallenges, assessActiveLiveness, faceMatch, performIprs, portraitIsStandardized,
+  kycMode, kycCapabilities, assessIdQuality, performIdOcr, verifyFace, performIprs, portraitIsStandardized,
 } from "@/lib/kyc/provider";
-import { putKycObject, storageMode, InvalidImageError, MAX_IMAGE_BYTES, type KycAssetKind } from "@/lib/storage/provider";
+import { matchNames, nameGatePasses } from "@/lib/kyc/namematch";
+import { putKycObject, getObjectDataUrl, storageMode, InvalidImageError, MAX_IMAGE_BYTES, type KycAssetKind } from "@/lib/storage/provider";
 import { attachKycSession } from "@/lib/kyc/attach";
 
 export const runtime = "nodejs";
 
-type Step = "id" | "liveness-challenges" | "liveness" | "facematch" | "iprs" | "finalize";
+type Step = "id" | "facematch" | "iprs" | "finalize";
 
 /**
  * Resume the caller's own KYC session, or start one. Scoped to the verified
@@ -90,14 +91,17 @@ export async function POST(req: NextRequest) {
   const gated = await requireFeature(org.id, "id-verify");
   if (gated) return gated;
 
-  const mode = await kycMode(org.id);
+  // A demo click must never cost a billed registry lookup or a Rekognition call.
+  const sim = { forceSimulation: !!org.isDemo };
+  const mode = await kycMode(org.id, sim);
+  const capabilities = await kycCapabilities(org.id, sim);
   const session = await getSession(org.id, body.sessionId, phone, body.nationalId, mode);
   // Seed the deterministic simulation off ID (or phone) so a person is consistent.
   const seed = `${org.id}:${body.nationalId?.replace(/\D/g, "") || phone}`;
   const bytes = Number(body.payload?.bytes) || 0;
   const p = body.payload ?? {};
 
-  const writeCheck = (kind: "ID_QUALITY" | "ID_OCR" | "LIVENESS" | "FACE_MATCH" | "IPRS" | "PORTRAIT_STANDARDIZE", passed: boolean | null, score: number | null, payload: unknown) =>
+  const writeCheck = (kind: "ID_QUALITY" | "ID_OCR" | "FACE_MATCH" | "IPRS" | "PORTRAIT_STANDARDIZE", passed: boolean | null, score: number | null, payload: unknown) =>
     prisma.kycCheck.create({
       data: {
         orgId: org.id, sessionId: session.id, kind, passed, score, provider: mode,
@@ -122,96 +126,110 @@ export async function POST(req: NextRequest) {
       const quality = assessIdQuality(seed, bytes, { brightness: p.brightness, blurVar: p.blurVar });
       await writeCheck("ID_QUALITY", quality.passed, quality.score, quality);
       if (!quality.passed) {
-        return NextResponse.json({ success: true, sessionId: session.id, mode, step, quality, retake: true });
+        return NextResponse.json({ success: true, sessionId: session.id, mode, capabilities, step, quality, retake: true });
       }
+
+      // 1. READ THE CARD (Google Vision).
       const idFrontKey = await store("id-front");
       const ocr = await performIdOcr(seed, body.nationalId, typeof p.image === "string" ? p.image : null);
       await writeCheck("ID_OCR", true, ocr.confidence, ocr);
-      // Cross-check typed ID vs OCR when the borrower entered one.
+
+      const readId = (ocr.idNumber || "").replace(/\D/g, "");
       const typedId = (body.nationalId || "").replace(/\D/g, "");
-      const idMismatch = typedId && ocr.idNumber && typedId !== ocr.idNumber.replace(/\D/g, "");
-      const updated = await prisma.kycSession.update({
+      const idMismatch = !!(typedId && readId && typedId !== readId);
+      const lookupId = readId || typedId;
+
+      // 2. ASK THE NATIONAL REGISTRY WHO THAT NUMBER BELONGS TO.
+      // On the portal the CUSTOMER gives consent themselves, in the funnel.
+      const iprs = await performIprs(seed, lookupId, ocr.fullName, `portal:${org.slug}`, sim);
+      await writeCheck("IPRS", iprs.matched, iprs.matched ? 100 : 0, iprs);
+
+      // 3. THE GATE: the name on the card must be the name the registry holds.
+      const name = matchNames(ocr.fullName, iprs.name);
+      const registryFound = iprs.matched;
+      const gatePassed = registryFound && nameGatePasses(name.verdict);
+      await writeCheck("ID_OCR", gatePassed, name.score, {
+        check: "name-gate", ...name, documentName: ocr.fullName, registryName: iprs.name,
+      });
+
+      await prisma.kycSession.update({
         where: { id: session.id },
         data: {
           idQualityScore: quality.score, idOcrName: ocr.fullName, idOcrNumber: ocr.idNumber, idOcrDob: ocr.dob,
+          iprsMatched: iprs.matched, iprsName: iprs.name,
+          ...(lookupId ? { nationalId: lookupId } : {}),
           ...(idFrontKey ? { idFrontKey } : {}),
         },
-      }).catch(() => session);
-      return NextResponse.json({ success: true, sessionId: session.id, mode, step, quality, ocr, idMismatch: !!idMismatch, session: updated });
-    }
+      }).catch(() => {});
 
-    // The wizard asks what to DO before the camera opens — challenges derive
-    // from the session seed, so the server can re-verify what it asked without
-    // storing state (and a client cannot pick easier ones).
-    if (step === "liveness-challenges") {
-      return NextResponse.json({ success: true, sessionId: session.id, mode, step, challenges: activeLivenessChallenges(seed) });
-    }
-
-    if (step === "liveness") {
-      // ACTIVE path (challenge–response frames); legacy single-selfie stays for
-      // older clients so nothing mid-flight breaks.
-      if (Array.isArray(p.frames) && p.frames.length > 0) {
-        const active = assessActiveLiveness(
-          seed,
-          p.frames.map((f) => ({ challenge: (f.challenge ?? "").trim(), bytes: Number(f.bytes) || 0 })),
-        );
-        await writeCheck("LIVENESS", active.passed, active.score, { mode: "active", ...active });
-        // The last frame is a straight-on face — it becomes the selfie artifact.
-        const lastImage = p.frames[p.frames.length - 1]?.image;
-        let selfieKey: string | null = null;
-        if (active.passed && lastImage) selfieKey = await putKycObject(org.id, session.id, "selfie", lastImage);
-        await prisma.kycSession.update({
-          where: { id: session.id },
-          data: { livenessScore: active.score, livenessPassed: active.passed, ...(selfieKey ? { selfieKey } : {}) },
-        });
-        return NextResponse.json({
-          success: true, sessionId: session.id, mode, step,
-          liveness: { score: active.score, passed: active.passed, challenge: "active", frames: active.frames },
-          retake: !active.passed,
-        });
-      }
-
-      const liveness = assessLiveness(seed, bytes);
-      await writeCheck("LIVENESS", liveness.passed, liveness.score, liveness);
-      const selfieKey = liveness.passed ? await store("selfie") : null;
-      await prisma.kycSession.update({
-        where: { id: session.id },
-        data: { livenessScore: liveness.score, livenessPassed: liveness.passed, ...(selfieKey ? { selfieKey } : {}) },
+      return NextResponse.json({
+        success: true, sessionId: session.id, mode, capabilities, step,
+        quality, ocr, iprs, name, idMismatch, registryFound,
+        gatePassed,
+        blocked: !gatePassed,
+        message: !registryFound
+          ? (iprs.note || "We could not find that ID number in the national registry.")
+          : gatePassed ? undefined : name.summary,
       });
-      return NextResponse.json({ success: true, sessionId: session.id, mode, step, liveness, retake: !liveness.passed });
     }
 
     if (step === "facematch") {
-      const fm = faceMatch(seed);
+      // The source face is read back from OUR bucket, never taken from the browser —
+      // a forged client could otherwise send the selfie as both images and match itself.
+      const fresh = await prisma.kycSession.findUnique({
+        where: { id: session.id },
+        select: { idFrontKey: true },
+      });
+      const idImage = fresh?.idFrontKey ? await getObjectDataUrl(fresh.idFrontKey) : null;
+      const selfie = typeof p.image === "string" ? p.image : null;
+
+      const fm = await verifyFace(seed, idImage, selfie, sim);
       await writeCheck("FACE_MATCH", fm.passed, fm.score, fm);
 
-      // The canonical portrait. Real bytes either way; only a live provider can
-      // actually strip the background, so say plainly which one this is.
+      const retake = !fm.passed && (!!fm.noFaceInSource || (!!fm.capture && !fm.capture.passed));
+      if (retake) {
+        return NextResponse.json({
+          success: true, sessionId: session.id, mode, capabilities, step,
+          faceMatch: fm, retake: true, message: fm.summary,
+        });
+      }
+
+      const selfieKey = await store("selfie");
       const portraitKey = await store("portrait");
       const standardized = portraitIsStandardized(mode);
-      await writeCheck("PORTRAIT_STANDARDIZE", true, null, {
-        portraitKey, whiteBackground: standardized, stored: storageMode(),
-      });
+      await writeCheck("PORTRAIT_STANDARDIZE", true, null, { portraitKey, whiteBackground: standardized, stored: storageMode() });
       await prisma.kycSession.update({
         where: { id: session.id },
-        data: { faceMatchScore: fm.score, ...(portraitKey ? { portraitKey } : {}) },
+        data: {
+          faceMatchScore: fm.score,
+          livenessPassed: fm.capture ? fm.capture.passed : fm.passed,
+          livenessScore: fm.score,
+          ...(selfieKey ? { selfieKey } : {}),
+          ...(portraitKey ? { portraitKey } : {}),
+        },
       });
-      return NextResponse.json({ success: true, sessionId: session.id, mode, step, faceMatch: fm, standardized });
+      return NextResponse.json({
+        success: true, sessionId: session.id, mode, capabilities, step,
+        faceMatch: fm, standardized, message: fm.summary,
+      });
     }
 
     if (step === "iprs") {
-      const nid = body.nationalId || session.idOcrNumber || "";
-      // Self-service: the borrower consented on their own screen (the DPA consent
-      // block gates the funnel), so consent_collected_by names the channel. Demo
-      // orgs never reach the live registry — a demo click must not cost money.
-      const demo = await prisma.org.findUnique({ where: { id: org.id }, select: { isDemo: true } });
-      const iprs = await performIprs(seed, nid, session.idOcrName, "borrower — self-service portal", { forceSimulation: !!demo?.isDemo });
-      await writeCheck("IPRS", iprs.matched, iprs.matched ? 100 : 0, iprs);
-      await prisma.kycSession.update({
+      // Already answered at the gate in step 1 — a second lookup is a second bill.
+      const held = await prisma.kycSession.findUnique({
         where: { id: session.id },
-        data: { iprsMatched: iprs.matched, iprsName: iprs.name, nationalId: nid.replace(/\D/g, "") || undefined },
+        select: { iprsMatched: true, iprsName: true, idOcrDob: true },
       });
-      return NextResponse.json({ success: true, sessionId: session.id, mode, step, iprs });
+      const iprs = {
+        matched: held?.iprsMatched === true,
+        name: held?.iprsName ?? null,
+        dob: held?.idOcrDob ?? null,
+        gender: null as string | null,
+        note: held?.iprsMatched
+          ? `Confirmed against the national registry${capabilities.registry === "live" ? " (IPRS)" : " (simulated)"}.`
+          : "No matching record in the national registry.",
+      };
+      return NextResponse.json({ success: true, sessionId: session.id, mode, capabilities, step, iprs });
     }
   } catch (err) {
     if (err instanceof InvalidImageError) {
@@ -227,10 +245,9 @@ export async function POST(req: NextRequest) {
     // Rollup decision.
     const flags: string[] = [];
     if ((s.idQualityScore ?? 0) < 70) flags.push("low-id-quality");
-    if (s.livenessPassed === false) flags.push("liveness-failed");
-    if ((s.faceMatchScore ?? 0) < 70) flags.push("face-mismatch");
-    if (s.iprsMatched === false) flags.push("iprs-unmatched");
-    const faceReview = (s.faceMatchScore ?? 0) >= 70 && (s.faceMatchScore ?? 0) < 85;
+    if ((s.faceMatchScore ?? 0) < 80) flags.push("face-mismatch");
+    if (s.iprsMatched !== true) flags.push("iprs-unmatched");
+    const faceReview = (s.faceMatchScore ?? 0) >= 80 && (s.faceMatchScore ?? 0) < 92;
 
     const status = flags.length > 0 ? "FAILED" : faceReview ? "PENDING_REVIEW" : "VERIFIED";
     const updated = await prisma.kycSession.update({

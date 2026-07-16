@@ -116,6 +116,36 @@ const DATE = "\\d{4}-\\d{2}-\\d{2}";
 const TIME = "\\d{1,2}:\\d{2}(?::\\d{2})?";
 const MONEY = /-?\d[\d,]*\.\d{2}/g;
 
+/**
+ * Whose statement IS this? The official Safaricom statement prints the account
+ * holder in the header ("Customer Name: JANE ACHIENG ODHIAMBO"). PDF extraction
+ * merges lines, so the capture stops at the next header label. Null when the
+ * header can't be read — a missing name is "can't check", never "checked ok".
+ */
+export function extractStatementName(text: string): string | null {
+  const head = text.slice(0, 3000);
+  const m = head.match(/customer\s*name\s*[:\-]?\s*([A-Za-z][A-Za-z' .-]{2,80})/i);
+  if (!m) return null;
+  const cut = m[1].split(/\b(?:mobile|number|msisdn|date|statement|period|email|address|request|from|to)\b/i)[0];
+  const cleaned = cut.replace(/\s+/g, " ").trim().replace(/[.,-]+$/, "");
+  return cleaned.length >= 3 ? cleaned : null;
+}
+
+/**
+ * Do two person-names refer to the same human? Token overlap, order-blind:
+ * Kenyan documents disagree on WHICH of the three registry names they print
+ * (M-Pesa often carries first + third), so any two shared names is a match —
+ * one shared name is enough only when either side has just one to offer.
+ */
+export function namesMatch(a: string, b: string): { match: boolean; shared: string[] } {
+  const tok = (s: string) => [...new Set(s.toUpperCase().replace(/[^A-Z]+/g, " ").split(" ").filter((w) => w.length >= 2))];
+  const ta = tok(a), tb = tok(b);
+  if (ta.length === 0 || tb.length === 0) return { match: false, shared: [] };
+  const set = new Set(ta);
+  const shared = tb.filter((w) => set.has(w));
+  return { match: shared.length >= 2 || (shared.length >= 1 && Math.min(ta.length, tb.length) === 1), shared };
+}
+
 /** Parse the detailed M-Pesa transaction table from extracted statement text. */
 export function parseMpesaStatement(text: string): MpesaTxn[] {
   const rowRe = new RegExp(

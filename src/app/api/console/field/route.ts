@@ -52,6 +52,8 @@ export async function GET() {
 
   return NextResponse.json({
     success: true,
+    // Who is asking — the Dispatch Inbox splits "mine" from "open" with this.
+    me: { id: session.user!.id, isFieldAgent: agents.some((a) => a.id === session.user!.id) },
     agents: agents.map((a) => ({
       id: a.id, name: `${a.firstName}${a.otherName ? " " + a.otherName : ""}`, title: a.title,
       lat: a.lat, lng: a.lng, avatarSeed: a.avatarSeed ?? a.id,

@@ -54,10 +54,14 @@ export const NAV_REGISTRY: NavModule[] = [
     icon: "Users",
     items: [
       { key: "borrowers-list", label: "Borrowers List", href: "/console/borrowers", icon: "Users", right: "borrowers.view" },
-      { key: "borrowers-new", label: "New Borrower", href: "/console/borrowers?new=1", icon: "UserPlus", right: "borrowers.create", exact: true },
+      { key: "borrowers-new", label: "New Borrower", href: "/console/borrowers/new", icon: "UserPlus", right: "borrowers.create" },
       // The gate between a registered customer and their money. Sits under Borrowers
       // because that is where the officer who created the problem will look for it.
       { key: "kyc-queue", label: "KYC Verification", href: "/console/kyc", icon: "ShieldCheck", right: "borrowers.view" },
+      // The step AFTER the identity gate: a verified customer's statement becomes a
+      // score. It lives here — not under Intelligence — because it is the next thing
+      // the onboarding officer does, in order.
+      { key: "crunch", label: "Statement Cruncher", href: "/console/crunch", icon: "Calculator", right: "loans.apply", feature: "statement-cruncher" },
     ],
   },
   {
@@ -67,7 +71,7 @@ export const NAV_REGISTRY: NavModule[] = [
     items: [
       { key: "applications", label: "Applications Queue", href: "/console/applications", icon: "FileText", right: "applications.view" },
       { key: "loans-list", label: "Loans List", href: "/console/loans", icon: "Landmark", right: "loans.view" },
-      { key: "loans-apply", label: "Apply for a Borrower", href: "/console/applications?apply=1", icon: "FilePlus2", right: "loans.apply", exact: true },
+      { key: "loans-apply", label: "Apply for a Borrower", href: "/console/applications/new", icon: "FilePlus2", right: "loans.apply" },
     ],
   },
   {
@@ -100,7 +104,6 @@ export const NAV_REGISTRY: NavModule[] = [
       { key: "early-warning", label: "Early Warning", href: "/console/intelligence", icon: "Gauge", right: "intelligence.view", feature: "portfolio-scan", exact: true },
       { key: "scoring", label: "Credit Scoring", href: "/console/intelligence/scoring", icon: "Target", right: "intelligence.view", feature: "portfolio-scan" },
       { key: "analytics", label: "Analytics Studio", href: "/console/intelligence/analytics", icon: "LineChart", right: "reports.view" },
-      { key: "crunch", label: "Statement Cruncher", href: "/console/crunch", icon: "Calculator", right: "loans.apply", feature: "statement-cruncher" },
       { key: "model-tuning", label: "Model Tuning", href: "/console/intelligence/tuning", icon: "SlidersHorizontal", right: "intelligence.tune", feature: "model-tuning" },
       { key: "metrics", label: "Metric Catalogue", href: "/console/intelligence/metrics", icon: "Ruler", right: "metrics.view", feature: "riri" },
       { key: "documents", label: "Document Parser", href: "/console/documents", icon: "ScanLine", right: "documents.view", feature: "document-parser" },
@@ -114,6 +117,15 @@ export const NAV_REGISTRY: NavModule[] = [
     icon: "MapPin",
     items: [
       { key: "field-visits", label: "Visits & Routes", href: "/console/field", icon: "MapPin", right: "field.view", feature: "route-planner" },
+      // The officer's own radius: where am I, where is my book, who is closest.
+      { key: "field-nearby", label: "Customers Near Me", href: "/console/field/nearby", icon: "Navigation", right: "field.view", feature: "route-planner" },
+      // The worklist: customers with no pin — invisible to routes, blocked from
+      // disbursement — waiting to have their location captured.
+      { key: "field-needs-location", label: "Needs Location", href: "/console/field/needs-location", icon: "MapPinOff", right: "field.view", feature: "route-planner" },
+      // Dispatch requests land here — the nearest agent says yes and gets a route.
+      { key: "field-dispatch", label: "Dispatch Inbox", href: "/console/field/dispatch", icon: "Send", right: "field.view", feature: "route-planner" },
+      // Real Nairobi streets: pick a start and a customer, get the route + fare.
+      { key: "field-map", label: "Route Map", href: "/console/field/map", icon: "Map", right: "field.view", feature: "route-planner" },
     ],
   },
   {
@@ -135,9 +147,13 @@ export const NAV_REGISTRY: NavModule[] = [
       // staff, borrowers, loans, and who may see them — is hung off.
       { key: "branches", label: "Structure", href: "/console/branches", icon: "Building2", right: "branches.view" },
       { key: "products", label: "Products", href: "/console/products", icon: "Package", right: "products.view" },
+      { key: "charges", label: "Charges", href: "/console/charges", icon: "Coins", right: "products.view" },
       { key: "workflows", label: "Workflows", href: "/console/workflows", icon: "GitBranch", right: "workflows.view" },
       { key: "branding", label: "Branding", href: "/console/settings/branding", icon: "Palette", right: "branding.manage" },
       { key: "settings", label: "Settings & Vault", href: "/console/settings", icon: "Settings2", right: "settings.view", exact: true },
+      // Every plan. A lender on the smallest package still answers to the ODPC, and
+      // a data-protection duty is not a feature we may sell them back.
+      { key: "compliance", label: "Compliance & Data", href: "/console/compliance", icon: "FileLock2", right: "compliance.view" },
     ],
   },
   {

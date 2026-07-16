@@ -227,6 +227,7 @@ const FLAG_TEXT: Record<string, string> = {
   "liveness-failed": "We couldn't confirm a live person was in front of the camera.",
   "face-mismatch": "The face didn't match the portrait on the ID.",
   "iprs-unmatched": "The national registry has no record of that ID number.",
+  "identity-unbound": "The ID presented belongs to a different person than this customer's record — you cannot verify one customer with another person's ID.",
 };
 
 function NotThroughCard({ outcome, borrower, attached, returnTo }: {

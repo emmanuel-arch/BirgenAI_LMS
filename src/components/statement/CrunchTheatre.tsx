@@ -32,7 +32,10 @@ const SLATE = "#94a3b8";
 
 // ── Types (mirror the cruncher API response) ─────────────────────────────────
 export type ReasonCode = { code: string; factor: string; points: number; direction: "up" | "down"; detail: string };
+export type NameCheck = { statementName: string | null; expectedName: string; matched: boolean; overridden: boolean };
 export type CrunchData = {
+  /** Identity guard verdict — null when nobody was named to check against. */
+  nameCheck?: NameCheck | null;
   transactionCount: number;
   paidIn: number;
   paidOut: number;
@@ -243,7 +246,17 @@ function ClassifyStage({ data }: { data: CrunchData }) {
 function AuditStage({ data }: { data: CrunchData }) {
   const f = data.features;
   const monthsWithIncome = Math.round(f.incomeMonthsRatio * f.monthsCovered);
+  const nc = data.nameCheck;
   const checks: { ok: boolean; text: string }[] = [
+    // Identity first — the statement must belong to the person being scored.
+    ...(nc ? [{
+      ok: nc.matched,
+      text: nc.matched
+        ? `Statement holder “${nc.statementName}” matches ${nc.expectedName}`
+        : nc.overridden
+          ? `Holder “${nc.statementName}” accepted by staff override for ${nc.expectedName}`
+          : `Could not read the holder's name from the statement header`,
+    }] : []),
     { ok: true, text: `Reconciled ${data.transactionCount.toLocaleString()} entries · closing balance ${kes(f.closingBalance)}` },
     { ok: f.incomeMonthsRatio >= 0.8, text: `Income received in ${monthsWithIncome} of ${f.monthsCovered} months` },
     { ok: f.incomeVolatility <= 0.5, text: `Income volatility ${f.incomeVolatility} (${f.incomeVolatility <= 0.5 ? "stable" : "erratic"})` },
@@ -389,16 +402,23 @@ function FactorsStage({ data, onContinue }: { data: CrunchData; onContinue: () =
 
 // ── The theatre ───────────────────────────────────────────────────────────────
 export default function CrunchTheatre({
-  file, password, borrowerName, onComplete, onFail,
+  file, password, borrowerName, allowOverride, onComplete, onFail,
 }: {
   file: File; password?: string; borrowerName?: string | null;
+  /** Staff counter only: a mismatched holder name may be overridden (audited). The portal never passes this. */
+  allowOverride?: boolean;
   onComplete: (data: CrunchData) => void; onFail: (message: string) => void;
 }) {
   const [stage, setStage] = useState<Stage>("unlock");
   const [data, setData] = useState<CrunchData | null>(null);
   const [tick, setTick] = useState(fakeReceipt());
+  // The identity collapse — the statement names someone else. The whole theatre
+  // stops on this screen; staff may override (re-crunch with the flag), anyone
+  // else can only cancel.
+  const [mismatch, setMismatch] = useState<{ statementName: string; expectedName: string; message: string } | null>(null);
+  const [overridden, setOverridden] = useState(false);
   const failRef = useRef(onFail);
-  failRef.current = onFail;
+  useEffect(() => { failRef.current = onFail; }, [onFail]);
 
   // Kick off the real crunch immediately; the sequence plays over it.
   useEffect(() => {
@@ -409,16 +429,21 @@ export default function CrunchTheatre({
         fd.append("file", file);
         if (password) fd.append("password", password);
         if (borrowerName) fd.append("borrowerName", borrowerName);
+        if (overridden) fd.append("nameOverride", "1");
         const res = await fetch("/api/enterprise/statement-cruncher", { method: "POST", body: fd, signal: ac.signal });
         const d = await res.json();
-        if (!d.success) { failRef.current(d.message || "Could not read the statement."); return; }
+        if (!d.success) {
+          if (d.nameMismatch) { setMismatch({ statementName: d.statementName, expectedName: d.expectedName, message: d.message }); return; }
+          failRef.current(d.message || "Could not read the statement.");
+          return;
+        }
         setData(d as CrunchData);
       } catch {
         if (!ac.signal.aborted) failRef.current("Upload failed. Check your connection and try again.");
       }
     })();
     return () => ac.abort();
-  }, [file, password, borrowerName]);
+  }, [file, password, borrowerName, overridden]);
 
   // Synthetic receipt flicker while we wait for the server.
   useEffect(() => {
@@ -451,6 +476,42 @@ export default function CrunchTheatre({
     score: { title: "Your credit score", sub: "Built from six months of real cashflow" },
     factors: { title: "Your score, explained", sub: "Every factor, positive and negative" },
   };
+
+  // The collapse: someone else's statement. Everything stops here.
+  if (mismatch) {
+    return (
+      <div className="fixed inset-0 z-[100] overflow-y-auto">
+        <div aria-hidden className="fixed inset-0 -z-10 bg-cover bg-center" style={{ backgroundImage: "url('/mpesa/mpesa-background.jpg')" }} />
+        <div aria-hidden className="fixed inset-0 -z-10 bg-black/70 backdrop-blur-[3px]" />
+        <div className="min-h-full flex items-center justify-center px-4 py-8">
+          <motion.div initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl" style={{ backgroundColor: `${RED}22`, border: `2px solid ${RED}` }}>
+              <AlertTriangle className="h-8 w-8" style={{ color: RED }} />
+            </div>
+            <h1 className="mt-4 text-xl font-bold text-white">This is not {mismatch.expectedName}&apos;s statement</h1>
+            <p className="mt-2 text-sm text-white/70">
+              The statement is registered to <span className="font-bold text-white">“{mismatch.statementName}”</span>.
+              A statement only scores the person named on it.
+            </p>
+            <div className="mt-5 space-y-2">
+              {allowOverride && (
+                <button
+                  onClick={() => { setMismatch(null); setOverridden(true); }}
+                  className="w-full rounded-xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-semibold text-white hover:bg-white/15">
+                  It IS the same person — proceed anyway
+                  <span className="block text-[10px] font-normal text-white/50">e.g. M-Pesa carries a different one of their registry names · the override is recorded under your name</span>
+                </button>
+              )}
+              <button onClick={() => failRef.current(mismatch.message)}
+                className="w-full rounded-xl px-5 py-3 text-sm font-bold text-white" style={{ backgroundColor: RED }}>
+                Stop — wrong person&apos;s statement
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto">

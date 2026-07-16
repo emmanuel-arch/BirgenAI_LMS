@@ -295,7 +295,7 @@ export const ARTICLES: Article[] = [
       "Open Loans → Apply for a Borrower, choose them and the product, and enter the amount.",
       "The application appears in the Applications Queue for a decision.",
     ],
-    action: { label: "Apply for a borrower", href: "/console/applications?apply=1" },
+    action: { label: "Apply for a borrower", href: "/console/applications/new" },
     right: "loans.apply",
     related: ["kyc-verify", "approve-how", "borrower-add"],
     sw: {

@@ -23,6 +23,11 @@ export type ResolvedOrg = {
   registry: OrgDef | null;
   /** Bridged AND the ServiceSuite connection string is configured. */
   bridgedReady: boolean;
+  /**
+   * The guided-showcase org. Every credentialed provider is FORCED to simulation for
+   * it — a demo click must never spend a billed IPRS lookup or a Rekognition call.
+   */
+  isDemo: boolean;
 };
 
 export async function resolveOrg(slug: string): Promise<ResolvedOrg | null> {
@@ -39,7 +44,7 @@ export async function resolveOrg(slug: string): Promise<ResolvedOrg | null> {
   const row = await runAsPlatform(() =>
     prisma.org.findUnique({
       where: { slug: s },
-      select: { id: true, slug: true, name: true, mode: true, status: true, serviceSuiteEntityId: true },
+      select: { id: true, slug: true, name: true, mode: true, status: true, serviceSuiteEntityId: true, isDemo: true },
     }),
   );
   if (!row) return null;
@@ -57,5 +62,6 @@ export async function resolveOrg(slug: string): Promise<ResolvedOrg | null> {
     entityId,
     registry,
     bridgedReady: row.mode === "BRIDGED" && !!registry && isOrgConfigured(registry),
+    isDemo: row.isDemo,
   };
 }

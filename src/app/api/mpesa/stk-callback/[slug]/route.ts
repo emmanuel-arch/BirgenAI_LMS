@@ -5,9 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { runAsPlatform, runWithOrg } from "@/lib/db/context";
 import { verifyCallbackKey } from "@/lib/mpesa/daraja";
-import { allocateRepayment } from "@/lib/lending/allocate";
-import { sendSms } from "@/lib/sms/send";
-import { raiseException } from "@/lib/finance/reconcile";
+import { settlePayment } from "@/lib/payments/settle";
 
 export const runtime = "nodejs";
 
@@ -53,33 +51,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ slug: stri
         data: { state: "SUCCESS", resultCode: "0", resultDesc, mpesaReceipt: receipt || null, raw: body as Prisma.InputJsonValue },
       });
 
-      let applied = false;
-      if (intent.loanId) {
-        try {
-          const result = await allocateRepayment(intent.loanId, amount, `STK:${receipt || checkoutRequestId}`);
-          applied = true;
-          await sendSms(org.id, intent.phone, result.cleared ? "cleared" : "payment", {
-            org: org.name,
-            amount: Math.round(amount).toLocaleString(),
-            balance: Math.round(result.newBalance).toLocaleString(),
-          });
-        } catch { /* raised as an exception below */ }
-      }
-      if (!applied) {
-        // The borrower's money is confirmed and the book did not receive it —
-        // either the allocation threw or the intent carried no loan. This is
-        // the single worst thing to stay silent about.
-        await raiseException(org.id, {
-          kind: "STK_SUCCESS_UNAPPLIED",
-          reference: intent.id,
-          severity: "HIGH",
-          amountKes: amount,
-          message: intent.loanId
-            ? `M-Pesa confirmed KES ${Math.round(amount).toLocaleString()} from ${intent.phone}${receipt ? ` (receipt ${receipt})` : ""} but it never posted to the loan. Apply it, or resolve with a note saying how it was handled.`
-            : `M-Pesa confirmed KES ${Math.round(amount).toLocaleString()} from ${intent.phone}${receipt ? ` (receipt ${receipt})` : ""} and the request had NO loan attached. Find where this money belongs.`,
-          meta: { loanId: intent.loanId, mpesaReceipt: receipt || null, phone: intent.phone },
-        });
-      }
+      // WHERE THE MONEY GOES IS DECIDED BY WHAT IT WAS ASKED FOR — not by whether the
+      // row happens to carry a loanId. A processing fee carries the loan it is a
+      // percentage of, and allocating it as a repayment would quietly pay down the
+      // customer's balance with the lender's fee. See src/lib/payments/settle.ts.
+      await settlePayment(org.id, org.name, intent, amount, receipt);
     } else {
       await prisma.paymentIntent.update({
         where: { id: intent.id },

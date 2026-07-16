@@ -1,18 +1,30 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// KYC provider — the identity + liveness + face-match + IPRS engine.
+// KYC provider — the identity engine. THREE VENDORS, THREE JOBS, NO SMILE ID.
 //
-// SIMULATION-FIRST: with no KYC credentials in the org vault, every check runs
-// in a high-fidelity SIMULATION that returns realistic, deterministic results
-// (seeded off the national ID so the same person always scores the same). The
-// moment a Smile ID key is saved in Settings → Vault, `mode` becomes "live" and
-// the same call sites hit the real provider — no UI or flow change.
+//   1. THE DOCUMENT     Google Cloud Vision reads the ID front (TEXT_DETECTION).
+//   2. THE HUMAN EXISTS IPRS confirms that ID number against the national registry,
+//                       and THE NAME ON THE CARD MUST BE THE NAME IN THE REGISTRY
+//                       (src/lib/kyc/namematch.ts). This is the fraud gate, and it
+//                       is where a borrowed or altered ID dies.
+//   3. THE HUMAN IS THEM AWS Rekognition compares the selfie to the portrait on the
+//                       document. (Vision cannot do this — Google has no face
+//                       comparison endpoint, by policy. See rekognition.ts.)
 //
-// This is deliberately structured so a demo looks and behaves exactly like
-// production: quality gates reject blurry/glare images, liveness has a passive
-// score, face-match returns a similarity %, and IPRS echoes a matched record.
+// Smile ID is GONE. It was one vendor billed for all three legs, and we now do each
+// leg with the provider that is actually best at it — cheaper, and each answer is
+// legible rather than a single opaque "verified: true".
+//
+// LIVENESS IS GONE TOO, deliberately. A blink-and-smile challenge is theatre against
+// a printed photo held up to a webcam, and it cost the customer thirty seconds. The
+// real anti-spoof signal is Rekognition's face DETECTION on the selfie (is this one
+// face, front-on, eyes open, not a photo of a photo) folded into the face-match step.
+//
+// SIMULATION-FIRST is unchanged, and is per-leg: each vendor that has no credential
+// falls back to a deterministic, seeded simulation, and every KycCheck records WHICH
+// engine answered — so a session can always say whether it was verified by a
+// government registry or by a random number generator.
 // ─────────────────────────────────────────────────────────────────────────────
 import { createHash } from "crypto";
-import { getIntegration, type KycConfig } from "@/lib/vault/integrations";
 
 export type KycMode = "simulation" | "live";
 
@@ -23,9 +35,37 @@ function seeded(seed: string, facet: string): number {
   return (((h[0] << 24) | (h[1] << 16) | (h[2] << 8) | h[3]) >>> 0) / 0xffffffff;
 }
 
-export async function kycMode(orgId: string): Promise<KycMode> {
-  const cfg = await getIntegration(orgId, "KYC").catch(() => null);
-  return cfg?.apiKey ? "live" : "simulation";
+/**
+ * What the pipeline can actually do right now, leg by leg. The console shows this
+ * verbatim rather than a single "DEMO MODE" badge, because "the registry is live
+ * but face matching is not" is a true and useful thing to know, and a single flag
+ * cannot say it.
+ */
+export type KycCapabilities = {
+  ocr: "live" | "simulation";
+  registry: "live" | "simulation";
+  face: "live" | "simulation";
+};
+
+export async function kycCapabilities(orgId: string, opts?: { forceSimulation?: boolean }): Promise<KycCapabilities> {
+  if (opts?.forceSimulation) return { ocr: "simulation", registry: "simulation", face: "simulation" };
+  const [{ ocrMode }, { iprsMode }, { faceMode }] = await Promise.all([
+    import("./vision"),
+    import("./iprs"),
+    import("./rekognition"),
+  ]);
+  return { ocr: ocrMode(), registry: iprsMode(), face: faceMode() };
+}
+
+/**
+ * The headline mode. LIVE only when the identity is settled against real sources —
+ * the document is genuinely read and the human is genuinely confirmed to exist.
+ * Face matching is a strengthener, not the thing that makes an identity real, so it
+ * does not veto the badge; `kycCapabilities()` is what tells the whole truth.
+ */
+export async function kycMode(orgId: string, opts?: { forceSimulation?: boolean }): Promise<KycMode> {
+  const cap = await kycCapabilities(orgId, opts);
+  return cap.ocr === "live" && cap.registry === "live" ? "live" : "simulation";
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -170,9 +210,98 @@ export function assessActiveLiveness(seed: string, frames: { challenge: string; 
   return { passed: per.every((p) => p.passed), score, frames: per };
 }
 
-// ── Face match (ID portrait vs selfie) ────────────────────────────────────────
+// ── Face match (the portrait ON the ID vs the selfie AT the counter) ──────────
+
+export type FaceVerification = FaceMatchResult & {
+  engine: "aws-rekognition" | "simulation";
+  /** Capture quality of the selfie, from Rekognition's face detection. */
+  capture?: { faces: number; issues: string[]; passed: boolean };
+  /** The ID photograph had no readable face — a bad capture, NOT a mismatch. */
+  noFaceInSource?: boolean;
+  /** One sentence for the officer. */
+  summary: string;
+};
+
+/**
+ * The face seam.
+ *
+ * Two Rekognition calls, in this order and for a reason:
+ *   1. DetectFaces on the SELFIE — is this even a usable photograph of one live,
+ *      front-facing human? A second face in frame, closed eyes or a heavy blur is a
+ *      RETAKE, and it must be caught before we accuse anyone of anything.
+ *   2. CompareFaces(ID portrait → selfie) — the actual question.
+ *
+ * The order matters because the failure messages are completely different. "Your
+ * face does not match your ID" is an accusation; "we could not see your face, try
+ * again facing the window" is an instruction. Getting those two the wrong way round
+ * at a counter, in front of a customer, is the kind of thing people remember.
+ */
+export async function verifyFace(
+  seed: string,
+  idImageDataUrl?: string | null,
+  selfieDataUrl?: string | null,
+  opts?: { forceSimulation?: boolean },
+): Promise<FaceVerification> {
+  const { faceMode, detectFace, compareFaces } = await import("./rekognition");
+
+  if (!opts?.forceSimulation && faceMode() === "live" && idImageDataUrl && selfieDataUrl) {
+    const capture = await detectFace(selfieDataUrl);
+
+    if (capture && !capture.passed) {
+      return {
+        score: 0, passed: false, band: "no-match", engine: "aws-rekognition",
+        capture: { faces: capture.faces, issues: capture.issues, passed: false },
+        summary: captureAdvice(capture.issues),
+      };
+    }
+
+    const cmp = await compareFaces(idImageDataUrl, selfieDataUrl);
+    if (cmp) {
+      if (cmp.noFaceInSource) {
+        return {
+          score: 0, passed: false, band: "no-match", engine: "aws-rekognition", noFaceInSource: true,
+          summary: "No face could be found on the ID photograph itself — retake the ID, straight on and without glare. This is not a mismatch.",
+        };
+      }
+      return {
+        score: cmp.score,
+        passed: cmp.passed,
+        band: cmp.band,
+        engine: "aws-rekognition",
+        capture: capture ? { faces: capture.faces, issues: capture.issues, passed: capture.passed } : undefined,
+        summary:
+          cmp.band === "match"
+            ? `The face at the counter is the face on the ID (${cmp.score}% similar).`
+            : cmp.band === "review"
+              ? `A partial face match (${cmp.score}%). Close, but not close enough to pass on its own — a supervisor should look.`
+              : `The face does not match the portrait on the ID (${cmp.score}% similar).`,
+      };
+    }
+    // Rekognition unreachable — fall through to the simulation rather than sink a
+    // verification on a vendor outage. The engine field will say so.
+  }
+
+  const score = 84 + Math.round(seeded(seed, "face") * 14); // 84..98 — a real person
+  const band = score >= 85 ? "match" : score >= 70 ? "review" : "no-match";
+  return {
+    score, passed: band !== "no-match", band, engine: "simulation",
+    summary: `Simulated face match (${score}%) — no face-matching provider is connected.`,
+  };
+}
+
+function captureAdvice(issues: string[]): string {
+  if (issues.includes("no-face")) return "No face in the photo. Look straight at the camera and take it again.";
+  if (issues.includes("multiple-faces")) return "More than one face is in the picture. Only the customer should be in frame.";
+  if (issues.includes("eyes-closed")) return "Their eyes were closed. Take it again.";
+  if (issues.includes("blurred")) return "The photo is blurred. Hold still and take it again.";
+  if (issues.includes("too-dark")) return "Too dark to see their face. Move towards the light and take it again.";
+  if (issues.includes("not-facing-camera")) return "They were turned away from the camera. Face it straight on and take it again.";
+  return "That photo cannot be used. Take it again.";
+}
+
+/** @deprecated The seeded simulator. Use verifyFace, which prefers the real provider. */
 export function faceMatch(seed: string): FaceMatchResult {
-  const score = 84 + Math.round(seeded(seed, "face") * 14); // 84..98 in sim (a real person)
+  const score = 84 + Math.round(seeded(seed, "face") * 14);
   const band = score >= 85 ? "match" : score >= 70 ? "review" : "no-match";
   return { score, passed: band !== "no-match", band };
 }

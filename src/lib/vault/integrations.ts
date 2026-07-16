@@ -14,8 +14,28 @@ import type { IntegrationKind, IntegrationStatus } from "@prisma/client";
 export type MpesaStkConfig = {
   consumerKey: string;
   consumerSecret: string;
+  /**
+   * The HEAD-OFFICE / store shortcode. It is what signs the password and what goes in
+   * BusinessShortCode — for BOTH transaction types.
+   */
   shortCode: string;
   passkey: string;
+  /**
+   * PAYBILL vs BUY GOODS, and it is not cosmetic — it changes where the money lands.
+   *
+   *   CustomerPayBillOnline  → PartyB is the paybill (= shortCode), AccountReference
+   *                            is the account the payer is crediting. This is what a
+   *                            lender collecting loan repayments uses.
+   *   CustomerBuyGoodsOnline → PartyB is the TILL number, which is a different number
+   *                            from the store shortcode that signs the request.
+   *
+   * Default stays PayBill, because that is what every lender on the platform has. The
+   * Buy Goods path exists because BirgenAI's own Till (the Hub's) is one, and platform
+   * fees settle there.
+   */
+  transactionType?: "CustomerPayBillOnline" | "CustomerBuyGoodsOnline";
+  /** Buy Goods only. The till the money actually lands in (PartyB). */
+  tillNumber?: string;
   callbackUrl?: string; // defaults to the platform callback for the org
   environment?: "production" | "sandbox";
 };

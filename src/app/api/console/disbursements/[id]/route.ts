@@ -37,7 +37,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       loan: {
         select: {
           id: true, expectedClearDate: true, borrowerId: true,
-          borrower: { select: { id: true, firstName: true, otherName: true, kycStatus: true } },
+          borrower: {
+            select: {
+              id: true, firstName: true, otherName: true, kycStatus: true,
+              lat: true, lng: true, homeLat: true, homeLng: true,
+            },
+          },
         },
       },
       // org fields for gating + slug for callback registration
@@ -56,11 +61,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   //
   // It is enforced on the ACTION, not just hidden in the UI: a queue that greys out a
   // button while the endpoint still pays is not a gate.
+  const org = await prisma.org.findUnique({
+    where: { id: disb.orgId },
+    select: { slug: true, name: true, status: true, requireGeoForDisbursement: true },
+  });
+  if (!org) return NextResponse.json({ success: false, message: "Org missing." }, { status: 500 });
+
   const RELEASES_MONEY = ["approve", "manual", "retry"];
   if (RELEASES_MONEY.includes(body.action ?? "")) {
     const borrower = disb.loan?.borrower;
+    const name = `${borrower?.firstName ?? ""} ${borrower?.otherName ?? ""}`.trim() || "This borrower";
     if (borrower && borrower.kycStatus !== "VERIFIED") {
-      const name = `${borrower.firstName ?? ""} ${borrower.otherName ?? ""}`.trim() || "This borrower";
       return NextResponse.json({
         success: false,
         code: "KYC_NOT_VERIFIED",
@@ -68,10 +79,27 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         message: `${name}'s identity has not been verified, so this money can't be released. Verify them in KYC Verification first.`,
       }, { status: 409 });
     }
-  }
 
-  const org = await prisma.org.findUnique({ where: { id: disb.orgId }, select: { slug: true, name: true, status: true } });
-  if (!org) return NextResponse.json({ success: false, message: "Org missing." }, { status: 500 });
+    // ── THE LOCATION GATE ──────────────────────────────────────────────────────
+    //
+    // A borrower with no business/home pin on file never appears on a field officer's
+    // route, and cannot be visited when a loan goes quiet — so the snapshot is a
+    // condition of lending, not an optional nicety. Like the KYC gate, it is enforced
+    // on the ACTION (not just greyed out in the UI) and at the last moment before
+    // funds move. Either pin — where they trade, or where they sleep — satisfies it.
+    // A purely-digital lender can switch this off (Org.requireGeoForDisbursement).
+    const hasPin =
+      (borrower?.lat != null && borrower?.lng != null) ||
+      (borrower?.homeLat != null && borrower?.homeLng != null);
+    if (org.requireGeoForDisbursement && borrower && !hasPin) {
+      return NextResponse.json({
+        success: false,
+        code: "LOCATION_NOT_CAPTURED",
+        borrowerId: borrower.id,
+        message: `${name} has no business or home location on file, so this money can't be released. Drop their pin from Customer 360 (or capture it on the next visit) first.`,
+      }, { status: 409 });
+    }
+  }
 
   const tiers = session.user.tiers ?? { initiator: false, authorizer: false, validator: false };
   const staffCount = await prisma.staffUser.count({ where: { orgId: disb.orgId, status: "ACTIVE" } });

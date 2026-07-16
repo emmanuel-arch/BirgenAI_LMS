@@ -18,17 +18,47 @@ type Body = {
   maxPrincipal?: number;
   interestRate?: number;
   interestMethod?: "flat" | "reducing";
+  interestType?: "fixed" | "variable";
+  principalType?: "standard" | "interest_first" | "balloon";
   interestPeriodUnit?: string;
   repaymentPeriod?: number;
   repaymentPeriodUnit?: string;
   gracePeriodDays?: number;
   penaltyRate?: number;
+  earlySettlementEnabled?: boolean;
+  earlySettlementDays?: number | null;
+  earlySettlementRate?: number | null;
+  repaymentOrder?: string;
+  minLoanLimit?: number | null;
   minCreditScore?: number;
+  guarantorRequired?: boolean;
+  guarantorReborrow?: boolean;
+  securityRequired?: boolean;
+  securityCoverPct?: number;
   disbursementMode?: "B2C_MPESA" | "MANUAL" | "TO_THIRD_PARTY" | "LENDER_SIDE";
   isActive?: boolean;
   newWorkflowId?: string | null;
   repeatWorkflowId?: string | null;
 };
+
+const INTEREST_TYPES = ["fixed", "variable"];
+const PRINCIPAL_TYPES = ["standard", "interest_first", "balloon"];
+/** Shared writable-field mapper for POST/PUT — the curated ServiceSuite subset. */
+function curatedFields(b: Body) {
+  return {
+    interestType: b.interestType && INTEREST_TYPES.includes(b.interestType) ? b.interestType : undefined,
+    principalType: b.principalType && PRINCIPAL_TYPES.includes(b.principalType) ? b.principalType : undefined,
+    earlySettlementEnabled: typeof b.earlySettlementEnabled === "boolean" ? b.earlySettlementEnabled : undefined,
+    earlySettlementDays: b.earlySettlementDays !== undefined ? (Number.isInteger(b.earlySettlementDays) ? b.earlySettlementDays : null) : undefined,
+    earlySettlementRate: b.earlySettlementRate !== undefined ? (Number.isFinite(Number(b.earlySettlementRate)) ? new Prisma.Decimal(Number(b.earlySettlementRate)) : null) : undefined,
+    repaymentOrder: b.repaymentOrder?.trim() || undefined,
+    minLoanLimit: b.minLoanLimit !== undefined ? (Number.isFinite(Number(b.minLoanLimit)) && Number(b.minLoanLimit) > 0 ? new Prisma.Decimal(Number(b.minLoanLimit)) : null) : undefined,
+    guarantorRequired: typeof b.guarantorRequired === "boolean" ? b.guarantorRequired : undefined,
+    guarantorReborrow: typeof b.guarantorReborrow === "boolean" ? b.guarantorReborrow : undefined,
+    securityRequired: typeof b.securityRequired === "boolean" ? b.securityRequired : undefined,
+    securityCoverPct: Number.isInteger(b.securityCoverPct) ? b.securityCoverPct : undefined,
+  };
+}
 
 export async function GET() {
   const session = await auth();
@@ -84,6 +114,7 @@ export async function POST(req: NextRequest) {
       isActive: body.isActive ?? true,
       newWorkflowId: body.newWorkflowId || null,
       repeatWorkflowId: body.repeatWorkflowId || null,
+      ...curatedFields(body),
     },
   });
   await prisma.auditLog.create({
@@ -121,10 +152,12 @@ export async function PUT(req: NextRequest) {
       gracePeriodDays: body.gracePeriodDays ?? undefined,
       penaltyRate: body.penaltyRate !== undefined ? new Prisma.Decimal(Number(body.penaltyRate)) : undefined,
       minCreditScore: body.minCreditScore !== undefined ? body.minCreditScore : undefined,
+      interestPeriodUnit: body.interestPeriodUnit || undefined,
       disbursementMode: body.disbursementMode ?? undefined,
       isActive: body.isActive ?? undefined,
       newWorkflowId: body.newWorkflowId !== undefined ? body.newWorkflowId || null : undefined,
       repeatWorkflowId: body.repeatWorkflowId !== undefined ? body.repeatWorkflowId || null : undefined,
+      ...curatedFields(body),
     },
   });
   await prisma.auditLog.create({

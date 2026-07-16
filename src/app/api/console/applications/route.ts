@@ -10,6 +10,7 @@ import { autoScheduleVerification } from "@/lib/field/auto";
 import { scoreThinFileAuto } from "@/lib/statement/score-thinfile";
 import type { CashflowFeatures } from "@/lib/statement/features";
 import { computeApprovedLimit } from "@/lib/lending/limits";
+import { unpaidUpfrontCharges } from "@/lib/lending/upfront-charges";
 
 export const runtime = "nodejs";
 
@@ -141,6 +142,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, message: "This borrower already has an application in the queue." }, { status: 409 });
   }
 
+  // THE UPFRONT-CHARGE GATE. We deduct before disbursement, not after — so the
+  // registration and processing fees must be settled before this loan is processed.
+  // The unpaid fees ride back on the response so the counter can collect them (an STK
+  // push per charge) and try again. (lib/lending/upfront-charges.ts)
+  const { unpaid, total } = await unpaidUpfrontCharges({
+    orgId, borrowerId: borrower.id, productId: product.id, principal: amount,
+  });
+  if (unpaid.length > 0) {
+    return NextResponse.json({
+      success: false,
+      chargesDue: true,
+      unpaidCharges: unpaid,
+      total,
+      message: `Pay all upfront charges first — KES ${total.toLocaleString()} in ${unpaid.map((c) => c.name.toLowerCase()).join(" + ")}. We deduct upfront fees before disbursement, not after.`,
+    }, { status: 402 });
+  }
+
   // ── The statement, when the officer crunched one first (/console/crunch) ────
   // The features come from the cruncher; the SCORE is recomputed here — a number
   // the client sent is a claim, the number this engine derives is a decision.
@@ -170,6 +188,11 @@ export async function POST(req: NextRequest) {
       largestCleared: cleared.reduce((m, l) => Math.max(m, Number(l.loanAmount)), 0),
       productMin: min,
       productMax: max,
+      // Product term → affordability-first sizing (lib/lending/limits.ts).
+      productRate: Number(product.interestRate),
+      repaymentPeriod: product.repaymentPeriod,
+      repaymentPeriodUnit: product.repaymentPeriodUnit,
+      minLoanLimit: product.minLoanLimit != null ? Number(product.minLoanLimit) : null,
     });
     approvedLimit = limit.approvedLimit;
     if (scored.decision !== "DECLINE") {

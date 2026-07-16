@@ -101,6 +101,11 @@ model Org {
   heroUrl    String?
   // First-run setup checklist ({ dismissed?: boolean, activationRequestedAt?: string })
   onboardingState Json?
+  // Field-ops control: a borrower's business/home location SNAPSHOT must be on file
+  // before money is released to them (you should know where your borrower's business
+  // is before you lend against it, and a customer with no pin never appears on a
+  // field officer's route). Defaults ON; a purely-digital lender can turn it off.
+  requireGeoForDisbursement Boolean @default(true)
   // Bridged-mode link
   serviceSuiteEntityId Int?
   // Demo orgs power the guided showcase (test accounts, seeded lifecycle).
@@ -136,6 +141,11 @@ model Org {
   emails        EmailMessage[]
   metricDefs    MetricDefinition[]
   ririQueries   RiriQueryLog[]
+  complianceRequests ComplianceRequest[]
+  charges       Charge[]
+  graduations   GraduationEvent[]
+  savingsAccounts     SavingsAccount[]
+  savingsTransactions SavingsTransaction[]
 }
 
 enum IntegrationKind {
@@ -451,14 +461,30 @@ model Borrower {
   iprsVerified    Boolean?
   kycStatus       KycStatus @default(NONE)
   kycVerifiedAt   DateTime?
-  // One-time consented location (never tracked)
+  // One-time consented location SNAPSHOTS (captured at onboarding/application with
+  // the customer's explicit consent — never tracked afterwards). lat/lng is the
+  // primary pin (locationType says which place it is); a second pin lives in
+  // homeLat/homeLng when both business and home were captured.
   lat             Float?
   lng             Float?
   locationType    String? // business | home
   locationAddress String?
+  homeLat         Float?
+  homeLng         Float?
+  homeAddress     String?
+  geoConsentAt    DateTime? // when the customer consented to the location snapshot
   // Risk & limits
   creditScore       Int?
+  /// One of the four bands (src/lib/risk/bands.ts): PRIME | STRONG | WATCH | HIGH.
+  /// Every engine — the thin-file cruncher, the behavioural scorer, early warning —
+  /// speaks this one vocabulary, so an officer never has to translate between scales.
   riskBand          String?
+  /// 0–100, from their last two CLEARED loans: half "did they pay it all", half "did
+  /// they pay it on the day". This is the number graduation is decided on, and it is
+  /// written for every customer who has ever repaid — including the bad ones.
+  behaviouralScore  Float?
+  lastScoredAt      DateTime?
+  lastGraduationAt  DateTime?
   loanLimit         Decimal? @db.Decimal(18, 2)
   previousLoanLimit Decimal? @db.Decimal(18, 2)
   graduationCount   Int      @default(0)
@@ -475,6 +501,13 @@ model Borrower {
   createdById String? // StaffUser.id of the officer who registered them
   branchId    String?
 
+  /// Set when this person exercised their right to erasure and a financial record
+  /// (AML floor, 7 years) made a hard delete unlawful. The row survives; the person
+  /// does not — name, phone, ID, email, face and location are gone, and `phone` holds
+  /// an unusable tombstone so the (orgId, phone) uniqueness still means something.
+  /// Every screen must read this before it renders a "borrower".
+  erasedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -488,6 +521,7 @@ model Borrower {
   documents    Document[]
   loans        Loan[]
   fieldVisits  FieldVisit[]
+  savings      SavingsAccount?
 
   @@unique([orgId, phone])
   @@index([orgId, nationalId])
@@ -558,14 +592,36 @@ model Product {
   minPrincipal  Decimal  @db.Decimal(18, 2)
   maxPrincipal  Decimal  @db.Decimal(18, 2)
   interestRate  Decimal  @db.Decimal(9, 4)
-  interestMethod String  @default("flat") // flat | reducing
+  interestMethod String  @default("flat") // flat | reducing (how the balance interest is computed)
+  /// The pricing basis behind the rate — mirrors ServiceSuite's Interest Type, kept
+  /// distinct from the flat/reducing METHOD above. fixed = rate never moves for the
+  /// life of the loan; variable = repriced against a reference on rollover/reschedule.
+  interestType   String  @default("fixed") // fixed | variable
+  /// The repayment shape — ServiceSuite's Principal (Product) Type. standard amortises
+  /// principal+interest across every installment; interest_first services interest until
+  /// the final installment; balloon carries most principal to the last.
+  principalType  String  @default("standard") // standard | interest_first | balloon
   interestPeriodUnit String @default("month")
   repaymentPeriod    Int
   repaymentPeriodUnit String @default("week")
   gracePeriodDays    Int     @default(0)
   penaltyRate        Decimal? @db.Decimal(9, 4)
+  /// A settlement before `earlySettlementDays` from disbursement is rebated at
+  /// `earlySettlementRate` (% of outstanding interest waived). Off by default.
+  earlySettlementEnabled Boolean  @default(false)
+  earlySettlementDays    Int?
+  earlySettlementRate    Decimal? @db.Decimal(9, 4)
+  /// The waterfall a payment is applied in, most-senior first. ServiceSuite's
+  /// Repayment Order. Tokens: fees | penalty | interest | principal.
+  repaymentOrder     String  @default("penalty,interest,principal,fees")
+  /// The smallest amount this product will ever book, even if the limit engine
+  /// derives less — below it, there is no loan (ServiceSuite Minimum Loan Limit).
+  minLoanLimit       Decimal? @db.Decimal(18, 2)
   minCreditScore     Int?
   guarantorRequired  Boolean @default(false)
+  /// May a person who is standing as a guarantor on a live loan also take one of
+  /// their own on this product? Off = a guarantor's exposure is frozen.
+  guarantorReborrow  Boolean @default(false)
   securityRequired   Boolean @default(false)
   /// Verified collateral must cover this percentage of the principal before a loan
   /// on this product may book. Only meaningful when securityRequired.
@@ -1091,6 +1147,215 @@ enum PaymentState {
 }
 
 /// STK push attempts (collections).
+/// WHAT a payment request is FOR. The purpose decides where the money goes when it
+/// lands, so it is recorded when the request is MADE, not guessed at afterwards from
+/// the amount. (Guessing from the amount is how a KES 200 processing fee gets
+/// allocated to a KES 200 installment.)
+enum PaymentPurpose {
+  /// A fee from the Charge catalogue (registration, processing, …).
+  CHARGE
+  /// Money against a loan — allocated to the oldest open installment.
+  INSTALLMENT
+  /// An officer typed an amount. Still allocated to the loan if one is named.
+  CUSTOM
+}
+
+/// WHOSE money this is once it settles.
+///
+/// The lender's interest and principal are the LENDER's — they land in the lender's
+/// own paybill. BirgenAI's fees are OURS and land in the platform till. A single STK
+/// button that cannot tell these apart is a button that quietly pays the wrong party,
+/// and reconciling it afterwards is guesswork.
+enum ChargeBeneficiary {
+  LENDER
+  PLATFORM
+}
+
+enum ChargeTrigger {
+  /// Offered the moment a borrower is registered.
+  ON_REGISTRATION
+  /// Offered when they apply for a loan.
+  ON_APPLICATION
+  /// Only ever raised by a human, from wherever they are.
+  MANUAL
+}
+
+/// How a fee reaches us — ServiceSuite's ProductFeesTypes, kept verbatim because a
+/// lender's fee sheet is written in this vocabulary.
+enum ChargeApplyAt {
+  /// The customer pays it before the money is released. This is the only one that
+  /// blocks a loan, and the only one the upfront-charge gate looks at.
+  BEFORE_DISBURSEMENT
+  /// Netted off the principal at disbursement — they borrow 5,000 and receive 4,900.
+  DEDUCT_FROM_PRINCIPAL
+  /// Spread across the repayment schedule and collected with the installments.
+  ON_INSTALLMENTS
+}
+
+/// EVERY LIMIT INCREASE, AND WHY.
+///
+/// A graduation is the system giving a customer more money on the strength of their
+/// record. Two people will one day ask about it: the customer ("why did my limit go
+/// up — and why did his, not mine?") and the lender ("is this engine sane?"). Neither
+/// can be answered from a Borrower row that only holds the CURRENT limit.
+///
+/// So every increase writes the whole reasoning down: the two scores it was built
+/// from, the band they landed in, the principal they had proved twice, and the
+/// before/after. It is also the audit trail for the day a lender decides the engine
+/// was too generous and wants to see exactly who it moved.
+model GraduationEvent {
+  id         String @id @default(uuid())
+  orgId      String
+  borrowerId String
+
+  previousLimit Decimal @db.Decimal(18, 2)
+  newLimit      Decimal @db.Decimal(18, 2)
+  increase      Decimal @db.Decimal(18, 2)
+
+  /// The behavioural score (0–100) and the band it fell in.
+  riskScore Float
+  riskBand  String
+  /// The two halves, kept separately — "they always pay, but always late" is a
+  /// completely different customer from "they pay on time but rarely in full", and a
+  /// blended score cannot tell you which one you graduated.
+  repaymentHistoryScore Float
+  daysInArrearsScore    Float
+
+  graduationPercent Float
+  clearedLoans      Int
+  /// The principal they cleared twice — what actually earned the increase.
+  provenPrincipal   Decimal @db.Decimal(18, 2)
+  /// True when the KES 5,000 ceiling, not the percentage, decided the increase.
+  cappedByCeiling   Boolean @default(false)
+
+  /// "cron" or a StaffUser.id — a limit can be moved by the engine or by a human.
+  decidedBy String?
+  createdAt DateTime @default(now())
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, borrowerId, createdAt])
+  @@index([orgId, createdAt])
+}
+
+/// THE CHARGE CATALOGUE — a lender's own fees, defined by the lender.
+///
+/// Deliberately DATA, not code (unlike the retention policy and the metric catalogue).
+/// A registration fee is not a legal position or a shared definition; it is a price,
+/// it differs per lender, and it changes when a lender decides it changes. Techcrast
+/// charges KES 100 to register and KES 200 to process a loan; the next lender will
+/// charge something else, and must not need a deploy to say so.
+model Charge {
+  id    String @id @default(uuid())
+  orgId String
+
+  name String /// "Registration fee"
+  /// Short, stable, used as the M-Pesa AccountReference. Uppercase, no spaces.
+  code String
+  description String?
+
+  /// A flat amount, or a percentage of the loan principal when `percentOf` is set.
+  amount    Decimal  @db.Decimal(18, 2)
+  isPercent Boolean  @default(false)
+
+  /// Floor and ceiling for a PERCENTAGE fee (ServiceSuite ProductFees.Min/MaxValue).
+  /// Micromart's school-fee product charges 5% but never less than 1,000 nor more
+  /// than 2,500. Ignored for flat fees, where the amount is already the answer.
+  minValue Decimal? @db.Decimal(18, 2)
+  maxValue Decimal? @db.Decimal(18, 2)
+
+  /// The principal band this price applies to (ServiceSuite ProductFees.Min/MaxPrincipal).
+  /// A product may price the same fee differently at different loan sizes, so a band —
+  /// not the product alone — is what selects a row. Null = any principal.
+  minPrincipal Decimal? @db.Decimal(18, 2)
+  maxPrincipal Decimal? @db.Decimal(18, 2)
+
+  trigger     ChargeTrigger     @default(MANUAL)
+  beneficiary ChargeBeneficiary @default(LENDER)
+  /// HOW the fee is collected — orthogonal to `trigger`, which is WHEN it is offered.
+  /// Mirrors ServiceSuite's ProductFeesTypes. Only BEFORE_DISBURSEMENT gates a loan:
+  /// the other two are taken out of money that is already moving.
+  applyAt     ChargeApplyAt     @default(BEFORE_DISBURSEMENT)
+
+  /// Scope it to one product, or leave null for every product.
+  productId String?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Bridged link — the ServiceSuite ProductFees row this was mirrored from.
+  serviceSuiteFeeId Int?
+
+  org      Org             @relation(fields: [orgId], references: [id])
+  payments PaymentIntent[]
+
+  @@unique([orgId, code])
+  @@index([orgId, isActive])
+}
+
+/// A borrower's SAVINGS wallet with this lender. One per borrower, created lazily the
+/// first time money arrives that isn't owed on a loan. The rule the product enforces:
+/// a deposit lands against an OUTSTANDING LOAN BALANCE first; only what remains — or
+/// everything, when the borrower carries no balance — is credited here. `balance` is a
+/// running mirror of the transaction ledger, updated in the same transaction as each
+/// SavingsTransaction so the two can never disagree.
+model SavingsAccount {
+  id         String   @id @default(uuid())
+  orgId      String
+  borrowerId String   @unique
+  balance    Decimal  @default(0) @db.Decimal(18, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  org      Org                  @relation(fields: [orgId], references: [id])
+  borrower Borrower             @relation(fields: [borrowerId], references: [id])
+  entries  SavingsTransaction[]
+
+  @@index([orgId])
+}
+
+enum SavingsDirection {
+  CREDIT // money in — a deposit not owed on a loan, or a reversal
+  DEBIT // money out — a withdrawal, or a sweep onto a new loan's charges
+}
+
+/// ONE MOVEMENT on a savings account — the ledger the customer statement reads. Never
+/// updated once written; a correction is a new, opposite row. `balanceAfter` freezes the
+/// running total at the moment of the entry so the statement is reproducible.
+model SavingsTransaction {
+  id         String           @id @default(uuid())
+  orgId      String
+  accountId  String
+  borrowerId String
+  direction  SavingsDirection
+  amount     Decimal          @db.Decimal(18, 2)
+  balanceAfter Decimal        @db.Decimal(18, 2)
+  /// deposit | withdrawal | loan_offset_remainder | charge_sweep | adjustment
+  source     String
+  /// The M-Pesa receipt or PaymentIntent id that brought the money, when there was one.
+  ref        String?
+  note       String?
+  createdById String? // staff actor on manual entries; null for automated
+  createdAt  DateTime         @default(now())
+
+  org     Org            @relation(fields: [orgId], references: [id])
+  account SavingsAccount @relation(fields: [accountId], references: [id])
+
+  @@index([orgId, borrowerId, createdAt])
+  @@index([accountId])
+}
+
+/// ONE PAYMENT REQUEST. Every STK push in the product is one of these rows.
+///
+/// This used to be a repayment-only record (loanId + phone + amount). It is now the
+/// single spine every payment travels down — a registration fee at the counter, a
+/// processing fee on an application, an installment a collections agent prompts for
+/// over the phone, a custom amount an officer types. The surfaces differ; the record,
+/// the reconciliation and the audit trail do not.
+///
+/// THE AMOUNT IS NEVER TAKEN FROM THE CLIENT for a charge — it is read from the Charge
+/// row server-side. A price that a browser can set is not a price.
 model PaymentIntent {
   id                String       @id @default(uuid())
   orgId             String
@@ -1104,11 +1369,33 @@ model PaymentIntent {
   resultDesc        String?
   mpesaReceipt      String?
   raw               Json?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+
+  /// What it is for, who it is for, and who asked — the three things that let a
+  /// receipt land in the right place without anybody having to work it out later.
+  purpose     PaymentPurpose    @default(INSTALLMENT)
+  chargeId    String?
+  borrowerId  String?
+  beneficiary ChargeBeneficiary @default(LENDER)
+  /// The M-Pesa AccountReference actually sent. Also how an unprompted C2B payment
+  /// with the same reference finds its way home.
+  reference   String?
+  /// Which surface it was raised from: c360 | collections | counter | field | portal | funnel.
+  channel     String?
+  /// StaffUser.id of whoever pressed the button. Null when the customer paid themselves.
+  requestedById String?
+  /// Set once the money has been applied (installment allocated, fee recorded), so a
+  /// duplicate callback cannot bank the same shilling twice.
+  settledAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  charge Charge? @relation(fields: [chargeId], references: [id])
 
   @@index([orgId, state])
   @@index([orgId, loanId])
+  @@index([orgId, borrowerId])
+  @@index([orgId, purpose, state])
 }
 
 /// Paybill C2B confirmations (webhooks) — allocation to schedule is a job.
@@ -1718,4 +2005,76 @@ model RateLimit {
   expiresAt   DateTime
 
   @@index([expiresAt])
+}
+
+// ── Compliance: the data-subject register ─────────────────────────────────────
+
+enum ComplianceRequestKind {
+  /// Kenya DPA 2019 s.26(a) — right of access. A copy of everything held.
+  BORROWER_EXPORT
+  /// s.40 — right to erasure. Honoured as far as the AML floor allows; see
+  /// src/lib/compliance/erasure.ts.
+  BORROWER_ERASURE
+  /// The lender's own book, machine-readable. Offboarding, audit, portability.
+  ORG_EXPORT
+  /// Tenant wipe. An org admin may ASK; only a platform admin may execute.
+  ORG_DELETION
+}
+
+enum ComplianceRequestStatus {
+  /// Raised, awaiting a second pair of eyes (or the platform, for a tenant wipe).
+  PENDING
+  /// Approved, not yet executed. Destructive requests wait here.
+  APPROVED
+  /// Done. `result` carries what was erased and what the law made us keep.
+  COMPLETED
+  REJECTED
+  /// Execution ran and threw. Kept, never retried silently.
+  FAILED
+}
+
+/// Every data-subject request, and what we did about it.
+///
+/// The Data Protection Act gives a borrower rights (access, erasure) and gives the
+/// ODPC the right to ask a lender how those requests were handled. This table is
+/// that answer: who asked, who approved, when it ran, what was deleted, and — the
+/// part that matters in a lending business — WHAT WE REFUSED TO DELETE AND WHY.
+///
+/// IT HOLDS NO PERSONAL DATA. An export's bytes stream to the browser and are never
+/// stored; `result` carries counts and reasons, not rows. Erasing a person must not
+/// leave a copy of them in the register that recorded the erasure. `subjectLabel` is
+/// the one exception and is deliberately coarse (a masked phone), so the register
+/// stays readable after the borrower row itself has been anonymised.
+model ComplianceRequest {
+  id     String                  @id @default(uuid())
+  orgId  String
+  kind   ComplianceRequestKind
+  status ComplianceRequestStatus @default(PENDING)
+
+  /// Borrower.id for the subject-scoped kinds. Survives anonymisation (the row
+  /// stays, its PII does not), so the register can still link to the record.
+  subjectId    String?
+  /// A masked handle for the register's own list — "2547••••1234". Never a name.
+  subjectLabel String?
+
+  /// Mandatory. An irreversible act explains itself, in the words of whoever asked.
+  reason String
+
+  requestedById String? // StaffUser.id
+  decidedById   String? // StaffUser.id — the second pair of eyes
+  decidedAt     DateTime?
+  completedAt   DateTime?
+
+  /// The assessment before, and the outcome after: what was deleted, what was kept,
+  /// under which retention floor. Counts and reasons only.
+  result Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, status])
+  @@index([orgId, createdAt])
+  @@index([orgId, subjectId])
 }

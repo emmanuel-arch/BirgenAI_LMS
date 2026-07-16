@@ -216,8 +216,13 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
       setOpen(true); dismissGreet();
     };
     const onEvent = (e: Event) => {
-      const m = (e as CustomEvent).detail?.model;
-      if (isRiriModel(m)) setModel(m);
+      const detail = (e as CustomEvent).detail ?? {};
+      if (isRiriModel(detail.model)) setModel(detail.model);
+      // A caller may hand Riri an opening question — Field Ops does this with
+      // the live route context — asked immediately so she answers on arrival.
+      if (typeof detail.prompt === "string" && detail.prompt.trim()) {
+        setTimeout(() => askRef.current(detail.prompt.trim()), 300);
+      }
       setOpen(true); dismissGreet();
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };

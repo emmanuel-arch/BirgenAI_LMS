@@ -13,6 +13,7 @@ import { PLAN_ORDER, PLANS } from "@/lib/billing/plans";
 import { invalidateEntitlements } from "@/lib/billing/entitlements";
 import { creditTopUp } from "@/lib/sms/wallet";
 import { flushQueuedSms } from "@/lib/sms/send";
+import { deleteTenant, tenantDeletionBlockers } from "@/lib/compliance/tenant";
 
 export const runtime = "nodejs";
 
@@ -75,9 +76,41 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!(await authorized(req))) return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
 
-  let body: { orgId?: string; action?: string; plan?: string; units?: number; note?: string };
+  let body: { orgId?: string; action?: string; plan?: string; units?: number; note?: string; confirmSlug?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
   if (!body.orgId) return NextResponse.json({ success: false, message: "orgId is required." }, { status: 400 });
+
+  // ── Destroy a tenant. The end of the line; see src/lib/compliance/tenant.ts. ──
+  if (body.action === "delete-org") {
+    const note = body.note?.trim() ?? "";
+    if (note.length < 10) {
+      return NextResponse.json({ success: false, message: "A note explaining the deletion is required." }, { status: 400 });
+    }
+    return runAsPlatform(async () => {
+      const org = await prisma.org.findUnique({ where: { id: body.orgId! }, select: { id: true, slug: true, name: true } });
+      if (!org) return NextResponse.json({ success: false, message: "Org not found." }, { status: 404 });
+
+      // Typing the slug is the last gate. A destructive button that fires on one
+      // click is a button that eventually fires by accident.
+      if (body.confirmSlug !== org.slug) {
+        return NextResponse.json(
+          { success: false, message: `To confirm, type the org's slug exactly: "${org.slug}".` },
+          { status: 400 },
+        );
+      }
+
+      const blockers = await tenantDeletionBlockers(org.id);
+      if (blockers.length) {
+        return NextResponse.json({ success: false, blockers, message: blockers[0].message }, { status: 409 });
+      }
+
+      const outcome = await deleteTenant(org.id);
+
+      // Close out the lender's own request, if they raised one. Their register row
+      // dies with them; the audit row (written inside deleteTenant) is what remains.
+      return NextResponse.json({ success: true, ...outcome, note });
+    });
+  }
 
   // Grant SMS credits without money moving — sales sweeteners, goodwill after an
   // outage, demo stock. The note is mandatory BECAUSE no money moves: the ledger

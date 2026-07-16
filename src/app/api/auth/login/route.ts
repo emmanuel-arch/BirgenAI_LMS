@@ -12,6 +12,7 @@ import { runAsPlatform, runWithOrg } from "@/lib/db/context";
 import { createSession } from "@/lib/auth";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { issueDailyLoginOtp, verifyDailyLoginOtp } from "@/lib/otp";
+import { withDbRetry, isTransientDbError, wakingUpResponse } from "@/lib/db/retry";
 
 export const runtime = "nodejs";
 
@@ -29,22 +30,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, message: "Email and password are required." }, { status: 400 });
   }
 
+  // A cold Supabase pooler P1001s on the first hit; ride it out on the reachability-
+  // sensitive reads and report a persistent blip as a 503, never a wrong-password 401.
+  try {
   // A staff account opens a lender's entire loan book. Throttle per account
   // (credential stuffing) and per IP (spraying one password across many accounts).
-  const limited = await rateLimit(
+  const limited = await withDbRetry(() => rateLimit(
     [
       { name: "login:email", subject: email, max: 10, windowSec: 900 },
       { name: "login:ip", subject: clientIp(req), max: 30, windowSec: 900 },
     ],
     "Too many sign-in attempts. Please wait before trying again.",
-  );
+  ));
   if (limited) return limited;
 
   // Sign-in is inherently cross-tenant: the same email may exist in several orgs
   // and we have no tenant identity until the credentials check out. This is one
   // of the few legitimate platform-scoped reads. (orgSlug disambiguates.)
-  return runAsPlatform(async () => {
-    const staff = await prisma.staffUser.findFirst({
+  return await runAsPlatform(async () => {
+    const staff = await withDbRetry(() => prisma.staffUser.findFirst({
       where: {
         email,
         status: "ACTIVE",
@@ -52,7 +56,7 @@ export async function POST(req: NextRequest) {
       },
       include: { role: { select: { id: true, title: true } }, org: { select: { id: true, slug: true, status: true, isDemo: true } } },
       orderBy: { createdAt: "asc" },
-    });
+    }));
 
     // Uniform failure message — never reveal which part was wrong.
     const fail = () => NextResponse.json({ success: false, message: "Invalid email or password." }, { status: 401 });
@@ -114,4 +118,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, orgSlug: staff.org.slug });
   });
+  } catch (err) {
+    if (isTransientDbError(err)) return wakingUpResponse();
+    throw err;
+  }
 }

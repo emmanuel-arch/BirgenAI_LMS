@@ -1,31 +1,38 @@
 "use client";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STATEMENT CRUNCHER — the portal's affordability engine, at the counter.
+// STATEMENT CRUNCHER — step three of onboarding: registered → KYC-verified →
+// statement crunched → application. It lives under Borrowers (below KYC
+// Verification) because it IS the next thing the onboarding officer does.
 //
-// A customer hands the officer their 6-month M-Pesa statement (and the SMS
-// access code that opens it); the officer crunches it HERE, watches the same
-// cinematic sequence the borrower sees on the portal (CrunchTheatre — the
-// theatre is staging around a real API round-trip, nothing completes until the
-// server answers), and gets the same score out of 900, the same PD, the same
-// APPROVE / REFER / DECLINE.
+// Landing here shows the QUEUE: every KYC-verified customer whose file has no
+// score yet — the people whose current step is exactly this. Pick one (or
+// arrive pre-picked from their Customer-360 via ?borrowerId=…&from=360), crunch
+// their 6-month M-Pesa statement through the same cinematic engine the portal
+// runs (CrunchTheatre — staging around a real API round-trip), and the verdict
+// is SAVED to their file: a ScoreSnapshot in their score history plus the full
+// report as a document in their bio. ?from=360 offers the way straight back.
 //
-// The score doesn't stop here: "Start application" carries the FEATURES into
-// the assisted-apply panel, where the server recomputes the score itself and
-// enforces the approved-limit wall — the same wall the funnel has. A statement
-// crunched at the counter and a statement crunched at home end in the same
-// arithmetic, which is the entire point.
+// The engine also guards identity: the holder named on the statement must be
+// the customer being scored (staff can override a near-miss — audited).
 // ─────────────────────────────────────────────────────────────────────────────
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useLoad } from "@/lib/hooks/useLoad";
 import {
   Gauge, Upload, FileText, Lock, Loader2, Search, ArrowRight, RefreshCw, AlertTriangle,
-  CheckCircle2, HelpCircle, TrendingUp, TrendingDown,
+  CheckCircle2, HelpCircle, TrendingUp, TrendingDown, ShieldCheck, ArrowLeft,
 } from "lucide-react";
 import { PageHeader } from "@/components/shell/PageHeader";
+import { BorrowerAvatar } from "@/components/kyc/BorrowerAvatar";
 import CrunchTheatre, { type CrunchData } from "@/components/statement/CrunchTheatre";
 
 type Picked = { id: string; name: string | null; phone: string };
+type QueueRow = {
+  id: string; name: string | null; phone: string; nationalId: string | null;
+  kycStatus: string; creditScore: number | null; portraitUrl: string | null;
+};
 
 const kes = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 
@@ -37,9 +44,21 @@ const DECISION_TONE: Record<string, string> = {
 };
 
 export default function CrunchPage() {
+  return (
+    <Suspense fallback={null}>
+      <Crunch />
+    </Suspense>
+  );
+}
+
+function Crunch() {
   const router = useRouter();
+  const search = useSearchParams();
+  const from360 = search.get("from") === "360";
+  const wantedId = search.get("borrowerId");
   const fileRef = useRef<HTMLInputElement>(null);
   const [q, setQ] = useState("");
+  const [queue, setQueue] = useState<QueueRow[] | null>(null);
   const [results, setResults] = useState<Picked[]>([]);
   const [borrower, setBorrower] = useState<Picked | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -47,6 +66,24 @@ export default function CrunchPage() {
   const [crunching, setCrunching] = useState(false);
   const [data, setData] = useState<CrunchData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<"saving" | "saved" | "failed" | null>(null);
+
+  // The queue: KYC-verified customers with no score — their current step is here.
+  // The same call resolves a ?borrowerId= deep link (from the 360's kebab).
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/console/borrowers");
+      const d = await res.json();
+      if (!d.success) return;
+      const rows = (d.borrowers ?? []) as QueueRow[];
+      setQueue(rows.filter((b) => b.kycStatus === "VERIFIED" && b.creditScore == null));
+      if (wantedId) {
+        const hit = rows.find((b) => b.id === wantedId);
+        if (hit) setBorrower({ id: hit.id, name: hit.name, phone: hit.phone });
+      }
+    } catch { /* queue is best-effort; search still works */ }
+  }, [wantedId]);
+  useLoad(load);
 
   const searchBorrowers = async () => {
     if (!q.trim()) return;
@@ -57,6 +94,23 @@ export default function CrunchPage() {
     } catch { /* search is best-effort */ }
   };
 
+  // The verdict lands on their file the moment the theatre completes — the
+  // snapshot is their score history, the document is the report in their bio.
+  const persist = useCallback(async (d: CrunchData, who: Picked) => {
+    setSaved("saving");
+    try {
+      const res = await fetch(`/api/console/borrowers/${who.id}/crunch-report`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creditScore: d.creditScore, features: d.features, affordability: d.affordability,
+          monthly: d.monthly, transactionCount: d.transactionCount, nameCheck: d.nameCheck ?? null,
+        }),
+      });
+      const out = await res.json();
+      setSaved(out.success ? "saved" : "failed");
+    } catch { setSaved("failed"); }
+  }, []);
+
   const startApplication = () => {
     if (!data) return;
     // The features ride sessionStorage into the assisted-apply panel — the
@@ -66,20 +120,25 @@ export default function CrunchPage() {
       features: data.features,
       score: { score: data.creditScore.score, band: data.creditScore.band, decision: data.creditScore.decision },
     }));
-    router.push("/console/applications?apply=1&crunch=1");
+    router.push("/console/applications/new?crunch=1");
   };
 
-  const reset = () => { setData(null); setFile(null); setPassword(""); setError(null); };
+  const reset = () => { setData(null); setFile(null); setPassword(""); setError(null); setSaved(null); };
 
   const field = "flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3";
   const input = "flex-1 bg-transparent outline-none text-sm py-2.5 placeholder:text-zinc-400";
 
   return (
     <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
+      {from360 && borrower && (
+        <Link href={`/console/borrowers/${borrower.id}`} className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
+          <ArrowLeft className="h-4 w-4" /> Back to {borrower.name ?? "Customer 360"}
+        </Link>
+      )}
       <PageHeader
         icon={Gauge}
         title="Statement Cruncher"
-        subtitle="Crunch a customer's 6-month M-Pesa statement at the counter — same engine, same score out of 900, same decision the portal gives."
+        subtitle="After KYC comes the statement: six months of M-Pesa becomes a score out of 900 — saved to the customer's file."
       />
 
       {error && (
@@ -89,72 +148,104 @@ export default function CrunchPage() {
       )}
 
       {!data ? (
-        <div className="glass mt-4 p-5 sm:p-6">
-          {/* Who this statement belongs to — optional, but it's what lets the
-              score become an application in one tap. */}
-          <p className="text-sm font-semibold">Whose statement is this?</p>
-          {!borrower ? (
-            <>
-              <div className="mt-2 flex max-w-md gap-2">
-                <div className={`${field} flex-1`}>
-                  <Search className="h-4 w-4 shrink-0 text-zinc-400" />
-                  <input className={input} placeholder="Find the borrower — name, phone or ID (optional)"
-                    value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && searchBorrowers()} />
-                </div>
-                <button onClick={searchBorrowers} className="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white">Search</button>
+        <>
+          {/* The queue — verified, unscored, waiting on exactly this step. */}
+          {!borrower && (
+            <div className="glass mt-4 p-5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600" /> Passed KYC — awaiting their first crunch
+                </p>
+                {queue && <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-[11px] font-semibold text-zinc-600">{queue.length}</span>}
               </div>
-              <div className="mt-2 max-w-md space-y-1">
-                {results.map((b) => (
-                  <button key={b.id} onClick={() => { setBorrower(b); setResults([]); }}
-                    className="flex w-full items-center justify-between rounded-lg border border-zinc-900/10 bg-white/70 px-3 py-2 text-left text-sm hover:bg-white">
-                    <span className="font-medium">{b.name ?? "Borrower"}</span>
-                    <span className="text-xs text-zinc-500">{b.phone}</span>
+              {!queue && <div className="mt-4 flex justify-center"><Loader2 className="h-4 w-4 animate-spin text-zinc-400" /></div>}
+              {queue?.length === 0 && (
+                <p className="mt-2 text-xs text-zinc-500">Nobody is waiting — every verified customer has a score. Use search below for a re-crunch.</p>
+              )}
+              <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+                {queue?.slice(0, 8).map((b) => (
+                  <button key={b.id} onClick={() => setBorrower({ id: b.id, name: b.name, phone: b.phone })}
+                    className="flex items-center gap-2.5 rounded-xl border border-zinc-900/10 bg-white/70 px-3 py-2 text-left hover:bg-white">
+                    <BorrowerAvatar name={b.name ?? b.phone} portraitUrl={b.portraitUrl} verified size="sm" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{b.name ?? b.phone}</span>
+                      <span className="block text-[11px] text-zinc-500">{b.phone}</span>
+                    </span>
+                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
                   </button>
                 ))}
               </div>
-              <p className="mt-1.5 text-[11px] text-zinc-400">You can crunch without picking anyone — the score just won&apos;t attach to a record.</p>
-            </>
-          ) : (
-            <p className="mt-2 text-xs text-zinc-500">
-              For <span className="font-semibold text-zinc-800">{borrower.name ?? borrower.phone}</span>{" "}
-              <button className="underline" onClick={() => setBorrower(null)}>change</button>
-            </p>
+            </div>
           )}
 
-          {/* The statement + the code that opens it. */}
-          <div className="mt-5 border-t border-zinc-900/10 pt-4">
-            <p className="flex items-center gap-1.5 text-xs text-zinc-500">
-              <HelpCircle className="h-3.5 w-3.5 text-emerald-600" />
-              The customer gets it free: dial *334# → M-PESA Statement → Full Statement → 6 Months. Safaricom emails a
-              password-protected PDF; the SMS access code (or their ID number) opens it.
-            </p>
+          <div className="glass mt-4 p-5 sm:p-6">
+            {/* Who this statement belongs to. */}
+            <p className="text-sm font-semibold">Whose statement is this?</p>
+            {!borrower ? (
+              <>
+                <div className="mt-2 flex max-w-md gap-2">
+                  <div className={`${field} flex-1`}>
+                    <Search className="h-4 w-4 shrink-0 text-zinc-400" />
+                    <input className={input} placeholder="Find any borrower — name, phone or ID"
+                      value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && searchBorrowers()} />
+                  </div>
+                  <button onClick={searchBorrowers} className="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white">Search</button>
+                </div>
+                <div className="mt-2 max-w-md space-y-1">
+                  {results.map((b) => (
+                    <button key={b.id} onClick={() => { setBorrower(b); setResults([]); }}
+                      className="flex w-full items-center justify-between rounded-lg border border-zinc-900/10 bg-white/70 px-3 py-2 text-left text-sm hover:bg-white">
+                      <span className="font-medium">{b.name ?? "Borrower"}</span>
+                      <span className="text-xs text-zinc-500">{b.phone}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[11px] text-zinc-400">You can crunch without picking anyone — the score just won&apos;t attach to a record.</p>
+              </>
+            ) : (
+              <p className="mt-2 text-xs text-zinc-500">
+                For <span className="font-semibold text-zinc-800">{borrower.name ?? borrower.phone}</span>{" "}
+                <button className="underline" onClick={() => setBorrower(null)}>change</button>
+                <span className="ml-2 text-zinc-400">· the statement must be in their name — the engine checks.</span>
+              </p>
+            )}
 
-            <div onClick={() => fileRef.current?.click()}
-              className="mt-3 cursor-pointer rounded-xl border border-dashed border-zinc-900/20 bg-white/70 px-4 py-8 text-center hover:border-[var(--brand)]">
-              <Upload className="mx-auto mb-2 h-6 w-6" style={{ color: "var(--brand)" }} />
-              {file
-                ? <p className="flex items-center justify-center gap-2 text-sm"><FileText className="h-4 w-4" /> {file.name}</p>
-                : <p className="text-sm text-zinc-600">Tap to choose the statement PDF</p>}
-              <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="hidden"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            {/* The statement + the code that opens it. */}
+            <div className="mt-5 border-t border-zinc-900/10 pt-4">
+              <p className="flex items-center gap-1.5 text-xs text-zinc-500">
+                <HelpCircle className="h-3.5 w-3.5 text-emerald-600" />
+                The customer gets it free: dial *334# → M-PESA Statement → Full Statement → 6 Months. Safaricom emails a
+                password-protected PDF; the SMS access code (or their ID number) opens it.
+              </p>
+
+              <div onClick={() => fileRef.current?.click()}
+                className="mt-3 cursor-pointer rounded-xl border border-dashed border-zinc-900/20 bg-white/70 px-4 py-8 text-center hover:border-[var(--brand)]">
+                <Upload className="mx-auto mb-2 h-6 w-6" style={{ color: "var(--brand)" }} />
+                {file
+                  ? <p className="flex items-center justify-center gap-2 text-sm"><FileText className="h-4 w-4" /> {file.name}</p>
+                  : <p className="text-sm text-zinc-600">Tap to choose the statement PDF</p>}
+                <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              </div>
+
+              <div className={`${field} mt-3 max-w-md`}>
+                <Lock className="h-4 w-4 shrink-0 text-zinc-400" />
+                <input className={input} placeholder="Statement password (SMS code or ID number)"
+                  value={password} onChange={(e) => setPassword(e.target.value)} />
+              </div>
+
+              <button onClick={() => { setError(null); if (file) setCrunching(true); else setError("Choose the statement PDF first."); }}
+                disabled={crunching}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                style={{ backgroundColor: "var(--brand)" }}>
+                {crunching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gauge className="h-4 w-4" />} Crunch the statement
+              </button>
             </div>
-
-            <div className={`${field} mt-3 max-w-md`}>
-              <Lock className="h-4 w-4 shrink-0 text-zinc-400" />
-              <input className={input} placeholder="Statement password (SMS code or ID number)"
-                value={password} onChange={(e) => setPassword(e.target.value)} />
-            </div>
-
-            <button onClick={() => { setError(null); file ? setCrunching(true) : setError("Choose the statement PDF first."); }}
-              disabled={crunching}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-              style={{ backgroundColor: "var(--brand)" }}>
-              {crunching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Gauge className="h-4 w-4" />} Crunch the statement
-            </button>
           </div>
-        </div>
+        </>
       ) : (
-        <ResultPanel data={data} borrower={borrower} onStartApplication={startApplication} onReset={reset} />
+        <ResultPanel data={data} borrower={borrower} saved={saved} from360={from360}
+          onStartApplication={startApplication} onReset={reset} />
       )}
 
       {/* The same cinematic sequence the borrower sees — decrypt → parse →
@@ -164,7 +255,11 @@ export default function CrunchPage() {
           file={file}
           password={password || undefined}
           borrowerName={borrower?.name ?? null}
-          onComplete={(d) => { setData(d); setCrunching(false); }}
+          allowOverride
+          onComplete={(d) => {
+            setData(d); setCrunching(false);
+            if (borrower) void persist(d, borrower);
+          }}
           onFail={(message) => { setCrunching(false); setError(message); }}
         />
       )}
@@ -174,9 +269,11 @@ export default function CrunchPage() {
 
 // ── The verdict, and what to do with it ───────────────────────────────────────
 
-function ResultPanel({ data, borrower, onStartApplication, onReset }: {
+function ResultPanel({ data, borrower, saved, from360, onStartApplication, onReset }: {
   data: CrunchData;
   borrower: Picked | null;
+  saved: "saving" | "saved" | "failed" | null;
+  from360: boolean;
   onStartApplication: () => void;
   onReset: () => void;
 }) {
@@ -197,6 +294,13 @@ function ResultPanel({ data, borrower, onStartApplication, onReset }: {
               </p>
               <p className={`text-lg font-bold ${TONE[cs.tone] ?? ""}`}>{cs.band}</p>
               <p className="text-xs text-zinc-500">PD {cs.pdPercent} · {cs.modelVersion}</p>
+              {borrower && (
+                <p className={`mt-1 inline-flex items-center gap-1 text-[11px] font-medium ${saved === "saved" ? "text-emerald-600" : saved === "failed" ? "text-rose-600" : "text-zinc-500"}`}>
+                  {saved === "saving" && <><Loader2 className="h-3 w-3 animate-spin" /> Saving to their file…</>}
+                  {saved === "saved" && <><CheckCircle2 className="h-3 w-3" /> Saved — score history + report document on their 360</>}
+                  {saved === "failed" && <><AlertTriangle className="h-3 w-3" /> Could not save the report to their file</>}
+                </p>
+              )}
             </div>
           </div>
           <div className="text-right">
@@ -218,11 +322,19 @@ function ResultPanel({ data, borrower, onStartApplication, onReset }: {
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {borrower ? (
-            <button onClick={onStartApplication}
-              className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white"
-              style={{ backgroundColor: "var(--brand)" }}>
-              <CheckCircle2 className="h-4 w-4" /> Start application with this statement <ArrowRight className="h-4 w-4" />
-            </button>
+            <>
+              <button onClick={onStartApplication}
+                className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white"
+                style={{ backgroundColor: "var(--brand)" }}>
+                <CheckCircle2 className="h-4 w-4" /> Start application with this statement <ArrowRight className="h-4 w-4" />
+              </button>
+              {from360 && (
+                <Link href={`/console/borrowers/${borrower.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2.5 text-sm font-medium text-zinc-700">
+                  <ArrowLeft className="h-4 w-4" /> Back to their 360
+                </Link>
+              )}
+            </>
           ) : (
             <p className="text-xs text-zinc-500">Pick a borrower before crunching to turn this score into an application.</p>
           )}

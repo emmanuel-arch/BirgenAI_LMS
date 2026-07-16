@@ -42,6 +42,9 @@ export type IprsPerson = {
   serialNumber: string | null;
   placeOfBirth: string | null;
   placeOfLive: string | null;
+  /** The live registry (SHA-era dataset) also knows how to reach them. */
+  phone: string | null;
+  email: string | null;
   /** Registry portrait, when the bureau returns one (base64/bytes). */
   photo: string | null;
 };
@@ -90,13 +93,32 @@ async function spinToken(): Promise<string> {
   return data.token;
 }
 
+// The wire shape drifted from the July-2026 docs: live lookups return the person
+// under `response` (not `data`) with first/middle/last_name (not surname/other_name),
+// plus contact + residence fields the docs never mentioned. Decoded from a real
+// lookup on 2026-07-13; both spellings are accepted so a rollback on their side
+// doesn't break us.
 type SpinIprsData = {
   id_number?: string; surname?: string; first_name?: string; other_name?: string;
+  middle_name?: string; last_name?: string; identification_number?: string;
   gender?: string; date_of_birth?: string; citizenship?: string; serial_number?: string;
-  place_of_birth?: string; place_of_live?: string; photo?: string | null;
+  id_serial?: string; place_of_birth?: string; place_of_live?: string; photo?: string | null;
+  phone?: string; email?: string;
+  county?: string; sub_county?: string; ward?: string; village_estate?: string;
 };
 
 const s = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
+
+/** "NAIROBI / EMBAKASI EAST / EMBAKASI / Caltex-Donholm" → a residence line an officer can read. */
+function residenceOf(d: SpinIprsData): string | null {
+  const title = (v: string | null) =>
+    v && v === v.toUpperCase() ? v.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) : v;
+  const parts = [s(d.village_estate), title(s(d.ward)), title(s(d.sub_county)), title(s(d.county))].filter(Boolean);
+  // De-duplicate adjacent repeats (ward and sub-county are often the same word).
+  const seen = new Set<string>();
+  const out = parts.filter((p) => { const k = p!.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+  return out.length ? out.join(", ") : null;
+}
 
 /**
  * Look a person up in the registry by national ID. `consentCollectedBy` is the
@@ -131,28 +153,32 @@ export async function spinIprsIdentity(nationalId: string, consentCollectedBy: s
     }
     if (!res.ok) return { ok: false, mode: "live", error: `Registry returned HTTP ${res.status}.` };
 
-    const body = (await res.json().catch(() => ({}))) as { code?: unknown; message?: string; data?: SpinIprsData | null };
-    const d = body.data;
-    if (!d || (!d.first_name && !d.surname && !d.id_number)) {
+    const body = (await res.json().catch(() => ({}))) as {
+      code?: unknown; message?: string; data?: SpinIprsData | null; response?: SpinIprsData | null;
+    };
+    const d = body.response ?? body.data;
+    if (!d || (!d.first_name && !d.surname && !d.last_name && !d.id_number && !d.identification_number)) {
       return { ok: false, mode: "live", error: body.message || "No record found for that ID number.", notFound: true };
     }
 
     const firstName = s(d.first_name);
-    const otherName = s(d.other_name);
-    const surname = s(d.surname);
+    const otherName = s(d.other_name) ?? s(d.middle_name);
+    const surname = s(d.surname) ?? s(d.last_name);
     return {
       ok: true,
       mode: "live",
       person: {
-        idNumber: s(d.id_number) ?? identifier,
+        idNumber: s(d.id_number) ?? s(d.identification_number) ?? identifier,
         firstName, otherName, surname,
         fullName: [firstName, otherName, surname].filter(Boolean).join(" ") || null,
         gender: s(d.gender),
         dob: s(d.date_of_birth),
         citizenship: s(d.citizenship),
-        serialNumber: s(d.serial_number),
+        serialNumber: s(d.serial_number) ?? s(d.id_serial),
         placeOfBirth: s(d.place_of_birth),
-        placeOfLive: s(d.place_of_live),
+        placeOfLive: s(d.place_of_live) ?? residenceOf(d),
+        phone: s(d.phone),
+        email: s(d.email),
         photo: s(d.photo),
       },
     };

@@ -100,6 +100,48 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     return NextResponse.json({ success: true });
   }
 
+  // ── Drop a location pin (field agent is with the customer) ──────────────────
+  //
+  // The onboarding snapshot is captured from the customer's own device with consent.
+  // But plenty of customers were registered before that flow, or over the counter,
+  // and have no pin — so they never surface on a field route and cannot be disbursed
+  // to once the location gate is on. This lets an officer standing WITH the customer
+  // drop the pin by hand: search them up, open their 360, place it on the map, and
+  // (optionally) add the landmark/street/lane that a lat-lng alone never tells you.
+  if (action === "location") {
+    const which = body.locationType === "home" ? "home" : "business";
+    const lat = Number(body.lat), lng = Number(body.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      return NextResponse.json({ success: false, message: "Drop the pin on the map first." }, { status: 400 });
+    }
+    // A lat-lng is where; the landmark/street/lane is how a rider actually finds it.
+    const parts = [body.landmark, body.street, body.lane, body.note]
+      .map((x) => (typeof x === "string" ? x.trim() : "")).filter(Boolean);
+    const address = parts.join(", ") || (typeof body.address === "string" ? body.address.trim() : "") || null;
+
+    const data: Prisma.BorrowerUpdateInput = { geoConsentAt: new Date() };
+    if (which === "home") {
+      data.homeLat = lat; data.homeLng = lng;
+      if (address) data.homeAddress = address;
+      // The primary lat/lng is what routes and the disbursement gate read. If there
+      // is no primary pin yet, promote this one so the customer stops being invisible.
+      if (borrower.lat == null || borrower.lng == null) {
+        data.lat = lat; data.lng = lng; data.locationType = "home";
+        if (address) data.locationAddress = address;
+      }
+    } else {
+      data.lat = lat; data.lng = lng; data.locationType = "business";
+      if (address) data.locationAddress = address;
+    }
+
+    await prisma.borrower.update({ where: { id }, data });
+    await audit({
+      locationType: which, lat: Number(lat.toFixed(5)), lng: Number(lng.toFixed(5)),
+      address, source: "customer-360-drop",
+    } as Prisma.InputJsonValue);
+    return NextResponse.json({ success: true, locationType: which });
+  }
+
   // ── Next of kin ──────────────────────────────────────────────────────────────
   if (action === "next-of-kin") {
     const name = String(body.name ?? "").trim();

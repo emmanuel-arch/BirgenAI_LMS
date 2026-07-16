@@ -46,7 +46,8 @@ DECLARE
     'LoanApplication','LoanOffer','Guarantor','Collateral','Document','Loan','Installment','Disbursement','PaymentIntent','C2BReceipt',
     'FloatLedger','ReconciliationException','SmsMessage','SmsTemplate','SmsWallet','SmsTopUp','ScoreSnapshot','PortfolioRun','GeoPin','UsageEvent','TuningProfile','Invoice','InvoiceLine',
     'PromiseToPay','CollectionCall','CollectionTicket','SmsCampaign','EmailMessage',
-    'MetricDefinition','RiriQueryLog'
+    'MetricDefinition','RiriQueryLog','ComplianceRequest','Charge','GraduationEvent',
+    'SavingsAccount','SavingsTransaction'
   ];
 BEGIN
   FOREACH t IN ARRAY tables LOOP

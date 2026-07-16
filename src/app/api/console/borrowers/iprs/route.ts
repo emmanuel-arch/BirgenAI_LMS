@@ -93,6 +93,8 @@ export async function POST(req: NextRequest) {
         serialNumber: ext.serial,
         placeOfBirth: null,
         placeOfLive: null,
+        phone: null,
+        email: null,
         photo: null,
       };
       found = true;

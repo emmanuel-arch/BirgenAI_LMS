@@ -11,8 +11,9 @@ import { readBorrowerSession } from "@/lib/portal/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
+import { prisma } from "@/lib/prisma";
 import { extractPdfText, PdfPasswordRequiredError, PdfPasswordIncorrectError } from "@/lib/statement/extract-pdf";
-import { parseMpesaStatement } from "@/lib/statement/mpesa-parser";
+import { parseMpesaStatement, extractStatementName, namesMatch } from "@/lib/statement/mpesa-parser";
 import { crunch } from "@/lib/statement/features";
 import { scoreThinFileAuto } from "@/lib/statement/score-thinfile";
 
@@ -76,6 +77,50 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // ── IDENTITY GUARD — whose statement is this? ────────────────────────────
+    // The fraud we are closing: upload someone ELSE's statement, inherit their
+    // good score, default under your own name. The holder printed on the
+    // statement must be the person being scored. Portal borrowers are checked
+    // against their own record (no way around it); at the counter the check
+    // runs against the picked borrower and a STAFF override exists for the
+    // legitimate near-misses (M-Pesa carrying a different one of the three
+    // registry names) — every override is audited by name.
+    const statementName = extractStatementName(text);
+    const expectedName = borrower
+      ? await prisma.borrower.findFirst({
+          where: { orgId, phone: borrower.phone },
+          select: { firstName: true, otherName: true },
+        }).then((b) => [b?.firstName, b?.otherName].filter(Boolean).join(" ").trim() || null)
+      : (((form.get("borrowerName") as string) || "").trim() || null);
+    const overrideAsked = form.get("nameOverride") === "1" && !!staff?.user?.id && !borrower;
+    let nameCheck: { statementName: string | null; expectedName: string; matched: boolean; overridden: boolean } | null = null;
+
+    if (expectedName && statementName) {
+      const { match } = namesMatch(expectedName, statementName);
+      nameCheck = { statementName, expectedName, matched: match, overridden: !match && overrideAsked };
+      if (!match && !overrideAsked) {
+        return NextResponse.json({
+          success: false,
+          nameMismatch: true,
+          statementName,
+          expectedName,
+          message: `This statement belongs to “${statementName}” — not ${expectedName}. A statement only scores the person named on it.`,
+        });
+      }
+      if (nameCheck.overridden) {
+        await prisma.auditLog.create({
+          data: {
+            orgId, actorId: staff!.user!.id!, actorType: "staff", action: "crunch.name-override",
+            entity: "Borrower", entityId: expectedName,
+            meta: { statementName, expectedName },
+          },
+        }).catch(() => {});
+      }
+    } else if (expectedName) {
+      // Header unreadable — say so rather than silently skipping the check.
+      nameCheck = { statementName: null, expectedName, matched: false, overridden: false };
+    }
+
     const result = crunch(txns);
     const creditScore = scoreThinFileAuto(result.features);
 
@@ -101,6 +146,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       borrowerName: ((form.get("borrowerName") as string) || "").trim() || null,
+      nameCheck,
       transactionCount: txns.length,
       creditScore,
       ...result,

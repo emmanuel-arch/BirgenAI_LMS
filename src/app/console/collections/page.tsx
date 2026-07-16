@@ -10,9 +10,10 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
+import { RequestPaymentButton } from "@/components/payments/RequestPayment";
 import {
   PhoneCall, CalendarClock, Ticket as TicketIcon, Loader2, AlertTriangle, CheckCircle2,
-  Phone, ClipboardList, Banknote, UserRound, X, Plus, Search,
+  Phone, ClipboardList, UserRound, X, Plus, Search,
 } from "lucide-react";
 
 // ── Types mirrored from the APIs ──────────────────────────────────────────────
@@ -164,7 +165,6 @@ function QueueTab({ onChanged, setNotice, setError }: { onChanged: () => void; s
   const [rows, setRows] = useState<QueueRow[] | null>(null);
   const [bucket, setBucket] = useState<string>("all");
   const [logFor, setLogFor] = useState<QueueRow | null>(null);
-  const [stkFor, setStkFor] = useState<string | null>(null);
 
   const load = async () => {
     const res = await fetch("/api/console/collections/queue");
@@ -172,19 +172,6 @@ function QueueTab({ onChanged, setNotice, setError }: { onChanged: () => void; s
     if (data.success) setRows(data.rows);
   };
   useLoad(load);
-
-  const requestStk = async (r: QueueRow) => {
-    setStkFor(r.loanId); setError(null); setNotice(null);
-    try {
-      const res = await fetch(`/api/console/loans/${r.loanId}/stk`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: Math.min(r.amountOverdue, r.balance) }),
-      });
-      const data = await res.json();
-      if (!data.success) { setError(data.message || "Could not send the payment request."); return; }
-      setNotice(`Payment request sent to ${r.name} (${kes(Math.min(r.amountOverdue, r.balance))}).`);
-    } catch { setError("Could not send the payment request."); } finally { setStkFor(null); }
-  };
 
   const visible = (rows ?? []).filter((r) =>
     bucket === "all" ? true
@@ -242,10 +229,15 @@ function QueueTab({ onChanged, setNotice, setError }: { onChanged: () => void; s
                   <button onClick={() => setLogFor(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-white">
                     <ClipboardList className="h-3.5 w-3.5" /> Log call
                   </button>
-                  <button onClick={() => requestStk(r)} disabled={stkFor === r.loanId}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
-                    {stkFor === r.loanId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />} Request payment
-                  </button>
+                  {/* The SAME component the Customer-360, the counter and Field Ops use.
+                      An agent on a call can ask for the installment, a fee, or the part
+                      payment the customer just offered — without a second code path. */}
+                  <RequestPaymentButton
+                    borrowerId={r.borrowerId}
+                    borrowerName={r.name}
+                    channel="collections"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                  />
                 </div>
               </div>
             </div>

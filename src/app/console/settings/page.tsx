@@ -52,10 +52,16 @@ const FORMS: { kind: string; title: string; desc: string; fields: FieldSpec[] }[
     ],
   },
   {
-    kind: "KYC", title: "KYC / IPRS provider", desc: "Smile ID keys for identity, liveness and face match.",
+    // Identity is no longer one vendor's black box. Three providers do three jobs
+    // (Google Vision reads the card, IPRS confirms the human, AWS Rekognition
+    // confirms it is the same human) and they are PLATFORM credentials, held in the
+    // environment, not per-lender vault entries — every lender on BirgenAI verifies
+    // against the same national registry with the same engine. This card stays only
+    // for a lender who brings their OWN identity provider.
+    kind: "KYC", title: "Identity provider (optional)",
+    desc: "Identity is verified by the platform: the document is read by Google Vision, the person is confirmed against the national registry (IPRS), and the face is matched to the ID. Only fill this in if you bring your own provider.",
     fields: [
-      { key: "provider", label: "Provider", type: "select", options: ["smile-id", "custom"] },
-      { key: "partnerId", label: "Partner ID" },
+      { key: "provider", label: "Provider", type: "select", options: ["platform", "custom"] },
       { key: "apiKey", label: "API key", type: "password" },
       { key: "environment", label: "Environment", type: "select", options: ["production", "sandbox"] },
     ],

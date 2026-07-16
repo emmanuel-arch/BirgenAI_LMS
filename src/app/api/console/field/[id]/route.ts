@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { requireFeature } from "@/lib/billing/entitlements";
-import { rankAgents } from "@/lib/field/allocate";
+import { rankAgents, haversineKm } from "@/lib/field/allocate";
 
 export const runtime = "nodejs";
 
@@ -27,6 +27,33 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const visit = await prisma.fieldVisit.findFirst({ where: { id, orgId: session.user.orgId } });
   if (!visit) return NextResponse.json({ success: false, message: "Visit not found." }, { status: 404 });
+
+  // "Yes, I'll take it" — the Dispatch Inbox verb. The signed-in agent claims
+  // an open (or someone else's queued) request; distance is measured from THEIR
+  // last check-in so the inbox can show how far the ride is.
+  if (body.action === "accept") {
+    if (["VERIFIED", "FAILED", "CANCELLED"].includes(visit.status)) {
+      return NextResponse.json({ success: false, message: "This visit is already closed." }, { status: 409 });
+    }
+    const me = await prisma.staffUser.findFirst({
+      where: { id: session.user.id, orgId: session.user.orgId },
+      select: { id: true, firstName: true, otherName: true, lat: true, lng: true, isFieldAgent: true },
+    });
+    if (!me?.isFieldAgent) {
+      return NextResponse.json({ success: false, message: "Only field agents can accept dispatches — ask an admin to flag you in Team & roles." }, { status: 403 });
+    }
+    const distanceKm = me.lat != null && me.lng != null
+      ? Number(haversineKm({ lat: me.lat, lng: me.lng }, { lat: visit.lat, lng: visit.lng }).toFixed(2))
+      : null;
+    await prisma.fieldVisit.update({
+      where: { id: visit.id },
+      data: { agentId: me.id, distanceKm, status: "ALLOCATED", allocatedAt: new Date() },
+    });
+    await prisma.auditLog.create({
+      data: { orgId: session.user.orgId, actorId: session.user.id, actorType: "staff", action: "field.visit.accept", entity: "FieldVisit", entityId: visit.id, meta: { distanceKm } },
+    }).catch(() => {});
+    return NextResponse.json({ success: true, status: "ALLOCATED", distanceKm });
+  }
 
   if (body.action === "reallocate") {
     const ranked = await rankAgents(session.user.orgId, { lat: visit.lat, lng: visit.lng });

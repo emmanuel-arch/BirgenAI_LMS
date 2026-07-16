@@ -310,6 +310,29 @@ export async function signedUrls(
   return out;
 }
 
+/**
+ * Read an object back as a `data:` URL, server-side. Null when it isn't really there.
+ *
+ * Exists for face matching. The comparison must run against the ID photograph WE
+ * stored and OCR'd — not against an image the browser sends up a second time, which
+ * a malicious client could simply set to the selfie and match itself with. The
+ * source of truth for "the face on the document" is the bucket, so we go and get it.
+ */
+export async function getObjectDataUrl(key: string, bucket: string = KYC_BUCKET): Promise<string | null> {
+  if (!key || key.startsWith("sim/") || storageMode() === "simulation") return null;
+  try {
+    const url = await signedUrl(key, 60, bucket);
+    if (!url) return null;
+    const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    const type = res.headers.get("content-type") ?? "image/jpeg";
+    return `data:${type};base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Erasure (DPA right to deletion). Best-effort, never throws. */
 export async function deleteObjects(keys: string[], bucket: string = KYC_BUCKET): Promise<number> {
   const real = keys.filter((k) => k && !k.startsWith("sim/"));

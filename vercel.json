@@ -17,8 +17,16 @@
       "schedule": "30 4 * * *"
     },
     {
+      "path": "/api/cron/graduation",
+      "schedule": "45 4 * * *"
+    },
+    {
       "path": "/api/cron/arrears",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/retention",
+      "schedule": "30 5 * * *"
     }
   ]
 }

@@ -68,6 +68,9 @@ export const ALL_RIGHTS = [
   // Comms
   "sms.view", // campaigns history, template catalogue, email log
   "sms.manage", // send campaigns, edit templates
+  // Compliance
+  "compliance.view", // the retention schedule + the data-subject register
+  "compliance.manage", // raise, approve and execute export and erasure requests
   // AI
   "riri.use",
   "metrics.view", // Riri's metric catalogue + the query log
@@ -158,6 +161,10 @@ export const MODERN_RIGHTS: Right[] = [
   "borrowers.manage",
   "kyc.verify",
   "kyc.vouch",
+  // Compliance (item 21). Never legacy, never admin-only: erasing a customer is
+  // not something anyone should hold by inheritance.
+  "compliance.view",
+  "compliance.manage",
 ];
 
 /**
@@ -176,6 +183,7 @@ export const RIGHT_GROUPS: { key: string; label: string; rights: Right[] }[] = [
   { key: "access", label: "Team & Access", rights: ["team.view", "team.manage", "roles.view", "roles.manage"] },
   { key: "billing", label: "Billing", rights: ["billing.view", "billing.manage"] },
   { key: "comms", label: "Comms", rights: ["sms.view", "sms.manage"] },
+  { key: "compliance", label: "Compliance & Data Protection", rights: ["compliance.view", "compliance.manage"] },
   { key: "riri", label: "Riri AI", rights: ["riri.use", "metrics.view", "metrics.manage"] },
 ];
 
@@ -228,6 +236,9 @@ export const RIGHT_LABELS: Record<Right, string> = {
   "billing.manage": "Can pay, change packages and buy SMS credits",
   "sms.view": "Can see campaign history, SMS templates and the email log",
   "sms.manage": "Can send SMS campaigns and edit message templates",
+  "compliance.view": "Can see how long each kind of data is kept and why, and the register of customer data requests",
+  "compliance.manage":
+    "Can give a customer a copy of their data, and erase them when they ask — every erasure needs a second person to approve it, and what the law makes you keep is kept",
   "riri.use": "Can talk to Riri, the console AI",
   "metrics.view": "Can see what each of Riri's measures means and every question staff have asked her",
   "metrics.manage": "Can rename Riri's measures, teach her the words your staff use, and set targets",
