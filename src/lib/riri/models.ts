@@ -66,16 +66,19 @@ export const RIRI_MODELS: Record<RiriModelId, RiriModel> = {
   },
   copilot: {
     id: "copilot",
-    name: "Riri Copilot",
-    tag: "2.5",
-    blurb: "Your operations co-pilot — how to run workflows, collections, KYC, pricing.",
+    name: "Riri Assistant",
+    tag: "3.0",
+    blurb: "Knows you, your role and the customer on your screen — and remembers what she told you.",
     icon: "Bot",
-    badge: "SIMULATED",
+    badge: "LIVE DATA",
+    // Written for the person, not the platform. The old set ("Design a 30-day business
+    // loan product") was a product manager's day; these are an officer's.
     suggestions: [
-      "How do I bring down my PAR 30?",
-      "Design a 30-day business loan product",
-      "Set up a two-tier approval workflow",
-      "Write an arrears reminder SMS",
+      "Who should I chase first today?",
+      "Can I give this customer a top-up?",
+      "What did you tell me last week?",
+      "How do I say no to them without losing them?",
+      "Is my book drifting?",
     ],
   },
   max: {

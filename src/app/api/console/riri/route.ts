@@ -17,7 +17,9 @@ import { analyze } from "@/lib/riri/analyst";
 import { answerReasoning } from "@/lib/riri/copilot";
 import { answerSupport } from "@/lib/riri/support";
 import { logRiriQuery } from "@/lib/riri/log";
-import { actorContext, borrowerContext, contextPreamble } from "@/lib/riri/context";
+import { askAssistant, rememberExchange } from "@/lib/riri/assistant";
+import { lmsHost } from "@/lib/riri/providers/lms";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -111,14 +113,41 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Who is asking, and who they have on screen. Both server-built — see
-    // lib/riri/context.ts for why neither is ever taken from the browser.
-    const [rights, subject] = await Promise.all([
-      getRights(session),
-      subjectId ? borrowerContext(orgId, subjectId) : Promise.resolve(null),
-    ]);
-    const actor = await actorContext(orgId, staffId, rights);
-    const r = await answerReasoning(model, orgId, question, contextPreamble(actor, subject));
+    // ── The assistant. A real model, told who is asking and what is true. ────
+    //
+    // `max` still runs the curated corpus: it is a different (frontier) tier and is sold
+    // as one, so quietly serving it from the same flash model would be charging for a
+    // product that does not exist yet.
+    if (model === "copilot") {
+      // The session carries the slug; Riri says the lender's name out loud, and
+      // "techcrast" is not what anyone calls Techcrast Software Solutions.
+      const [rights, org] = await Promise.all([
+        getRights(session),
+        prisma.org.findUnique({ where: { id: orgId }, select: { name: true } }),
+      ]);
+      const host = lmsHost({
+        orgId, lenderName: org?.name ?? "your lender", staffId, rights,
+        // A platform admin acting as this lender is not a StaffUser — without this
+        // Riri would address the founder as an anonymous "colleague".
+        session: { name: session.user.name, role: session.user.role },
+      });
+      const r = await askAssistant(host, question, {
+        subject: subjectId ? { kind: "borrower", id: subjectId } : null,
+      });
+
+      void meter(orgId, "riri_query", 1, { model, mode: r.mode });
+      void logRiriQuery({ orgId, staffId, model, question, route: "assistant", ok: true });
+
+      // She decides what was worth keeping, after the answer is already on its way.
+      // Never awaited: a slow memory write must not cost the officer a second.
+      if (staffId && r.mode === "live") {
+        void rememberExchange(host, staffId, question, r.answer, r.subjectId);
+      }
+
+      return NextResponse.json({ success: true, model, mode: r.mode, answer: r.answer, kind: "reasoning", route: "assistant" });
+    }
+
+    const r = await answerReasoning(model, orgId, question);
 
     void meter(orgId, "riri_query", 1, { model, mode: r.mode });
     void logRiriQuery({ orgId, staffId, model, question, route: "narrative", ok: true });

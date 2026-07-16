@@ -146,6 +146,7 @@ model Org {
   graduations   GraduationEvent[]
   savingsAccounts     SavingsAccount[]
   savingsTransactions SavingsTransaction[]
+  ririMemories        RiriMemory[]
 }
 
 enum IntegrationKind {
@@ -1169,6 +1170,59 @@ enum PaymentPurpose {
 enum ChargeBeneficiary {
   LENDER
   PLATFORM
+}
+
+/// ─────────────────────────────────────────────────────────────────────────────
+/// WHAT RIRI REMEMBERS ABOUT A MEMBER OF STAFF.
+///
+/// The point is continuity: "the five WATCH-band loans I flagged last week — two are
+/// now current, chase the other three." An assistant that forgets every Monday is a
+/// search box with a personality.
+///
+/// Rules this table is built around:
+///   • It is HERS, about THEM. One row = one thing Riri concluded about this officer's
+///     work. It is not a chat transcript (RiriQueryLog already keeps those) — replaying
+///     a month of chat to remember one recommendation is neither cheap nor accurate.
+///   • It is org-scoped and staff-scoped. A manager does not inherit an officer's
+///     memories, and a lender never sees another lender's.
+///   • It holds NO CUSTOMER PII. `subjectId` points at a borrower; the body must refer
+///     to them by that id or first name, never by phone/ID number — this row outlives
+///     an erasure request, and a memory is not a lawful reason to keep someone's
+///     identifiers (see lib/compliance/retention.ts).
+///   • Recommendations go stale. `expiresAt` lets advice die of old age rather than
+///     Riri nagging in November about an October arrears run.
+/// ─────────────────────────────────────────────────────────────────────────────
+model RiriMemory {
+  id      String @id @default(uuid())
+  orgId   String
+  /// Whose memory this is. Riri knows each person separately.
+  ///
+  /// A PLAIN COLUMN, not an FK — same convention as AuditLog.actorId, and for the same
+  /// reason: not every actor is a StaffUser. A platform admin acting as a lender signs
+  /// in as `platform:<adminId>`, and an FK to StaffUser would throw on every write for
+  /// the one person most likely to be demonstrating the product.
+  staffId String
+
+  /// recommendation — advice she gave, so she can follow it up
+  /// pattern        — something she noticed about how they work
+  /// preference     — how they like to be helped (language, brevity, detail)
+  /// summary        — a rolling rollup, so old turns can be forgotten cheaply
+  kind String
+
+  /// The memory itself, in her words. No customer identifiers.
+  body String
+
+  /// The borrower it concerns, when it concerns one.
+  subjectId String?
+
+  /// Advice has a shelf life. Null = it does not expire (a preference).
+  expiresAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, staffId, createdAt])
 }
 
 enum ChargeTrigger {

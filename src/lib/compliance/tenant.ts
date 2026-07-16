@@ -117,6 +117,9 @@ export async function deleteTenant(orgId: string): Promise<TenantDeletionOutcome
     await del("kycSessions", () => tx.kycSession.deleteMany({ where: { orgId } }));
     await del("consents", () => tx.consent.deleteMany({ where: { orgId } }));
     await del("scoreSnapshots", () => tx.scoreSnapshot.deleteMany({ where: { orgId } }));
+    // Savings: the append-only ledger goes before the account it points at.
+    await del("savingsTransactions", () => tx.savingsTransaction.deleteMany({ where: { orgId } }));
+    await del("savingsAccounts", () => tx.savingsAccount.deleteMany({ where: { orgId } }));
     await del("graduations", () => tx.graduationEvent.deleteMany({ where: { orgId } }));
     await del("geoPins", () => tx.geoPin.deleteMany({ where: { orgId } }));
     await del("fieldVisits", () => tx.fieldVisit.deleteMany({ where: { orgId } }));
@@ -131,6 +134,9 @@ export async function deleteTenant(orgId: string): Promise<TenantDeletionOutcome
     await del("emails", () => tx.emailMessage.deleteMany({ where: { orgId } }));
     await del("portfolioRuns", () => tx.portfolioRun.deleteMany({ where: { orgId } }));
     await del("ririQueries", () => tx.ririQueryLog.deleteMany({ where: { orgId } }));
+    // Riri's notes about this lender's staff go before the staff themselves — they FK
+    // back to StaffUser, and a memory of somebody who no longer exists is not a memory.
+    await del("ririMemories", () => tx.ririMemory.deleteMany({ where: { orgId } }));
     await del("metricDefs", () => tx.metricDefinition.deleteMany({ where: { orgId } }));
     await del("tuning", () => tx.tuningProfile.deleteMany({ where: { orgId } }));
 

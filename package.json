@@ -52,9 +52,11 @@
     "test:payments": "tsx scripts/verify-payments.ts",
     "test:risk": "tsx scripts/verify-risk.ts",
     "test:parity": "tsx scripts/verify-parity.ts",
-    "db:seed:parity": "tsx scripts/seed-servicesuite-parity.ts"
+    "db:seed:parity": "tsx scripts/seed-servicesuite-parity.ts",
+    "test:assistant": "tsx scripts/verify-assistant.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "bcryptjs": "^3.0.3",
