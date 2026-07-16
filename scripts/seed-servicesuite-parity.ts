@@ -3,6 +3,7 @@
 //   npx tsx scripts/seed-servicesuite-parity.ts techcrast micromart          (dry run)
 //   npx tsx scripts/seed-servicesuite-parity.ts techcrast micromart --apply
 //   npx tsx scripts/seed-servicesuite-parity.ts techcrast micromart --apply --min-loans=0
+//   npx tsx scripts/seed-servicesuite-parity.ts techcrast micromart --apply --keep=30218,30214
 //
 // THE SHELF IS REPLACED, NOT ADDED TO. Anything on the target org that the lender does
 // not have is removed — deleted if nothing points at it, switched off if it has history.
@@ -11,6 +12,11 @@
 // --min-loans=N (default 20) drops the products the lender barely uses. Micromart has
 // configured products with 0–2 loans ever; carrying them across would pad the shelf with
 // things nobody sells. Volume is counted from THEIR loan book, per product.
+//
+// --keep=id,id EXTENDS the ALWAYS_KEEP list below. Volume is a good proxy for "how this
+// lender operates", but it is only a proxy — a product can matter for a reason its loan
+// count cannot know. Those live in ALWAYS_KEEP, each with the reason it survives, so a
+// re-run does not silently drop them again.
 //
 // WHY THIS READS THE LIVE DB RATHER THAN A LIST I TYPED
 // The demo's whole claim is "this is how you already work". A hand-written shelf is a
@@ -45,6 +51,23 @@ type Stage = {
 };
 type Wf = { ID: number; Title: string; Description: string | null };
 
+/**
+ * Products that stay on the shelf whatever their loan count says.
+ *
+ * The volume floor asks "does this lender actually sell it?" — a fair question that a
+ * couple of products answer wrongly, because their loan count is low for reasons that
+ * have nothing to do with how much they matter.
+ */
+const ALWAYS_KEEP: Record<number, string> = {
+  // BirgenAI's own product on Micromart's shelf, on workflow 1021. It is how a loan
+  // written here reaches their book at all — the posting go-live was proven through it.
+  // Two loans because it is new and ours, not because nobody wants it.
+  30218: "BirgenAI's pilot posting product (wf 1021)",
+  // The weeks ladder runs 3·4·5·6·7·8·9·10. Nine is the rung nobody happens to have
+  // picked yet; dropping it leaves a hole in a range that reads as a range.
+  30214: "completes the 3–10 WEEKS ladder",
+};
+
 const money = (v: unknown) => `KES ${Math.round(Number(v)).toLocaleString()}`;
 
 async function main() {
@@ -53,6 +76,13 @@ async function main() {
   const apply = process.argv.includes("--apply");
   const minLoansArg = process.argv.find((a) => a.startsWith("--min-loans="));
   const minLoans = minLoansArg ? Math.max(0, Number(minLoansArg.split("=")[1]) || 0) : 20;
+
+  const keepArg = process.argv.find((a) => a.startsWith("--keep="));
+  const keep = new Map<number, string>(Object.entries(ALWAYS_KEEP).map(([k, v]) => [Number(k), v]));
+  for (const id of keepArg?.split("=")[1].split(",") ?? []) {
+    const n = Number(id.trim());
+    if (Number.isInteger(n) && n > 0 && !keep.has(n)) keep.set(n, "kept by --keep");
+  }
 
   const source = getOrg(sourceSlug);
   if (!source) throw new Error(`No ServiceSuite org "${sourceSlug}".`);
@@ -99,10 +129,19 @@ async function main() {
   const volume = new Map<number, number>();
   for (const r of volRes.rows) volume.set(Number(r.ProductId), Number(r.loans));
 
-  const products = allProducts.filter((p) => (volume.get(Number(p.ID)) ?? 0) >= minLoans);
-  const dropped = allProducts.filter((p) => (volume.get(Number(p.ID)) ?? 0) < minLoans);
+  const survives = (p: ServiceSuiteProduct) =>
+    (volume.get(Number(p.ID)) ?? 0) >= minLoans || keep.has(Number(p.ID));
+  const products = allProducts.filter(survives);
+  const dropped = allProducts.filter((p) => !survives(p));
 
   console.log(`Read ${workflows.length} workflows · ${stages.length} stages · ${allProducts.length} products · ${fees.length} fees`);
+  const spared = allProducts.filter((p) => keep.has(Number(p.ID)) && (volume.get(Number(p.ID)) ?? 0) < minLoans);
+  if (spared.length) {
+    console.log(`Kept below the floor on purpose:`);
+    for (const p of spared) {
+      console.log(`  + ${p.ProductName.trim().padEnd(30)} ${volume.get(Number(p.ID)) ?? 0} loans — ${keep.get(Number(p.ID))}`);
+    }
+  }
   console.log(`Keeping ${products.length}; dropping ${dropped.length} below ${minLoans} loans:`);
   for (const p of dropped) {
     console.log(`  – ${p.ProductName.trim().padEnd(30)} ${volume.get(Number(p.ID)) ?? 0} loans`);
