@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { hasFeature } from "@/lib/billing/entitlements";
 import { UpgradeCard } from "@/components/billing/UpgradeCard";
@@ -20,8 +19,8 @@ export default async function FieldPage() {
       <main className="mx-auto max-w-5xl px-4 sm:px-6 py-10">
           <UpgradeCard
             feature="route-planner"
-            title="Field & Route Planner"
-            blurb="Drop a verification visit anywhere, and the nearest available officer is allocated automatically — then their stops are ordered into the shortest route they can walk or ride."
+            title="Visits & Routes"
+            blurb="Drop a verification visit on the real map, and the nearest available officer is allocated automatically — then every stop is one tap from turn-by-turn navigation."
           />
         </main>
     );

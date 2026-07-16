@@ -16,8 +16,8 @@ export default async function RouteMapPage() {
       <main className="mx-auto max-w-5xl px-4 sm:px-6 py-10">
         <UpgradeCard
           feature="route-planner"
-          title="Route Map"
-          blurb="Real Nairobi streets: pick where you are and which customer you're riding to, get the actual route, the time it takes, and what the ride should cost."
+          title="Route Planner"
+          blurb="Search a customer, pick the road, press start — turn-by-turn navigation to their door on real Nairobi streets and live traffic, with what the ride should cost."
         />
       </main>
     );

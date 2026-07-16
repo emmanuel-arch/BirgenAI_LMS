@@ -35,13 +35,15 @@ export function mapsMode(): MapsMode {
 
 /** The one sentence that names the fix, shown on-screen rather than in a console. */
 export const MAPS_UNCONFIGURED =
-  "The map is not connected yet. Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY (a Google Maps Platform key with the Maps JavaScript API and Directions API enabled, restricted to this domain) and reload.";
+  "The map is not connected yet. Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY (a Google Maps Platform key with the Maps JavaScript, Directions, and Places APIs enabled, restricted to this domain) and reload.";
 
 /** The pieces of the API this app actually uses, resolved and ready to construct. */
 export type GoogleMaps = {
   maps: google.maps.MapsLibrary;
   routes: google.maps.RoutesLibrary;
   marker: google.maps.MarkerLibrary;
+  places: google.maps.PlacesLibrary;
+  geometry: google.maps.GeometryLibrary;
 };
 
 let loader: Promise<GoogleMaps> | null = null;
@@ -103,12 +105,17 @@ export function loadGoogleMaps(): Promise<GoogleMaps> {
       await new Promise((r) => setTimeout(r, 50));
     }
 
-    const [maps, routes, marker] = await Promise.all([
+    // Places rides along for search ("Archives, CBD" → a pin). It is the NEW
+    // Places API — AutocompleteSuggestion/Place — because AutocompleteService is
+    // closed to keys created after March 2025, which ours was.
+    const [maps, routes, marker, places, geometry] = await Promise.all([
       google.maps.importLibrary("maps") as Promise<google.maps.MapsLibrary>,
       google.maps.importLibrary("routes") as Promise<google.maps.RoutesLibrary>,
       google.maps.importLibrary("marker") as Promise<google.maps.MarkerLibrary>,
+      google.maps.importLibrary("places") as Promise<google.maps.PlacesLibrary>,
+      google.maps.importLibrary("geometry") as Promise<google.maps.GeometryLibrary>,
     ]);
-    return { maps, routes, marker };
+    return { maps, routes, marker, places, geometry };
   })();
 
   // A failed load must not be cached forever — the next mount should retry.
