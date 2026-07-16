@@ -23,6 +23,7 @@ import {
   Building2, Home, Navigation,
 } from "lucide-react";
 import { PinDropMap, type LatLng } from "@/components/maps/PinDropMap";
+import { Modal as ModalShell } from "@/components/ui/Modal";
 
 type Kin = { name?: string; relationship?: string; phone?: string } | null;
 type Props = {
@@ -376,27 +377,15 @@ function EraseModal(p: Props & { onClose: () => void; onDone: (m: string) => voi
 }
 
 // ── Shared modal chrome ────────────────────────────────────────────────────────
+// The chrome itself lives in @/components/ui/Modal (centred everywhere, header
+// pinned outside the scroll region). This adapter only translates the local
+// `wide` shorthand the dozen callers in this file already speak.
 
 function Modal({ title, sub, children, onClose, wide }: { title: string; sub?: string; children: React.ReactNode; onClose: () => void; wide?: boolean }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-4 backdrop-blur-sm sm:items-center" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      {/* Solid white for the same cascade reason as the kebab dropdown. */}
-      <div className={`max-h-[92vh] w-full overflow-y-auto rounded-3xl border border-zinc-900/10 bg-white p-5 shadow-2xl ${wide ? "max-w-lg" : "max-w-md"}`}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold">{title}</h2>
-            {sub && <p className="mt-0.5 text-xs text-zinc-500">{sub}</p>}
-          </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-900/5 hover:text-zinc-700"><X className="h-4 w-4" /></button>
-        </div>
-        {children}
-      </div>
-    </div>
+    <ModalShell title={title} sub={sub} onClose={onClose} width={wide ? "lg" : "md"}>
+      {children}
+    </ModalShell>
   );
 }
 

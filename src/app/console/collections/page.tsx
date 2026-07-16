@@ -13,8 +13,9 @@ import { useLoad } from "@/lib/hooks/useLoad";
 import { RequestPaymentButton } from "@/components/payments/RequestPayment";
 import {
   PhoneCall, CalendarClock, Ticket as TicketIcon, Loader2, AlertTriangle, CheckCircle2,
-  Phone, ClipboardList, UserRound, X, Plus, Search,
+  Phone, ClipboardList, UserRound, Plus, Search,
 } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
 
 // ── Types mirrored from the APIs ──────────────────────────────────────────────
 type QueueRow = {
@@ -284,13 +285,7 @@ function LogCallSheet({ row, onClose, onLogged, setError }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div aria-hidden className="absolute inset-0 bg-zinc-950/40" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white p-5 shadow-2xl">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold">Log a call — {row.name}</p>
-          <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-900/5"><X className="h-4 w-4" /></button>
-        </div>
+    <Modal title={`Log a call — ${row.name}`} onClose={onClose}>
         <div className="mt-3 grid grid-cols-2 gap-2">
           {OUTCOMES.map((o) => (
             <button key={o.key} onClick={() => setOutcome(o.key)}
@@ -321,8 +316,7 @@ function LogCallSheet({ row, onClose, onLogged, setError }: {
           style={{ backgroundColor: "var(--brand)" }}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Save
         </button>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -532,14 +526,7 @@ function NewTicketSheet({ staff, onClose, onCreated, setError }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div aria-hidden className="absolute inset-0 bg-zinc-950/40" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white p-5 shadow-2xl">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold">New ticket</p>
-          <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-900/5"><X className="h-4 w-4" /></button>
-        </div>
-
+    <Modal title="New ticket" onClose={onClose}>
         {!borrower ? (
           <>
             <div className="mt-3 flex gap-2">
@@ -578,7 +565,6 @@ function NewTicketSheet({ staff, onClose, onCreated, setError }: {
             </button>
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }

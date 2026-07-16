@@ -20,8 +20,9 @@
 // CUSTOM, it carries a note, and it is audited under the officer's name.
 // ─────────────────────────────────────────────────────────────────────────────
 import { useCallback, useState } from "react";
-import { Loader2, Smartphone, AlertTriangle, CheckCircle2, X, Landmark, Building2 } from "lucide-react";
+import { Loader2, Smartphone, AlertTriangle, CheckCircle2, Landmark, Building2 } from "lucide-react";
 import { useLoad } from "@/lib/hooks/useLoad";
+import { Modal } from "@/components/ui/Modal";
 
 type Askable = {
   kind: "charge" | "installment";
@@ -138,24 +139,20 @@ export function RequestPaymentModal({
     });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 p-4 backdrop-blur-sm sm:items-center"
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-md rounded-3xl border border-zinc-900/10 bg-white p-5 shadow-2xl">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="flex items-center gap-2 text-base font-bold">
-              <Smartphone className="h-4 w-4" style={{ color: "var(--brand)" }} /> Request payment
-            </h2>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              An M-Pesa prompt goes to {borrowerName ? <span className="font-semibold text-zinc-700">{borrowerName}</span> : "the customer"} on their
-              registered number.
-            </p>
-          </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-900/5 hover:text-zinc-700">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
+    <Modal
+      onClose={onClose}
+      title={
+        <span className="flex items-center gap-2">
+          <Smartphone className="h-4 w-4" style={{ color: "var(--brand)" }} /> Request payment
+        </span>
+      }
+      sub={
+        <>
+          An M-Pesa prompt goes to {borrowerName ? <span className="font-semibold text-zinc-700">{borrowerName}</span> : "the customer"} on their
+          registered number.
+        </>
+      }
+    >
         {error && (
           <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2 text-xs text-red-700">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {error}
@@ -245,7 +242,6 @@ export function RequestPaymentModal({
             </div>
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
