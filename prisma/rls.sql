@@ -26,6 +26,10 @@
 --   PlatformAdmin  the founder-level accounts that oversee EVERY tenant — they
 --                  have no orgId by definition. Only /platform surfaces touch it,
 --                  always under runAsPlatform().
+--   SharingPool / SharingPoolMember
+--                  the cross-entity data-sharing registry (org ids + the legal
+--                  basis text, no borrower data) — cross-tenant BY DESIGN.
+--                  Read only through src/lib/pool/pool.ts under runAsPlatform().
 --
 -- Apply with:  npm run db:rls      (idempotent — safe to re-run)
 -- ─────────────────────────────────────────────────────────────────────────────

@@ -35,6 +35,7 @@ import { scoreOrigination, isOriginationConfigured } from "@/lib/scoring/origina
 import { fuseScores } from "@/lib/scoring/fusion";
 import { computeApprovedLimit } from "@/lib/lending/limits";
 import { attachKycSession } from "@/lib/kyc/attach";
+import { activeLoanElsewhere } from "@/lib/pool/pool";
 
 export const runtime = "nodejs";
 
@@ -164,6 +165,21 @@ export async function POST(req: NextRequest) {
       largestCleared = biggest._max.principal != null ? Number(biggest._max.principal) : null;
       knownName = `${known.firstName ?? ""} ${known.otherName ?? ""}`.trim() || null;
     }
+  }
+
+  // THE GROUP LENDS ONCE AT A TIME. The verified phone (and the claimed national
+  // ID) is checked against the sharing pool's sibling entities — a running loan
+  // at Micromart blocks a fresh application at Axe, with the pool's legal basis
+  // on the refusal. Matched by the same last-9-digits rule as `known` above.
+  const elsewhere = await activeLoanElsewhere(org.id, { nationalId: body.nationalId ?? null, phone });
+  if (elsewhere.blocked) {
+    return NextResponse.json({
+      success: false,
+      code: "ACTIVE_LOAN_ELSEWHERE",
+      lender: elsewhere.lender,
+      legalBasis: elsewhere.legalBasis,
+      message: `You have a running loan with ${elsewhere.lender}, which is part of the same lending group. Clear it first, then apply — the group lends once at a time.`,
+    }, { status: 409 });
   }
 
   // A returning borrower's name is whatever the lender already has on file. Only

@@ -21,6 +21,7 @@ import { useLoad } from "@/lib/hooks/useLoad";
 import {
   Loader2, AlertTriangle, CheckCircle2, FilePlus2, Search, Gauge, X, ArrowRight,
   ShieldCheck, ScanFace, Landmark, TrendingUp, Users, CircleDollarSign, Receipt,
+  Building2, UserPlus,
 } from "lucide-react";
 import { PageHeader } from "@/components/shell/PageHeader";
 
@@ -30,6 +31,12 @@ type CrunchHandoff = {
   score: { score: number; band: string; decision: string };
 };
 type Hit = { id: string; name: string | null; phone: string; activeLoans: number };
+type PoolHit = {
+  sourceBorrowerId: string; sourceOrg: { name: string; slug: string };
+  name: string; phone: string; nationalId: string | null;
+  kycVerified: boolean; activeLoansThere: number; alreadyLocal: boolean;
+};
+type Elsewhere = { lender: string; legalBasis?: string; message: string };
 type LimitRow = {
   productId: string; productName: string; interestRate: number; interestMethod: string;
   guarantorRequired: boolean; securityRequired: boolean;
@@ -48,6 +55,10 @@ export default function NewApplicationPage() {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Hit[]>([]);
+  const [poolHits, setPoolHits] = useState<PoolHit[]>([]);
+  const [poolMeta, setPoolMeta] = useState<{ name: string; legalBasis: string } | null>(null);
+  const [importing, setImporting] = useState<string | null>(null);
+  const [elsewhere, setElsewhere] = useState<Elsewhere | null>(null);
   const [borrower, setBorrower] = useState<Hit | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [reveal, setReveal] = useState(0); // staged-reveal step
@@ -75,18 +86,45 @@ export default function NewApplicationPage() {
     if (data.success) setProductsMeta((data.products ?? []).map((p: { id: string; disbursementMode?: string; minPrincipal: number; maxPrincipal: number }) => ({ id: p.id, disbursementMode: p.disbursementMode, minPrincipal: Number(p.minPrincipal), maxPrincipal: Number(p.maxPrincipal) })));
   });
 
+  // The book first, then the GROUP: sibling entities in the sharing pool are
+  // searched in the same breath, so a Micromart customer walking into Axe is
+  // one tap from being served rather than re-registered.
   const searchBorrowers = async () => {
     if (!q.trim()) return;
-    const res = await fetch(`/api/console/borrowers?q=${encodeURIComponent(q.trim())}`);
-    const data = await res.json().catch(() => ({}));
-    if (data.success) setResults((data.borrowers ?? []).slice(0, 6));
+    const needle = encodeURIComponent(q.trim());
+    const [own, pool] = await Promise.all([
+      fetch(`/api/console/borrowers?q=${needle}`).then((r) => r.json()).catch(() => ({})),
+      fetch(`/api/console/pool?q=${needle}`).then((r) => r.json()).catch(() => ({})),
+    ]);
+    if (own.success) setResults((own.borrowers ?? []).slice(0, 6));
+    if (pool.success && pool.inPool) {
+      setPoolMeta(pool.pool);
+      setPoolHits((pool.customers ?? []).filter((c: PoolHit) => !c.alreadyLocal));
+    }
+  };
+
+  // Bring a sibling's customer onto this book, then continue as if they had
+  // always been here. The server re-reads everything; nothing rides on the row
+  // the search displayed.
+  const importAndSelect = async (h: PoolHit) => {
+    setImporting(h.sourceBorrowerId); setError(null);
+    try {
+      const res = await fetch("/api/console/pool", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceBorrowerId: h.sourceBorrowerId }),
+      });
+      const d = await res.json();
+      if (!d.success) { setError(d.message || "Could not bring the customer across."); return; }
+      await selectBorrower({ id: d.borrowerId, name: h.name, phone: h.phone, activeLoans: 0 });
+    } catch { setError("Could not bring the customer across."); }
+    finally { setImporting(null); }
   };
 
   // Selecting a customer kicks off the reveal: fetch their profile + what they
   // qualify for, then step the checks in one at a time. Declared as a hoisted
   // function so the crunch-handoff in useLoad above can call it.
   async function selectBorrower(b: Hit) {
-    setBorrower(b); setPreview(null); setReveal(0); setError(null); setProductId(""); setAmount("");
+    setBorrower(b); setPreview(null); setReveal(0); setError(null); setElsewhere(null); setProductId(""); setAmount("");
     if (b.activeLoans > 0) return; // running-loan gate handled in render
     setLoadingPreview(true);
     try {
@@ -131,6 +169,7 @@ export default function NewApplicationPage() {
       const data = await res.json();
       if (!data.success) {
         if (data.chargesDue) { setChargesDue({ unpaidCharges: data.unpaidCharges ?? [], total: data.total ?? 0 }); setError(null); return; }
+        if (data.code === "ACTIVE_LOAN_ELSEWHERE") { setElsewhere({ lender: data.lender, legalBasis: data.legalBasis, message: data.message }); setError(null); return; }
         setError(data.message || "Could not create the application."); return;
       }
       sessionStorage.removeItem("lms_crunch");
@@ -145,7 +184,7 @@ export default function NewApplicationPage() {
 
   const reset = () => {
     setBorrower(null); setPreview(null); setReveal(0); setProductId(""); setAmount(""); setPayee({ name: "", paybill: "", account: "" });
-    setQ(""); setResults([]); setCrunch(null); setDone(null); setError(null); setChargesDue(null);
+    setQ(""); setResults([]); setPoolHits([]); setElsewhere(null); setImporting(null); setCrunch(null); setDone(null); setError(null); setChargesDue(null);
   };
 
   const CHECKS = preview ? [
@@ -207,8 +246,53 @@ export default function NewApplicationPage() {
                     </button>
                   ))}
                 </div>
+                {/* The GROUP's customers at sibling entities — one tap from being
+                    served here instead of re-registered. The legal basis rides
+                    under the list: a pool signal never appears without it. */}
+                {poolHits.length > 0 && (
+                  <div className="mt-4">
+                    <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                      <Building2 className="h-3 w-3" /> Across the group{poolMeta ? ` — ${poolMeta.name}` : ""}
+                    </p>
+                    <div className="mt-1.5 space-y-1">
+                      {poolHits.map((h) => (
+                        <div key={h.sourceBorrowerId}
+                          className="flex items-center justify-between gap-3 rounded-lg border border-zinc-900/10 bg-white/70 px-3 py-2 text-sm">
+                          <span className="min-w-0">
+                            <span className="flex items-center gap-1.5 font-medium">
+                              <span className="truncate">{h.name}</span>
+                              {h.kycVerified && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                              <span className="shrink-0 rounded bg-zinc-900/5 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">{h.sourceOrg.name}</span>
+                            </span>
+                            <span className="block text-xs text-zinc-500">{h.phone}</span>
+                          </span>
+                          {h.activeLoansThere > 0 ? (
+                            <span className="shrink-0 rounded-md bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-700">
+                              Running loan at {h.sourceOrg.name}
+                            </span>
+                          ) : (
+                            <button onClick={() => importAndSelect(h)} disabled={importing != null}
+                              className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
+                              style={{ backgroundColor: "var(--brand)" }}>
+                              {importing === h.sourceBorrowerId ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />} Bring across
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {poolMeta && <p className="mt-1.5 text-[10px] leading-relaxed text-zinc-400">{poolMeta.legalBasis}</p>}
+                  </div>
+                )}
                 <p className="mt-2 text-[11px] text-zinc-400">Not registered yet? <Link href="/console/borrowers/new" className="underline hover:text-zinc-600">Add them first</Link>.</p>
               </>
+            ) : elsewhere ? (
+              <div className="text-center py-4">
+                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100"><Building2 className="h-5 w-5 text-amber-600" /></div>
+                <p className="mt-3 text-sm font-bold">{borrower.name ?? borrower.phone} has a running loan at {elsewhere.lender}.</p>
+                <p className="mt-1 text-xs text-zinc-500">{elsewhere.message}</p>
+                {elsewhere.legalBasis && <p className="mx-auto mt-2 max-w-md text-[10px] leading-relaxed text-zinc-400">{elsewhere.legalBasis}</p>}
+                <button onClick={() => { setBorrower(null); setElsewhere(null); }} className="mt-3 text-xs underline text-zinc-500 hover:text-zinc-800">Search another customer</button>
+              </div>
             ) : borrower.activeLoans > 0 ? (
               <div className="text-center py-4">
                 <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100"><Landmark className="h-5 w-5 text-amber-600" /></div>

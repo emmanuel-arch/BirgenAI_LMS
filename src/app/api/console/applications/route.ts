@@ -11,6 +11,7 @@ import { scoreThinFileAuto } from "@/lib/statement/score-thinfile";
 import type { CashflowFeatures } from "@/lib/statement/features";
 import { computeApprovedLimit } from "@/lib/lending/limits";
 import { unpaidUpfrontCharges } from "@/lib/lending/upfront-charges";
+import { activeLoanElsewhere } from "@/lib/pool/pool";
 
 export const runtime = "nodejs";
 
@@ -140,6 +141,21 @@ export async function POST(req: NextRequest) {
   });
   if (open) {
     return NextResponse.json({ success: false, message: "This borrower already has an application in the queue." }, { status: 409 });
+  }
+
+  // THE GROUP LENDS ONCE AT A TIME. If this person carries a running loan at a
+  // sibling entity in the sharing pool (matched by national ID, else phone),
+  // the application stops here — with the pool's legal basis on the response,
+  // because a cross-entity signal with no stated basis is a leak.
+  const elsewhere = await activeLoanElsewhere(orgId, { nationalId: borrower.nationalId, phone: borrower.phone });
+  if (elsewhere.blocked) {
+    return NextResponse.json({
+      success: false,
+      code: "ACTIVE_LOAN_ELSEWHERE",
+      lender: elsewhere.lender,
+      legalBasis: elsewhere.legalBasis,
+      message: `${[borrower.firstName, borrower.otherName].filter(Boolean).join(" ") || borrower.phone} has a running loan at ${elsewhere.lender}. The group lends once at a time — a new application waits until it clears.`,
+    }, { status: 409 });
   }
 
   // THE UPFRONT-CHARGE GATE. We deduct before disbursement, not after — so the

@@ -33,6 +33,8 @@
     "test:kyc-gate": "tsx scripts/verify-kyc-gate.ts",
     "test:support": "tsx scripts/verify-support.ts",
     "test:nav": "tsx scripts/verify-nav.ts",
+    "test:pool": "tsx scripts/verify-pool.ts",
+    "pool:setup": "tsx scripts/setup-pool.ts",
     "platform:admin": "tsx scripts/create-platform-admin.ts",
     "db:app-role": "tsx scripts/create-app-role.ts",
     "storage:init": "tsx scripts/init-storage.ts",

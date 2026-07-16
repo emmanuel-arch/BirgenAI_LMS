@@ -164,6 +164,9 @@ export async function deleteTenant(orgId: string): Promise<TenantDeletionOutcome
 
     await del("integrations", () => tx.orgIntegration.deleteMany({ where: { orgId } }));
     await del("complianceRequests", () => tx.complianceRequest.deleteMany({ where: { orgId } }));
+    // Leaving the org also leaves its sharing pool — the membership row, not the
+    // pool itself (the surviving siblings' agreement stands without them).
+    await del("poolMembership", () => tx.sharingPoolMember.deleteMany({ where: { orgId } }));
 
     await del("org", () => tx.org.deleteMany({ where: { id: orgId } }));
   }, { timeout: 120_000 });

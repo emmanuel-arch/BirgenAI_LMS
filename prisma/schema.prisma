@@ -147,6 +147,37 @@ model Org {
   savingsAccounts     SavingsAccount[]
   savingsTransactions SavingsTransaction[]
   ririMemories        RiriMemory[]
+  poolMembership      SharingPoolMember?
+}
+
+// ── Cross-entity data sharing ─────────────────────────────────────────────────
+// A group that runs several lending entities (Micromart, Axe, …) shares ONE
+// borrower reality: a customer with a running loan at a sibling must not be
+// lent to again, and a customer the group already knows should not have to
+// re-introduce themselves at the next counter. The pool is the written-down
+// agreement that makes that lawful — `legalBasis` is the actual clause, shown
+// on screen wherever a pool signal surfaces, never implied.
+//
+// These are PLATFORM-REGISTRY tables like Org itself (org ids + legal text, no
+// borrower data) — deliberately outside RLS; every read of them, and every
+// cross-tenant query they justify, goes through src/lib/pool/pool.ts alone.
+model SharingPool {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  legalBasis String
+  createdAt  DateTime @default(now())
+  members    SharingPoolMember[]
+}
+
+model SharingPoolMember {
+  id       String   @id @default(uuid())
+  poolId   String
+  orgId    String   @unique // an org belongs to at most one pool
+  joinedAt DateTime @default(now())
+  pool     SharingPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  org      Org         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([poolId])
 }
 
 enum IntegrationKind {
