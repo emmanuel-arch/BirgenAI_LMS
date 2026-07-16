@@ -102,7 +102,7 @@ export function Watchlist({ rows }: { rows: Row[] }) {
                   {st?.busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />} Dispatch agent
                 </button>
               )}
-              <button data-riri-open="analyst" className="inline-flex items-center gap-1.5 rounded-lg bg-white/70 border border-zinc-900/10 px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:text-zinc-900">
+              <button data-riri-open="analytics" className="inline-flex items-center gap-1.5 rounded-lg bg-white/70 border border-zinc-900/10 px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:text-zinc-900">
                 <Send className="h-3.5 w-3.5" /> Ask Riri
               </button>
               <Link href={`/console/borrowers/${r.borrowerId}`} className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800">

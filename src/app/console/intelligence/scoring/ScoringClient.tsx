@@ -253,7 +253,7 @@ function Playbook({ rows }: { rows: SlimRow[] }) {
     <div className="glass mt-4 p-5">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Default-reduction playbook — what is actually driving risk</h2>
-        <button data-riri-open="analyst" className="inline-flex items-center gap-1 text-[11px] font-semibold" style={{ color: "var(--brand)" }}>
+        <button data-riri-open="analytics" className="inline-flex items-center gap-1 text-[11px] font-semibold" style={{ color: "var(--brand)" }}>
           <Bot className="h-3.5 w-3.5" /> Ask Riri
         </button>
       </div>

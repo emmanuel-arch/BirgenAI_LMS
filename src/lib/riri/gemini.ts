@@ -29,6 +29,18 @@ export function isLlmConfigured(): boolean {
   return !!ririKey();
 }
 
+export type LlmMode = "live" | "simulation";
+
+/**
+ * Is there a brain behind Riri right now?
+ *
+ * Async and org-aware by signature so a per-lender key (their own Gemini project, their
+ * own bill) can land here without touching a caller. Today it is one platform key.
+ */
+export async function llmMode(_orgId: string): Promise<LlmMode> {
+  return isLlmConfigured() ? "live" : "simulation";
+}
+
 export type ChatTurn = { role: "user" | "model"; text: string };
 
 /**

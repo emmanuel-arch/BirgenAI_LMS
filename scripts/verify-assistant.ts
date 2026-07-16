@@ -11,6 +11,7 @@ import { platformPrisma } from "../prisma/seed-client";
 import { enterPlatform } from "../src/lib/db/context";
 import { roleFromTitle, ririSystemPrompt, ririGreeting } from "../src/lib/riri/persona";
 import { isLlmConfigured } from "../src/lib/riri/gemini";
+import { RIRI_MODEL_IDS, normaliseModelId } from "../src/lib/riri/models";
 import { askAssistant } from "../src/lib/riri/assistant";
 import type { RiriHost, RiriMemoryNote } from "../src/lib/riri/host";
 
@@ -60,6 +61,14 @@ async function main() {
   const core = readFileSync("src/lib/riri/assistant.ts", "utf8");
   ok("★ assistant.ts imports no prisma", !/from "@\/lib\/prisma"|from "@prisma/.test(core));
   ok("★ it talks to the host interface only", core.includes('from "./host"'));
+
+
+  console.log("\nthe lineup is three tiers, and old ids still resolve");
+  ok('support/assistant/analytics are the lineup', RIRI_MODEL_IDS.join(',') === 'support,assistant,analytics');
+  ok('a saved "copilot" pref lands on Assistant, not reset to Support', normaliseModelId('copilot') === 'assistant');
+  ok('a saved "analyst" pref lands on Analytics', normaliseModelId('analyst') === 'analytics');
+  ok('"max" folds into Analytics — the tier it should have been', normaliseModelId('max') === 'analytics');
+  ok('nonsense is still refused', normaliseModelId('wat') === null);
 
   // ── The live half ──────────────────────────────────────────────────────────
   if (!isLlmConfigured()) {

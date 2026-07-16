@@ -25,7 +25,7 @@
 import type { DimensionId, TimeRange } from "./catalog";
 import { metricSpec } from "./catalog";
 import type { ResolvedMetric } from "./definitions";
-import { llmMode } from "./copilot";
+import { llmMode, generate } from "./gemini";
 import { READ_SURFACE } from "./guard";
 
 export type Plan =
@@ -283,13 +283,44 @@ export type SqlProposal = { sql: string } | null;
  * When RIRI_LLM_KEY is set, the model's SQL returns here and goes straight into
  * validateReadSql() → runReadQuery(). It is never trusted, only checked.
  */
-export async function proposeSql(orgId: string, _question: string): Promise<SqlProposal> {
+export async function proposeSql(orgId: string, question: string): Promise<SqlProposal> {
   const mode = await llmMode(orgId);
   if (mode === "simulation") return null;
 
-  // The live call slots in here behind this exact contract: prompt with
-  // schemaPrompt(), take the statement back, hand it to the caller unmodified. The
-  // caller guards it. Deliberately not implemented against a provider we have no key
-  // for — a mock would only prove that the mock works.
-  return null;
+  // The model is a PLANNER, never an authority. It is shown the read surface and
+  // nothing else — no live catalogue crawl, no embedded data, no table it may not
+  // read. What comes back is a string, handed to the caller unmodified so that
+  // validateReadSql() → runReadQuery() gets exactly what the model wrote. It earns no
+  // more trust than a string a user could have typed into the box themselves.
+  try {
+    const raw = await generate(
+      [
+        "You write ONE PostgreSQL SELECT statement and nothing else. No prose, no",
+        "explanation, no markdown fence, no trailing semicolon.",
+        "",
+        schemaPrompt(),
+        "",
+        "If the question cannot be answered from those views alone, reply with exactly: NO",
+      ].join("\n"),
+      question,
+      [],
+      // Zero temperature: SQL is not a place for creativity, and the same question
+      // twice must not produce two different numbers.
+      { temperature: 0, maxOutputTokens: 400 },
+    );
+
+    const sql = raw
+      .replace(/^```(?:sql)?/i, "")
+      .replace(/```$/, "")
+      .trim()
+      .replace(/;+\s*$/, "");
+
+    // "NO" is a real answer, and an honest one — better than a confident query over
+    // views that cannot answer the question.
+    if (!sql || /^no$/i.test(sql)) return null;
+    return { sql };
+  } catch {
+    // A model that is down is not a reason to guess a number.
+    return null;
+  }
 }

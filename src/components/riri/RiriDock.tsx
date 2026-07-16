@@ -16,13 +16,13 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Gauge, Bot, Crown, LifeBuoy, Send, Loader2, X, ArrowRight, AlertCircle, Database, Mic, Volume2, VolumeX } from "lucide-react";
+import { Gauge, Bot, LifeBuoy, Send, Loader2, X, ArrowRight, AlertCircle, Database, Mic, Volume2, VolumeX, Sheet, FileText, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useVoice } from "@/lib/hooks/useVoice";
 import { RiriAvatar } from "./RiriAvatar";
-import { RIRI_MODELS, RIRI_MODEL_IDS, isRiriModel, type RiriModelId } from "@/lib/riri/models";
+import { RIRI_MODELS, RIRI_MODEL_IDS, normaliseModelId, type RiriModelId } from "@/lib/riri/models";
 
-const ICON = { Gauge, Bot, Crown, LifeBuoy } as const;
+const ICON = { Gauge, Bot, LifeBuoy } as const;
 const INSET = 16;
 const SIZE = 60;
 const GAP = 12;
@@ -42,9 +42,8 @@ type Turn = {
 
 const placeholderFor: Record<RiriModelId, string> = {
   support: "Ask me how to do anything…",
-  analyst: "Ask about your loan book…",
-  copilot: "Ask how to run something…",
-  max: "Ask for a strategy…",
+  assistant: "Ask me about your day, or this customer…",
+  analytics: "Ask your loan book a question…",
 };
 
 // ── Tiny rich-text renderer (bold + bullets + numbered), no dependency ────────
@@ -127,6 +126,60 @@ function MiniTable({ table }: { table: Table }) {
 }
 
 /**
+ * Take this away as a file.
+ *
+ * Offered only when there is a query behind the answer — a number Riri reasoned her way
+ * to is not a dataset, and offering to export it would imply it is one.
+ *
+ * The server RE-RUNS the query and builds a real workbook; nothing here posts the rows
+ * it is showing. It is not a screenshot of the table either: the people this is for
+ * pivot these numbers, and a picture of a table is a rumour about data.
+ */
+function ExportBar({ question, sql }: { question: string; sql: string }) {
+  const [busy, setBusy] = useState<"xlsx" | "pdf" | null>(null);
+  const [done, setDone] = useState<{ filename: string; url?: string | null; stored: boolean } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async (format: "xlsx" | "pdf") => {
+    setBusy(format); setError(null); setDone(null);
+    try {
+      const res = await fetch("/api/console/riri/export", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, sql, format }),
+      });
+      const d = await res.json();
+      if (!d.success) { setError(d.message || "Could not build that report."); return; }
+      setDone({ filename: d.filename, url: d.url, stored: d.stored });
+      // Saved either way; opening it is the convenience, not the delivery.
+      if (d.url) window.open(d.url, "_blank", "noopener");
+    } catch {
+      setError("Could not reach the server.");
+    } finally { setBusy(null); }
+  };
+
+  const btn = "inline-flex items-center gap-1 rounded-md border border-zinc-900/10 bg-white/70 px-2 py-1 text-[10px] font-semibold text-zinc-600 hover:text-zinc-900 disabled:opacity-40";
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      <span className="text-[10px] text-zinc-400">Download?</span>
+      <button onClick={() => run("xlsx")} disabled={!!busy} className={btn}>
+        {busy === "xlsx" ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Sheet className="h-2.5 w-2.5" />} Excel
+      </button>
+      <button onClick={() => run("pdf")} disabled={!!busy} className={btn}>
+        {busy === "pdf" ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <FileText className="h-2.5 w-2.5" />} PDF
+      </button>
+      {done && (
+        <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600">
+          <Download className="h-2.5 w-2.5" />
+          {done.stored ? `Saved as ${done.filename}` : `${done.filename} (storage is in simulation — not kept)`}
+        </span>
+      )}
+      {error && <span className="text-[10px] text-rose-600">{error}</span>}
+    </div>
+  );
+}
+
+/**
  * The SQL behind the number.
  *
  * The blueprint's rule for this tier is "SQL always shown", and it is a trust
@@ -204,7 +257,9 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
   const [corner, setCorner] = useState<"br" | "bl">(() => (pref("riri:corner") === "bl" ? "bl" : "br"));
   const [model, setModel] = useState<RiriModelId>(() => {
     const m = pref("riri:model");
-    return isRiriModel(m) ? m : "support";
+    // normalise, not validate: an officer with "copilot" saved from last week must land
+    // on Assistant, not be silently reset to Support.
+    return normaliseModelId(m) ?? "support";
   });
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
   const [greet, setGreet] = useState(() => pref("riri:greeted") !== "1");
@@ -247,12 +302,14 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
       if (!el) return;
       e.preventDefault();
       const m = el.getAttribute("data-riri-open");
-      if (isRiriModel(m)) setModel(m);
+      const want = normaliseModelId(m);
+      if (want) setModel(want);
       setOpen(true); dismissGreet();
     };
     const onEvent = (e: Event) => {
       const detail = (e as CustomEvent).detail ?? {};
-      if (isRiriModel(detail.model)) setModel(detail.model);
+      const want = normaliseModelId(detail.model);
+      if (want) setModel(want);
       // A caller may hand Riri an opening question — Field Ops does this with
       // the live route context — asked immediately so she answers on arrival.
       if (typeof detail.prompt === "string" && detail.prompt.trim()) {
@@ -485,11 +542,9 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
                       ? `Hey${userName ? ` ${userName.split(" ")[0]}` : ""} — I know this platform inside out. Ask me how to do anything, why something is blocked, or what to do next, and I'll take you straight there.
 
 You can talk to me out loud with the microphone.`
-                      : active.id === "analyst"
-                        ? `Hey${userName ? ` ${userName.split(" ")[0]}` : ""} — I read **${orgName}**'s live book. Ask me a number and I'll pull it straight from your data.`
-                        : active.id === "copilot"
-                          ? `I'm your operations co-pilot. Tell me what you're trying to do and I'll give you concrete steps for this console.`
-                          : `I'm the strategy tier. Give me a decision and I'll reason it end-to-end — trade-offs, evidence, and what to watch.`} />
+                      : active.id === "assistant"
+                        ? `Niaje${userName ? ` ${userName.split(" ")[0]}` : ""} 👋 I know your role, your book and whoever you have open. Ask me who to chase, whether to lend, or what I told you last week — in English, Kiswahili or Sheng.`
+                        : `Hey${userName ? ` ${userName.split(" ")[0]}` : ""} — I read **${orgName}**'s live book. Ask me a number and I'll pull it straight from your data, show you the SQL I ran, and hand you an Excel or PDF of it.`} />
                   </div>
                   <div className="mt-2.5 flex flex-wrap gap-1.5">
                     {active.suggestions.map((s) => (
@@ -521,6 +576,7 @@ You can talk to me out loud with the microphone.`
                             {t.chips && t.chips.length > 0 && <Chips chips={t.chips} />}
                             {t.series && <Sparkline series={t.series} />}
                             {t.table && <MiniTable table={t.table} />}
+                            {t.sql && <ExportBar question={t.question} sql={t.sql} />}
                             {t.sql && <SqlDisclosure sql={t.sql} rows={t.rows} ms={t.ms} />}
 
                             {/* WHAT SHE OFFERS TO DO. She proposes; you tap. Nothing here

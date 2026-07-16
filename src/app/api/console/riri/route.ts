@@ -1,7 +1,8 @@
-// Riri — the console AI. One endpoint, three models:
-//   • analyst → the semantic metric layer over the org's live book (real SQL, shown)
-//   • copilot → operations co-pilot (simulation-first LLM → live)
-//   • max     → frontier strategy tier (simulation-first LLM → live)
+// Riri — the console AI. One endpoint, three tiers:
+//   • support   → how the platform works. Free, ungated, never metered.
+//   • assistant → Riri 2.5: who you are, your role, your book, the customer on screen.
+//   • analytics → Riri 2.5 Max: the live book. Catalogue metric first, guarded
+//                 text-to-SQL for novel questions, SQL always shown.
 //
 // Every query meters a `riri_query` UsageEvent for Intelligence-Suite billing, and
 // every query — answered, refused or failed — is written to RiriQueryLog with the
@@ -12,9 +13,8 @@ import { auth } from "@/lib/auth";
 import { requireRight, getRights } from "@/lib/rbac/authz";
 import { requireFeature, entitlementsFor } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
-import { isRiriModel } from "@/lib/riri/models";
+import { normaliseModelId } from "@/lib/riri/models";
 import { analyze } from "@/lib/riri/analyst";
-import { answerReasoning } from "@/lib/riri/copilot";
 import { answerSupport } from "@/lib/riri/support";
 import { logRiriQuery } from "@/lib/riri/log";
 import { askAssistant, rememberExchange } from "@/lib/riri/assistant";
@@ -33,7 +33,9 @@ export async function POST(req: NextRequest) {
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
   const question = (body.question ?? "").trim();
-  const model = isRiriModel(body.model) ? body.model : "analyst";
+  // Legacy ids (copilot/analyst/max) still arrive from saved preferences — translate
+  // rather than silently resetting someone to Support.
+  const model = normaliseModelId(body.model) ?? "analytics";
 
   // The caller may say WHO they are asking about — an id, never the facts. Everything
   // Riri is told about that customer is read here, from the org-scoped row, so a client
@@ -86,7 +88,7 @@ export async function POST(req: NextRequest) {
   if (gated) return gated;
 
   try {
-    if (model === "analyst") {
+    if (model === "analytics") {
       const r = await analyze(orgId, question);
 
       void meter(orgId, "riri_query", 1, { model, mode: "live", route: r.route });
@@ -118,7 +120,7 @@ export async function POST(req: NextRequest) {
     // `max` still runs the curated corpus: it is a different (frontier) tier and is sold
     // as one, so quietly serving it from the same flash model would be charging for a
     // product that does not exist yet.
-    if (model === "copilot") {
+    if (model === "assistant") {
       // The session carries the slug; Riri says the lender's name out loud, and
       // "techcrast" is not what anyone calls Techcrast Software Solutions.
       const [rights, org] = await Promise.all([
@@ -147,12 +149,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, model, mode: r.mode, answer: r.answer, kind: "reasoning", route: "assistant" });
     }
 
-    const r = await answerReasoning(model, orgId, question);
-
-    void meter(orgId, "riri_query", 1, { model, mode: r.mode });
-    void logRiriQuery({ orgId, staffId, model, question, route: "narrative", ok: true });
-
-    return NextResponse.json({ success: true, model, mode: r.mode, answer: r.answer, kind: "reasoning", route: "narrative" });
+    // Unreachable: support/analytics/assistant is the whole lineup, and each returned
+    // above. Kept as a loud failure rather than a silent fallthrough, so adding a tier
+    // and forgetting to route it is a 500 in testing, not a blank bubble in production.
+    throw new Error(`No handler for Riri model "${model}".`);
   } catch (e) {
     console.error("[riri]", e);
     void logRiriQuery({
