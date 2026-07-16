@@ -22,6 +22,32 @@ import { generate, isLlmConfigured, type ChatTurn } from "./gemini";
 import { ririSystemPrompt } from "./persona";
 import type { RiriHost, RiriSubjectFacts, RiriMemoryNote } from "./host";
 
+/**
+ * Prior turns of THIS conversation, as the client kept them.
+ *
+ * History is conversational text and earns exactly the trust of the question itself —
+ * no more (it goes to the model, not the database) and no less (refusing it would make
+ * every follow-up an amnesiac's first question). What IS enforced is shape and size:
+ * roles must be user/model, and a "history" of a hundred megabyte turns is a cost
+ * attack, not a conversation.
+ */
+export function sanitizeHistory(raw: unknown): ChatTurn[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ChatTurn[] = [];
+  for (const t of raw.slice(-8)) {
+    if (!t || typeof t !== "object") continue;
+    const role = (t as { role?: unknown }).role;
+    const text = (t as { text?: unknown }).text;
+    if ((role !== "user" && role !== "model") || typeof text !== "string") continue;
+    const trimmed = text.trim().slice(0, 2000);
+    if (trimmed) out.push({ role, text: trimmed });
+  }
+  // Gemini requires the first content to be a user turn; a history that starts with
+  // the model (because the opener was Riri's briefing) is trimmed to the first user turn.
+  while (out.length && out[0].role === "model") out.shift();
+  return out;
+}
+
 export type AssistantResult = {
   answer: string;
   /** live = a model answered. simulation = no key; we said so rather than pretending. */

@@ -16,10 +16,11 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Gauge, Bot, LifeBuoy, Send, Loader2, X, ArrowRight, AlertCircle, Database, Mic, Volume2, VolumeX, Sheet, FileText, Download } from "lucide-react";
+import { Gauge, Bot, LifeBuoy, Send, Loader2, X, ArrowRight, AlertCircle, Database, Mic, Sheet, FileText, Download, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useVoice } from "@/lib/hooks/useVoice";
 import { RiriAvatar } from "./RiriAvatar";
+import { RiriAccount } from "./RiriAccount";
 import { RIRI_MODELS, RIRI_MODEL_IDS, normaliseModelId, type RiriModelId } from "@/lib/riri/models";
 
 const ICON = { Gauge, Bot, LifeBuoy } as const;
@@ -270,6 +271,9 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
   // navigates on its own, before anyone asked it to is a hostile assistant.
   const [voiceOn, setVoiceOn] = useState(() => pref("riri:voice") === "1");
   const [autoGo, setAutoGo] = useState(() => pref("riri:autogo") === "1");
+  // chat | account — the panel's two faces. Account is who Riri thinks you are, your
+  // usage, her memory of you, and settings. Not persisted: the dock reopens on chat.
+  const [view, setView] = useState<"chat" | "account">("chat");
   const down = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -397,6 +401,15 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
       // until she is opened from somewhere else — an officer who asked "why is their
       // limit so low?" should not have to say who "they" are. Only the id travels; the
       // server reads the facts (see lib/riri/context.ts).
+      //
+      // The Assistant also gets the conversation so far, so "what about last month?"
+      // has an antecedent. Server-side sanitizeHistory caps it.
+      const history = m === "assistant"
+        ? turns.flatMap((t) => [
+            ...(t.question ? [{ role: "user" as const, text: t.question }] : []),
+            ...(t.answer ? [{ role: "model" as const, text: t.answer }] : []),
+          ])
+        : undefined;
       const res = await fetch("/api/console/riri", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -404,6 +417,7 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
           question, model: m,
           ...(voice.lang === "sw-KE" ? { lang: "sw" } : {}),
           ...(subjectRef.current ? { subject: subjectRef.current } : {}),
+          ...(history?.length ? { history } : {}),
         }),
       });
       const data = await res.json();
@@ -509,10 +523,20 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
                       : <><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" /> {active.name} · Online</>}
                   </p>
                 </div>
+                <button
+                  onClick={() => setView((v) => (v === "chat" ? "account" : "chat"))}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${view === "account" ? "text-white" : "text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-900"}`}
+                  style={view === "account" ? { backgroundColor: "var(--brand)" } : undefined}
+                  aria-label={view === "account" ? "Back to the conversation" : "Your account, usage and what Riri remembers"}
+                  title={view === "account" ? "Back to the conversation" : "Account & usage"}
+                >
+                  <UserRound className="h-4 w-4" />
+                </button>
                 <button onClick={() => setOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-900" aria-label="Close Riri"><X className="h-4 w-4" /></button>
               </div>
 
-              {/* Model switcher — all three, always visible */}
+              {/* Model switcher — chat only; the account view is tier-less */}
+              {view === "chat" && (<>
               <div className="mt-3 flex gap-1 rounded-xl bg-white/60 p-1">
                 {RIRI_MODEL_IDS.map((id) => {
                   const m = RIRI_MODELS[id]; const Icon = ICON[m.icon]; const on = id === model;
@@ -531,8 +555,20 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
                 <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold tracking-wide ${active.badge === "LIVE DATA" ? "bg-emerald-100 text-emerald-700" : active.badge === "PRO" ? "bg-amber-100 text-amber-700" : "bg-zinc-900/5 text-zinc-500"}`}>{active.badge}</span>
                 <p className="text-[11px] text-zinc-500 leading-tight truncate">{active.blurb}</p>
               </div>
+              </>)}
             </div>
 
+            {view === "account" ? (
+              <RiriAccount
+                voiceOn={voiceOn}
+                onVoice={() => { if (voice.speaking) voice.stopSpeaking(); setVoiceOn((v) => !v); }}
+                autoGo={autoGo}
+                onAutoGo={() => setAutoGo((v) => !v)}
+                lang={voice.lang}
+                onLang={() => voice.setLang(voice.lang === "en-KE" ? "sw-KE" : "en-KE")}
+                speaking={voice.speaking}
+              />
+            ) : (<>
             {/* Conversation */}
             <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4">
               {turns.length === 0 && (
@@ -655,34 +691,14 @@ You can talk to me out loud with the microphone.`
                 </button>
               </div>
 
-              {/* CONSENT, made a setting rather than a surprise. Both default OFF. */}
-              <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2.5">
-                <button
-                  onClick={() => { if (voice.speaking) voice.stopSpeaking(); setVoiceOn((v) => !v); }}
-                  className={`flex items-center gap-1 text-[10px] font-medium ${voiceOn ? "text-[color:var(--brand)]" : "text-zinc-400 hover:text-zinc-600"}`}
-                >
-                  {voiceOn ? <Volume2 className="h-3 w-3" /> : <VolumeX className="h-3 w-3" />}
-                  {voice.speaking ? "Speaking…" : voiceOn ? "Speaks answers" : "Answers silent"}
-                </button>
-                <span className="text-zinc-300">·</span>
-                <button
-                  onClick={() => setAutoGo((v) => !v)}
-                  title="When on, Riri takes you straight to the screen she suggests"
-                  className={`flex items-center gap-1 text-[10px] font-medium ${autoGo ? "text-[color:var(--brand)]" : "text-zinc-400 hover:text-zinc-600"}`}
-                >
-                  <ArrowRight className="h-3 w-3" /> {autoGo ? "Takes me there" : "Asks before moving"}
-                </button>
-                <span className="text-zinc-300">·</span>
-                <button
-                  onClick={() => voice.setLang(voice.lang === "en-KE" ? "sw-KE" : "en-KE")}
-                  className="text-[10px] font-medium text-zinc-400 hover:text-zinc-600"
-                >
-                  {voice.lang === "sw-KE" ? "Kiswahili" : "English"}
-                </button>
-              </div>
-
-              <p className="mt-1 text-center text-[9px] text-zinc-400">Riri can be wrong — verify figures before acting · Powered by BirgenAI</p>
+              {/* Voice/consent settings moved to the Account panel (the person icon,
+                  top-right) — one home for settings. Speaking still shows here so a
+                  talking Riri is never mysterious. */}
+              <p className="mt-1 text-center text-[9px] text-zinc-400">
+                {voice.speaking ? "Speaking… · " : ""}Riri can be wrong — verify figures before acting · Powered by BirgenAI
+              </p>
             </div>
+            </>)}
           </motion.div>
         )}
       </AnimatePresence>

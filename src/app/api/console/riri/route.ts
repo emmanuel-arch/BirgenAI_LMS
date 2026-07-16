@@ -17,7 +17,7 @@ import { normaliseModelId } from "@/lib/riri/models";
 import { analyze } from "@/lib/riri/analyst";
 import { answerSupport } from "@/lib/riri/support";
 import { logRiriQuery } from "@/lib/riri/log";
-import { askAssistant, rememberExchange } from "@/lib/riri/assistant";
+import { askAssistant, rememberExchange, sanitizeHistory } from "@/lib/riri/assistant";
 import { lmsHost } from "@/lib/riri/providers/lms";
 import { prisma } from "@/lib/prisma";
 
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const orgId = session.user.orgId;
   const staffId = session.user.id ?? null;
 
-  let body: { question?: string; model?: string; lang?: string; subject?: { kind?: string; id?: string } };
+  let body: { question?: string; model?: string; lang?: string; subject?: { kind?: string; id?: string }; history?: unknown };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
   const question = (body.question ?? "").trim();
@@ -116,10 +116,6 @@ export async function POST(req: NextRequest) {
     }
 
     // ── The assistant. A real model, told who is asking and what is true. ────
-    //
-    // `max` still runs the curated corpus: it is a different (frontier) tier and is sold
-    // as one, so quietly serving it from the same flash model would be charging for a
-    // product that does not exist yet.
     if (model === "assistant") {
       // The session carries the slug; Riri says the lender's name out loud, and
       // "techcrast" is not what anyone calls Techcrast Software Solutions.
@@ -133,8 +129,11 @@ export async function POST(req: NextRequest) {
         // Riri would address the founder as an anonymous "colleague".
         session: { name: session.user.name, role: session.user.role },
       });
+      // Prior turns of this conversation, so "what about last month?" has an
+      // antecedent. Sanitised for shape and size; see sanitizeHistory for the trust story.
       const r = await askAssistant(host, question, {
         subject: subjectId ? { kind: "borrower", id: subjectId } : null,
+        history: sanitizeHistory(body.history),
       });
 
       void meter(orgId, "riri_query", 1, { model, mode: r.mode });
