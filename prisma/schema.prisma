@@ -98,6 +98,10 @@ model Org {
   tagline    String?
   blurb      String?
   logoUrl    String?
+  // How large the logo renders relative to its default slot, in percent (50–200).
+  // A mark with generous transparent padding (Micromart) needs >100 to read at
+  // the same optical size as a tightly-cropped one (Techcrast).
+  logoScale  Int     @default(100)
   heroUrl    String?
   // First-run setup checklist ({ dismissed?: boolean, activationRequestedAt?: string })
   onboardingState Json?

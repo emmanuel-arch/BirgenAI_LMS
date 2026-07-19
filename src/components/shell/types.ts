@@ -8,6 +8,8 @@ export type ShellOrg = {
   mode: string; // "NATIVE" | "BRIDGED"
   status: string; // "PENDING" | "ACTIVE" | ...
   logoUrl: string | null;
+  /** Logo render size, percent of its default slot (50–200). */
+  logoScale?: number;
 };
 
 export type ShellUser = {

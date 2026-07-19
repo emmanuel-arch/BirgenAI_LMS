@@ -33,28 +33,40 @@ export async function POST(req: NextRequest) {
   if (org) enterOrg(org.id);
   if (!org) return NextResponse.json({ success: false, message: "Choose a lender." }, { status: 400 });
 
-  if (org.mode === "NATIVE") {
-    const rows = await prisma.product.findMany({
-      where: { orgId: org.id, isActive: true },
-      orderBy: [{ minPrincipal: "asc" }, { name: "asc" }],
-      take: 100,
+  // NATIVE orgs always sell from our product builder. A BRIDGED org normally
+  // mirrors its lender's live shelf — but when it has products in OUR builder,
+  // those are a CURATED shelf and they win (the Micromart pilot sells exactly
+  // one product, MIROMART FINTECH, which lives in a separate ServiceSuite the
+  // portal cannot list from). Emptying the local shelf restores the live mirror.
+  const local = await prisma.product.findMany({
+    where: { orgId: org.id, isActive: true },
+    orderBy: [{ minPrincipal: "asc" }, { name: "asc" }],
+    take: 100,
+  });
+  if (org.mode === "NATIVE" || local.length > 0) {
+    const products = local.map((p) => {
+      // Whole-term rates ("term") read better the way the lender quotes them:
+      // per repayment period. 82.5% flat over 10 weeks → "8.25%/week".
+      const perPeriod = p.interestPeriodUnit === "term" && p.repaymentPeriod > 0
+        ? Math.round((Number(p.interestRate) / p.repaymentPeriod) * 100) / 100
+        : null;
+      return {
+        id: p.id, // uuid — the wizard treats ids as opaque strings
+        name: p.name,
+        description: p.description,
+        minPrincipal: Number(p.minPrincipal),
+        maxPrincipal: Number(p.maxPrincipal),
+        interestRate: perPeriod ?? Number(p.interestRate),
+        interestUnit: perPeriod != null ? p.repaymentPeriodUnit : p.interestPeriodUnit,
+        // Reducing-balance products reward early settlement; the wizard says so.
+        interestMethod: p.interestMethod,
+        // TO_THIRD_PARTY (school fees): the wizard asks for the institution's paybill.
+        disbursementMode: p.disbursementMode,
+        repaymentPeriod: p.repaymentPeriod,
+        repaymentUnit: p.repaymentPeriodUnit,
+        minCreditScore: p.minCreditScore,
+      };
     });
-    const products = rows.map((p) => ({
-      id: p.id, // uuid — the wizard treats ids as opaque strings
-      name: p.name,
-      description: p.description,
-      minPrincipal: Number(p.minPrincipal),
-      maxPrincipal: Number(p.maxPrincipal),
-      interestRate: Number(p.interestRate),
-      interestUnit: p.interestPeriodUnit,
-      // Reducing-balance products reward early settlement; the wizard says so.
-      interestMethod: p.interestMethod,
-      // TO_THIRD_PARTY (school fees): the wizard asks for the institution's paybill.
-      disbursementMode: p.disbursementMode,
-      repaymentPeriod: p.repaymentPeriod,
-      repaymentUnit: p.repaymentPeriodUnit,
-      minCreditScore: p.minCreditScore,
-    }));
     return NextResponse.json({ success: true, connected: true, lender: org.name, products });
   }
 

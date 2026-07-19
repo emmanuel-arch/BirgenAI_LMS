@@ -401,6 +401,11 @@ export default function LmsPortal() {
   const coreConsents = consent.mpesaAnalysis && consent.automatedScoring;
 
   const brandStyle = { "--brand": brand.accent, "--brand-soft": brand.accentSoft } as CSSProperties;
+  // logoScale grows the img's LAYOUT height (width follows the aspect ratio), so a
+  // turned-up logo genuinely takes more room and pushes its neighbours aside. The
+  // old transform:scale() kept the layout box frozen: inside a fixed tile it only
+  // zoom-cropped, and in the top bar it painted over the lender's name.
+  const logoH = (base: number) => ({ height: `${(base * (brand.logoScale ?? 100)) / 100}px` }) as CSSProperties;
   const onLogoError = (e: SyntheticEvent<HTMLImageElement>, fallback: string) => {
     const img = e.target as HTMLImageElement;
     if (img.src.endsWith(fallback)) { img.style.display = "none"; return; }
@@ -420,7 +425,7 @@ export default function LmsPortal() {
               // White-label: the lender IS the app — no BirgenAI branding anywhere.
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={brand.logo} alt={brand.name} className="h-8 w-8 object-contain shrink-0" onError={(e) => onLogoError(e, brand.fallbackLogo)} />
+                <img src={brand.logo} alt={brand.name} className="w-auto max-w-40 object-contain shrink-0" style={logoH(32)} onError={(e) => onLogoError(e, brand.fallbackLogo)} />
                 <span className="text-base font-bold truncate">{brand.name}</span>
               </>
             ) : (
@@ -448,9 +453,11 @@ export default function LmsPortal() {
                   onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
               )}
               <div className="relative px-4 sm:px-5 py-4 flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white ring-1 ring-zinc-900/10 overflow-hidden shrink-0">
+                {/* The badge tile grows with the dial too — a fixed 48px tile with
+                    overflow-hidden would just crop a scaled-up logo back to 48px. */}
+                <div className="flex items-center justify-center rounded-xl bg-white ring-1 ring-zinc-900/10 overflow-hidden shrink-0 p-1.5" style={logoH(48)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={brand.logo} alt={brand.name} className="h-9 w-9 object-contain" onError={(e) => onLogoError(e, brand.fallbackLogo)} />
+                  <img src={brand.logo} alt={brand.name} className="h-full w-auto max-w-40 object-contain" onError={(e) => onLogoError(e, brand.fallbackLogo)} />
                 </div>
                 <div>
                   <p className="text-lg font-bold leading-tight">{brand.name}</p>
@@ -478,7 +485,8 @@ export default function LmsPortal() {
                   <div className="text-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={scoped ? brand.logo : "/images/logo.png"} alt={scoped ? brand.name : "BirgenAI"}
-                      className="mx-auto mb-4 h-12 w-auto object-contain"
+                      className="mx-auto mb-4 w-auto object-contain"
+                      style={scoped ? logoH(48) : { height: "48px" }}
                       onError={(e) => onLogoError(e, scoped ? brand.fallbackLogo : "/images/BirgenAI-logo.png")} />
                     <h1 className="text-2xl sm:text-3xl font-bold">
                       {scoped ? t.landing.titleScoped : t.landing.titleOpen}

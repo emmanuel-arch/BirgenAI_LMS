@@ -29,6 +29,8 @@ export type LenderBrand = {
   blurb: string;
   /** fallback logo if the per-lender asset is missing. */
   fallbackLogo: string;
+  /** logo render size relative to its slot, percent (50–200). Padded marks need >100. */
+  logoScale?: number;
 };
 
 // NOTE: micromart/axe accents are placeholders — confirm with each lender.
@@ -38,11 +40,15 @@ export const LENDER_BRANDS: Record<string, LenderBrand> = {
     name: "Micromart Africa",
     logo: "/lenders/micromart/logo.png",
     hero: "/lenders/micromart/hero.jpg",
-    accent: "#F97316", // orange — PLACEHOLDER
-    accentSoft: "rgba(249,115,22,0.12)",
+    // Founder direction (Jul 2026): dark brown, NOT the yellow the logo derives to.
+    accent: "#78350f",
+    accentSoft: "rgba(120,53,15,0.12)",
+    accent2: "#451a03",
     tagline: "Grow your business with credit you've earned.",
     blurb: "Business, school-fees & personal loans",
     fallbackLogo: "/images/MicromartLogo.png",
+    // The Micromart mark carries generous transparent padding — render it larger.
+    logoScale: 150,
   },
   axe: {
     slug: "axe",

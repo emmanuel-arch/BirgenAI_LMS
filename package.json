@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
     "db:push": "prisma db push",
@@ -35,6 +36,7 @@
     "test:nav": "tsx scripts/verify-nav.ts",
     "test:pool": "tsx scripts/verify-pool.ts",
     "pool:setup": "tsx scripts/setup-pool.ts",
+    "setup:launch": "tsx scripts/setup-launch-orgs.ts",
     "platform:admin": "tsx scripts/create-platform-admin.ts",
     "db:app-role": "tsx scripts/create-app-role.ts",
     "storage:init": "tsx scripts/init-storage.ts",

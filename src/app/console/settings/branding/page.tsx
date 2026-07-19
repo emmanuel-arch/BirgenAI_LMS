@@ -4,16 +4,18 @@
 // saved through /api/console/org/branding. Colors apply to the whole console
 // on the next page load; the borrower portal picks them up immediately.
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
 import { Palette, Loader2, AlertTriangle, CheckCircle2, FlaskConical } from "lucide-react";
 import BrandStudio, { type BrandDraft } from "@/components/branding/BrandStudio";
 
 type Branding = {
   name: string; slug: string; accent: string; accentSoft: string; accent2: string | null;
-  tagline: string | null; blurb: string | null; logoUrl: string | null;
+  tagline: string | null; blurb: string | null; logoUrl: string | null; logoScale: number;
 };
 
 export default function BrandingPage() {
+  const router = useRouter();
   const [branding, setBranding] = useState<Branding | null>(null);
   const [storage, setStorage] = useState<"live" | "simulation">("simulation");
   const [draft, setDraft] = useState<BrandDraft | null>(null);
@@ -41,14 +43,18 @@ export default function BrandingPage() {
       const res = await fetch("/api/console/org/branding", {
         method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...(draft ? { logoDataUrl: draft.logoDataUrl ?? undefined, accent: draft.accent, accentSoft: draft.accentSoft, accent2: draft.accent2 } : {}),
+          ...(draft ? { logoDataUrl: draft.logoDataUrl ?? undefined, accent: draft.accent, accentSoft: draft.accentSoft, accent2: draft.accent2, logoScale: draft.logoScale } : {}),
           tagline, blurb,
         }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.message || "Could not save."); return; }
       setBranding((b) => (b ? { ...b, ...data.branding } : b));
-      setNotice("Branding saved. Your team sees it on their next page load; the borrower portal already has it.");
+      // Repaint the server-rendered shell NOW — the sidebar letterhead beside this
+      // very form is the first place the admin looks for their change, and a save
+      // that only shows up after a hard reload reads as a save that didn't work.
+      router.refresh();
+      setNotice("Branding saved — the console around you just picked it up. Your team sees it on their next page load; the borrower portal already has it.");
     } catch { setError("Could not save."); } finally { setSaving(false); }
   };
 
@@ -83,7 +89,7 @@ export default function BrandingPage() {
       <div className="mt-5">
         <BrandStudio
           orgName={branding.name}
-          initial={{ accent: branding.accent, accent2: branding.accent2, logoUrl: branding.logoUrl }}
+          initial={{ accent: branding.accent, accent2: branding.accent2, logoUrl: branding.logoUrl, logoScale: branding.logoScale }}
           onDraft={setDraft}
         />
       </div>

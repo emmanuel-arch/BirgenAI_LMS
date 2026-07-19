@@ -20,6 +20,8 @@ export type BrandDraft = {
   accent: string;
   accentSoft: string;
   accent2: string;
+  /** Logo render size, percent of its default slot (50–200). */
+  logoScale: number;
 };
 
 const UPLOAD_EDGE = 512; // stored copy
@@ -58,7 +60,7 @@ export default function BrandStudio({
   onDraft,
 }: {
   orgName: string;
-  initial: { accent: string; accent2?: string | null; logoUrl?: string | null };
+  initial: { accent: string; accent2?: string | null; logoUrl?: string | null; logoScale?: number };
   onDraft: (draft: BrandDraft) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -69,15 +71,17 @@ export default function BrandStudio({
   const [palette, setPalette] = useState<PaletteEntry[]>([]);
   const [accent, setAccent] = useState(initial.accent);
   const [accent2, setAccent2] = useState(initial.accent2 ?? darken(initial.accent));
+  const [logoScale, setLogoScale] = useState(initial.logoScale ?? 100);
   const [note, setNote] = useState<string | null>(null);
 
-  const emit = (next: Partial<{ logo: string | null; accent: string; accent2: string }>) => {
+  const emit = (next: Partial<{ logo: string | null; accent: string; accent2: string; logoScale: number }>) => {
     const a = next.accent ?? accent;
     onDraft({
       logoDataUrl: next.logo !== undefined ? next.logo : logo,
       accent: a,
       accentSoft: accentSoftFrom(a),
       accent2: next.accent2 ?? accent2,
+      logoScale: next.logoScale ?? logoScale,
     });
   };
 
@@ -105,7 +109,7 @@ export default function BrandStudio({
         setAccent(derived.accent);
         setAccent2(derived.accent2);
         setLogo(effective);
-        onDraft({ logoDataUrl: effective, accent: derived.accent, accentSoft: derived.accentSoft, accent2: derived.accent2 });
+        onDraft({ logoDataUrl: effective, accent: derived.accent, accentSoft: derived.accentSoft, accent2: derived.accent2, logoScale });
         setNote(null);
         return;
       }
@@ -207,6 +211,23 @@ export default function BrandStudio({
           </div>
         )}
         {note && <p className="mt-3 text-[11px] text-zinc-500">{note}</p>}
+
+        {/* Logo size — a mark with generous transparent padding renders smaller than a
+            tightly-cropped one in the same slot; this dial evens the optical size out. */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-zinc-600">Logo size</span>
+            <code className="text-[11px] text-zinc-500">{logoScale}%</code>
+          </div>
+          <p className="text-[11px] text-zinc-500">
+            How large the logo appears everywhere it&apos;s shown. Turn it up if your logo has lots of empty space around it and looks small.
+          </p>
+          <input
+            type="range" min={50} max={200} step={5} value={logoScale}
+            onChange={(e) => { const v = Number(e.target.value); setLogoScale(v); emit({ logoScale: v }); }}
+            className="mt-2 w-full accent-[var(--brand)]"
+          />
+        </div>
       </div>
 
       {/* Colors */}
@@ -254,10 +275,13 @@ export default function BrandStudio({
         <p className="text-sm font-semibold">Preview</p>
         <p className="mt-0.5 text-[11px] text-zinc-500">Exactly what these settings drive — your console top bar, buttons, and portal hero.</p>
         <div className="mt-3 overflow-hidden rounded-xl border border-zinc-900/10 bg-white">
-          <div className="flex h-11 items-center gap-2 border-b border-zinc-900/10 px-3">
+          <div className="flex min-h-11 items-center gap-2 border-b border-zinc-900/10 px-3 py-1.5">
             {currentLogo ? (
+              // The dial grows the img's real box (the mock bar grows with it), exactly
+              // as the console sidebar and portal render it — transform:scale() here
+              // previewed a behaviour the fixed slots elsewhere couldn't deliver.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={currentLogo} alt="" className="h-6 w-6 rounded object-contain" />
+              <img src={currentLogo} alt="" className="w-auto max-w-32 rounded object-contain" style={{ height: `${(24 * logoScale) / 100}px` }} />
             ) : (
               <span className="flex h-6 w-6 items-center justify-center rounded text-[10px] font-bold text-white" style={{ backgroundColor: accent }}>{orgName.slice(0, 1)}</span>
             )}

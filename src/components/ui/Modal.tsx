@@ -18,11 +18,15 @@
 // Every popup in the console goes through here. Do not hand-roll another
 // fixed-inset shell; add the slot you're missing to this one instead.
 // ─────────────────────────────────────────────────────────────────────────────
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
 
 const WIDTH = { sm: "max-w-sm", md: "max-w-md", lg: "max-w-lg", xl: "max-w-xl" } as const;
+
+// "Are we on the client yet?" without setState-in-an-effect — same idiom as RiriDock.
+const subscribeNothing = () => () => {};
 
 export function Modal({ title, sub, onClose, children, subheader, footer, width = "md" }: {
   title: React.ReactNode;
@@ -44,7 +48,15 @@ export function Modal({ title, sub, onClose, children, subheader, footer, width 
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
   }, [onClose]);
 
-  return (
+  // PORTALLED TO <body>, always. `fixed inset-0` is a lie inside any ancestor with a
+  // backdrop-filter (every .glass panel): that ancestor becomes the containing block
+  // and the "full-screen" dialog gets trapped inside one card. The body is the only
+  // ancestor that can't do that. Mount is detected without touching `document`
+  // during SSR.
+  const mounted = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  if (!mounted) return null;
+
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.15 }}
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm"
@@ -72,6 +84,7 @@ export function Modal({ title, sub, onClose, children, subheader, footer, width 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">{children}</div>
         {footer && <div className="shrink-0 border-t border-zinc-900/10 px-5 py-4">{footer}</div>}
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 }

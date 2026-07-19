@@ -14,6 +14,14 @@ export type EmailParts = { subject: string; text: string; html: string };
 const greet = (name?: string | null) => (name?.trim() ? `Hi ${name.trim()},` : "Hello,");
 
 /**
+ * The lender's own front door: lms.birgenai.com/<slug>, where the sign-in card
+ * wears their logo and accent and pins the org (one email can hold seats at
+ * several lenders). "lms" is emailBrandFor's no-org fallback — generic /login.
+ */
+const staffLoginUrl = (brand: EmailBrand) =>
+  brand.slug && brand.slug !== "lms" ? `${publicBaseUrl()}/${brand.slug}` : `${publicBaseUrl()}/login`;
+
+/**
  * New team member credentials — sent when an admin creates a staff account (or
  * an org is onboarded). Explains the full first sign-in: the generated
  * password, then the daily code that lands in this same inbox.
@@ -21,7 +29,7 @@ const greet = (name?: string | null) => (name?.trim() ? `Hi ${name.trim()},` : "
 export function staffInviteEmail(brand: EmailBrand, p: {
   name: string; email: string; tempPassword: string; roleTitle?: string | null;
 }): EmailParts {
-  const loginUrl = `${publicBaseUrl()}/login`;
+  const loginUrl = staffLoginUrl(brand);
   const subject = `Your ${brand.name} staff account is ready`;
 
   const text = [
@@ -157,7 +165,7 @@ export function resetCodeEmail(brand: EmailBrand, p: { name?: string | null; ema
 
 /** Welcome to the org's founding admin right after self-onboarding. */
 export function welcomeOrgEmail(brand: EmailBrand, p: { name: string; email: string }): EmailParts {
-  const loginUrl = `${publicBaseUrl()}/login`;
+  const loginUrl = staffLoginUrl(brand);
   const subject = `${brand.name} is live on BirgenAI LMS`;
 
   const text = [

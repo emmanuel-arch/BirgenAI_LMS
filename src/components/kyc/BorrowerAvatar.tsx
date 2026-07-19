@@ -40,12 +40,16 @@ export function BorrowerAvatar({
   name,
   portraitUrl,
   verified = false,
+  tick = true,
   size = "sm",
   className = "",
 }: {
   name: string;
   portraitUrl?: string | null;
   verified?: boolean;
+  /** Hide the corner tick when the page shows verification beside the name instead
+      (Customer-360 hero) — one tick per identity, never two. The ring still shows. */
+  tick?: boolean;
   size?: AvatarSize;
   className?: string;
 }) {
@@ -80,7 +84,7 @@ export function BorrowerAvatar({
         </div>
       </div>
 
-      {verified && (
+      {verified && tick && (
         <span
           className={`absolute ${TICK[size]} flex items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-white`}
           title="Identity verified"

@@ -186,17 +186,25 @@ export async function POST(req: NextRequest) {
   // a genuinely new applicant gets to introduce themselves.
   const borrowerName = knownName ?? (body.borrowerName?.trim() || session?.user?.name || null);
 
-  // NATIVE orgs: resolve the chosen product from OUR product table (uuid ref)
-  // so the application carries productId and booking can generate the schedule.
+  // Resolve the chosen product from OUR product table (uuid ref) so the
+  // application carries productId and booking can generate the schedule.
+  // NATIVE orgs always sell from here; a BRIDGED org does too when it carries a
+  // CURATED shelf (the Micromart pilot: one local product whose
+  // serviceSuiteProductId points into the lender's fintech DB for posting).
   let nativeProductId: string | null = null;
   let productBounds: { min: number; max: number } | null = null;
   let payee: { name: string | null; paybill: string; account: string | null } | null = null;
-  if (org.mode === "NATIVE" && body.productRef) {
+  // For bridged posting: the Products.ID sp_InsertLoan books against. A raw
+  // numeric productRef (the live-mirror shelf) is itself that id; a curated
+  // local product carries it in serviceSuiteProductId.
+  let postingProductId: number | null = /^\d+$/.test(body.productRef ?? "") ? Number(body.productRef) : null;
+  if (body.productRef && postingProductId === null) {
     const p = await prisma.product.findFirst({
       where: { id: body.productRef, orgId: org.id, isActive: true },
-      select: { id: true, name: true, minPrincipal: true, maxPrincipal: true, disbursementMode: true },
+      select: { id: true, name: true, minPrincipal: true, maxPrincipal: true, disbursementMode: true, serviceSuiteProductId: true },
     });
     if (p) {
+      postingProductId = p.serviceSuiteProductId;
       nativeProductId = p.id;
       productBounds = { min: Number(p.minPrincipal), max: Number(p.maxPrincipal) };
       body.productName = body.productName || p.name;
@@ -512,10 +520,16 @@ export async function POST(req: NextRequest) {
   // OTP-verified phone, in the lender's own database. Nothing the client sent can
   // reach `postLoan` — not the borrower id, not the graduated flag.
   const posting: { attempted: boolean; ok: boolean; message: string } = { attempted: false, ok: false, message: "" };
+  // Instant graduated-borrower posting applies ONLY to the live-mirror shelf
+  // (numeric refs → the lender's own server, where `grad.borrowerId` is valid).
+  // A CURATED product (uuid ref) may book into a DIFFERENT ServiceSuite — the
+  // Micromart pilot's fintech deployment — where that borrower id means someone
+  // else. Those applications go through our console workflow instead; the final
+  // approval there registers the borrower in the posting target and books it.
   const wantsPost =
     isPostingEnabled() &&
     org.bridgedReady && !!org.registry &&
-    !!body.productRef &&
+    postingProductId != null && /^\d+$/.test(body.productRef ?? "") &&
     (scored.decision === "APPROVE" || scored.decision === "REFER");
 
   if (wantsPost && !grad?.graduated) {
@@ -529,7 +543,7 @@ export async function POST(req: NextRequest) {
     const res = await postLoan(org.registry!, {
       borrowerId: grad.borrowerId,
       principal: amount,
-      productId: Number(body.productRef),
+      productId: postingProductId!,
       applicationId: app.id,
     });
     posting.ok = res.ok;

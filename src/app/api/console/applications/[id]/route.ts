@@ -16,6 +16,8 @@ import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { bookLoanFromApplication } from "@/lib/lending/book";
+import { isPostingEnabled, ensureBorrower, postLoan } from "@/lib/lms/servicesuite";
+import { getPostingOrg, getEntityId } from "@/lib/enterprise/connections";
 import { issueOtp, verifyOtp } from "@/lib/otp";
 import { signedUrl } from "@/lib/storage/provider";
 import { PORTRAIT_TTL_SEC } from "@/lib/kyc/avatars";
@@ -153,7 +155,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const app = await prisma.loanApplication.findFirst({
     where: { id, orgId: session.user.orgId },
-    include: { org: { select: { mode: true, status: true } } },
+    include: { org: { select: { mode: true, status: true, slug: true } } },
   });
   if (!app) return NextResponse.json({ success: false, message: "Application not found." }, { status: 404 });
   if (!LIVE.includes(app.status)) {
@@ -295,8 +297,68 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
   }
 
-  // BRIDGED orgs: the book lives in ServiceSuite — mark approved here; the loan
-  // itself is approved inside the lender's ServiceSuite workflow.
+  // BRIDGED orgs: the book lives in ServiceSuite. Final approval here BOOKS the
+  // loan into the lender's own approval workflow (the Micromart pilot: product
+  // 31418 in the boss's fintech deployment, workflow "FINTECH APPROVAL" — Risk →
+  // Customer Service — takes over from there). A pilot customer is brand-new to
+  // that ledger, so the borrower is registered there first when missing. Reads
+  // (history, graduation) stay on the lender's MAIN server; only the booking
+  // goes to the posting target — getPostingOrg() keeps those apart.
+  const postingOrg = getPostingOrg(app.org.slug);
+  const [pilotProduct, borrowerRow] = await Promise.all([
+    app.productId
+      ? prisma.product.findUnique({ where: { id: app.productId }, select: { serviceSuiteProductId: true, name: true } })
+      : Promise.resolve(null),
+    app.borrowerId
+      ? prisma.borrower.findUnique({ where: { id: app.borrowerId }, select: { firstName: true, otherName: true, phone: true, nationalId: true, email: true } })
+      : Promise.resolve(null),
+  ]);
+  const ssProductId = pilotProduct?.serviceSuiteProductId ?? (/^\d+$/.test(app.productRef ?? "") ? Number(app.productRef) : null);
+
+  if (isPostingEnabled() && postingOrg && ssProductId && borrowerRow?.phone) {
+    const entityId = getEntityId(postingOrg);
+    const ensured = await ensureBorrower(postingOrg, entityId, {
+      phone: borrowerRow.phone,
+      firstName: borrowerRow.firstName || app.borrowerName?.split(/\s+/)[0] || "CUSTOMER",
+      otherName: borrowerRow.otherName || app.borrowerName?.split(/\s+/).slice(1).join(" ") || null,
+      nationalId: borrowerRow.nationalId,
+      email: borrowerRow.email,
+    });
+    if (!ensured.ok) {
+      await prisma.loanApplication.update({ where: { id: app.id }, data: { postError: ensured.message } });
+      return NextResponse.json({ success: false, message: `Could not register the customer with the lender: ${ensured.message}` }, { status: 502 });
+    }
+    const res = await postLoan(postingOrg, {
+      borrowerId: ensured.borrowerId,
+      principal: Number(app.amountRequested),
+      productId: ssProductId,
+      applicationId: app.id,
+    });
+    if (!res.ok) {
+      await prisma.loanApplication.update({ where: { id: app.id }, data: { postError: res.message } });
+      return NextResponse.json({ success: false, message: `The lender's system declined the booking: ${res.message}` }, { status: 502 });
+    }
+    await prisma.loanApplication.update({
+      where: { id: app.id },
+      data: {
+        status: "APPROVED",
+        stageTitle: `Booked to ${postingOrg.name} — lender approval`,
+        postedToServiceSuite: true,
+        serviceSuiteLoanId: res.loanId,
+        postError: null,
+        decidedAt: new Date(),
+      },
+    });
+    await audit("application.finalize", {
+      stage, note: body.note ?? null, bridged: true,
+      posted: true, target: postingOrg.slug, serviceSuiteLoanId: res.loanId,
+      borrowerRegistered: ensured.created,
+    });
+    return NextResponse.json({ success: true, status: "APPROVED", posted: true, serviceSuiteLoanId: res.loanId });
+  }
+
+  // Posting off/unconfigured: mark approved here; the loan is approved inside the
+  // lender's ServiceSuite workflow by their own team.
   await prisma.loanApplication.update({
     where: { id: app.id },
     data: { status: "APPROVED", stageTitle: "Approved (lender's ServiceSuite workflow)", decidedAt: new Date() },

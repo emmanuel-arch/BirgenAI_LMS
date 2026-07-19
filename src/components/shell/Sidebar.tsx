@@ -33,17 +33,28 @@ function BrandBlock({ org, collapsed, onNavigate }: { org: ShellOrg; collapsed: 
       aria-label={`${org.name} — console home`}
       title={org.name}
       className={`flex min-w-0 flex-1 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-900/[0.06] bg-white shadow-sm transition-all ${
-        collapsed ? "h-12 px-1.5" : "h-20 px-4"
+        collapsed ? "h-12 px-1.5" : "min-h-20 px-4 py-3"
       }`}
     >
       {org.logoUrl ? (
         // Logos are data-URLs in simulation or public-bucket files live;
         // next/image buys nothing here but a remotePatterns config burden.
+        //
+        // logoScale grows the img's LAYOUT box (the letterhead card grows with it) —
+        // NOT transform:scale(). A transform can't escape this frame's overflow-hidden,
+        // so on a tightly-cropped logo that already fills its slot the old transform
+        // dial just zoom-cropped inside the same rectangle and looked like it did
+        // nothing. Width is still the physical cap: a wordmark can never render wider
+        // than the rail. Collapsed keeps the transform — a 36px tile has no room to
+        // grow, and zoom-crop is the only way to fill it.
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={org.logoUrl}
           alt={`${org.name} logo`}
-          className={`w-full object-contain ${collapsed ? "max-h-9" : "max-h-14"}`}
+          className={`w-full object-contain ${collapsed ? "max-h-9" : ""}`}
+          style={collapsed
+            ? { transform: `scale(${(org.logoScale ?? 100) / 100})` }
+            : { maxHeight: `${(56 * (org.logoScale ?? 100)) / 100}px` }}
         />
       ) : collapsed ? (
         <span className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold text-white" style={{ backgroundColor: "var(--brand)" }}>

@@ -11,8 +11,8 @@
 // page is how an officer learns not to trust either. There is now one, and it is the
 // spine's (src/components/payments/RequestPayment.tsx).
 //
-// The kebab beside them stays what it is: everything an officer may CHANGE. This bar
-// is what they DO. Change opens a drawer, do happens here.
+// The kebab in the card's top-right stays what it is: everything an officer may
+// CHANGE. This bar is what they DO. Change opens a drawer, do happens here.
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState } from "react";
 import { HandCoins, Navigation, BotMessageSquare, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
@@ -65,7 +65,7 @@ export function BorrowerActions({
   const BTN = "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2.5 text-xs font-semibold transition-colors disabled:opacity-40";
 
   return (
-    <div className="flex flex-col items-stretch gap-1.5 sm:items-end">
+    <div className="flex flex-col items-stretch gap-1.5 sm:items-start">
       <div className="flex flex-wrap items-center gap-2">
         {/* Asking for money is the primary act — one road, one catalogue, one price. */}
         <RequestPaymentButton

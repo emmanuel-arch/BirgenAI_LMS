@@ -302,6 +302,72 @@ export async function listProducts(org: OrgDef, entityId: number): Promise<LmsPr
   }));
 }
 
+/** The lender's borrower row a posting will book against, found by verified phone. */
+export async function findBorrowerByPhone(
+  org: OrgDef,
+  entityId: number,
+  phone: string,
+): Promise<{ borrowerId: number; name: string } | null> {
+  const digits = cleanPhone(phone);
+  const { rows } = await runReadOnlyQuery(
+    org,
+    `SELECT TOP 1 b.ID AS borrowerId,
+            LTRIM(RTRIM(ISNULL(b.firstName,'') + ' ' + ISNULL(b.otherName,''))) AS name
+     FROM Borrowers b
+     WHERE b.EntityId = @entityId
+       AND (b.PhoneNumber = @phone OR RIGHT(REPLACE(b.PhoneNumber, ' ', ''), 9) = RIGHT(@phone, 9))
+     ORDER BY b.ID DESC`,
+    [
+      { name: "entityId", type: mssql.Int, value: entityId },
+      { name: "phone", type: mssql.VarChar(32), value: digits },
+    ],
+    { timeoutMs: 15000, maxRows: 1 },
+  );
+  if (rows.length === 0) return null;
+  return { borrowerId: Number(rows[0].borrowerId), name: String(rows[0].name ?? "").trim() };
+}
+
+/**
+ * Make sure the borrower EXISTS in the posting target before a loan books against
+ * them — a pilot customer onboarded on our portal is brand-new to the lender's
+ * fintech deployment. Registration goes through the lender's own
+ * sp_NewBorrowerRegistration (the same proc their app uses), which normalises the
+ * phone to 254XXXXXXXXX, assigns the account number per BorrowerSettings, and
+ * returns the new Borrowers.ID (or -1 when the account already exists — in which
+ * case we re-find by phone). Gated behind LMS_POSTING_ENABLED like every write.
+ */
+export async function ensureBorrower(
+  org: OrgDef,
+  entityId: number,
+  args: { phone: string; firstName: string; otherName?: string | null; nationalId?: string | null; email?: string | null },
+): Promise<{ ok: true; borrowerId: number; created: boolean } | { ok: false; message: string }> {
+  try {
+    const existing = await findBorrowerByPhone(org, entityId, args.phone);
+    if (existing) return { ok: true, borrowerId: existing.borrowerId, created: false };
+
+    if (!isPostingEnabled()) {
+      return { ok: false, message: "ServiceSuite posting is disabled — cannot register the borrower with the lender." };
+    }
+    const rows = await callStoredProc(org, "sp_NewBorrowerRegistration", [
+      { name: "BorrowerFirstName", type: mssql.NVarChar(50), value: (args.firstName || "CUSTOMER").slice(0, 50) },
+      { name: "BorrowerOtherName", type: mssql.NVarChar(50), value: (args.otherName || "").slice(0, 50) },
+      { name: "NationalID", type: mssql.NVarChar(50), value: args.nationalId?.trim() || null },
+      { name: "PhoneNumber", type: mssql.NVarChar(50), value: cleanPhone(args.phone) },
+      { name: "EmailAddress", type: mssql.NVarChar(50), value: args.email?.trim().slice(0, 50) || null },
+      { name: "EntityId", type: mssql.Int, value: entityId },
+    ]);
+    const id = rows[0]?.ID != null ? Number(rows[0].ID) : NaN;
+    if (Number.isInteger(id) && id > 0) return { ok: true, borrowerId: id, created: true };
+
+    // -1 = the account number (their phone) already exists — find who owns it.
+    const found = await findBorrowerByPhone(org, entityId, args.phone);
+    if (found) return { ok: true, borrowerId: found.borrowerId, created: false };
+    return { ok: false, message: "The lender's system rejected the borrower registration." };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : "Borrower registration failed." };
+  }
+}
+
 export type PostResult = { ok: boolean; loanId?: string; code?: string; message: string };
 
 // sp_InsertLoan signatures differ per server: Micromart's REQUIRES @Entity and has

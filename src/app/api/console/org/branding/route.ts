@@ -23,7 +23,7 @@ export async function GET() {
 
   const org = await prisma.org.findUniqueOrThrow({
     where: { id: session!.user!.orgId! },
-    select: { name: true, slug: true, accent: true, accentSoft: true, accent2: true, tagline: true, blurb: true, logoUrl: true },
+    select: { name: true, slug: true, accent: true, accentSoft: true, accent2: true, tagline: true, blurb: true, logoUrl: true, logoScale: true },
   });
   return NextResponse.json({ success: true, branding: org, storage: storageMode() });
 }
@@ -34,8 +34,12 @@ export async function PUT(req: NextRequest) {
   if (denied) return denied;
   const orgId = session!.user!.orgId!;
 
-  let body: { logoDataUrl?: string | null; accent?: string; accent2?: string; accentSoft?: string; tagline?: string | null; blurb?: string | null };
+  let body: { logoDataUrl?: string | null; accent?: string; accent2?: string; accentSoft?: string; tagline?: string | null; blurb?: string | null; logoScale?: number };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
+
+  if (body.logoScale !== undefined && (!Number.isFinite(body.logoScale) || body.logoScale < 50 || body.logoScale > 200)) {
+    return NextResponse.json({ success: false, message: "Logo size must be between 50% and 200%." }, { status: 400 });
+  }
 
   if (body.accent !== undefined && !isHexColor(body.accent)) {
     return NextResponse.json({ success: false, message: "Accent must be a hex color like #E11D48." }, { status: 400 });
@@ -77,8 +81,9 @@ export async function PUT(req: NextRequest) {
       tagline: trim(body.tagline, 120),
       blurb: trim(body.blurb, 240),
       logoUrl,
+      logoScale: body.logoScale === undefined ? undefined : Math.round(body.logoScale),
     },
-    select: { accent: true, accentSoft: true, accent2: true, tagline: true, blurb: true, logoUrl: true },
+    select: { accent: true, accentSoft: true, accent2: true, tagline: true, blurb: true, logoUrl: true, logoScale: true },
   });
 
   // A replaced logo's old object serves nobody — clean it up, best-effort.

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, ScanFace, ShieldAlert, Landmark, MapPin, History, CheckCircle2, XCircle, Clock, FileText, BadgeCheck,
+  ArrowLeft, ScanFace, ShieldAlert, Landmark, MapPin, History, CheckCircle2, XCircle, Clock, FileText, BadgeCheck, Building2,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { resolveScope, borrowerScopeWhere } from "@/lib/rbac/scope";
@@ -27,6 +27,15 @@ const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 const num = (d: unknown) => Number(d ?? 0);
 const dateFmt = (d: Date | string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
+/** How long they have banked with this lender — whole months, spoken plainly. */
+function accountAgeOf(createdAt: Date | string): string {
+  const months = Math.max(0, Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24 * 30.44)));
+  if (months < 12) return `${months} ${months === 1 ? "month" : "months"}`;
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  return `${y} yr${y > 1 ? "s" : ""}${m ? ` ${m} mo` : ""}`;
+}
+
 const KYC_TONE: Record<string, string> = {
   VERIFIED: "bg-emerald-100 text-emerald-700", PENDING_REVIEW: "bg-amber-100 text-amber-700",
   IN_PROGRESS: "bg-sky-100 text-sky-700", FAILED: "bg-rose-100 text-rose-700", NONE: "bg-zinc-900/5 text-zinc-500",
@@ -37,6 +46,17 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: str
     <div className="rounded-lg border border-zinc-900/10 bg-white/60 px-2.5 py-2">
       <p className="text-[9px] uppercase tracking-wide text-zinc-500">{label}</p>
       <p className={`text-sm font-bold leading-tight ${tone ?? "text-zinc-800"}`}>{value}</p>
+    </div>
+  );
+}
+
+/** The header strip's tile — Stat at billboard size. The four numbers an officer
+    prices a customer by deserve more than a 9px whisper. */
+function BigStat({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="min-w-[8.5rem] rounded-xl border border-zinc-900/10 bg-white/60 px-4 py-3">
+      <p className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className={`mt-0.5 text-xl font-bold leading-tight ${tone ?? "text-zinc-800"}`}>{value}</p>
     </div>
   );
 }
@@ -67,17 +87,32 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
     hasFeature(orgId, "portfolio-scan"),
     hasFeature(orgId, "route-planner"),
   ]);
-  const [kyc, scores, crbCheck, ew] = await Promise.all([
+  const [kyc, scores, crbCheck, ew, branch] = await Promise.all([
     prisma.kycSession.findFirst({ where: { orgId, OR: [{ borrowerId: id }, { phone: b.phone }] }, orderBy: { createdAt: "desc" } }),
     prisma.scoreSnapshot.findMany({ where: { orgId, borrowerId: id }, orderBy: { createdAt: "desc" }, take: 8 }),
     prisma.kycCheck.findFirst({ where: { orgId, borrowerId: id, kind: "CRB" }, orderBy: { createdAt: "desc" } }),
     scanEntitled ? portfolioEarlyWarning(orgId) : null,
+    // Where they sit in the book, said the way the org says it: the branch plus its
+    // ancestors up to the head office (three levels covers every real tree we hold).
+    b.branchId
+      ? prisma.branch.findFirst({
+          where: { id: b.branchId, orgId },
+          select: { name: true, levelName: true, parent: { select: { name: true, levelName: true, parent: { select: { name: true, levelName: true } } } } },
+        })
+      : null,
   ]);
   const risk = ew?.rows.find((r) => r.borrowerId === id) ?? null;
   const initialCrb = (crbCheck?.payload as unknown as CrbReport) ?? null;
 
   const name = `${b.firstName ?? "Borrower"}${b.otherName ? " " + b.otherName : ""}`.trim();
   const verified = b.kycStatus === "VERIFIED";
+
+  const accountAge = accountAgeOf(b.createdAt);
+
+  // Root-first placement chain: Head Office → Region → Branch.
+  type BranchNode = { name: string; levelName: string; parent?: BranchNode | null };
+  const branchChain: { name: string; levelName: string }[] = [];
+  for (let n = branch as BranchNode | null; n; n = n.parent ?? null) branchChain.unshift({ name: n.name, levelName: n.levelName });
 
   // Where this account is on the road from walk-in to money: registered →
   // KYC → statement crunched → application → active. Shown on the page so the
@@ -137,9 +172,10 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
         {/* Identity header. The customer's FACE leads — an officer looking for a person
             is looking for a person, and the fastest fraud check anyone ever runs is
             noticing that the face beside the name is the wrong one.
-            relative z-20: every glass panel is its own stacking context (backdrop
-            blur), so without this the kebab dropdown paints UNDER the panels below. */}
-        <div className="relative z-20 mt-3 glass p-5">
+            relative: the kebab button pins to this card's corner. The drawer and
+            modals it opens portal to <body> — a .glass panel's backdrop-filter would
+            otherwise trap and clip anything position:fixed inside it. */}
+        <div className="relative mt-3 glass p-5">
           {/* The one way to MANAGE this account — pinned to the furthest top-right of
               the card, opening a drawer from the right. The card itself stays a read. */}
           <div className="absolute right-3 top-3 z-30">
@@ -163,14 +199,27 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
               verified={verified}
             />
           </div>
-          <div className="flex items-start justify-between gap-4 flex-wrap pr-8 sm:pr-10">
-            <div className="flex items-center gap-4 min-w-0">
-              <BorrowerAvatar name={name} portraitUrl={portraitUrl} verified={verified} size="xl" />
+          {/* pr clears the kebab pinned at right-3: the stats grid must not crowd
+              its button, so the row stops a full button-width-plus-breath short. */}
+          <div className="flex items-start justify-between gap-4 flex-wrap pr-10 sm:pr-16">
+            <div className="min-w-0">
+              <div className="flex items-center gap-4 min-w-0">
+              {/* The corner tick stays off here — verification lives beside the name,
+                  Twitter-style, and one identity never wears two ticks. */}
+              <BorrowerAvatar name={name} portraitUrl={portraitUrl} verified={verified} tick={false} size="xl" />
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl font-bold truncate">{name}</h1>
+                  {/* Verified reads like a verified handle: the filled badge, no words.
+                      The words live in the tooltip for whoever hovers to ask. */}
+                  {verified ? (
+                    <span title={`Identity verified${b.kycVerifiedAt ? ` on ${dateFmt(b.kycVerifiedAt)}` : ""} — cleared for disbursement.`}>
+                      <BadgeCheck className="h-5 w-5 shrink-0 fill-emerald-500 text-white" aria-label="KYC verified" />
+                    </span>
+                  ) : (
+                    <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${KYC_TONE[b.kycStatus] ?? KYC_TONE.NONE}`}>KYC {b.kycStatus}</span>
+                  )}
                   {b.graduationCount > 0 && <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">GRADUATED ×{b.graduationCount}</span>}
-                  <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${KYC_TONE[b.kycStatus] ?? KYC_TONE.NONE}`}>KYC {b.kycStatus}</span>
                   {/* The gate, said out loud on the customer's own page — and a way through
                       it. An unverified borrower cannot be disbursed to, so the officer
                       looking at them needs to know that here, not at the payout desk.
@@ -186,42 +235,55 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
                   )}
                 </div>
                 <p className="mt-0.5 text-sm text-zinc-500 truncate">{b.phone}{b.nationalId ? ` · ID ${b.nationalId}` : ""}{b.locationAddress ? ` · ${b.locationAddress}` : ""}</p>
-                {verified ? (
-                  // Passing KYC is the only moment a customer is unambiguously better off
-                  // than they were an hour ago. Say so — the absence of a warning is not
-                  // the same as good news.
-                  <p className="mt-1 flex items-center gap-1.5 text-[12px] font-medium text-emerald-700">
-                    <BadgeCheck className="h-3.5 w-3.5" />
-                    Identity verified{b.kycVerifiedAt ? ` on ${dateFmt(b.kycVerifiedAt)}` : ""} — cleared for disbursement.
-                  </p>
-                ) : (
+                {/* Tenure and placement — how long they've banked here and whose book
+                    they sit on, root-first the way the org says it. This earns the line
+                    the old "identity verified" sentence held; the badge above already
+                    says that in one glyph. */}
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-zinc-600">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-zinc-400" />
+                    <span className="text-zinc-400">Account age</span>
+                    <span className="font-semibold text-zinc-700">{accountAge}</span>
+                  </span>
+                  {branchChain.map((n, i) => (
+                    <span key={`${n.name}-${i}`} className="flex items-center gap-1">
+                      {i === 0 && <Building2 className="h-3.5 w-3.5 text-zinc-400" />}
+                      <span className="font-semibold text-zinc-700">{n.name}</span>
+                      {i > 0 && <span className="text-[10px] text-zinc-400">({n.levelName})</span>}
+                    </span>
+                  ))}
+                </div>
+                {!verified && (
                   <p className="mt-1 text-[12px] font-medium text-amber-700">
                     Identity not verified — no money can be disbursed to this borrower yet.
                   </p>
                 )}
               </div>
-            </div>
-            {/* Full-width row under the identity on a phone (shrink-0 alone would
-                push the third tile off the screen); a fixed strip beside it on sm+. */}
-            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:shrink-0 sm:items-end">
-              <div className="grid grid-cols-3 gap-2">
-                <Stat label="OLB" value={fmtKES(olb)} tone="text-[color:var(--brand)]" />
-                <Stat label="Internal score" value={b.creditScore != null ? String(b.creditScore) : "—"} />
-                <Stat label="Loans" value={`${b.loans.filter((l) => l.status === "ACTIVE").length}/${b.loans.length}`} />
               </div>
-              {/* THE THREE PRIMARY ACTS, together. Asking for money, sending a human, and
-                  asking Riri are what an officer DOES on this page — they are not menu
-                  items to hunt for, and they were previously split between here and a
-                  strip buried under the CRB panel half a page down. The kebab beside
-                  them stays what an officer may CHANGE. */}
-              <BorrowerActions
-                borrowerId={b.id}
-                name={name}
-                lat={b.lat}
-                lng={b.lng}
-                fieldEntitled={fieldEntitled}
-                subject={{ kind: "borrower", id: b.id, label: name }}
-              />
+              {/* THE THREE PRIMARY ACTS, directly under the face. Asking for money,
+                  sending a human, and asking Riri are what an officer DOES on this
+                  page — they sit with the identity they act on, not across the card.
+                  The kebab top-right stays what an officer may CHANGE. */}
+              <div className="mt-3">
+                <BorrowerActions
+                  borrowerId={b.id}
+                  name={name}
+                  lat={b.lat}
+                  lng={b.lng}
+                  fieldEntitled={fieldEntitled}
+                  subject={{ kind: "borrower", id: b.id, label: name }}
+                />
+              </div>
+            </div>
+            {/* Full-width grid under the identity on a phone; a fixed 2×2 strip
+                beside it on sm+. The four numbers an officer prices this customer
+                by, big enough to be read from across a desk: what's out, what they
+                may take, what the model says, and their loan record. */}
+            <div className="grid w-full grid-cols-2 gap-2.5 sm:w-auto sm:shrink-0">
+              <BigStat label="OLB" value={fmtKES(olb)} tone="text-[color:var(--brand)]" />
+              <BigStat label="Loan limit" value={b.loanLimit != null ? fmtKES(Number(b.loanLimit)) : "—"} />
+              <BigStat label="Internal score" value={b.creditScore != null ? String(b.creditScore) : "—"} />
+              <BigStat label="Loans" value={`${b.loans.filter((l) => l.status === "ACTIVE").length}/${b.loans.length}`} />
             </div>
           </div>
 

@@ -22,7 +22,7 @@
 
 import type { config as MssqlConfig } from "mssql";
 
-export type OrgSlug = "micromart" | "axe" | "buysimu" | "njb" | "atico" | "hub";
+export type OrgSlug = "micromart" | "axe" | "buysimu" | "njb" | "atico" | "hub" | "micromart-fintech" | "techcrast";
 
 export type OrgDef = {
   slug: OrgSlug;
@@ -92,7 +92,58 @@ export const ORGS: Record<OrgSlug, OrgDef> = {
     entityEnv: "SERVICESUITE_ENTITYID_HUB",
     isAdmin: true,
   },
+  techcrast: {
+    // Techcrast Software Solutions lends off the SAME deployment as the
+    // Micromart-fintech pilot (102.214.69.233,4410) — it is Techcrast's own
+    // server. EntityId 7 = their book there. Unlike micromart-fintech (a
+    // posting-only target), techcrast is a full bridged lender: staff console +
+    // borrower portal read this book directly.
+    slug: "techcrast",
+    name: "Techcrast Software Solutions",
+    defaultEntityId: 7,
+    connEnv: "MICROMART_FINTECH",
+    entityEnv: "SERVICESUITE_ENTITYID_TECHCRAST",
+    isAdmin: false,
+  },
+  "micromart-fintech": {
+    // The MIROMART FINTECH pilot deployment (Techcrast's server, 102.214.69.233,4410
+    // — the conn string's "localhost,4410" was copied off the box itself). EntityId 7,
+    // one product: MIROMART FINTECH (Products.ID 31418) on workflow 55 "FINTECH
+    // APPROVAL" (Risk → Customer Service). This is a POSTING TARGET, not a portal
+    // lender — micromart's portal reads its book from the main Micromart server and
+    // BOOKS pilot loans here (see getPostingOrg).
+    slug: "micromart-fintech",
+    name: "Miromart Fintech",
+    defaultEntityId: 7,
+    connEnv: "MICROMART_FINTECH",
+    entityEnv: "MICROMART_FINTECH_ENTITYID",
+    isAdmin: false,
+  },
 };
+
+/**
+ * Orgs whose loans are POSTED into a different ServiceSuite than the one their
+ * book is read from. The Micromart pilot: eligibility/history reads stay on
+ * Micromart's own server; the booked loan goes to the boss's fintech deployment,
+ * where the FINTECH APPROVAL workflow takes over.
+ */
+const POSTING_TARGETS: Partial<Record<OrgSlug, OrgSlug>> = {
+  micromart: "micromart-fintech",
+};
+
+/**
+ * Where a lender's approved loans are booked. When a posting target is DECLARED
+ * but its connection is not configured, this is null — posting must stay off
+ * rather than silently booking into the wrong ledger.
+ */
+export function getPostingOrg(slug: string): OrgDef | null {
+  const targetSlug = POSTING_TARGETS[slug as OrgSlug];
+  if (targetSlug) {
+    const target = ORGS[targetSlug];
+    return isOrgConfigured(target) ? target : null;
+  }
+  return getOrg(slug);
+}
 
 export function getOrg(slug: string): OrgDef | null {
   return (ORGS as Record<string, OrgDef>)[slug] ?? null;

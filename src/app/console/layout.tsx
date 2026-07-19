@@ -22,7 +22,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   const org = session?.user?.orgId
     ? await prisma.org.findUnique({
         where: { id: session.user.orgId },
-        select: { name: true, slug: true, mode: true, status: true, accent: true, accentSoft: true, logoUrl: true },
+        select: { name: true, slug: true, mode: true, status: true, accent: true, accentSoft: true, logoUrl: true, logoScale: true },
       })
     : null;
 
@@ -36,7 +36,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
     <div style={{ ["--brand" as never]: org.accent, ["--brand-soft" as never]: org.accentSoft }}>
       <Shell
         nav={nav}
-        org={{ name: org.name, slug: org.slug, mode: org.mode, status: org.status, logoUrl: org.logoUrl }}
+        org={{ name: org.name, slug: org.slug, mode: org.mode, status: org.status, logoUrl: org.logoUrl, logoScale: org.logoScale }}
         user={{ name: session.user.name ?? "Staff", email: session.user.email, role: session.user.role }}
         impersonator={session.user.impersonator ? { name: session.user.impersonator.name } : null}
       >

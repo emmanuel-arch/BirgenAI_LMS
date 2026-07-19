@@ -14,6 +14,7 @@
 //     a modal that "saved" while the header still shows the old limit is a lie.
 // ─────────────────────────────────────────────────────────────────────────────
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
 import {
@@ -170,7 +171,13 @@ export function BorrowerMenu(props: Props) {
         <MoreVertical className="h-4.5 w-4.5" />
       </button>
 
-      {mounted && (
+      {/* PORTALLED TO <body>. The identity card is a .glass panel, and backdrop-filter
+          makes an element the containing block for fixed descendants — rendered in
+          place, this "full-screen" drawer freezes and covers the header card only,
+          while Risk band and everything below it stay live. The body is the one
+          ancestor that cannot clip it. (mounted is only ever true after a click, so
+          `document` is always there.) */}
+      {mounted && createPortal(
         <div className="fixed inset-0 z-50">
           {/* THE ICE. The whole page behind freezes over — top to bottom, edge to edge —
               so the drawer reads as the only live thing on screen. A 1px blur (what this
@@ -239,13 +246,15 @@ export function BorrowerMenu(props: Props) {
               {item(<Trash2 className="h-3.5 w-3.5 text-rose-500" />, "Erase them", "They asked to be forgotten — see what the law lets you delete", () => { closeDrawer(); setModal("erase"); })}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
-      {toast && (
+      {toast && createPortal(
         <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold text-white shadow-lg">
           {toast}
-        </div>
+        </div>,
+        document.body,
       )}
 
       {modal === "profile" && <ProfileModal borrowerId={props.borrowerId} onClose={() => setModal(null)} />}
