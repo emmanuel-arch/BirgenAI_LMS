@@ -17,6 +17,7 @@ import { deviceFingerprint } from "@/lib/portal/fingerprint";
 import CrunchTheatre, { type CrunchData } from "@/components/statement/CrunchTheatre";
 import OtpCard, { type OtpIssue } from "@/components/portal/OtpCard";
 import { OfferCard } from "@/components/portal/OfferCard";
+import PortalHero from "@/components/portal/PortalHero";
 
 const LENDERS = BRANDED_LENDERS;
 
@@ -167,10 +168,22 @@ export default function LmsPortal() {
   // DB-first: an org that onboarded this morning wears its own logo/colors here.
   const brand = useBrand(lender);
 
-  // White-label: the browser tab carries the lender's name, not BirgenAI's.
+  // White-label: the browser tab carries the lender's name AND their logo as the
+  // favicon, not BirgenAI's. Runs before any early return, so the cinematic hero
+  // is covered too.
   useEffect(() => {
-    if (scoped) document.title = brand.name;
-  }, [scoped, brand.name]);
+    if (!scoped) return;
+    document.title = brand.name;
+    if (!brand.logo) return;
+    let link = document.querySelector<HTMLLinkElement>('link[data-brand-icon="1"]');
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      link.setAttribute("data-brand-icon", "1");
+      document.head.appendChild(link);
+    }
+    link.href = brand.logo;
+  }, [scoped, brand.name, brand.logo]);
   const next = () => setStep((s) => s + 1);
   const back = () => setStep((s) => Math.max(0, s - 1));
 
@@ -412,6 +425,23 @@ export default function LmsPortal() {
     img.src = fallback;
   };
 
+  // Scoped subdomain landing (mular.birgenai.com) — the cinematic, brand-driven
+  // welcome hero. The rest of the funnel (OTP, profile, consent, apply) keeps the
+  // console-light chrome below; only this first screen is the immersive hero.
+  if (mounted && scoped && step === 0) {
+    return (
+      <PortalHero
+        brand={brand}
+        t={t}
+        phone={phone}
+        setPhone={setPhone}
+        onContinue={requestOtp}
+        loading={loading}
+        error={error}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen text-zinc-900 relative overflow-x-hidden" style={brandStyle}>
       {/* Full-bleed white background image behind the whole lending system */}
@@ -429,7 +459,7 @@ export default function LmsPortal() {
                 <span className="text-base font-bold truncate">{brand.name}</span>
               </>
             ) : (
-              // eslint-disable-next-line @next/next/no-img-element
+              // eslint-disable-next-line @next/next/no-img-el
               <img src="/images/logo.png" alt="BirgenAI" className="h-8 w-auto object-contain"
                 onError={(e) => onLogoError(e, "/images/BirgenAI-logo.png")} />
             )}

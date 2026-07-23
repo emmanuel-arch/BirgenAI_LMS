@@ -22,10 +22,13 @@ type Props = { params: Promise<{ org: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { org } = await params;
   const resolved = await resolveOrg(org);
-  if (!resolved) return { title: "Sign in — BirgenAI LMS" };
+  if (!resolved) return { title: "Sign in — LMS", icons: { icon: "/images/logo.png" } };
+  const { brand } = await resolveLenderBrand(resolved.slug);
   return {
     title: `${resolved.name} — Staff sign in`,
     description: `Sign in to the ${resolved.name} lending console.`,
+    // The lender's own logo in the browser tab, from the first click.
+    icons: { icon: brand.logo },
   };
 }
 

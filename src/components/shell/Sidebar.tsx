@@ -33,7 +33,7 @@ function BrandBlock({ org, collapsed, onNavigate }: { org: ShellOrg; collapsed: 
       aria-label={`${org.name} — console home`}
       title={org.name}
       className={`flex min-w-0 flex-1 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-900/[0.06] bg-white shadow-sm transition-all ${
-        collapsed ? "h-12 px-1.5" : "min-h-20 px-4 py-3"
+        collapsed ? "h-12 px-1.5" : "min-h-36 px-2 py-2.5"
       }`}
     >
       {org.logoUrl ? (
@@ -54,7 +54,7 @@ function BrandBlock({ org, collapsed, onNavigate }: { org: ShellOrg; collapsed: 
           className={`w-full object-contain ${collapsed ? "max-h-9" : ""}`}
           style={collapsed
             ? { transform: `scale(${(org.logoScale ?? 100) / 100})` }
-            : { maxHeight: `${(56 * (org.logoScale ?? 100)) / 100}px` }}
+            : { maxHeight: `${Math.min(150, (150 * (org.logoScale ?? 100)) / 100)}px` }}
         />
       ) : collapsed ? (
         <span className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-bold text-white" style={{ backgroundColor: "var(--brand)" }}>

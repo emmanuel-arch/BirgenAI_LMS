@@ -13,6 +13,7 @@ import { entitlementsFor } from "@/lib/billing/entitlements";
 import { navFor } from "@/lib/nav/registry";
 import Shell from "@/components/shell/Shell";
 import RiriDock from "@/components/riri/RiriDock";
+import BrandHead from "@/components/BrandHead";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
 
   return (
     <div style={{ ["--brand" as never]: org.accent, ["--brand-soft" as never]: org.accentSoft }}>
+      <BrandHead logoUrl={org.logoUrl} title={`${org.name} — Console`} />
       <Shell
         nav={nav}
         org={{ name: org.name, slug: org.slug, mode: org.mode, status: org.status, logoUrl: org.logoUrl, logoScale: org.logoScale }}

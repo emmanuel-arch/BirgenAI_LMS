@@ -166,7 +166,7 @@ export function resetCodeEmail(brand: EmailBrand, p: { name?: string | null; ema
 /** Welcome to the org's founding admin right after self-onboarding. */
 export function welcomeOrgEmail(brand: EmailBrand, p: { name: string; email: string }): EmailParts {
   const loginUrl = staffLoginUrl(brand);
-  const subject = `${brand.name} is live on BirgenAI LMS`;
+  const subject = `${brand.name} is live on LMS`;
 
   const text = [
     greet(p.name),
@@ -191,7 +191,7 @@ export function welcomeOrgEmail(brand: EmailBrand, p: { name: string; email: str
     text,
     html: buildEmailDocumentHtml({
       brand, pageTitle: subject, mainCardRowsHtml: rows,
-      legalFooterInnerHtml: `Sent to ${escapeHtml(p.email)} because this address created ${escapeHtml(brand.name)} on BirgenAI LMS.`,
+      legalFooterInnerHtml: `Sent to ${escapeHtml(p.email)} because this address created ${escapeHtml(brand.name)} on LMS.`,
     }),
   };
 }

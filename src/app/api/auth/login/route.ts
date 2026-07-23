@@ -88,8 +88,8 @@ export async function POST(req: NextRequest) {
             otpRequired: true,
             issued: issue.issued,
             message: issue.issued
-              ? "We emailed you today's sign-in code. It works for the whole day."
-              : "Use the sign-in code we emailed you earlier today — it works until midnight.",
+              ? "Today's code is on its way to your inbox."
+              : "Use today's code from your inbox — it's good until midnight.",
             ...(issue.devCode ? { devCode: issue.devCode } : {}),
           });
         }

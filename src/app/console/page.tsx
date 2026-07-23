@@ -3,74 +3,55 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRights } from "@/lib/rbac/authz";
 import { entitlementsFor } from "@/lib/billing/entitlements";
-import type { Right } from "@/lib/rbac/rights";
-import type { Feature } from "@/lib/billing/plans";
-import {
-  Users, Banknote, Gauge, FileText, Landmark, MessageSquare, Settings2, MapPin, Bot, Package, GitBranch, Crown, ScanLine, Scale, KeyRound, PhoneCall,
-} from "lucide-react";
+import { LayoutGrid } from "lucide-react";
 import SetupChecklist, { type ChecklistItem } from "@/components/console/SetupChecklist";
+import ModuleLauncher from "@/components/console/ModuleLauncher";
+import CinematicDashboard from "@/components/dashboard/CinematicDashboard";
+import type { LiveSnapshot, Scope } from "@/lib/dashboard/model";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Staff console home. The sidebar is the canonical menu (src/lib/nav/registry);
-// these cards are the same destinations as a scannable dashboard, filtered by
-// the SAME rights + plan features so the two can never disagree.
-const MODULES: {
-  icon: typeof Users; title: string; desc: string; ready: boolean;
-  href?: string; open?: string; right?: Right; feature?: Feature;
-}[] = [
-  { icon: FileText, title: "Applications", desc: "AI pre-screened queue, SHAP reasons, two-tier approvals", ready: true, href: "/console/applications", right: "applications.view" },
-  { icon: Package, title: "Products", desc: "Loan products: limits, interest, schedule, disbursement mode", ready: true, href: "/console/products", right: "products.view" },
-  { icon: GitBranch, title: "Workflows", desc: "Approval stage chains: tiers, OTP, finalize amount caps", ready: true, href: "/console/workflows", right: "workflows.view" },
-  { icon: Users, title: "Borrowers", desc: "The borrower book: KYC status, scores, OLB, graduation", ready: true, href: "/console/borrowers", right: "borrowers.view" },
-  { icon: Landmark, title: "Loans", desc: "Booked loans: balances, schedules, printable statements", ready: true, href: "/console/loans", right: "loans.view" },
-  { icon: Banknote, title: "Disbursements", desc: "Maker-checker B2C queue, manual confirm, float ledger", ready: true, href: "/console/disbursements", right: "disbursements.view" },
-  { icon: Landmark, title: "Repayments", desc: "STK requests, C2B receipts, unallocated exceptions", ready: true, href: "/console/repayments", right: "repayments.view" },
-  { icon: Scale, title: "Reconciliation", desc: "Every shilling M-Pesa moved, checked nightly against the book", ready: true, href: "/console/reconciliation", right: "reconciliation.view" },
-  { icon: PhoneCall, title: "Collections", desc: "Arrears work queue, promises to pay, call logs, tickets", ready: true, href: "/console/collections", right: "collections.view" },
-  { icon: Gauge, title: "Credit Intelligence", desc: "Portfolio early-warning watchlist, risk scores, one-tap recovery", ready: true, href: "/console/intelligence", right: "intelligence.view", feature: "portfolio-scan" },
-  { icon: MapPin, title: "Field & Routes", desc: "Geo-pinned verifications, nearest-agent allocation, drive routes", ready: true, href: "/console/field", right: "field.view", feature: "route-planner" },
-  { icon: ScanLine, title: "Document Parser", desc: "Fee structures, invoices, permits, statements → structured figures", ready: true, href: "/console/documents", right: "documents.view", feature: "document-parser" },
-  { icon: MessageSquare, title: "SMS & Comms", desc: "Campaign blasts, message templates, the email log", ready: true, href: "/console/comms", right: "sms.view" },
-  { icon: Bot, title: "Riri Assistant", desc: "Talk to your book — 3 models: Analyst (live data), Copilot & Max", ready: true, open: "analyst", right: "riri.use", feature: "riri" },
-  { icon: FileText, title: "Reports", desc: "Portfolio report & loan statements — print or save as PDF", ready: true, href: "/console/report", right: "reports.view" },
-  { icon: KeyRound, title: "Team, Roles & Access", desc: "Invite staff, create roles, choose the menus each role sees", ready: true, href: "/console/roles", right: "roles.view" },
-  { icon: Crown, title: "Billing & Package", desc: "Your package, usage this month, pay via the BirgenAI wallet", ready: true, href: "/console/billing", right: "billing.view" },
-  { icon: Settings2, title: "Settings & Vault", desc: "Branding, integrations (Daraja, SMS, CRB, KYC)", ready: true, href: "/console/settings", right: "settings.view" },
-];
-
+// Staff console home — the cinematic Portfolio Command dashboard. The old launcher
+// grid is now admin-only (ModuleLauncher); everyone else navigates via the sidebar.
 export default async function Console() {
   const session = await auth();
   if (!session?.user?.orgId) redirect("/login");
   const orgId = session.user.orgId;
 
-  const org = await prisma.org.findUnique({ where: { id: orgId }, select: { name: true, status: true, onboardingState: true } });
+  const org = await prisma.org.findUnique({
+    where: { id: orgId },
+    select: { name: true, slug: true, status: true, onboardingState: true, accent: true, accent2: true },
+  });
   if (!org) redirect("/login");
 
   const [rights, ent] = await Promise.all([getRights(session), entitlementsFor(orgId)]);
-  const visible = MODULES.filter(
-    (m) => (!m.right || rights.has(m.right)) && (!m.feature || ent.features.has(m.feature)),
-  );
 
-  // Portfolio pulse — the semantic-metric-layer seeds (OLB, PAR30, today's flows).
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  // Who is asking, and how much of the book may they see? Mirrors the proc's three
+  // scopes: validator/admin → whole entity, authorizer → their unit, else own book.
+  const tiers = session.user.tiers;
+  const adminRole = (session.user.role ?? "").toLowerCase().includes("admin");
+  const isAdmin = rights.has("settings.manage") || rights.has("roles.manage") || adminRole;
+  const scope: Scope = (tiers?.validator || isAdmin) ? "entity" : tiers?.authorizer ? "unit" : "agent";
+  const canPickScope = isAdmin || !!tiers?.validator;
+
+  // Real portfolio position (range-invariant, always "as of now"). An empty book
+  // (a lender that just onboarded) yields null → the dashboard runs its showcase.
   const par30Cutoff = new Date(Date.now() - 30 * 86400000);
-  const [olbAgg, activeCount, par30Agg, disbToday, collToday, liveApps, pendingDisb] = await Promise.all([
+  const [olbAgg, activeCount, par30Agg] = await Promise.all([
     prisma.loan.aggregate({ where: { orgId, status: "ACTIVE" }, _sum: { balance: true } }),
     prisma.loan.count({ where: { orgId, status: "ACTIVE" } }),
     prisma.loan.aggregate({
       where: { orgId, status: "ACTIVE", installments: { some: { status: "OVERDUE", dueDate: { lt: par30Cutoff } } } },
       _sum: { balance: true },
     }),
-    prisma.disbursement.aggregate({
-      where: { orgId, state: { in: ["CONFIRMED", "MANUAL_CONFIRMED"] }, updatedAt: { gte: today } },
-      _sum: { amount: true },
-    }),
-    prisma.c2BReceipt.aggregate({ where: { orgId, createdAt: { gte: today } }, _sum: { amount: true } }),
-    prisma.loanApplication.count({ where: { orgId, status: { in: ["SUBMITTED", "AI_PRESCREEN", "OFFICER_REVIEW", "REFERRED"] } } }),
-    prisma.disbursement.count({ where: { orgId, state: { in: ["PENDING_MAKER", "PENDING_CHECKER"] } } }),
   ]);
+  const olb = Number(olbAgg._sum.balance ?? 0);
+  const arrears = Number(par30Agg._sum.balance ?? 0);
+  const live: LiveSnapshot | null = activeCount > 0
+    ? { olb, activeLoans: activeCount, totalArrears: arrears, par: olb > 0 ? (arrears / olb) * 100 : 0 }
+    : null;
+
   // First-run checklist — only while the org is PENDING and not dismissed.
   const setupState = (org.onboardingState ?? {}) as { dismissed?: boolean; activationRequestedAt?: string };
   let checklist: ChecklistItem[] | null = null;
@@ -92,62 +73,38 @@ export default async function Console() {
     ];
   }
 
-  const olb = Number(olbAgg._sum.balance ?? 0);
-  const par30 = Number(par30Agg._sum.balance ?? 0);
-  const fmt = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
-  const TILES = [
-    { label: "Outstanding loan book", value: fmt(olb), sub: `${activeCount} active loan${activeCount === 1 ? "" : "s"}` },
-    { label: "PAR 30", value: olb > 0 ? `${((par30 / olb) * 100).toFixed(1)}%` : "0.0%", sub: fmt(par30) },
-    { label: "Disbursed today", value: fmt(Number(disbToday._sum.amount ?? 0)), sub: null },
-    { label: "Collected today", value: fmt(Number(collToday._sum.amount ?? 0)), sub: null },
-    { label: "Applications waiting", value: String(liveApps), sub: null },
-    { label: "Disbursements queued", value: String(pendingDisb), sub: null },
-  ];
-
   return (
-    <main className="mx-auto max-w-6xl px-4 sm:px-6 py-8">
-      <h1 className="text-xl font-bold">Console</h1>
-      <p className="mt-1 text-sm text-zinc-500">Your lending operation, org-scoped and isolated.</p>
-
+    <main className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-8">
       {checklist && (
-        <SetupChecklist
-          items={checklist}
-          canAct={rights.has("settings.manage")}
-          activationRequestedAt={setupState.activationRequestedAt ?? null}
-        />
+        <div className="mb-5">
+          <SetupChecklist
+            items={checklist}
+            canAct={rights.has("settings.manage")}
+            activationRequestedAt={setupState.activationRequestedAt ?? null}
+          />
+        </div>
       )}
 
-      <div className="mt-5 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-        {TILES.map((t) => (
-          <div key={t.label} className="glass p-3.5">
-            <p className="text-[10px] uppercase tracking-wide text-zinc-500">{t.label}</p>
-            <p className="mt-1 text-base font-bold leading-tight" style={{ color: "var(--brand)" }}>{t.value}</p>
-            {t.sub && <p className="mt-0.5 text-[10px] text-zinc-500">{t.sub}</p>}
-          </div>
-        ))}
-      </div>
+      <CinematicDashboard
+        orgName={org.name}
+        orgSlug={org.slug}
+        accent={org.accent || "#0f172a"}
+        accent2={org.accent2 || org.accent || "#334155"}
+        initialScope={scope}
+        canPickScope={canPickScope}
+        live={live}
+      />
 
-      {/* Two-up on phones: eighteen full-width cards is a minute of scrolling on a
-          360px Android — the launcher grid keeps the whole operation on two screens. */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-        {visible.map(({ icon: Icon, title, desc, ready, ...m }) => {
-          const card = (
-            <div className={`glass p-3.5 sm:p-5 h-full ${ready ? "hover:bg-white/80 transition-colors" : "opacity-60"}`}>
-              <div className="flex items-center justify-between">
-                <Icon className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: "var(--brand)" }} aria-hidden />
-                {!ready && <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">COMING UP</span>}
-              </div>
-              <h2 className="mt-2.5 sm:mt-3 text-[13px] sm:text-sm font-semibold leading-snug">{title}</h2>
-              <p className="mt-1 text-[11px] sm:text-sm leading-snug sm:leading-relaxed text-zinc-600 line-clamp-2 sm:line-clamp-none">{desc}</p>
-            </div>
-          );
-          if (m.href && ready) return <a key={title} href={m.href}>{card}</a>;
-          // Riri opens the floating dock (mounted in the console layout) via a
-          // global [data-riri-open] listener — no client component needed here.
-          if (m.open && ready) return <button key={title} type="button" data-riri-open={m.open} className="text-left w-full">{card}</button>;
-          return <div key={title}>{card}</div>;
-        })}
-      </div>
+      {isAdmin && (
+        <section className="mt-8">
+          <div className="mb-3 flex items-center gap-2">
+            <LayoutGrid className="h-4 w-4 text-zinc-400" />
+            <h2 className="text-sm font-semibold">All modules</h2>
+            <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">ADMIN</span>
+          </div>
+          <ModuleLauncher rights={rights} features={ent.features as ReadonlySet<string>} />
+        </section>
+      )}
     </main>
   );
 }

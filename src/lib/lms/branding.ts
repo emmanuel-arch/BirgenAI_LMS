@@ -61,6 +61,21 @@ export const LENDER_BRANDS: Record<string, LenderBrand> = {
     blurb: "Quick personal credit & trader advances",
     fallbackLogo: "/images/AxeLogo.png",
   },
+  mular: {
+    // Mular Credit Ltd — NATIVE org (own Postgres book). Brand hex mirror the DB
+    // (accent #003c71 navy, accent2 #50951d green) so the static paint matches
+    // what /api/lms/brand later confirms — zero flicker on mular.birgenai.com.
+    slug: "mular",
+    name: "Mular Credit Ltd",
+    logo: "/lenders/mular/logo.png",
+    hero: "/lenders/mular/hero.jpg",
+    accent: "#003c71", // navy
+    accentSoft: "rgba(0,60,113,0.12)",
+    accent2: "#50951d", // green
+    tagline: "Fueling Ambitions, Building futures",
+    blurb: "Trusted by Thousands of People & Businesses",
+    fallbackLogo: "/lenders/mular/logo.png",
+  },
   buysimu: {
     // Device financing — get a phone (e.g. iPhone) on credit, repay weekly/monthly.
     // Red brand per founder direction (DB stores black; we override to red).

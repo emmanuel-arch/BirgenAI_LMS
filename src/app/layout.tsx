@@ -13,9 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BirgenAI LMS",
+  title: "LMS",
   description:
-    "AI-native loan origination & management for licensed lenders — multi-tenant, Tala-grade borrower experience, powered by BirgenAI.",
+    "AI-native loan origination & management for licensed lenders — multi-tenant, Tala-grade borrower experience.",
+  // Default tab icon = the BirgenAI logo.png (the abstract mark), NOT the old
+  // triangle favicon. Lender-scoped surfaces swap in their own logo at runtime.
+  icons: { icon: "/images/logo.png" },
 };
 
 export default function RootLayout({

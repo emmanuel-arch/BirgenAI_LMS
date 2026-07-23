@@ -71,7 +71,7 @@ export async function emailBrandFor(orgId: string): Promise<EmailBrand> {
   const logo = org?.logoUrl && /^https?:\/\//i.test(org.logoUrl) ? org.logoUrl : null;
   return {
     orgId,
-    name: org?.name ?? "BirgenAI LMS",
+    name: org?.name ?? "LMS",
     slug: org?.slug ?? "lms",
     logoUrl: logo,
     accent: org?.accent ?? "#F97316",
@@ -95,11 +95,18 @@ const MONO = "'Consolas','Segoe UI Mono','Menlo',Monaco,monospace";
 /** Full HTML document: brand strip, gradient rule, content card, thank-you strip, legal footer. */
 export function buildEmailDocumentHtml({ brand, pageTitle, mainCardRowsHtml, legalFooterInnerHtml, primaryCta }: EmailShellOptions): string {
   const base = publicBaseUrl();
-  const ctaHref = primaryCta?.href ?? `${base}/login`;
+  // Default the header CTA to the lender's OWN branded door (/<slug>), where staff
+  // meet their logo and colours from the first click — never the generic /login.
+  // "lms" is emailBrandFor's no-org fallback, which correctly keeps /login.
+  const brandedDoor = brand.slug && brand.slug !== "lms" ? `${base}/${brand.slug}` : `${base}/login`;
+  const ctaHref = primaryCta?.href ?? brandedDoor;
   const ctaLabel = primaryCta?.label ?? "Open the console";
+  // Logo only — no wordmark beside it. The mark carries the brand; a wide logo
+  // (a wordmark like "Mular Credit Ltd") gets room via height-driven sizing with
+  // a generous max-width, so it reads as clearly as the console header logo.
   const logoCell = brand.logoUrl
-    ? `<img src="${brand.logoUrl}" width="40" height="40" alt="${escapeHtml(brand.name)}" style="display:block;border:0;outline:none;width:40px;height:auto;max-height:46px;max-width:132px;border-radius:8px;-ms-interpolation-mode:bicubic;" />`
-    : `<span style="display:inline-block;width:40px;height:40px;line-height:40px;text-align:center;background:${brand.accent};border-radius:10px;font-family:${FONT};font-size:20px;font-weight:800;color:#ffffff;">${escapeHtml(brand.name.slice(0, 1).toUpperCase())}</span>`;
+    ? `<img src="${brand.logoUrl}" height="46" alt="${escapeHtml(brand.name)}" style="display:block;border:0;outline:none;height:46px;width:auto;max-height:52px;max-width:220px;border-radius:6px;-ms-interpolation-mode:bicubic;" />`
+    : `<span style="display:inline-block;width:46px;height:46px;line-height:46px;text-align:center;background:${brand.accent};border-radius:10px;font-family:${FONT};font-size:22px;font-weight:800;color:#ffffff;">${escapeHtml(brand.name.slice(0, 1).toUpperCase())}</span>`;
 
   return `
 <!DOCTYPE html>
@@ -120,15 +127,10 @@ export function buildEmailDocumentHtml({ brand, pageTitle, mainCardRowsHtml, leg
             <td style="padding:18px 24px 14px;">
               <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
-                  <td valign="middle" align="left" style="width:55%;">
-                    <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-                      <td valign="middle" style="padding:0 12px 0 0;">${logoCell}</td>
-                      <td valign="middle">
-                        <span style="font-family:${FONT};font-size:15px;font-weight:800;color:${PALETTE.text};">${escapeHtml(brand.name)}</span>
-                      </td>
-                    </tr></table>
+                  <td valign="middle" align="left" style="width:50%;">
+                    ${logoCell}
                   </td>
-                  <td valign="middle" align="right" style="width:45%;white-space:nowrap;">
+                  <td valign="middle" align="right" style="width:50%;white-space:nowrap;">
                     <a href="${ctaHref}" style="display:inline-block;margin:4px 0;padding:9px 16px;background:transparent;border:1px solid ${brand.accent};border-radius:999px;font-family:${FONT};font-size:12px;font-weight:600;color:${brand.accent};text-decoration:none;">${escapeHtml(ctaLabel)}</a>
                     <a href="mailto:${SUPPORT_MAIL}" style="display:inline-block;margin:4px 0 4px 8px;padding:9px 16px;background:${brand.accent};border-radius:999px;font-family:${FONT};font-size:12px;font-weight:600;color:#ffffff;text-decoration:none;">Help</a>
                   </td>
@@ -164,7 +166,7 @@ export function buildEmailDocumentHtml({ brand, pageTitle, mainCardRowsHtml, leg
             <td style="padding:18px 16px 8px;text-align:center;">
               <p style="margin:0;font-family:${FONT};font-size:11px;line-height:1.5;color:${PALETTE.legal};">
                 ${legalFooterInnerHtml}<br />
-                ${escapeHtml(brand.name)} runs on <a href="https://birgenai.com" style="color:${PALETTE.legal};text-decoration:underline;">BirgenAI LMS</a>.
+                ${escapeHtml(brand.name)} runs on <a href="https://birgenai.com" style="color:${PALETTE.legal};text-decoration:underline;">LMS</a>.
               </p>
             </td>
           </tr>
