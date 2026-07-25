@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, ShieldCheck, Users, Package, Plus, Check, X, Clock, AlertTriangle } from "lucide-react";
+import { IdentityLookup } from "@/components/kyc/IdentityLookup";
 
 // Guarantors and collateral, where the officer can act on them.
 //
@@ -24,6 +25,7 @@ type Security = {
 };
 type Data = {
   guarantorRequired: boolean; hasStandingGuarantor: boolean; hasOffer: boolean;
+  borrowerNationalId: string | null;
   guarantors: Guarantor[]; collateral: Collateral[]; security: Security | null;
 };
 
@@ -51,7 +53,8 @@ export function SecurityPanel({ applicationId, onChanged }: { applicationId: str
   const [notice, setNotice] = useState<string | null>(null);
   const [addingG, setAddingG] = useState(false);
   const [addingC, setAddingC] = useState(false);
-  const [g, setG] = useState({ fullName: "", phone: "", relationship: "" });
+  const [g, setG] = useState({ fullName: "", phone: "", relationship: "", nationalId: "" });
+  const [gManual, setGManual] = useState(false);
   const [c, setC] = useState({ kind: "VEHICLE", description: "", estimatedValueKes: "", registrationRef: "" });
 
   const load = useCallback(async () => {
@@ -132,22 +135,32 @@ export function SecurityPanel({ applicationId, onChanged }: { applicationId: str
           </div>
 
           {addingG ? (
-            <div className="mt-2 grid gap-1.5 sm:grid-cols-3">
-              <input value={g.fullName} onChange={(e) => setG({ ...g, fullName: e.target.value })} placeholder="Their full name"
-                className="rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none" />
-              <input value={g.phone} onChange={(e) => setG({ ...g, phone: e.target.value })} placeholder="07XX XXX XXX" inputMode="tel"
-                className="rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none" />
-              <input value={g.relationship} onChange={(e) => setG({ ...g, relationship: e.target.value })} placeholder="Relationship"
-                className="rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none" />
-              <div className="flex gap-1.5 sm:col-span-3">
+            <div className="mt-2 space-y-1.5">
+              {/* ID-first: the national registry names the guarantor — we never type it,
+                  and it cannot resolve to the borrower's own ID. Manual is a fallback. */}
+              {gManual ? (
+                <input value={g.fullName} onChange={(e) => setG({ ...g, fullName: e.target.value })} placeholder="Their full name" autoFocus
+                  className="w-full rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none" />
+              ) : (
+                <IdentityLookup role="guarantor" excludeNationalId={data.borrowerNationalId}
+                  onResolved={(p) => setG((prev) => ({ ...prev, fullName: p?.fullName ?? "", nationalId: p?.nationalId ?? "", phone: p?.phone ? p.phone.replace(/^\+?254/, "0") : prev.phone }))}
+                  onManual={() => setGManual(true)} />
+              )}
+              <div className="grid gap-1.5 sm:grid-cols-2">
+                <input value={g.phone} onChange={(e) => setG({ ...g, phone: e.target.value })} placeholder="07XX XXX XXX" inputMode="tel"
+                  className="rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none" />
+                <input value={g.relationship} onChange={(e) => setG({ ...g, relationship: e.target.value })} placeholder="Relationship"
+                  className="rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none" />
+              </div>
+              <div className="flex gap-1.5">
                 <button disabled={busy || !g.fullName || !g.phone}
-                  onClick={async () => { if (await post({ action: "invite-guarantor", ...g })) { setAddingG(false); setG({ fullName: "", phone: "", relationship: "" }); } }}
+                  onClick={async () => { if (await post({ action: "invite-guarantor", fullName: g.fullName, phone: g.phone, relationship: g.relationship, nationalId: g.nationalId || undefined })) { setAddingG(false); setGManual(false); setG({ fullName: "", phone: "", relationship: "", nationalId: "" }); } }}
                   className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">
                   {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Send the request
                 </button>
-                <button onClick={() => setAddingG(false)} className="px-2 text-xs text-zinc-500 hover:text-zinc-800">Cancel</button>
+                <button onClick={() => { setAddingG(false); setGManual(false); }} className="px-2 text-xs text-zinc-500 hover:text-zinc-800">Cancel</button>
               </div>
-              <p className="text-[10px] text-zinc-400 sm:col-span-3">They get an SMS. Only they can agree — you cannot agree for them.</p>
+              <p className="text-[10px] text-zinc-400">They get an SMS. Only they can agree — you cannot agree for them.</p>
             </div>
           ) : (
             <button onClick={() => setAddingG(true)}

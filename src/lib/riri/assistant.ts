@@ -117,8 +117,8 @@ function unconfigured(): AssistantResult {
     mode: "simulation",
     subjectId: null,
     answer:
-      "My brain isn't connected on this install yet — an admin needs to set Riri's LLM key. " +
-      "Until then, Riri Analyst still answers questions about your live book, and Riri Support " +
+      "My brain isn't connected on this install yet — an admin needs to set the LLM key. " +
+      "Until then, ServiceSuite AI Analytics still answers questions about your live book, and ServiceSuite AI Support " +
       "can walk you through anything in the console.",
   };
 }
@@ -168,15 +168,15 @@ export async function askAssistant(
 // It runs AFTER the answer is already on screen (never awaited in the request path), so
 // a slow or failed memory write costs the officer nothing.
 
-const REMEMBER_SYSTEM = `You are Riri's memory. You are shown one exchange between Riri and a member of staff at a lender.
+const REMEMBER_SYSTEM = `You are the assistant's memory. You are shown one exchange between the assistant and a member of staff at a lender.
 
-Decide whether anything in it is worth Riri remembering NEXT WEEK. Reply with ONE line of JSON and nothing else:
+Decide whether anything in it is worth the assistant remembering NEXT WEEK. Reply with ONE line of JSON and nothing else:
 
 {"keep": false}
-{"keep": true, "kind": "recommendation" | "pattern" | "preference", "body": "<one sentence, third person, from Riri's point of view>"}
+{"keep": true, "kind": "recommendation" | "pattern" | "preference", "body": "<one sentence, third person, about the staff member and their book — never name the assistant>"}
 
 Rules:
-- "recommendation" = Riri advised a specific action she should follow up on. This is the most valuable kind.
+- "recommendation" = the assistant advised a specific action to follow up on. This is the most valuable kind.
 - "pattern" = something about how this person works, or their book, that will still be true next week.
 - "preference" = how they like to be helped (language, brevity, detail).
 - Keep NOTHING for greetings, small talk, or a plain factual lookup they could repeat any time.
@@ -204,7 +204,7 @@ export async function rememberExchange(
   try {
     const raw = await generate(
       REMEMBER_SYSTEM,
-      `Staff asked: ${question}\n\nRiri answered: ${answer}`,
+      `Staff asked: ${question}\n\nThe assistant answered: ${answer}`,
       [],
       { temperature: 0, maxOutputTokens: 200 },
     );

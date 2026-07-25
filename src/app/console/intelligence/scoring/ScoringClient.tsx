@@ -11,6 +11,7 @@ import {
   Gauge, SlidersHorizontal, Package, Calculator, Bot, CheckCircle2,
 } from "lucide-react";
 import { PageHeader } from "@/components/shell/PageHeader";
+import { ASSISTANT_NAME } from "@/lib/riri/brand";
 
 type SlimRow = {
   borrowerId: string; loanId: string; name: string; band: "WATCH" | "ELEVATED" | "HIGH";
@@ -254,7 +255,7 @@ function Playbook({ rows }: { rows: SlimRow[] }) {
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Default-reduction playbook — what is actually driving risk</h2>
         <button data-riri-open="analytics" className="inline-flex items-center gap-1 text-[11px] font-semibold" style={{ color: "var(--brand)" }}>
-          <Bot className="h-3.5 w-3.5" /> Ask Riri
+          <Bot className="h-3.5 w-3.5" /> Ask {ASSISTANT_NAME}
         </button>
       </div>
       <div className="mt-3 space-y-2.5">

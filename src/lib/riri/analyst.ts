@@ -394,7 +394,7 @@ async function answerHelp(orgId: string, metrics: ResolvedMetric[]): Promise<Ana
     route: "narrative",
     kind: "help",
     answer:
-      `I'm **Riri Analyst** — I read your live book so you don't have to pull a report. Right now you're carrying ${kesShort(book?.value ?? 0)} across ${plural(book?.n ?? 0, "active loan")}, PAR 30 at ${(par30?.value ?? 0).toFixed(1)}%, with ${plural(queue?.value ?? 0, "application")} waiting on a decision.\n\n` +
+      `I'm **ServiceSuite AI Analytics** — I read your live book so you don't have to pull a report. Right now you're carrying ${kesShort(book?.value ?? 0)} across ${plural(book?.n ?? 0, "active loan")}, PAR 30 at ${(par30?.value ?? 0).toFixed(1)}%, with ${plural(queue?.value ?? 0, "application")} waiting on a decision.\n\n` +
       `I know **${live.length} measures** of your book — ${known}, and more. Ask for any of them by period ("collected last month"), sliced ("PAR by product"), ranked ("top 5 borrowers") or as a trend ("disbursements over time"). Every answer shows you the SQL it came from.`,
     chips: [
       { label: "Outstanding book", value: kesShort(book?.value ?? 0) },

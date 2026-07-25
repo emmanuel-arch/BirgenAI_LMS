@@ -9,6 +9,8 @@ import { useLang } from "@/lib/i18n/useLang";
 import { fmt } from "@/lib/i18n/portal";
 import { LangToggle } from "@/components/portal/LangToggle";
 import OtpCard, { type OtpIssue } from "@/components/portal/OtpCard";
+import { InternalReportCard } from "@/components/portal/InternalReportCard";
+import { AutoRepayCard } from "@/components/portal/AutoRepayCard";
 
 // Borrower self-service: check my loan + Pay Now (STK to the REGISTERED phone).
 // White-label aware like the funnel (subdomain or ?lender=).
@@ -196,6 +198,13 @@ export default function MyLoanPage() {
                   )}
                 </div>
               )}
+
+              {/* Auto-repay (M-Pesa Ratiba) — renders only with an active loan. */}
+              <AutoRepayCard lender={lender} nationalId={nationalId} />
+
+              {/* Their own money story, paid for — the Internal Report engine as a
+                  self-serve product. Renders itself only where the lender offers it. */}
+              <InternalReportCard lender={lender} nationalId={nationalId} />
             </div>
           )}
         </div>

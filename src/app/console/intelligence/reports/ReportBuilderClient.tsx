@@ -3,7 +3,7 @@
 // The Report Builder's two faces: the COMPOSER (checkboxes over the metric
 // catalogue) and the DOCUMENT (a white paper sheet that prints to PDF via the
 // same @media print machinery as the loan statement). Every measure is one
-// Riri query and the composer says so — no surprise lines on an invoice.
+// ServiceSuite AI query and the composer says so — no surprise lines on an invoice.
 import { useState } from "react";
 import { FileBarChart, Loader2, Printer, ArrowLeft, AlertTriangle, ChevronDown } from "lucide-react";
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -137,7 +137,7 @@ export function ReportBuilderClient({ org, metrics }: {
           ))}
 
           <footer className="mt-8 border-t border-zinc-900/10 pt-3 text-[10px] leading-relaxed text-zinc-500">
-            <p>Composed by {result.generatedBy} from the metric catalogue. Every figure ran the same audited, read-only query Riri shows in the dock.</p>
+            <p>Composed by {result.generatedBy} from the metric catalogue. Every figure ran the same audited, read-only query ServiceSuite AI shows in the dock.</p>
             <p className="mt-1">Powered by BirgenAI · lms.birgenai.com</p>
           </footer>
         </main>
@@ -151,7 +151,7 @@ export function ReportBuilderClient({ org, metrics }: {
       <PageHeader
         icon={FileBarChart}
         title="Report Builder"
-        subtitle="Every measure Riri knows, with checkboxes. Compose it, run it, print it — each measure is one Riri query."
+        subtitle="Every measure ServiceSuite AI knows, with checkboxes. Compose it, run it, print it — each measure is one ServiceSuite AI query."
       />
 
       {error && (
@@ -180,7 +180,7 @@ export function ReportBuilderClient({ org, metrics }: {
         </div>
 
         <p className="mt-3 text-[11px] text-zinc-500">
-          Pick up to 12. Each runs the same audited query Riri would — and is metered as one Riri query.
+          Pick up to 12. Each runs the same audited query ServiceSuite AI would — and is metered as one ServiceSuite AI query.
         </p>
         <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
           {metrics.map((m) => (

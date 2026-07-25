@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Banknote, MapPin, Loader2, CheckCircle2, AlertCircle, ExternalLink, Send } from "lucide-react";
 import type { RiskRow, RiskBand } from "@/lib/intelligence/earlywarning";
+import { ASSISTANT_NAME } from "@/lib/riri/brand";
 
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 
@@ -103,7 +104,7 @@ export function Watchlist({ rows }: { rows: Row[] }) {
                 </button>
               )}
               <button data-riri-open="analytics" className="inline-flex items-center gap-1.5 rounded-lg bg-white/70 border border-zinc-900/10 px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:text-zinc-900">
-                <Send className="h-3.5 w-3.5" /> Ask Riri
+                <Send className="h-3.5 w-3.5" /> Ask {ASSISTANT_NAME}
               </button>
               <Link href={`/console/borrowers/${r.borrowerId}`} className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800">
                 View <ExternalLink className="h-3 w-3" />

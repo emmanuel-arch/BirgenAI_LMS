@@ -138,7 +138,7 @@ export function validateReadSql(input: string): GuardResult {
   // The load-bearing rule. See the header, and prisma/riri-views.sql.
   if (sql.includes('"')) {
     return deny(
-      "Riri reads your book through her published views, which never need quoted names. " +
+      "ServiceSuite AI reads your book through her published views, which never need quoted names. " +
         "A quoted identifier means reaching for a raw table, and that is not allowed.",
     );
   }
@@ -151,12 +151,12 @@ export function validateReadSql(input: string): GuardResult {
   const lower = sql.toLowerCase();
 
   if (!/^\s*(with|select)\b/.test(lower)) {
-    return deny("Riri may only read from your book, never change it — a query has to begin with SELECT.");
+    return deny("ServiceSuite AI may only read from your book, never change it — a query has to begin with SELECT.");
   }
 
   for (const word of BANNED_KEYWORDS) {
     if (new RegExp(`\\b${word}\\b`).test(lower)) {
-      return deny(`\`${word.toUpperCase()}\` isn't permitted — Riri has read-only access to your book.`);
+      return deny(`\`${word.toUpperCase()}\` isn't permitted — ServiceSuite AI has read-only access to your book.`);
     }
   }
 
@@ -181,7 +181,7 @@ export function validateReadSql(input: string): GuardResult {
     const fn = m[1];
     if (KEYWORDS_BEFORE_PAREN.has(fn) || cteNames.has(fn)) continue;
     if (!ALLOWED_FUNCTIONS.has(fn)) {
-      return deny(`Riri isn't allowed to use \`${fn}()\` in an analytics query.`);
+      return deny(`ServiceSuite AI isn't allowed to use \`${fn}()\` in an analytics query.`);
     }
   }
 
@@ -190,7 +190,7 @@ export function validateReadSql(input: string): GuardResult {
   for (const t of targets) {
     if (SURFACE.has(t) || cteNames.has(t)) continue;
     return deny(
-      `Riri doesn't have a table called \`${t}\`. She reads your book through: ${READ_SURFACE.join(", ")}.`,
+      `ServiceSuite AI doesn't have a table called \`${t}\`. She reads your book through: ${READ_SURFACE.join(", ")}.`,
     );
   }
 

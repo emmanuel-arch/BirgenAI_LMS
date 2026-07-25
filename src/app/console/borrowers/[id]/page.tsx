@@ -19,6 +19,7 @@ import { RiskBandCard } from "@/components/risk/RiskBandCard";
 import { bandForScore, bandForBehavioural, defaultProbability, normaliseBandName, BAND_BY_KEY } from "@/lib/risk/bands";
 import { assessGraduation } from "@/lib/risk/graduation";
 import KycGallery from "./KycGallery";
+import { CustomerTimeline, type TimelineEvent } from "./CustomerTimeline";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -103,6 +104,34 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
   ]);
   const risk = ew?.rows.find((r) => r.borrowerId === id) ?? null;
   const initialCrb = (crbCheck?.payload as unknown as CrbReport) ?? null;
+
+  // ── Customer timeline: interactions + limit + score + approval history ────────
+  // Merged from the live tables into one spine; interactions are activity rows so a
+  // logged disposition needs no schema change and also shows in Oversight.
+  const [gradEvents, calls, activity, staffRows, apps] = await Promise.all([
+    prisma.graduationEvent.findMany({ where: { orgId, borrowerId: id }, orderBy: { createdAt: "desc" }, take: 20 }),
+    prisma.collectionCall.findMany({ where: { orgId, borrowerId: id }, orderBy: { createdAt: "desc" }, take: 20 }),
+    prisma.auditLog.findMany({ where: { orgId, entityId: id, action: { in: ["borrower.interaction", "borrower.limit-allocated", "borrower.limit", "borrower.score"] } }, orderBy: { createdAt: "desc" }, take: 40 }),
+    prisma.staffUser.findMany({ where: { orgId }, select: { id: true, firstName: true, otherName: true } }),
+    prisma.loanApplication.findMany({ where: { orgId, borrowerId: id }, select: { id: true, status: true, decision: true, amountRequested: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 20 }),
+  ]);
+  const staffNm = new Map(staffRows.map((s) => [s.id, `${s.firstName ?? ""} ${s.otherName ?? ""}`.trim() || "Staff"]));
+  const kesT = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
+  const timeline: TimelineEvent[] = [];
+  for (const g of gradEvents) timeline.push({ id: `g-${g.id}`, kind: "limit", at: g.createdAt.toISOString(), title: `Limit raised to ${kesT(Number(g.newLimit))}`, detail: `from ${kesT(Number(g.previousLimit))} · ${g.riskBand} ${Math.round(g.riskScore)}/100`, actor: g.decidedBy === "cron" ? "graduation engine" : (g.decidedBy ? staffNm.get(g.decidedBy) ?? null : null), tone: "up" });
+  for (const s of scores) timeline.push({ id: `s-${s.id}`, kind: "score", at: s.createdAt.toISOString(), title: `Scored ${s.score ?? "—"}${s.riskBand ? ` (${s.riskBand})` : ""}`, detail: `${s.modelKind} · ${s.modelVersion}`, actor: s.capturedBy ?? null });
+  for (const a of apps) timeline.push({ id: `a-${a.id}`, kind: "approval", at: a.createdAt.toISOString(), title: `Application ${a.status.replace(/_/g, " ").toLowerCase()}`, detail: `${kesT(Number(a.amountRequested))}${a.decision ? ` · ${a.decision}` : ""}` });
+  for (const c of calls) timeline.push({ id: `c-${c.id}`, kind: "interaction", at: c.createdAt.toISOString(), title: `Call — ${c.outcome.replace(/_/g, " ").toLowerCase()}`, detail: c.note, actor: staffNm.get(c.createdBy) ?? null });
+  for (const ev of activity) {
+    const m = (ev.meta ?? {}) as Record<string, unknown>;
+    const actor = ev.actorId ? staffNm.get(ev.actorId) ?? null : null;
+    if (ev.action === "borrower.interaction") timeline.push({ id: `i-${ev.id}`, kind: "interaction", at: ev.createdAt.toISOString(), title: String(m.disposition ?? "Interaction"), detail: [m.channel, m.note].filter(Boolean).join(" · ") || null, actor });
+    else if (ev.action === "borrower.limit-allocated") timeline.push({ id: `l-${ev.id}`, kind: "limit", at: ev.createdAt.toISOString(), title: `Starting limit ${kesT(Number(m.startingLimit ?? 0))}${m.tier ? ` · ${m.tier}` : ""}`, detail: Array.isArray(m.reasons) && m.reasons[0] ? String((m.reasons[0] as { detail?: string }).detail ?? "") : null, actor, tone: "up" });
+    else if (ev.action === "borrower.limit") timeline.push({ id: `l-${ev.id}`, kind: "limit", at: ev.createdAt.toISOString(), title: "Limit override", detail: String(m.note ?? m.reason ?? "") || null, actor });
+    else if (ev.action === "borrower.score") timeline.push({ id: `sc-${ev.id}`, kind: "score", at: ev.createdAt.toISOString(), title: "Score adjusted", detail: String(m.note ?? "") || null, actor });
+  }
+  timeline.sort((a, b) => b.at.localeCompare(a.at));
+  const timelineTop = timeline.slice(0, 40);
 
   const name = `${b.firstName ?? "Borrower"}${b.otherName ? " " + b.otherName : ""}`.trim();
   const verified = b.kycStatus === "VERIFIED";
@@ -404,6 +433,9 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
               })}
             </div>
           </div>
+
+          {/* Customer timeline — interactions/dispositions + limit/score/approval history */}
+          <CustomerTimeline borrowerId={b.id} events={timelineTop} />
 
           {/* Score history (closed ML loop) */}
           <div className="glass p-5">

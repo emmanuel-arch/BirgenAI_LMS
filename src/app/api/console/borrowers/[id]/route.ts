@@ -51,6 +51,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       },
     }).catch(() => {});
 
+  // ── Log a customer interaction / disposition (call-centre memory) ────────────
+  // Recorded as an activity row — the same spine Oversight and the Customer Timeline
+  // read — so a disposition is a first-class, audited event with no schema to migrate.
+  if (action === "interaction") {
+    const disposition = String(body.disposition ?? "").trim().slice(0, 60);
+    const channel = String(body.channel ?? "CALL").trim().toUpperCase().slice(0, 16);
+    const note = String(body.note ?? "").trim().slice(0, 1000) || null;
+    if (!disposition) return NextResponse.json({ success: false, message: "Choose a disposition." }, { status: 400 });
+    await audit({ disposition, channel, note });
+    return NextResponse.json({ success: true });
+  }
+
   // ── Update the identity & contact details ───────────────────────────────────
   if (action === "info") {
     const data: Prisma.BorrowerUpdateInput = {};
@@ -150,7 +162,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     if (name.length < 3 || !relationship || digits.length < 9) {
       return NextResponse.json({ success: false, message: "Enter their name, relationship and phone." }, { status: 400 });
     }
-    const nextOfKin = { name, relationship, phone: `254${digits.slice(-9)}` };
+    const nokPhone = `254${digits.slice(-9)}`;
+    const nokNid = String(body.nationalId ?? "").replace(/\D/g, "") || null;
+    // Next of kin must be a DIFFERENT person from the customer — the exact hole the
+    // systems we're replacing left open (the borrower's own details sailed through).
+    const self = await prisma.borrower.findUnique({ where: { id }, select: { phone: true, nationalId: true } });
+    if (self?.phone && self.phone === nokPhone) {
+      return NextResponse.json({ success: false, message: "Next of kin must be reachable on a different number from the customer." }, { status: 400 });
+    }
+    if (nokNid && self?.nationalId && nokNid === self.nationalId.replace(/\D/g, "")) {
+      return NextResponse.json({ success: false, message: "Next of kin must be a different person from the customer." }, { status: 400 });
+    }
+    const nextOfKin = { name, relationship, phone: nokPhone, ...(nokNid ? { nationalId: nokNid } : {}) };
     await prisma.borrower.update({ where: { id }, data: { nextOfKin } });
     await audit({ nextOfKin });
     return NextResponse.json({ success: true });

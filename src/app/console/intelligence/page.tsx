@@ -92,7 +92,7 @@ export default async function IntelligencePage() {
           <div className="mt-8 glass p-10 text-center">
             <ShieldAlert className="mx-auto h-9 w-9 text-emerald-500" />
             <p className="mt-3 text-sm font-semibold">Your book is clean</p>
-            <p className="mt-1 text-sm text-zinc-500">No active loan is showing early-warning signals. Riri is watching — the instant one starts to slip, it lands here with a recommended action.</p>
+            <p className="mt-1 text-sm text-zinc-500">No active loan is showing early-warning signals. ServiceSuite AI is watching — the instant one starts to slip, it lands here with a recommended action.</p>
           </div>
         ) : (
           <div className="mt-7">

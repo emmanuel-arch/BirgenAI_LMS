@@ -15,7 +15,9 @@ import { prisma } from "@/lib/prisma";
 import { extractPdfText, PdfPasswordRequiredError, PdfPasswordIncorrectError } from "@/lib/statement/extract-pdf";
 import { parseMpesaStatement, extractStatementName, namesMatch } from "@/lib/statement/mpesa-parser";
 import { crunch } from "@/lib/statement/features";
+import { analyzeStatement } from "@/lib/statement/analyze";
 import { scoreThinFileAuto } from "@/lib/statement/score-thinfile";
+import { qualify, type ProductLite, type ChargeLite } from "@/lib/lending/qualify";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -123,10 +125,37 @@ export async function POST(req: NextRequest) {
 
     const result = crunch(txns);
     const creditScore = scoreThinFileAuto(result.features);
+    // The deep Internal Report — merchant/life-category clustering, lender
+    // exposure + cadence, lifestyle read. The theatre reveals it after the score.
+    const report = analyzeStatement(txns);
 
     // Billed only on a statement we actually parsed — a password failure or an
     // unreadable PDF exits above this line and costs the lender nothing.
     void meter(orgId, "statement", 1, { transactions: txns.length, months: result.features.monthsCovered });
+
+    // ── STARTING LIMIT · PRODUCT MATCH ────────────────────────────────────────
+    // Turn the report into a starting limit + the products it unlocks + the
+    // reasons, using the lender's OWN live tier catalogue. Compute-only: the write
+    // (allocating the limit to a borrower) happens on the console side, never here,
+    // so a portal self-crunch can PREVIEW an offer without ever setting a limit.
+    // Only lenders whose catalogue carries the tiers get an offer.
+    const tierProducts = await prisma.product.findMany({
+      where: { orgId, isActive: true, OR: [{ name: { startsWith: "INUKA" } }, { name: { startsWith: "KUZA" } }, { name: { startsWith: "FADHILI" } }] },
+      select: { id: true, name: true, minPrincipal: true, maxPrincipal: true, interestRate: true, repaymentPeriod: true },
+    });
+    let qualification = null;
+    if (tierProducts.length) {
+      const productsLite: ProductLite[] = tierProducts.map((p) => ({
+        id: p.id, name: p.name, minPrincipal: Number(p.minPrincipal), maxPrincipal: Number(p.maxPrincipal),
+        interestRate: Number(p.interestRate), repaymentPeriod: p.repaymentPeriod,
+      }));
+      const procCharges = await prisma.charge.findMany({
+        where: { orgId, isActive: true, code: { startsWith: "PROC-" } },
+        select: { productId: true, amount: true, isPercent: true },
+      });
+      const chargesLite: ChargeLite[] = procCharges.map((c) => ({ productId: c.productId, amount: Number(c.amount), isPercent: c.isPercent }));
+      qualification = qualify(report, productsLite, chargesLite);
+    }
 
     // Real ledger aggregates — these drive the crunch theatre's posting animation
     // and category columns, so what the borrower watches is their actual data.
@@ -149,6 +178,8 @@ export async function POST(req: NextRequest) {
       nameCheck,
       transactionCount: txns.length,
       creditScore,
+      report,
+      qualification,
       ...result,
       categories,
       paidIn: Math.round(paidIn),

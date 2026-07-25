@@ -14,6 +14,7 @@ import { requireRight, getRights } from "@/lib/rbac/authz";
 import { requireFeature, entitlementsFor } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
 import { normaliseModelId } from "@/lib/riri/models";
+import { ASSISTANT_NAME } from "@/lib/riri/brand";
 import { analyze } from "@/lib/riri/analyst";
 import { answerSupport } from "@/lib/riri/support";
 import { logRiriQuery } from "@/lib/riri/log";
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
   // cannot invent a customer or edit one's balance before asking about them. RLS means
   // an id from another lender's book resolves to nothing. See lib/riri/context.ts.
   const subjectId = body.subject?.kind === "borrower" && typeof body.subject.id === "string" ? body.subject.id : null;
-  if (!question) return NextResponse.json({ success: false, message: "Ask Riri something." }, { status: 400 });
+  if (!question) return NextResponse.json({ success: false, message: `Ask ${ASSISTANT_NAME} something.` }, { status: 400 });
   if (question.length > 500) return NextResponse.json({ success: false, message: "That's a bit long — try a shorter question." }, { status: 400 });
 
   // ── SUPPORT IS NOT SOLD, AND IS NOT GATED ──────────────────────────────────
@@ -158,6 +159,6 @@ export async function POST(req: NextRequest) {
       orgId, staffId, model, question, route: "refused", ok: false,
       error: e instanceof Error ? e.message : String(e),
     });
-    return NextResponse.json({ success: false, message: "Riri hit a snag answering that. Try rephrasing." }, { status: 500 });
+    return NextResponse.json({ success: false, message: `${ASSISTANT_NAME} hit a snag answering that. Try rephrasing.` }, { status: 500 });
   }
 }

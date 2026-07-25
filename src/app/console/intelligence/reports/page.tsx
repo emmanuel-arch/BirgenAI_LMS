@@ -31,7 +31,7 @@ export default async function ReportBuilderPage() {
         <UpgradeCard
           feature="riri"
           title="Report Builder"
-          blurb="Compose your own report from every measure Riri knows — each one runs the same audited SQL the dock shows, and prints to a branded PDF."
+          blurb="Compose your own report from every measure ServiceSuite AI knows — each one runs the same audited SQL the dock shows, and prints to a branded PDF."
         />
       </main>
     );

@@ -152,6 +152,7 @@ model Org {
   savingsTransactions SavingsTransaction[]
   ririMemories        RiriMemory[]
   poolMembership      SharingPoolMember?
+  standingOrders      StandingOrder[]
 }
 
 // ── Cross-entity data sharing ─────────────────────────────────────────────────
@@ -558,6 +559,7 @@ model Borrower {
   loans        Loan[]
   fieldVisits  FieldVisit[]
   savings      SavingsAccount?
+  standingOrders StandingOrder[]
 
   @@unique([orgId, phone])
   @@index([orgId, nationalId])
@@ -1103,6 +1105,7 @@ model Loan {
   application  LoanApplication? @relation(fields: [applicationId], references: [id])
   installments Installment[]
   disbursement Disbursement?
+  standingOrders StandingOrder[]
 
   @@index([orgId, status])
   @@index([orgId, borrowerId])
@@ -1134,6 +1137,53 @@ model Installment {
 
   @@unique([loanId, seq])
   @@index([orgId, dueDate, status])
+}
+
+// ── M-Pesa Ratiba (standing orders) ───────────────────────────────────────────
+// A customer-authorized recurring debit: instead of the lender chasing every
+// installment with an STK push, the borrower sets a standing order once and
+// Safaricom debits them on the schedule. Authorization happens on the customer's
+// phone (like STK), so a fresh order starts PENDING and turns ACTIVE on the
+// Ratiba callback. See src/lib/mpesa/ratiba.ts.
+
+enum StandingOrderStatus {
+  PENDING   // created; awaiting the customer's authorization on their handset
+  ACTIVE    // authorized — Safaricom debits on the frequency
+  CANCELLED // stopped by the customer or the lender
+  FAILED    // Safaricom rejected it, or the customer declined
+}
+
+model StandingOrder {
+  id         String  @id @default(uuid())
+  orgId      String
+  borrowerId String
+  loanId     String?
+  phone      String
+  amount     Decimal @db.Decimal(18, 2)
+  /// WEEKLY | MONTHLY | ONCE | … — mapped to Ratiba's numeric frequency in ratiba.ts.
+  frequency  String
+  startDate  DateTime
+  endDate    DateTime?
+  reference  String
+  name       String
+  status     StandingOrderStatus @default(PENDING)
+  /// Safaricom's standing-order id once it exists; null while pending or simulated.
+  externalRef String?
+  /// True when there were no Daraja credentials and the flow was simulated end to end.
+  simulated  Boolean @default(false)
+  raw        Json?
+  /// StaffUser.id when an officer set it up; null when the customer did it themselves.
+  createdById String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  org      Org      @relation(fields: [orgId], references: [id])
+  borrower Borrower @relation(fields: [borrowerId], references: [id])
+  loan     Loan?    @relation(fields: [loanId], references: [id])
+
+  @@index([orgId, borrowerId])
+  @@index([orgId, status])
+  @@index([orgId, loanId])
 }
 
 // ── Money movement ────────────────────────────────────────────────────────────

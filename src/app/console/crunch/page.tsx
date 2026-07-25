@@ -42,6 +42,7 @@ const DECISION_TONE: Record<string, string> = {
   REFER: "bg-amber-100 text-amber-700",
   DECLINE: "bg-rose-100 text-rose-700",
 };
+const TIER_LABEL: Record<string, string> = { INUKA: "Inuka", KUZA: "Kuza", FADHILI: "Fadhili" };
 
 export default function CrunchPage() {
   return (
@@ -104,6 +105,7 @@ function Crunch() {
         body: JSON.stringify({
           creditScore: d.creditScore, features: d.features, affordability: d.affordability,
           monthly: d.monthly, transactionCount: d.transactionCount, nameCheck: d.nameCheck ?? null,
+          qualification: d.qualification ?? null,
         }),
       });
       const out = await res.json();
@@ -119,6 +121,9 @@ function Crunch() {
       borrower,
       features: data.features,
       score: { score: data.creditScore.score, band: data.creditScore.band, decision: data.creditScore.decision },
+      qualification: data.qualification
+        ? { startingLimit: data.qualification.startingLimit, tier: data.qualification.tier, recommendedProductId: data.qualification.recommendedProductId, eligible: data.qualification.eligible }
+        : null,
     }));
     router.push("/console/applications/new?crunch=1");
   };
@@ -319,6 +324,31 @@ function ResultPanel({ data, borrower, saved, from360, onStartApplication, onRes
           <Tile label="Avg monthly net" value={kes(data.features.avgMonthlyNet)} />
           <Tile label="Transactions" value={data.transactionCount.toLocaleString()} />
         </div>
+
+        {/* Starting limit + matched product — the score turned into an offer, saved to the file. */}
+        {data.qualification?.eligible && (() => {
+          const q = data.qualification!;
+          const rec = q.products.find((p) => p.recommended) ?? q.products[0];
+          return (
+            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">Starting limit allocated</p>
+                  <p className="text-2xl font-bold text-emerald-700">{kes(q.startingLimit)}</p>
+                </div>
+                <div className="text-right">
+                  <span className="inline-block rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white">{TIER_LABEL[q.tier ?? ""] ?? q.tier} tier</span>
+                  {rec && <p className="mt-1 text-xs text-emerald-700/80">Best fit: {rec.name} · {kes(rec.weeklyInstallment)}/wk</p>}
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {q.reasonCodes.slice(0, 4).map((r) => (
+                  <span key={r.code} className="rounded-full border border-emerald-200 bg-white/70 px-2.5 py-1 text-[11px] text-emerald-800">{r.label}</span>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {borrower ? (

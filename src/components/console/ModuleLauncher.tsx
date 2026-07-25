@@ -27,7 +27,7 @@ const MODULES: {
   { icon: MapPin, title: "Field & Routes", desc: "Geo-pinned verifications, nearest-agent allocation, drive routes", ready: true, href: "/console/field", right: "field.view", feature: "route-planner" },
   { icon: ScanLine, title: "Document Parser", desc: "Fee structures, invoices, permits, statements → structured figures", ready: true, href: "/console/documents", right: "documents.view", feature: "document-parser" },
   { icon: MessageSquare, title: "SMS & Comms", desc: "Campaign blasts, message templates, the email log", ready: true, href: "/console/comms", right: "sms.view" },
-  { icon: Bot, title: "Riri Assistant", desc: "Talk to your book — 3 models: Analyst (live data), Copilot & Max", ready: true, open: "analyst", right: "riri.use", feature: "riri" },
+  { icon: Bot, title: "ServiceSuite AI", desc: "Talk to your book — Support, Assistant & Analytics (live data, shows its SQL)", ready: true, open: "analyst", right: "riri.use", feature: "riri" },
   { icon: FileText, title: "Reports", desc: "Portfolio report & loan statements — print or save as PDF", ready: true, href: "/console/report", right: "reports.view" },
   { icon: KeyRound, title: "Team, Roles & Access", desc: "Invite staff, create roles, choose the menus each role sees", ready: true, href: "/console/roles", right: "roles.view" },
   { icon: Crown, title: "Billing & Package", desc: "Your package, usage this month, pay via the wallet", ready: true, href: "/console/billing", right: "billing.view" },

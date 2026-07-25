@@ -18,6 +18,7 @@ import { useState } from "react";
 import { HandCoins, Navigation, BotMessageSquare, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { RequestPaymentButton } from "@/components/payments/RequestPayment";
 import { askRiriAbout, type RiriSubject } from "@/lib/riri/subject";
+import { ASSISTANT_NAME } from "@/lib/riri/brand";
 
 export function BorrowerActions({
   borrowerId, name, lat, lng, fieldEntitled, subject,
@@ -98,7 +99,7 @@ export function BorrowerActions({
           className={`${BTN} border border-zinc-900/10 bg-white/70 text-zinc-700 hover:text-zinc-900`}
         >
           <BotMessageSquare className="h-3.5 w-3.5" style={{ color: "var(--brand)" }} />
-          Ask Riri
+          Ask {ASSISTANT_NAME}
         </button>
       </div>
 

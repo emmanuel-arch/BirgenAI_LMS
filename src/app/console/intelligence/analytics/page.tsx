@@ -16,6 +16,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { portfolioTrend } from "@/lib/intelligence/portfolio";
 import { PageHeader } from "@/components/shell/PageHeader";
+import { AnalysisStudioCharts } from "@/components/dashboard/AnalysisStudioCharts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,6 +63,70 @@ export default async function AnalyticsPage() {
       select: { loanId: true, loan: { select: { balance: true, status: true } } },
     }),
   ]);
+
+  // ── Analysis Studio: customer & repayment analytics (real tables) ─────────────
+  const sixMoAgo = new Date(); sixMoAgo.setMonth(sixMoAgo.getMonth() - 5); sixMoAgo.setDate(1); sixMoAgo.setHours(0, 0, 0, 0);
+  const [borrowersDetail, branchRows, retLoans, insts] = await Promise.all([
+    prisma.borrower.findMany({ where: { orgId }, select: { dob: true, gender: true, riskBand: true, branchId: true } }),
+    prisma.branch.findMany({ where: { orgId }, select: { id: true, name: true } }),
+    prisma.loan.findMany({ where: { orgId }, select: { borrowerId: true, borrowDate: true } }),
+    prisma.installment.findMany({ where: { orgId, dueDate: { gte: sixMoAgo } }, select: { dueDate: true, paidAt: true, status: true } }),
+  ]);
+
+  const ageOf = (dob: Date | null) => {
+    if (!dob) return null;
+    const t = new Date(); let a = t.getFullYear() - dob.getFullYear();
+    const m = t.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < dob.getDate())) a--;
+    return a >= 0 && a < 130 ? a : null;
+  };
+  const AGE_BANDS: [string, number, number][] = [["18–24", 0, 24], ["25–34", 25, 34], ["35–44", 35, 44], ["45–54", 45, 54], ["55–64", 55, 64], ["65+", 65, 200]];
+  const ageCounts = AGE_BANDS.map(([bucket]) => ({ bucket, count: 0 }));
+  let ageSum = 0, ageN = 0;
+  for (const b of borrowersDetail) { const a = ageOf(b.dob); if (a == null) continue; ageSum += a; ageN++; const idx = AGE_BANDS.findIndex(([, lo, hi]) => a >= lo && a <= hi); if (idx >= 0) ageCounts[idx].count++; }
+
+  const genderMap = new Map<string, number>();
+  for (const b of borrowersDetail) { const g = b.gender === "M" ? "Men" : b.gender === "F" ? "Women" : "Other"; genderMap.set(g, (genderMap.get(g) ?? 0) + 1); }
+  const gender = ["Men", "Women", "Other"].filter((l) => genderMap.has(l)).map((l) => ({ label: l, count: genderMap.get(l)! }));
+
+  const RISK_ORDER = ["PRIME", "STRONG", "WATCH", "HIGH"];
+  const riskMap = new Map<string, number>();
+  for (const b of borrowersDetail) { const r = b.riskBand && RISK_ORDER.includes(b.riskBand) ? b.riskBand : "Unscored"; riskMap.set(r, (riskMap.get(r) ?? 0) + 1); }
+  const risk = [...RISK_ORDER, "Unscored"].filter((r) => riskMap.has(r)).map((band) => ({ band, count: riskMap.get(band)! }));
+
+  const branchName = new Map(branchRows.map((b) => [b.id, b.name]));
+  const regMap = new Map<string, number>();
+  for (const b of borrowersDetail) { const n = b.branchId ? (branchName.get(b.branchId) ?? "—") : "Unassigned"; regMap.set(n, (regMap.get(n) ?? 0) + 1); }
+  const regions = [...regMap.entries()].map(([name, customers]) => ({ name, customers })).sort((a, b) => b.customers - a.customers).slice(0, 8);
+
+  const monthKey = (d: Date) => d.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
+  const monthsSeq: string[] = []; { const c = new Date(sixMoAgo); for (let i = 0; i < 6; i++) { monthsSeq.push(monthKey(c)); c.setMonth(c.getMonth() + 1); } }
+  const repayMap = new Map(monthsSeq.map((m) => [m, { onTime: 0, late: 0, missed: 0 }]));
+  for (const it of insts) {
+    const row = repayMap.get(monthKey(it.dueDate)); if (!row) continue;
+    if (it.status === "PAID") { if (it.paidAt && it.paidAt.getTime() <= it.dueDate.getTime() + 86_400_000) row.onTime++; else row.late++; }
+    else if (it.status === "PARTIAL") row.late++;
+    else if (it.status === "OVERDUE") row.missed++;
+  }
+  const repayment = monthsSeq.map((m) => ({ month: m, ...repayMap.get(m)! }));
+  const totOnTime = repayment.reduce((s, m) => s + m.onTime, 0);
+  const totSettled = repayment.reduce((s, m) => s + m.onTime + m.late + m.missed, 0);
+  const onTimeRatePct = totSettled > 0 ? (totOnTime / totSettled) * 100 : null;
+
+  const firstByBorrower = new Map<string, number>();
+  for (const l of retLoans) { const t = l.borrowDate.getTime(); const cur = firstByBorrower.get(l.borrowerId); if (cur == null || t < cur) firstByBorrower.set(l.borrowerId, t); }
+  const retMap = new Map(monthsSeq.map((m) => [m, { created: 0, returning: 0 }]));
+  for (const l of retLoans) { const row = retMap.get(monthKey(l.borrowDate)); if (!row) continue; if (firstByBorrower.get(l.borrowerId) === l.borrowDate.getTime()) row.created++; else row.returning++; }
+  const retention = monthsSeq.map((m) => ({ month: m, ...retMap.get(m)! }));
+  const loanCountByBorrower = new Map<string, number>();
+  for (const l of retLoans) loanCountByBorrower.set(l.borrowerId, (loanCountByBorrower.get(l.borrowerId) ?? 0) + 1);
+  const withLoan = loanCountByBorrower.size, repeat = [...loanCountByBorrower.values()].filter((c) => c > 1).length;
+  const repeatRatePct = withLoan > 0 ? (repeat / withLoan) * 100 : 0;
+
+  const analysis = {
+    age: ageCounts, gender, risk, regions, repayment, retention,
+    headline: { customers: borrowers, avgAge: ageN > 0 ? Math.round(ageSum / ageN) : null, repeatRatePct, onTimeRatePct },
+  };
 
   // ── KPIs ─────────────────────────────────────────────────────────────────────
   const olb = activeLoans.reduce((s, l) => s + num(l.balance), 0);
@@ -264,6 +329,9 @@ export default async function AnalyticsPage() {
           </Link>
         </div>
       </div>
+
+      {/* ── Customer & repayment analytics — cinematic, from the live tables ── */}
+      <AnalysisStudioCharts data={analysis} />
     </main>
   );
 }

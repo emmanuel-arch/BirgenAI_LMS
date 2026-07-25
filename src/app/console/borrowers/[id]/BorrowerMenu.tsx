@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
+import { IdentityLookup } from "@/components/kyc/IdentityLookup";
 import {
   MoreVertical, UserPen, Users, Banknote, Gauge, Paperclip, UserCog, MessageSquare,
   Loader2, X, CheckCircle2, AlertTriangle, FileText, Upload, ScanFace, Calculator,
@@ -805,17 +806,30 @@ function KinModal(p: Props & { onClose: () => void; onDone: (m: string) => void 
   const [name, setName] = useState(p.nextOfKin?.name ?? "");
   const [relationship, setRelationship] = useState(p.nextOfKin?.relationship ?? "");
   const [phone, setPhone] = useState(p.nextOfKin?.phone ?? "");
+  const [nationalId, setNationalId] = useState("");
+  // Editing an existing kin starts in manual mode; a fresh one starts ID-first.
+  const [manual, setManual] = useState(!!p.nextOfKin?.name);
   const { busy, error, run } = useAction(p.onDone);
   return (
-    <Modal title="Next of kin" sub="A collections contact — never a guarantor, never liable." onClose={p.onClose}>
+    <Modal title="Next of kin" sub="A collections contact — never a guarantor, never liable. Just their ID number." onClose={p.onClose}>
       <div className="mt-4 space-y-3">
-        <input className={FIELD} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className={FIELD} placeholder="Relationship (spouse, parent, sibling…)" value={relationship} onChange={(e) => setRelationship(e.target.value)} />
-        <input className={FIELD} inputMode="tel" placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        {manual ? (
+          <input className={FIELD} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        ) : (
+          <IdentityLookup role="next-of-kin"
+            onResolved={(r) => { setName(r?.fullName ?? ""); setNationalId(r?.nationalId ?? ""); if (r?.phone) setPhone(r.phone.replace(/^\+?254/, "0")); }}
+            onManual={() => setManual(true)} compact={false} />
+        )}
+        {(manual || name) && (
+          <>
+            <input className={FIELD} placeholder="Relationship (spouse, parent, sibling…)" value={relationship} onChange={(e) => setRelationship(e.target.value)} />
+            <input className={FIELD} inputMode="tel" placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </>
+        )}
       </div>
       <Err error={error} />
       <SaveRow busy={busy} onClose={p.onClose}
-        onSave={() => run(p.borrowerId, { action: "next-of-kin", name, relationship, phone }, "Next of kin saved.")} />
+        onSave={() => run(p.borrowerId, { action: "next-of-kin", name, relationship, phone, nationalId: nationalId || undefined }, "Next of kin saved.")} />
     </Modal>
   );
 }

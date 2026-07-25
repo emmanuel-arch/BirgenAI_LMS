@@ -95,6 +95,7 @@ export async function deleteTenant(orgId: string): Promise<TenantDeletionOutcome
     await del("installments", () => tx.installment.deleteMany({ where: { orgId } }));
     await del("disbursements", () => tx.disbursement.deleteMany({ where: { orgId } }));
     await del("paymentIntents", () => tx.paymentIntent.deleteMany({ where: { orgId } }));
+    await del("standingOrders", () => tx.standingOrder.deleteMany({ where: { orgId } }));
     await del("receipts", () => tx.c2BReceipt.deleteMany({ where: { orgId } }));
     await del("floatLedger", () => tx.floatLedger.deleteMany({ where: { orgId } }));
     await del("reconExceptions", () => tx.reconciliationException.deleteMany({ where: { orgId } }));

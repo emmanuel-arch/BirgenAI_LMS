@@ -30,6 +30,7 @@ import { prisma } from "@/lib/prisma";
 import { runWithOrg } from "@/lib/db/context";
 import { cheapestPlanWith } from "@/lib/billing/plans";
 import { search, articlesFor, detectLang, type Article, type SupportLang } from "./knowledge";
+import { ASSISTANT_NAME } from "./brand";
 
 /** Something Riri offers to do. She never does it herself — the user taps. */
 export type SupportAction = {
@@ -120,7 +121,7 @@ export function welcome(firstName: string | null, orgName: string, setup: SetupS
   if (setup.next) {
     return {
       answer:
-        `Welcome to **${orgName}**${who} 👋 I'm Riri.\n\n` +
+        `Welcome to **${orgName}**${who} 👋 I'm ${ASSISTANT_NAME}.\n\n` +
         `I'll stay with you the whole way through. You're not set up yet, and there's an order that works — so let's do the next thing:\n\n` +
         `**${setup.next.title}** — ${setup.next.why}\n\n` +
         `Ask me anything at any point: how to price a loan, who can see what, why a payout is blocked. You can talk to me out loud with the microphone if it's easier — Kiswahili works too.`,
@@ -133,7 +134,7 @@ export function welcome(firstName: string | null, orgName: string, setup: SetupS
     answer:
       `Welcome back${who} 👋\n\n` +
       `**${orgName}** is set up and lending. I can walk you through anything on the platform, explain why something is blocked, or take you straight to the screen you need — in English or Kiswahili, whichever you ask in.\n\n` +
-      `For your actual numbers — what you're owed, what you collected, who's about to default — switch me to **Analyst**.`,
+      `For your actual numbers — what you're owed, what you collected, who's about to default — switch me to **Analytics**.`,
     actions: [],
     suggestions: ["How do I apply for a loan on someone's behalf?", "Why can't I disburse this loan?", "How do I chase arrears?"],
   };

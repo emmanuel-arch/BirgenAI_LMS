@@ -20,7 +20,7 @@ export default async function MetricsPage() {
         <UpgradeCard
           feature="riri"
           title="Talk to your loan book"
-          blurb="Riri reads your live book and answers in numbers — outstanding, PAR, collections, defaults — sliced by product, by borrower, by period. Every answer shows you the exact query it came from."
+          blurb="ServiceSuite AI reads your live book and answers in numbers — outstanding, PAR, collections, defaults — sliced by product, by borrower, by period. Every answer shows you the exact query it came from."
         />
       </main>
     );

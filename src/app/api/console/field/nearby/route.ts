@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { resolveScope, borrowerScopeWhere } from "@/lib/rbac/scope";
 import { haversineKm } from "@/lib/field/allocate";
+import { fieldRisk, estimateEtaMin } from "@/lib/field/risk";
 import { portraitsFor } from "@/lib/kyc/avatars";
 
 export const runtime = "nodejs";
@@ -32,20 +33,37 @@ export async function GET(req: NextRequest) {
   const here = Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 
   const scope = await resolveScope(session);
-  const [borrowers, me] = await Promise.all([
+  const [borrowers, me, branchRows] = await Promise.all([
     prisma.borrower.findMany({
       where: { orgId, ...borrowerScopeWhere(scope) },
       select: {
         id: true, firstName: true, otherName: true, phone: true, kycStatus: true,
         lat: true, lng: true, locationType: true, locationAddress: true,
-        homeLat: true, homeLng: true, homeAddress: true,
-        loans: { where: { status: "ACTIVE" }, select: { balance: true } },
+        homeLat: true, homeLng: true, homeAddress: true, riskBand: true,
+        loans: {
+          where: { status: "ACTIVE" },
+          select: {
+            balance: true, status: true,
+            // Only the past-due, still-short installments — the arrears the dot
+            // colour and the blink are read from. Keeps the payload lean.
+            installments: {
+              where: { status: { in: ["OVERDUE", "DUE", "PARTIAL"] } },
+              select: { dueDate: true, amountDue: true, amountPaid: true },
+            },
+          },
+        },
       },
-      take: 300,
+      take: 1000,
     }),
     prisma.staffUser.findFirst({
       where: { id: session.user.id, orgId },
       select: { id: true, isFieldAgent: true, lat: true, lng: true },
+    }),
+    // The branch network — head office and every branch with a pin — as map
+    // context. Not borrower-scoped: a branch is not a customer.
+    prisma.branch.findMany({
+      where: { orgId, active: true, lat: { not: null }, lng: { not: null } },
+      select: { id: true, name: true, code: true, lat: true, lng: true, parentId: true },
     }),
   ]);
 
@@ -56,21 +74,37 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     success: true,
     me: me ? { id: me.id, isFieldAgent: me.isFieldAgent, lat: me.lat, lng: me.lng } : null,
+    branches: branchRows.map((b) => ({
+      id: b.id, name: b.name, code: b.code,
+      lat: b.lat!, lng: b.lng!, root: b.parentId == null,
+    })),
     customers: pinned
-      .map((b) => ({
-        id: b.id,
-        name: [b.firstName, b.otherName].filter(Boolean).join(" ") || b.phone,
-        phone: b.phone,
-        verified: b.kycStatus === "VERIFIED",
-        portraitUrl: portraits[b.id] ?? null,
-        lat: b.lat!, lng: b.lng!,
-        locationType: b.locationType,
-        address: b.locationAddress,
-        homeLat: b.homeLat, homeLng: b.homeLng, homeAddress: b.homeAddress,
-        olb: b.loans.reduce((s, l) => s + Number(l.balance), 0),
-        activeLoans: b.loans.length,
-        distanceKm: here ? Number(haversineKm(here, { lat: b.lat!, lng: b.lng! }).toFixed(2)) : null,
-      }))
+      .map((b) => {
+        const distanceKm = here ? Number(haversineKm(here, { lat: b.lat!, lng: b.lng! }).toFixed(2)) : null;
+        const risk = fieldRisk(b.loans);
+        return {
+          id: b.id,
+          name: [b.firstName, b.otherName].filter(Boolean).join(" ") || b.phone,
+          phone: b.phone,
+          verified: b.kycStatus === "VERIFIED",
+          portraitUrl: portraits[b.id] ?? null,
+          lat: b.lat!, lng: b.lng!,
+          locationType: b.locationType,
+          address: b.locationAddress,
+          homeLat: b.homeLat, homeLng: b.homeLng, homeAddress: b.homeAddress,
+          riskBand: b.riskBand,
+          olb: b.loans.reduce((s, l) => s + Number(l.balance), 0),
+          activeLoans: b.loans.length,
+          distanceKm,
+          etaMin: estimateEtaMin(distanceKm),
+          // Collections-risk for the dot: colour, days-past-due, money short,
+          // and the weight the blink ranks on.
+          risk: risk.level,
+          dpd: risk.dpd,
+          overdue: risk.overdue,
+          weight: risk.weight,
+        };
+      })
       .sort((a, b2) => (a.distanceKm ?? Infinity) - (b2.distanceKm ?? Infinity)),
     // The alerts: customers whose location was never captured. A task for the
     // next touchpoint — the fix is asking at the counter, not tracking a phone.

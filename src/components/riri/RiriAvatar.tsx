@@ -12,6 +12,7 @@
 "use client";
 
 import { useId } from "react";
+import { ASSISTANT_NAME } from "@/lib/riri/brand";
 
 export type RiriState = "idle" | "listening" | "thinking";
 
@@ -39,7 +40,7 @@ export function RiriAvatar({
       viewBox="0 0 96 96"
       className={className}
       role="img"
-      aria-label="Riri"
+      aria-label={ASSISTANT_NAME}
     >
       <defs>
         <radialGradient id={`${uid}-bg`} cx="42%" cy="30%" r="80%">

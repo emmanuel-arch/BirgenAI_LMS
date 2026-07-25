@@ -40,6 +40,7 @@ import {
 import { PageHeader } from "@/components/shell/PageHeader";
 import { BorrowerAvatar } from "@/components/kyc/BorrowerAvatar";
 import { loadGoogleMaps, mapsMode, MAPS_UNCONFIGURED } from "@/lib/maps/google";
+import { ASSISTANT_NAME } from "@/lib/riri/brand";
 import {
   buildNavRoute, snapToRoute, progressOf, stripHtml, fmtM, fmtMins, fmtEta,
   haversineM, OFF_ROUTE_M, ARRIVED_M, type NavRoute, type LL,
@@ -807,7 +808,7 @@ function RoutePlanner() {
             <div className="flex flex-wrap items-center gap-2">
               <button onClick={askRiri}
                 className="inline-flex items-center gap-2 rounded-xl border border-zinc-900/10 bg-white/80 px-4 py-2.5 text-sm font-bold text-zinc-800 hover:bg-white">
-                <Bot className="h-4 w-4" style={{ color: "var(--brand)" }} /> Riri, guide the ride
+                <Bot className="h-4 w-4" style={{ color: "var(--brand)" }} /> {ASSISTANT_NAME}, guide the ride
               </button>
               <motion.button onClick={beginNav} whileTap={{ scale: 0.96 }}
                 className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-500/25"

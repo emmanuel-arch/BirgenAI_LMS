@@ -23,6 +23,7 @@ import {
   ArrowRight, ShieldCheck, RefreshCw,
 } from "lucide-react";
 import { useLoad } from "@/lib/hooks/useLoad";
+import { ASSISTANT_NAME } from "@/lib/riri/brand";
 
 type Account = {
   actor: { name: string | null; role: string | null; branch: string | null; isPlatformAdmin: boolean };
@@ -169,7 +170,7 @@ export function RiriAccount({
               {speaking ? "Speaking…" : voiceOn ? "ON" : "OFF"}
             </span>
           </button>
-          <button onClick={onAutoGo} className={toggle} title="When on, Riri takes you straight to the screen she suggests">
+          <button onClick={onAutoGo} className={toggle} title={`When on, ${ASSISTANT_NAME} takes you straight to the screen she suggests`}>
             <span className="flex items-center gap-2 text-[12px] font-medium text-zinc-700">
               <ArrowRight className={`h-3.5 w-3.5 ${autoGo ? "" : "text-zinc-400"}`} style={autoGo ? { color: "var(--brand)" } : undefined} />
               Take me to screens she suggests

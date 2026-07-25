@@ -1,6 +1,6 @@
 "use client";
 
-// The Metric Catalogue — Riri's semantic layer with the lid off.
+// The Metric Catalogue — ServiceSuite AI's semantic layer with the lid off.
 //
 // Two tabs, and they answer the two questions a Credit Manager actually has about an
 // AI that quotes numbers at them:
@@ -56,7 +56,7 @@ const UNIT_LABEL: Record<Metric["unit"], string> = {
 
 const ROUTE_STYLE: Record<string, { label: string; cls: string }> = {
   catalog: { label: "Metric", cls: "bg-emerald-100 text-emerald-700" },
-  llm: { label: "Written by Riri", cls: "bg-violet-100 text-violet-700" },
+  llm: { label: "Written by ServiceSuite AI", cls: "bg-violet-100 text-violet-700" },
   engine: { label: "Risk model", cls: "bg-sky-100 text-sky-700" },
   narrative: { label: "No data read", cls: "bg-zinc-900/5 text-zinc-500" },
   refused: { label: "Refused", cls: "bg-rose-100 text-rose-700" },
@@ -143,7 +143,7 @@ export function MetricsClient() {
           <Ruler className="h-6 w-6" style={{ color: "var(--brand)" }} /> Metric Catalogue
         </h1>
         <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-zinc-500">
-          Every measure Riri knows, what it means, and the exact query behind it. She reads your book through{" "}
+          Every measure ServiceSuite AI knows, what it means, and the exact query behind it. She reads your book through{" "}
           {readSurface.length} published views on a read-only connection{replica ? " against a read replica" : ""} — she can
           look at your loans, never change them.
         </p>
@@ -189,13 +189,13 @@ export function MetricsClient() {
       {tab === "questions" && (
         <div className="mt-5">
           <p className="mb-3 text-[13px] leading-relaxed text-zinc-500">
-            Every question your staff have put to Riri, with the query that answered it. The ones she{" "}
+            Every question your staff have put to ServiceSuite AI, with the query that answered it. The ones she{" "}
             <span className="font-semibold text-rose-600">refused</span> or could not place are the useful ones — they say
             which measure is missing from the catalogue.
           </p>
           {log.length === 0 ? (
             <p className="rounded-xl border border-zinc-900/10 bg-white/60 px-4 py-8 text-center text-sm text-zinc-500">
-              Nobody has asked Riri anything yet.
+              Nobody has asked ServiceSuite AI anything yet.
             </p>
           ) : (
             <div className="space-y-2">
@@ -250,7 +250,7 @@ function MetricCard({
             <h2 className="text-[15px] font-semibold text-zinc-900">{m.label}</h2>
             {m.label !== m.catalogLabel && <span className="text-[11px] text-zinc-400">(our name: {m.catalogLabel})</span>}
             <span className="rounded-full bg-zinc-900/5 px-2 py-0.5 text-[10px] font-medium text-zinc-500">{UNIT_LABEL[m.unit]}</span>
-            {!m.enabled && <span className="rounded-full bg-zinc-900/5 px-2 py-0.5 text-[10px] font-medium text-zinc-500">Hidden from Riri</span>}
+            {!m.enabled && <span className="rounded-full bg-zinc-900/5 px-2 py-0.5 text-[10px] font-medium text-zinc-500">Hidden from ServiceSuite AI</span>}
             {m.target != null && (
               <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
                 <Target className="h-2.5 w-2.5" /> {m.targetDirection === "below" ? "≤" : "≥"} {m.target}
@@ -280,19 +280,19 @@ function MetricCard({
         </summary>
         <Sql sql={m.sql} />
         <p className="mt-1.5 text-[11px] text-zinc-400">
-          Riri answers to: {m.synonyms.slice(0, 10).join(" · ")}
+          ServiceSuite AI answers to: {m.synonyms.slice(0, 10).join(" · ")}
         </p>
       </details>
 
       {editing && (
         <div className="mt-3 space-y-3 rounded-lg border border-zinc-900/10 bg-zinc-900/[0.02] p-3">
-          <Field label="What you call it" help="Riri will use your name for this measure everywhere.">
+          <Field label="What you call it" help="ServiceSuite AI will use your name for this measure everywhere.">
             <input value={label} onChange={(e) => setLabel(e.target.value)} className="w-full rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]" />
           </Field>
-          <Field label="Words your staff use for it" help="Comma-separated. Riri will recognise these in a question — teach her your team's vocabulary.">
+          <Field label="Words your staff use for it" help="Comma-separated. ServiceSuite AI will recognise these in a question — teach her your team's vocabulary.">
             <input value={synonyms} onChange={(e) => setSynonyms(e.target.value)} placeholder="delinquency, bad book" className="w-full rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]" />
           </Field>
-          <Field label="Your target" help="Riri will say whether you're inside it every time she quotes this number. Leave empty for none.">
+          <Field label="Your target" help="ServiceSuite AI will say whether you're inside it every time she quotes this number. Leave empty for none.">
             <div className="flex gap-2">
               <select value={direction} onChange={(e) => setDirection(e.target.value as "below" | "above")} className="rounded-lg border border-zinc-900/15 bg-white px-2 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]">
                 <option value="below">At or below</option>
@@ -321,7 +321,7 @@ function MetricCard({
               onClick={() => onSave({ enabled: !m.enabled })}
               className="flex items-center gap-1.5 rounded-lg border border-zinc-900/12 bg-white px-3 py-1.5 text-[13px] font-medium text-zinc-600 hover:text-zinc-900 disabled:opacity-50"
             >
-              {m.enabled ? <><EyeOff className="h-3.5 w-3.5" /> Hide from Riri</> : <><Eye className="h-3.5 w-3.5" /> Show to Riri</>}
+              {m.enabled ? <><EyeOff className="h-3.5 w-3.5" /> Hide from ServiceSuite AI</> : <><Eye className="h-3.5 w-3.5" /> Show to ServiceSuite AI</>}
             </button>
             <p className="text-[11px] text-zinc-400">The calculation itself can&apos;t be changed — it&apos;s the number you report.</p>
           </div>

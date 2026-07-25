@@ -38,6 +38,9 @@ export function stkCallbackUrl(orgSlug: string): string {
 export function b2cResultUrl(orgSlug: string): string {
   return `${publicBase()}/api/mpesa/b2c-result/${orgSlug}?key=${callbackKeyFor(orgSlug)}`;
 }
+export function ratibaCallbackUrl(orgSlug: string): string {
+  return `${publicBase()}/api/mpesa/ratiba-callback/${orgSlug}?key=${callbackKeyFor(orgSlug)}`;
+}
 export function b2cTimeoutUrl(orgSlug: string): string {
   return `${publicBase()}/api/mpesa/b2c-timeout/${orgSlug}?key=${callbackKeyFor(orgSlug)}`;
 }
@@ -182,5 +185,71 @@ async function b2cWith(cfg: MpesaB2cConfig, orgId: string, orgSlug: string, args
     return { ok: false, message: String(data.errorMessage ?? data.ResponseDescription ?? `B2C failed (${res.status}).`), raw: data };
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : "B2C request failed." };
+  }
+}
+
+// ── M-Pesa Ratiba (standing orders) ───────────────────────────────────────────
+// The customer authorizes a recurring debit once; Safaricom debits them on the
+// frequency. Same OAuth + shortcode as STK — a different endpoint that returns a
+// reference now and confirms authorization later on the Ratiba callback.
+export type RatibaFrequency = "ONCE" | "DAILY" | "WEEKLY" | "MONTHLY" | "BIMONTHLY" | "QUARTERLY" | "HALFYEAR" | "YEARLY";
+/** Safaricom's Frequency codes (Ratiba docs). */
+const RATIBA_FREQ: Record<RatibaFrequency, string> = {
+  ONCE: "1", DAILY: "2", WEEKLY: "3", MONTHLY: "4", BIMONTHLY: "5", QUARTERLY: "6", HALFYEAR: "7", YEARLY: "8",
+};
+
+export type StandingOrderResult = { ok: boolean; ref?: string; message: string; raw?: unknown };
+
+const ymd = (d: Date) => {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+};
+
+export async function createStandingOrder(
+  orgId: string,
+  orgSlug: string,
+  args: { phone: string; amount: number; accountReference: string; name: string; startDate: Date; endDate: Date; frequency: RatibaFrequency; description?: string },
+): Promise<StandingOrderResult> {
+  const cfg = await getIntegration(orgId, "MPESA_STK");
+  if (!cfg) return { ok: false, message: "M-Pesa is not configured for this organization (Settings → Vault)." };
+  try {
+    const token = await getToken(`stk:${orgId}`, cfg.consumerKey, cfg.consumerSecret, cfg.environment);
+    // Buy Goods vs Paybill decides the receiver identifier type, exactly as STK does.
+    const isBuyGoods = (cfg.transactionType ?? "CustomerPayBillOnline") === "CustomerBuyGoodsOnline";
+    const body = {
+      StandingOrderName: args.name.slice(0, 32),
+      StartDate: ymd(args.startDate),
+      EndDate: ymd(args.endDate),
+      BusinessShortCode: cfg.shortCode,
+      TransactionType: isBuyGoods ? "Standing Order Customer Pay Merchant" : "Standing Order Customer Pay Bill",
+      ReceiverPartyIdentifierType: isBuyGoods ? "2" : "4",
+      Amount: String(Math.max(1, Math.round(args.amount))),
+      PartyA: normalizeMsisdn(args.phone),
+      CallBackURL: ratibaCallbackUrl(orgSlug),
+      AccountReference: args.accountReference.slice(0, 12),
+      TransactionDesc: (args.description || "Loan repayment").slice(0, 20),
+      Frequency: RATIBA_FREQ[args.frequency],
+    };
+    const res = await fetch(`${baseFor(cfg.environment)}/standingorder/v1/createStandingOrderExternal`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30000),
+    });
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    const header = (data.ResponseHeader ?? data) as Record<string, unknown>;
+    const code = String(header.responseCode ?? header.ResponseCode ?? "");
+    const ok = res.ok && (code === "200" || code === "0" || code === "1000");
+    if (ok) {
+      return {
+        ok: true,
+        ref: String(header.responseRefID ?? header.ResponseRefID ?? ""),
+        message: String(header.responseDescription ?? "Standing order sent — the customer approves it on their phone."),
+        raw: data,
+      };
+    }
+    return { ok: false, message: String(header.responseDescription ?? data.errorMessage ?? `Ratiba request failed (${res.status}).`), raw: data };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : "Standing order request failed." };
   }
 }

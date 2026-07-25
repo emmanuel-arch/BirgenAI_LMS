@@ -22,6 +22,7 @@ import { useVoice } from "@/lib/hooks/useVoice";
 import { RiriAvatar } from "./RiriAvatar";
 import { RiriAccount } from "./RiriAccount";
 import { RIRI_MODELS, RIRI_MODEL_IDS, normaliseModelId, type RiriModelId } from "@/lib/riri/models";
+import { ASSISTANT_NAME } from "@/lib/riri/brand";
 
 const ICON = { Gauge, Bot, LifeBuoy } as const;
 const INSET = 16;
@@ -424,7 +425,7 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
       setTurns((t) => t.map((x) => x.id === id
         ? (data.success
           ? { ...x, loading: false, answer: data.answer, chips: data.chips, series: data.series, table: data.table, mode: data.mode, sql: data.sql, rows: data.rows, ms: data.ms, route: data.route, actions: data.actions ?? [], suggestions: data.suggestions ?? [] }
-          : { ...x, loading: false, error: data.message || "Riri couldn't answer that." })
+          : { ...x, loading: false, error: data.message || `${ASSISTANT_NAME} couldn't answer that.` })
         : x));
 
       if (data.success) {
@@ -492,7 +493,7 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
             style={{ ...sideStyle, bottom: panelBottom }}
             className="no-print fixed z-[9998] max-w-[240px] glass rounded-2xl bg-white/85 px-3.5 py-2.5 text-left shadow-xl"
           >
-            <p className="text-[13px] font-semibold text-zinc-900">Hi{userName ? `, ${userName.split(" ")[0]}` : ""} 👋 I&apos;m Riri</p>
+            <p className="text-[13px] font-semibold text-zinc-900">Hi{userName ? `, ${userName.split(" ")[0]}` : ""} 👋 I&apos;m {ASSISTANT_NAME}</p>
             <p className="mt-0.5 text-[11px] text-zinc-500 leading-snug">I&apos;ll show you around {orgName} — ask me how to do anything, or just talk to me.</p>
             <span onClick={(e) => { e.stopPropagation(); dismissGreet(); }} className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-900 text-white" aria-label="Dismiss"><X className="h-3 w-3" /></span>
           </motion.button>
@@ -506,7 +507,7 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
             key="riri-panel"
             initial={{ opacity: 0, scale: 0.9, y: 14 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 10 }}
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            role="dialog" aria-label="Riri assistant"
+            role="dialog" aria-label={`${ASSISTANT_NAME} assistant`}
             style={{ ...sideStyle, bottom: panelBottom, transformOrigin: corner === "br" ? "bottom right" : "bottom left", width: "min(384px, calc(100vw - 24px))", maxHeight: "min(600px, calc(100vh - 120px))" }}
             className="no-print fixed z-[9998] flex flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/85 shadow-2xl backdrop-blur-2xl"
           >
@@ -517,22 +518,22 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
                   <RiriAvatar size={40} state={busy ? "thinking" : "listening"} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold leading-tight">Riri</p>
+                  <p className="text-sm font-bold leading-tight">{ASSISTANT_NAME}</p>
                   <p className="text-[11px] text-zinc-500 leading-tight flex items-center gap-1">
                     {busy ? <>Thinking<span className="riri-think-dot">.</span><span className="riri-think-dot" style={{ animationDelay: ".2s" }}>.</span><span className="riri-think-dot" style={{ animationDelay: ".4s" }}>.</span></>
-                      : <><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" /> {active.name} · Online</>}
+                      : <><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" /> {active.short} · Online</>}
                   </p>
                 </div>
                 <button
                   onClick={() => setView((v) => (v === "chat" ? "account" : "chat"))}
                   className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${view === "account" ? "text-white" : "text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-900"}`}
                   style={view === "account" ? { backgroundColor: "var(--brand)" } : undefined}
-                  aria-label={view === "account" ? "Back to the conversation" : "Your account, usage and what Riri remembers"}
+                  aria-label={view === "account" ? "Back to the conversation" : `Your account, usage and what ${ASSISTANT_NAME} remembers`}
                   title={view === "account" ? "Back to the conversation" : "Account & usage"}
                 >
                   <UserRound className="h-4 w-4" />
                 </button>
-                <button onClick={() => setOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-900" aria-label="Close Riri"><X className="h-4 w-4" /></button>
+                <button onClick={() => setOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-900" aria-label={`Close ${ASSISTANT_NAME}`}><X className="h-4 w-4" /></button>
               </div>
 
               {/* Model switcher — chat only; the account view is tier-less */}
@@ -545,7 +546,7 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
                       className={`relative flex flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-[11px] font-semibold transition-colors ${on ? "text-white shadow-sm" : "text-zinc-600 hover:text-zinc-900"} ${m.pro && on ? "riri-sheen" : ""}`}
                       style={on ? { backgroundColor: "var(--brand)" } : undefined}>
                       <Icon className="h-3.5 w-3.5 shrink-0" />
-                      <span>{m.name.replace("Riri ", "")}</span>
+                      <span>{m.short}</span>
                       {m.pro && <span className={`rounded px-1 text-[7px] font-bold leading-none ${on ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700"}`}>PRO</span>}
                     </button>
                   );
@@ -647,9 +648,9 @@ You can talk to me out loud with the microphone.`
                               </div>
                             )}
                             <div className="mt-2.5 flex items-center gap-1.5">
-                              <span className="inline-flex items-center gap-1 rounded-full bg-zinc-900/5 px-1.5 py-0.5 text-[9px] font-medium text-zinc-500"><Icon className="h-2.5 w-2.5" /> {RIRI_MODELS[t.model].name}</span>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-zinc-900/5 px-1.5 py-0.5 text-[9px] font-medium text-zinc-500"><Icon className="h-2.5 w-2.5" /> {RIRI_MODELS[t.model].short}</span>
                               <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium ${t.mode === "live" ? "text-emerald-600" : "text-zinc-400"}`}>{t.mode === "live" ? "Live data" : "Simulated"}</span>
-                              {t.route === "llm" && <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">WRITTEN BY RIRI</span>}
+                              {t.route === "llm" && <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">AI-WRITTEN</span>}
                             </div>
                           </>
                         )}
@@ -667,8 +668,8 @@ You can talk to me out loud with the microphone.`
                 {voice.supported && (
                   <button
                     onClick={() => voice.listen()}
-                    title={voice.listening ? "Stop listening" : "Talk to Riri"}
-                    aria-label={voice.listening ? "Stop listening" : "Talk to Riri"}
+                    title={voice.listening ? "Stop listening" : `Talk to ${ASSISTANT_NAME}`}
+                    aria-label={voice.listening ? "Stop listening" : `Talk to ${ASSISTANT_NAME}`}
                     className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
                       voice.listening ? "text-white" : "text-zinc-400 hover:bg-zinc-900/5 hover:text-zinc-700"
                     }`}
@@ -695,7 +696,7 @@ You can talk to me out loud with the microphone.`
                   top-right) — one home for settings. Speaking still shows here so a
                   talking Riri is never mysterious. */}
               <p className="mt-1 text-center text-[9px] text-zinc-400">
-                {voice.speaking ? "Speaking… · " : ""}Riri can be wrong — verify figures before acting · Powered by BirgenAI
+                {voice.speaking ? "Speaking… · " : ""}{ASSISTANT_NAME} can be wrong — verify figures before acting · Powered by BirgenAI
               </p>
             </div>
             </>)}
@@ -708,7 +709,7 @@ You can talk to me out loud with the microphone.`
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
         style={{ ...pos, width: SIZE, height: SIZE, touchAction: "none", transition: drag ? "none" : "left .38s cubic-bezier(.22,1,.36,1), top .38s cubic-bezier(.22,1,.36,1)" }}
         className="no-print fixed z-[9999] cursor-grab active:cursor-grabbing select-none"
-        title={open ? "Close Riri" : "Ask Riri"}
+        title={open ? `Close ${ASSISTANT_NAME}` : `Ask ${ASSISTANT_NAME}`}
       >
         {!open && <span className="pointer-events-none absolute inset-0 rounded-full riri-halo" style={{ background: "var(--brand)", opacity: 0.25 }} />}
         <div className={`relative h-full w-full rounded-full shadow-2xl ring-2 ring-white ${open ? "" : "riri-float"}`} style={{ boxShadow: "0 12px 32px rgba(0,0,0,.22)" }}>

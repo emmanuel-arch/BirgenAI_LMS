@@ -65,7 +65,7 @@ function cell(v: unknown): string | number | Date {
 
 export async function toExcel(rows: ExportRow[], meta: ExportMeta): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "BirgenAI · Riri Analytics";
+  wb.creator = "BirgenAI · ServiceSuite AI";
   wb.created = new Date();
 
   const ws = wb.addWorksheet("Report", { views: [{ state: "frozen", ySplit: 4 }] });

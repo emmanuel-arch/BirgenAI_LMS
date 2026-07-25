@@ -664,26 +664,26 @@ export const ARTICLES: Article[] = [
   },
   {
     id: "riri-analyst",
-    title: "Asking Riri about your numbers",
+    title: "Asking ServiceSuite AI about your numbers",
     category: "intelligence",
     asks: ["riri analyst", "ask about my numbers", "olb", "par", "how much did we collect", "analytics", "reports", "talk to my data", "my book"],
     body:
-      "Switch me to ANALYST and I read your live book: outstanding, PAR 30, disbursements, collections, defaults, your pipeline. Ask for a period ('collected last month'), a slice ('PAR by product'), a ranking ('top 5 borrowers') or a trend ('disbursements over time').\n\nEvery answer shows you the exact query it came from. If you cannot check a number, you should not act on it.",
+      "Switch me to ANALYTICS and I read your live book: outstanding, PAR 30, disbursements, collections, defaults, your pipeline. Ask for a period ('collected last month'), a slice ('PAR by product'), a ranking ('top 5 borrowers') or a trend ('disbursements over time').\n\nEvery answer shows you the exact query it came from. If you cannot check a number, you should not act on it.",
     action: { label: "Open Reports", href: "/console/report" },
     right: "riri.use",
     feature: "riri",
     related: ["metrics-catalogue"],
     sw: {
-      title: "Kumwuliza Riri kuhusu takwimu zako",
+      title: "Kumwuliza ServiceSuite AI kuhusu takwimu zako",
       asks: ["uliza kuhusu takwimu zangu", "tulikusanya kiasi gani", "takwimu za kitabu changu", "ripoti za mikopo", "ongea na data yangu"],
       body:
-        "Nibadilishe kuwa ANALYST nami nasoma kitabu chako halisi: kinachodaiwa, PAR 30, utoaji, makusanyo, waliokwama, na maombi yanayosubiri. Uliza kwa kipindi ('tulikusanya mwezi uliopita'), kwa mgawanyo ('PAR kwa bidhaa'), kwa orodha ('wakopaji 5 bora') au mwenendo ('utoaji kwa muda').\n\nKila jibu hukuonyesha swali kamili lililotumika. Usipoweza kuihakiki nambari, hupaswi kuitumia.",
+        "Nibadilishe kuwa ANALYTICS nami nasoma kitabu chako halisi: kinachodaiwa, PAR 30, utoaji, makusanyo, waliokwama, na maombi yanayosubiri. Uliza kwa kipindi ('tulikusanya mwezi uliopita'), kwa mgawanyo ('PAR kwa bidhaa'), kwa orodha ('wakopaji 5 bora') au mwenendo ('utoaji kwa muda').\n\nKila jibu hukuonyesha swali kamili lililotumika. Usipoweza kuihakiki nambari, hupaswi kuitumia.",
       actionLabel: "Fungua Ripoti",
     },
   },
   {
     id: "metrics-catalogue",
-    title: "What Riri means by PAR 30 (and teaching her your words)",
+    title: "What ServiceSuite AI means by PAR 30 (and teaching her your words)",
     category: "intelligence",
     asks: ["metric catalogue", "what does par mean", "definitions", "teach riri", "synonyms", "targets", "what does riri know"],
     body:
@@ -692,7 +692,7 @@ export const ARTICLES: Article[] = [
     right: "metrics.view",
     feature: "riri",
     sw: {
-      title: "Riri anamaanisha nini kwa PAR 30 (na kumfundisha maneno yako)",
+      title: "ServiceSuite AI anamaanisha nini kwa PAR 30 (na kumfundisha maneno yako)",
       asks: ["par inamaanisha nini", "katalogi ya vipimo", "fafanuzi za vipimo", "mfundishe riri maneno yangu", "malengo ya vipimo"],
       body:
         "Katalogi ya Vipimo huorodhesha kila kipimo ninachokijua, kinahesabu nini kwa lugha rahisi, na SQL kamili iliyo nyuma yake. Unaweza kubadilisha jina la kipimo kuwa lile wafanyakazi wako wanalolitumia kweli, kunifundisha maneno yako, na kuweka lengo unalojiwekea — nitakuambia kama uko ndani yake kila ninapoitaja nambari hiyo.\n\nUsichoweza kubadilisha ni hesabu. PAR 30 ni nambari unayoiripoti kwa msimamizi; si yetu wala yako kuipinda.",

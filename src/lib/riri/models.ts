@@ -24,12 +24,16 @@
 // lucide "Sparkles" family.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { ASSISTANT_NAME } from "./brand";
+
 export type RiriModelId = "support" | "assistant" | "analytics";
 
 export type RiriModel = {
   id: RiriModelId;
-  /** Full display name in the switcher. */
+  /** Full display name (brand + tier), e.g. "ServiceSuite AI Assistant". */
   name: string;
+  /** Just the tier word, for tight chrome: Support | Assistant | Analytics. */
+  short: string;
   /** One-word tag rendered as a chip beside the name. */
   tag: string;
   /** Short "what this model is for" line. */
@@ -47,7 +51,8 @@ export type RiriModel = {
 export const RIRI_MODELS: Record<RiriModelId, RiriModel> = {
   support: {
     id: "support",
-    name: "Riri Support",
+    name: `${ASSISTANT_NAME} Support`,
+    short: "Support",
     tag: "2.0",
     blurb: "Knows this platform inside out — how to do anything, and why something is blocked.",
     icon: "LifeBuoy",
@@ -62,7 +67,8 @@ export const RIRI_MODELS: Record<RiriModelId, RiriModel> = {
   },
   assistant: {
     id: "assistant",
-    name: "Riri Assistant",
+    name: `${ASSISTANT_NAME} Assistant`,
+    short: "Assistant",
     tag: "2.5",
     blurb: "Knows you, your role and the customer on your screen — and remembers what she told you.",
     icon: "Bot",
@@ -79,7 +85,8 @@ export const RIRI_MODELS: Record<RiriModelId, RiriModel> = {
   },
   analytics: {
     id: "analytics",
-    name: "Riri Analytics",
+    name: `${ASSISTANT_NAME} Analytics`,
+    short: "Analytics",
     tag: "2.5 Max",
     blurb: "Talks to your live book — by period, product or borrower. Shows her SQL. Exports to Excel or PDF.",
     icon: "Gauge",

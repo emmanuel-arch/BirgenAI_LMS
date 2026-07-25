@@ -15,6 +15,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import type { Feature } from "@/lib/billing/plans";
 import type { Right } from "@/lib/rbac/rights";
+import { ASSISTANT_NAME } from "@/lib/riri/brand";
 
 export type NavItem = {
   key: string;
@@ -70,7 +71,13 @@ export const NAV_REGISTRY: NavModule[] = [
     icon: "FileText",
     items: [
       { key: "applications", label: "Applications Queue", href: "/console/applications", icon: "FileText", right: "applications.view" },
+      // The same applications as a value-weighted funnel board — a lens, not a
+      // second source of truth.
+      { key: "pipeline", label: "Pipeline", href: "/console/pipeline", icon: "Waypoints", right: "applications.view" },
       { key: "loans-list", label: "Loans List", href: "/console/loans", icon: "Landmark", right: "loans.view" },
+      // The people standing behind the money — invited from an application that
+      // requires a guarantor, tracked to signature.
+      { key: "sureties", label: "Sureties", href: "/console/sureties", icon: "Handshake", right: "applications.view" },
       { key: "loans-apply", label: "Apply for a Borrower", href: "/console/applications/new", icon: "FilePlus2", right: "loans.apply" },
     ],
   },
@@ -154,6 +161,9 @@ export const NAV_REGISTRY: NavModule[] = [
       // Every plan. A lender on the smallest package still answers to the ODPC, and
       // a data-protection duty is not a feature we may sell them back.
       { key: "compliance", label: "Compliance & Data", href: "/console/compliance", icon: "FileLock2", right: "compliance.view" },
+      // The immutable activity trail — who did what, from where. Same right as
+      // compliance: whoever answers to the regulator reads the record.
+      { key: "oversight", label: "Oversight", href: "/console/oversight", icon: "ScrollText", right: "compliance.view" },
     ],
   },
   {
@@ -175,13 +185,13 @@ export const NAV_REGISTRY: NavModule[] = [
   },
   {
     key: "riri",
-    label: "Riri",
+    label: ASSISTANT_NAME,
     icon: "Bot",
     items: [
       // Support is FIRST and needs no plan: a lender on the 10k package who cannot get
       // help is a lender who churns. The analytics tiers are the ones that are sold.
       { key: "riri-support", label: "Help & How-to", open: "support", icon: "LifeBuoy" },
-      { key: "riri", label: "Ask Riri", open: "analyst", icon: "Bot", right: "riri.use", feature: "riri" },
+      { key: "riri", label: `Ask ${ASSISTANT_NAME}`, open: "analyst", icon: "Bot", right: "riri.use", feature: "riri" },
     ],
   },
 ];

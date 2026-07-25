@@ -131,7 +131,7 @@ export async function runReadQuery(
 function friendlyDbError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes("read-only transaction")) {
-    return "That query tried to change your book. Riri's connection can only read it.";
+    return "That query tried to change your book. ServiceSuite AI's connection can only read it.";
   }
   if (m.includes("statement timeout") || m.includes("canceling statement")) {
     return `That query took longer than ${Math.round(STATEMENT_TIMEOUT_MS / 1000)}s and was stopped. Try narrowing it to a shorter period.`;
@@ -140,11 +140,11 @@ function friendlyDbError(message: string): string {
     // Most often a column Riri guessed at that the read surface doesn't publish.
     const col = /column\s+"?([a-z0-9_.]+)"?\s+does not exist/i.exec(message)?.[1];
     return col
-      ? `Riri's read surface doesn't have a \`${col}\`, so that question can't be answered from it yet.`
-      : "Riri's read surface doesn't have one of the fields that question needs.";
+      ? `ServiceSuite AI's read surface doesn't have a \`${col}\`, so that question can't be answered from it yet.`
+      : "ServiceSuite AI's read surface doesn't have one of the fields that question needs.";
   }
   if (m.includes("permission denied")) {
-    return "Riri isn't permitted to read that.";
+    return "ServiceSuite AI isn't permitted to read that.";
   }
   // Keep the first line only: a Postgres error's tail is a query dump.
   return `The database couldn't run that query: ${message.split("\n")[0].slice(0, 200)}`;

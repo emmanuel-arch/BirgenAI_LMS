@@ -30,7 +30,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!(await canSeeBorrower(scope, id))) {
     return NextResponse.json({ success: false, message: "Borrower not found." }, { status: 404 });
   }
-  const borrower = await prisma.borrower.findFirst({ where: { id, orgId }, select: { id: true, creditScore: true, firstName: true, otherName: true } });
+  const borrower = await prisma.borrower.findFirst({ where: { id, orgId }, select: { id: true, creditScore: true, loanLimit: true, firstName: true, otherName: true } });
   if (!borrower) return NextResponse.json({ success: false, message: "Borrower not found." }, { status: 404 });
 
   let body: {
@@ -40,6 +40,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     monthly?: unknown;
     transactionCount?: number;
     nameCheck?: { statementName?: string | null; expectedName?: string; matched?: boolean; overridden?: boolean } | null;
+    qualification?: {
+      eligible?: boolean; startingLimit?: number; tier?: string | null; internalScore?: number;
+      reasonCodes?: { code: string; label: string; detail: string; tone: string }[];
+      recommendedProductId?: string | null;
+    } | null;
   };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
@@ -113,6 +118,32 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     });
   }
 
+  // ── STARTING LIMIT ALLOCATION ────────────────────────────────────────────────
+  // When the score→product-match engine cleared them, allocate the starting loan
+  // limit onto the record (moving the old one to previous, so the change is legible
+  // on their 360). The number is the server-computed one echoed from the cruncher;
+  // we still clamp it to a sane band and record the reasons behind it.
+  const q = body.qualification;
+  let limitAllocated: number | null = null;
+  if (q?.eligible && Number.isFinite(Number(q.startingLimit))) {
+    const startingLimit = Math.round(Number(q.startingLimit));
+    if (startingLimit >= 0 && startingLimit <= 1_000_000) {
+      const prev = borrower.loanLimit != null ? Number(borrower.loanLimit) : null;
+      await prisma.borrower.update({
+        where: { id },
+        data: { loanLimit: startingLimit, previousLoanLimit: prev, lastScoredAt: new Date() },
+      });
+      limitAllocated = startingLimit;
+      await prisma.auditLog.create({
+        data: {
+          orgId, actorId: session!.user!.id, actorType: "staff", action: "borrower.limit-allocated",
+          entity: "Borrower", entityId: id,
+          meta: { startingLimit, previous: prev, tier: q.tier ?? null, internalScore: q.internalScore ?? null, reasons: (q.reasonCodes ?? []).slice(0, 6) },
+        },
+      }).catch(() => {});
+    }
+  }
+
   await prisma.auditLog.create({
     data: {
       orgId, actorId: session!.user!.id, actorType: "staff", action: "borrower.crunch-report",
@@ -121,5 +152,5 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     },
   }).catch(() => {});
 
-  return NextResponse.json({ success: true, snapshotId: snapshot.id });
+  return NextResponse.json({ success: true, snapshotId: snapshot.id, limitAllocated });
 }

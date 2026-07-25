@@ -33,7 +33,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 
   const app = await prisma.loanApplication.findFirst({
     where: { id, orgId },
-    include: { product: true, offer: true, guarantors: { orderBy: { invitedAt: "asc" } } },
+    include: { product: true, offer: true, guarantors: { orderBy: { invitedAt: "asc" } }, borrower: { select: { nationalId: true } } },
   });
   if (!app) return NextResponse.json({ success: false, message: "Application not found." }, { status: 404 });
 
@@ -57,6 +57,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     guarantorRequired: app.product?.guarantorRequired ?? false,
     hasStandingGuarantor: !!termsHash && app.guarantors.some((g) => standsBehind(g, termsHash)),
     hasOffer: !!app.offer,
+    borrowerNationalId: app.borrower?.nationalId ?? null,
     guarantors,
     collateral: collateral.map((c) => ({
       id: c.id, kind: c.kind, description: c.description,
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
-  const app = await prisma.loanApplication.findFirst({ where: { id, orgId }, select: { id: true, borrowerId: true } });
+  const app = await prisma.loanApplication.findFirst({ where: { id, orgId }, select: { id: true, borrowerId: true, borrower: { select: { nationalId: true, phone: true } } } });
   if (!app) return NextResponse.json({ success: false, message: "Application not found." }, { status: 404 });
 
   const tiers = session.user.tiers ?? { initiator: false, authorizer: false, validator: false };
@@ -100,6 +101,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const phone = toMsisdn(body.phone ?? "");
     if (!isKenyanMsisdn(phone)) return NextResponse.json({ success: false, message: "Enter a valid Safaricom number." }, { status: 400 });
     if (!body.fullName?.trim()) return NextResponse.json({ success: false, message: "Enter their name." }, { status: 400 });
+
+    // A guarantor must be a DIFFERENT person from the borrower — the hole in the
+    // systems we're replacing, where the borrower's own details sailed through.
+    const gNid = (body.nationalId ?? "").replace(/\D/g, "");
+    if (gNid && app.borrower?.nationalId && gNid === app.borrower.nationalId.replace(/\D/g, "")) {
+      return NextResponse.json({ success: false, message: "A guarantor must be someone other than the borrower." }, { status: 400 });
+    }
+    if (app.borrower?.phone && phone === app.borrower.phone) {
+      return NextResponse.json({ success: false, message: "A guarantor must be reachable on a different number from the borrower." }, { status: 400 });
+    }
 
     try {
       const { id: gid, delivered } = await inviteGuarantor({
