@@ -115,7 +115,8 @@ export const NAV_REGISTRY: NavModule[] = [
       { key: "metrics", label: "Metric Catalogue", href: "/console/intelligence/metrics", icon: "Ruler", right: "metrics.view", feature: "riri" },
       { key: "documents", label: "Document Parser", href: "/console/documents", icon: "ScanLine", right: "documents.view", feature: "document-parser" },
       { key: "report-builder", label: "Report Builder", href: "/console/intelligence/reports", icon: "FilePlus2", right: "reports.view", feature: "riri" },
-      { key: "reports", label: "Reports", href: "/console/report", icon: "FileBarChart", right: "reports.view" },
+      { key: "reports", label: "Reports", href: "/console/report", icon: "FileBarChart", right: "reports.view", exact: true },
+      { key: "income-statement", label: "Income Statement", href: "/console/report/income", icon: "Coins", right: "reports.view" },
     ],
   },
   {
@@ -181,6 +182,16 @@ export const NAV_REGISTRY: NavModule[] = [
     icon: "Crown",
     items: [
       { key: "billing", label: "Package & Usage", href: "/console/billing", icon: "Crown", right: "billing.view" },
+    ],
+  },
+  {
+    // The connected-suite launcher — one BirgenAI ID across Lending, HR, Accounting
+    // and the Call-Center. No right: every signed-in staffer can reach their systems.
+    key: "suite",
+    label: "Connected Suite",
+    icon: "KeyRound",
+    items: [
+      { key: "suite-sso", label: "BirgenAI ID / SSO", href: "/suite", icon: "KeyRound" },
     ],
   },
   {
