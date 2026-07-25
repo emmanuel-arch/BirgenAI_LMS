@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useLoad } from "@/lib/hooks/useLoad";
-import Link from "next/link";
 import {
   Loader2, AlertTriangle, CheckCircle2, Scale, RefreshCw, ShieldCheck,
-  Banknote, EyeOff, Undo2, ExternalLink, Zap,
+  Banknote, EyeOff, Undo2, Zap,
 } from "lucide-react";
+import { ReconcileToCustomer } from "./ReconcileToCustomer";
 
 // Finance's exceptions queue. Every card is one disagreement between what
 // M-Pesa says happened and what the book says happened. The queue empties by
@@ -43,6 +43,17 @@ const SEV_TONE: Record<string, string> = {
 const kes = (n: number) => `KES ${Math.round(Math.abs(n)).toLocaleString()}`;
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 
+/** Where the unmatched money came from — read out of the exception's metadata. */
+function sourceOf(e: Ex): string {
+  const m = e.meta ?? {};
+  const parts = [
+    m.phone ? `from ${String(m.phone)}` : null,
+    m.billRef ? `account ${String(m.billRef)}` : null,
+    m.transId ? String(m.transId) : null,
+  ].filter(Boolean) as string[];
+  return parts.length ? parts.join(" · ") : e.message;
+}
+
 export default function ReconciliationPage() {
   const [data, setData] = useState<Data | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -52,6 +63,7 @@ export default function ReconciliationPage() {
   const [noteFor, setNoteFor] = useState<{ id: string; mode: "resolve" | "ignore" } | null>(null);
   const [note, setNote] = useState("");
   const [showClosed, setShowClosed] = useState(false);
+  const [reconciling, setReconciling] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -155,10 +167,10 @@ export default function ReconciliationPage() {
                     </button>
                   ) : null}
                   {e.kind === "C2B_UNALLOCATED" && (
-                    <Link href="/console/repayments"
+                    <button onClick={() => setReconciling(reconciling === e.id ? null : e.id)}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
-                      <ExternalLink className="h-3.5 w-3.5" /> Allocate in Repayments
-                    </Link>
+                      <Banknote className="h-3.5 w-3.5" /> {reconciling === e.id ? "Close" : "Reconcile to a customer"}
+                    </button>
                   )}
                   <button onClick={() => { setNoteFor({ id: e.id, mode: "resolve" }); setNote(""); }}
                     disabled={busy !== null}
@@ -185,6 +197,11 @@ export default function ReconciliationPage() {
                     </button>
                     <button onClick={() => setNoteFor(null)} className="text-xs text-zinc-400 hover:text-zinc-600">Cancel</button>
                   </div>
+                )}
+
+                {e.kind === "C2B_UNALLOCATED" && reconciling === e.id && (
+                  <ReconcileToCustomer receiptId={e.reference} amount={e.amountKes} source={sourceOf(e)}
+                    onDone={() => { setReconciling(null); void load(); }} />
                 )}
               </div>
             ))}
