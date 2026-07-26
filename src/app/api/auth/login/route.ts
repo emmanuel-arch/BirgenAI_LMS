@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
         // fall through to session
       } else {
         const issue = await runWithOrg(staff.orgId, () => issueDailyLoginOtp(staff.orgId, staff.id));
-        if (issue.delivered || issue.devCode) {
+        if (issue.delivered || issue.fallbackCode) {
           return NextResponse.json({
             success: false,
             otpRequired: true,
@@ -90,7 +90,9 @@ export async function POST(req: NextRequest) {
             message: issue.issued
               ? "Today's code is on its way to your inbox."
               : "Use today's code from your inbox — it's good until midnight.",
-            ...(issue.devCode ? { devCode: issue.devCode } : {}),
+            // Present only when BOTH channels failed outside production; a delivered
+            // code is never echoed back to the browser.
+            ...(issue.fallbackCode ? { fallbackCode: issue.fallbackCode } : {}),
           });
         }
         // No email, no SMS — locking every officer out is worse than parity.

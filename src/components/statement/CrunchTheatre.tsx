@@ -23,6 +23,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, AlertTriangle, ArrowRight, Loader2, FileText, ShieldCheck, TrendingUp, TrendingDown, Store, Landmark } from "lucide-react";
 import type { InternalReport } from "@/lib/statement/analyze";
+import type { CashflowFeatures } from "@/lib/statement/features";
 import type { Qualification } from "@/lib/lending/qualify";
 
 // ── Safaricom palette ─────────────────────────────────────────────────────────
@@ -46,14 +47,16 @@ export type CrunchData = {
     band: string; tone: "good" | "warn" | "high" | "bad"; decision: string;
     reasonCodes: ReasonCode[]; breakdown: { code: string; factor: string; points: number }[];
   };
-  features: {
-    monthsCovered: number; periodStart: string | null; periodEnd: string | null; txnCount: number;
-    totalIncome: number; avgMonthlyIncome: number; totalExpense: number; avgMonthlyExpense: number;
-    avgMonthlyNet: number; incomeVolatility: number; avgBalance: number; minBalance: number;
-    closingBalance: number; balanceTrend: number; incomeMonthsRatio: number;
-    gamblingOutflow: number; gamblingRatio: number; loanInflow: number; loanRepayOutflow: number;
-    loanEventCount: number; loanDependencyRatio: number; airtimeSpend: number;
-  };
+  /**
+   * The cruncher's own feature vector, by reference rather than re-declared.
+   *
+   * This used to be a hand-copied structural type that had drifted: it was missing
+   * `businessInflowCount` and `tillPaybillCount`, which the API has always sent and
+   * which two of the ten model features are derived from. A local copy of someone
+   * else's shape is a bug with a delay on it — pointing at the source means the
+   * next feature added to the crunch is visible here the moment it exists.
+   */
+  features: CashflowFeatures;
   monthly: { month: string; income: number; expense: number; net: number; gambling: number }[];
   affordability: { score: number; band: string; recommendedMaxInstallment: number; reasons: { factor: string; direction: "positive" | "negative"; detail: string }[] };
   categories: { category: string; count: number; amount: number; inAmt: number; outAmt: number }[];

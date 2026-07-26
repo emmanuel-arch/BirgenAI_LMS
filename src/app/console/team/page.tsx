@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useLoad } from "@/lib/hooks/useLoad";
-import { Loader2, AlertTriangle, CheckCircle2, Users, Plus } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2, Users, Plus, ShieldCheck } from "lucide-react";
 
 type Staff = {
   id: string; email: string; phone: string | null; firstName: string; otherName: string | null; status: string;
@@ -14,12 +14,15 @@ type Staff = {
 
 export default function TeamPage() {
   const [staff, setStaff] = useState<Staff[] | null>(null);
-  const [roles, setRoles] = useState<{ id: string; title: string }[]>([]);
+  const [roles, setRoles] = useState<{ id: string; title: string; assignable: boolean }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", phone: "", roleId: "", initiator: true, authorizer: false, validator: false });
+  // Step-up: inviting into an access-managing role asks the actor for a fresh code.
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -32,19 +35,22 @@ export default function TeamPage() {
   useLoad(load);
 
   const invite = async () => {
-    setSaving(true); setError(null); setNotice(null);
+    setSaving(true); setError(null); if (!otpStep) setNotice(null);
     try {
       const res = await fetch("/api/console/team", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name, email: form.email, phone: form.phone, roleId: form.roleId || undefined,
           tiers: { initiator: form.initiator, authorizer: form.authorizer, validator: form.validator },
+          ...(otpStep && otpCode ? { otp: otpCode } : {}),
         }),
       });
       const data = await res.json();
+      // Privileged role → the server asks the actor for a fresh code first.
+      if (data.otpRequired) { setOtpStep(true); setOtpCode(""); setNotice(data.message || "Enter the code we sent you to confirm."); setError(null); return; }
       if (!data.success) { setError(data.message || "Invite failed."); return; }
       setNotice(data.emailed ? "Teammate added — credentials emailed." : "Teammate added — email delivery failed, share credentials manually (reset coming).");
-      setShowForm(false); setForm({ name: "", email: "", phone: "", roleId: "", initiator: true, authorizer: false, validator: false });
+      setShowForm(false); setOtpStep(false); setOtpCode(""); setForm({ name: "", email: "", phone: "", roleId: "", initiator: true, authorizer: false, validator: false });
       await load();
     } catch { setError("Invite failed."); } finally { setSaving(false); }
   };
@@ -106,7 +112,9 @@ export default function TeamPage() {
               <div className={field}>
                 <select className={`${input} appearance-none`} value={form.roleId} onChange={(e) => setForm((f) => ({ ...f, roleId: e.target.value }))}>
                   <option value="">Role…</option>
-                  {roles.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}
+                  {/* Anti-escalation: a role granting more than you hold is shown but
+                      disabled — you can't promote anyone (including yourself) above you. */}
+                  {roles.map((r) => <option key={r.id} value={r.id} disabled={!r.assignable}>{r.title}{r.assignable ? "" : " — above your access"}</option>)}
                 </select>
               </div>
             </div>
@@ -117,9 +125,16 @@ export default function TeamPage() {
                 </label>
               ))}
             </div>
-            <button onClick={invite} disabled={saving}
+            {otpStep && (
+              <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50/70 px-3 py-2">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-amber-600" />
+                <input value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoFocus
+                  placeholder="6-digit code from your inbox" className="flex-1 bg-transparent text-sm tracking-[0.3em] outline-none placeholder:tracking-normal" />
+              </div>
+            )}
+            <button onClick={invite} disabled={saving || (otpStep && otpCode.length < 6)}
               className="mt-4 inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Add & email credentials
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : otpStep ? <ShieldCheck className="h-4 w-4" /> : null} {otpStep ? "Confirm with code" : "Add & email credentials"}
             </button>
           </div>
         )}

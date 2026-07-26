@@ -42,9 +42,46 @@ type Detail = {
   recommendation: { verdict: "increase" | "reduce" | "ok" | "declined"; approvedLimit: number; affordableInstallment: number | null; installmentCount: number | null; installmentUnit: string | null; reasons: { factor?: string; detail?: string; direction?: string }[]; hasStatement: boolean };
   schedule: { seq: number; dueDate: string; amountDue: number }[];
   interest: number; loanAmount: number;
+  trail: { id: string; label: string; action: string; stage: string | null; note: string | null; actor: string | null; at: string }[];
 };
 
 const LIVE = ["SUBMITTED", "AI_PRESCREEN", "OFFICER_REVIEW", "REFERRED"];
+
+// The approval trail — every stage decision and the message the approver left,
+// as a visible thread. The incumbent buries these; here they are the record the
+// next approver reads before they act.
+function ApprovalTrail({ trail }: { trail: Detail["trail"] }) {
+  const tone = (a: string) =>
+    a === "decline" ? { c: "#e11d48", Icon: XCircle } : a === "send-back" ? { c: "#d97706", Icon: Undo2 } : { c: "#059669", Icon: CheckCircle2 };
+  return (
+    <div className="glass p-5">
+      <h2 className="flex items-center gap-2 text-sm font-semibold">
+        <Landmark className="h-4 w-4" style={{ color: "var(--brand)" }} /> Approval trail
+        <span className="font-normal text-zinc-400">· every stage &amp; message</span>
+      </h2>
+      <ol className="relative mt-3 space-y-3 before:absolute before:left-[11px] before:top-1 before:bottom-1 before:w-px before:bg-zinc-900/10">
+        {trail.map((t) => {
+          const { c, Icon } = tone(t.action);
+          return (
+            <li key={t.id} className="relative flex gap-3">
+              <span className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-4 ring-white" style={{ backgroundColor: `${c}18` }}>
+                <Icon className="h-3.5 w-3.5" style={{ color: c }} />
+              </span>
+              <div className="-mt-0.5 min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-sm font-medium text-zinc-800">{t.label}{t.stage ? <span className="font-normal text-zinc-400"> · {t.stage}</span> : null}</p>
+                  <span className="shrink-0 text-[10px] text-zinc-400">{dfmt(t.at)}</span>
+                </div>
+                {t.note && <p className="text-[12px] leading-snug text-zinc-600">&ldquo;{t.note}&rdquo;</p>}
+                {t.actor && <p className="text-[10px] text-zinc-400">by {t.actor}</p>}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
 
 export default function ApplicationDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -267,6 +304,9 @@ export default function ApplicationDetailPage() {
             </div>
           )}
           {a.loan && <p className="text-xs text-zinc-500">Loan {a.loan.id.slice(0, 8)}… · {a.loan.status}</p>}
+
+          {/* Approval trail — the stage decisions and their messages, as a thread */}
+          {d.trail.length > 0 && <ApprovalTrail trail={d.trail} />}
 
           {/* The three buttons */}
           {live && (

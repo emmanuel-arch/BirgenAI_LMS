@@ -43,7 +43,11 @@ export const ALL_RIGHTS = [
   "documents.view", // see parsed documents
   "documents.parse", // upload + parse (metered)
   "documents.manage", // delete documents
-  "reports.view", // portfolio report, loan statements
+  "reports.view", // umbrella: access to every report screen
+  "reports.portfolio", // the portfolio report
+  "reports.income", // the income statement
+  "reports.analytics", // the analytics studio
+  "reports.builder", // the custom report builder
   // Field operations
   "field.view", // visits roster, map, routes
   "field.manage", // create visits, dispatch/allocate agents
@@ -165,6 +169,13 @@ export const MODERN_RIGHTS: Right[] = [
   // not something anyone should hold by inheritance.
   "compliance.view",
   "compliance.manage",
+  // Per-report access (the Report Access Manager). `reports.view` is the umbrella
+  // that already grants every report; these narrow it to specific screens. New
+  // surfaces, so they belong to no historical bucket.
+  "reports.portfolio",
+  "reports.income",
+  "reports.analytics",
+  "reports.builder",
 ];
 
 /**
@@ -177,7 +188,8 @@ export const RIGHT_GROUPS: { key: string; label: string; rights: Right[] }[] = [
   { key: "loans", label: "Loans", rights: ["applications.view", "applications.decide", "loans.view", "loans.apply"] },
   { key: "payments", label: "Payments", rights: ["disbursements.view", "disbursements.manage", "float.view", "float.manage", "repayments.view", "repayments.collect", "reconciliation.view", "reconciliation.resolve"] },
   { key: "collections", label: "Collections", rights: ["collections.view", "collections.manage"] },
-  { key: "intelligence", label: "Intelligence & Reports", rights: ["intelligence.view", "intelligence.tune", "documents.view", "documents.parse", "documents.manage", "reports.view"] },
+  { key: "intelligence", label: "Intelligence", rights: ["intelligence.view", "intelligence.tune", "documents.view", "documents.parse", "documents.manage"] },
+  { key: "reports", label: "Reports (per-report access)", rights: ["reports.view", "reports.portfolio", "reports.income", "reports.analytics", "reports.builder"] },
   { key: "field", label: "Field Ops", rights: ["field.view", "field.manage"] },
   { key: "organization", label: "Organization", rights: ["products.view", "products.manage", "workflows.view", "workflows.manage", "branches.view", "branches.manage", "branding.manage", "settings.view", "settings.manage"] },
   { key: "access", label: "Team & Access", rights: ["team.view", "team.manage", "roles.view", "roles.manage"] },
@@ -216,7 +228,11 @@ export const RIGHT_LABELS: Record<Right, string> = {
   "documents.view": "Can see parsed documents",
   "documents.parse": "Can upload and parse documents (each parse is billed)",
   "documents.manage": "Can delete documents",
-  "reports.view": "Can view and print portfolio reports",
+  "reports.view": "Can open every report — the umbrella grant that covers all report screens",
+  "reports.portfolio": "Can open the portfolio report",
+  "reports.income": "Can open the income statement",
+  "reports.analytics": "Can open the Analytics Studio",
+  "reports.builder": "Can build and run custom reports",
   "field.view": "Can see field visits, routes and the agent roster",
   "field.manage": "Can create visits and dispatch field agents",
   "products.view": "Can see the loan products list",

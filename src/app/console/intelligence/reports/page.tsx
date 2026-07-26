@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { hasReportAccess } from "@/lib/rbac/authz";
 import { hasFeature } from "@/lib/billing/entitlements";
 import { UpgradeCard } from "@/components/billing/UpgradeCard";
 import { runAsPlatform } from "@/lib/db/context";
@@ -23,6 +24,7 @@ export const dynamic = "force-dynamic";
 export default async function ReportBuilderPage() {
   const session = await auth();
   if (!session?.user?.orgId) redirect("/login");
+  if (!(await hasReportAccess(session, "reports.builder"))) redirect("/console");
   const orgId = session.user.orgId;
 
   if (!(await hasFeature(orgId, "riri"))) {

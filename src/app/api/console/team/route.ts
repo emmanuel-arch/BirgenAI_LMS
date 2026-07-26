@@ -7,7 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { auth } from "@/lib/auth";
-import { requireRight, invalidateRights } from "@/lib/rbac/authz";
+import { requireRight, invalidateRights, getRights, canGrantRights, rightsSetFrom } from "@/lib/rbac/authz";
+import { issueOtp, verifyOtp } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
 import { headOfficeId } from "@/lib/rbac/scope";
 import { entitlementsFor } from "@/lib/billing/entitlements";
@@ -18,13 +19,40 @@ import { staffInviteEmail } from "@/lib/email/templates";
 
 export const runtime = "nodejs";
 
+/** A role that can manage access is a crown-jewel grant — creating or assigning one is
+ *  the action a walked-up console session would abuse. */
+const grantsAccessAdmin = (rightsRaw: unknown) => {
+  const s = rightsSetFrom(rightsRaw);
+  return s.has("roles.manage") || s.has("team.manage");
+};
+
+/**
+ * STEP-UP RE-AUTH for a privileged change. Demands a fresh single-use code from the
+ * ACTOR before the write proceeds — defence-in-depth on top of the anti-escalation
+ * guard. Anti-lockout, exactly like login: if no channel can carry the code, it falls
+ * open with an audit rather than trapping a mis-configured org. Returns a response to
+ * send back (challenge or rejection), or null to proceed.
+ */
+async function requireStepUp(orgId: string, actorId: string, purpose: string, otp?: string): Promise<NextResponse | null> {
+  if (otp) {
+    if (await verifyOtp(orgId, actorId, purpose, otp)) return null;
+    return NextResponse.json({ success: false, otpRequired: true, message: "That code didn't match or has expired — check your inbox and try again." }, { status: 401 });
+  }
+  const { delivered } = await issueOtp(orgId, actorId, purpose);
+  if (!delivered) {
+    await prisma.auditLog.create({ data: { orgId, actorId, actorType: "staff", action: "auth.stepup-skipped", entity: "StaffUser", entityId: actorId, meta: { purpose } } }).catch(() => {});
+    return null; // no channel — parity beats a lockout
+  }
+  return NextResponse.json({ success: false, otpRequired: true, message: "This gives someone the ability to manage access — enter the code we just emailed you to confirm it's you." }, { status: 200 });
+}
+
 export async function GET() {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
   const denied = await requireRight(session, "team.view");
   if (denied) return denied;
   const orgId = session.user.orgId;
-  const [staff, roles, branches] = await Promise.all([
+  const [staff, roleRows, branches, actorRights] = await Promise.all([
     prisma.staffUser.findMany({
       where: { orgId },
       orderBy: { createdAt: "asc" },
@@ -35,9 +63,13 @@ export async function GET() {
         role: { select: { id: true, title: true } }, branch: { select: { id: true, name: true } },
       },
     }),
-    prisma.role.findMany({ where: { orgId }, select: { id: true, title: true } }),
+    prisma.role.findMany({ where: { orgId }, select: { id: true, title: true, rights: true } }),
     prisma.branch.findMany({ where: { orgId }, select: { id: true, name: true } }),
+    getRights(session),
   ]);
+  // `assignable` is the anti-escalation rule made visible: a role that grants more
+  // than the caller holds is shown but not offered — you cannot promote above yourself.
+  const roles = roleRows.map((r) => ({ id: r.id, title: r.title, assignable: canGrantRights(actorRights, r.rights) }));
   return NextResponse.json({ success: true, staff, roles, branches });
 }
 
@@ -46,7 +78,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
   const denied = await requireRight(session, "team.manage");
   if (denied) return denied;
-  let body: { email?: string; name?: string; phone?: string; roleId?: string; branchId?: string; tiers?: { initiator?: boolean; authorizer?: boolean; validator?: boolean } };
+  let body: { email?: string; name?: string; phone?: string; roleId?: string; branchId?: string; tiers?: { initiator?: boolean; authorizer?: boolean; validator?: boolean }; otp?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
   const email = (body.email ?? "").trim().toLowerCase();
@@ -57,6 +89,20 @@ export async function POST(req: NextRequest) {
   const orgId = session.user.orgId;
   const exists = await prisma.staffUser.findUnique({ where: { orgId_email: { orgId, email } } });
   if (exists) return NextResponse.json({ success: false, message: "That email is already on the team." }, { status: 409 });
+
+  // Anti-escalation: you cannot invite someone into a role with more access than you hold.
+  if (body.roleId) {
+    const [actorRights, role] = await Promise.all([getRights(session), prisma.role.findFirst({ where: { id: body.roleId, orgId }, select: { rights: true } })]);
+    if (!role) return NextResponse.json({ success: false, message: "Role not found." }, { status: 404 });
+    if (!canGrantRights(actorRights, role.rights)) {
+      return NextResponse.json({ success: false, message: "You can't assign a role with more access than your own." }, { status: 403 });
+    }
+    // Step-up: creating an access-managing account demands a fresh code from you.
+    if (grantsAccessAdmin(role.rights)) {
+      const step = await requireStepUp(orgId, session.user.id!, "team:privileged-invite", body.otp);
+      if (step) return step;
+    }
+  }
 
   // Seats are counted on ACTIVE staff, so disabling a leaver frees their seat.
   const ent = await entitlementsFor(orgId);
@@ -124,7 +170,7 @@ export async function PUT(req: NextRequest) {
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
   const denied = await requireRight(session, "team.manage");
   if (denied) return denied;
-  let body: { id?: string; roleId?: string | null; branchId?: string | null; status?: "ACTIVE" | "LOCKED" | "DISABLED"; tiers?: { initiator?: boolean; authorizer?: boolean; validator?: boolean }; isFieldAgent?: boolean; title?: string; lat?: number; lng?: number };
+  let body: { id?: string; roleId?: string | null; branchId?: string | null; status?: "ACTIVE" | "LOCKED" | "DISABLED"; tiers?: { initiator?: boolean; authorizer?: boolean; validator?: boolean }; isFieldAgent?: boolean; title?: string; lat?: number; lng?: number; otp?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
   if (!body.id) return NextResponse.json({ success: false, message: "Staff id required." }, { status: 400 });
 
@@ -132,6 +178,21 @@ export async function PUT(req: NextRequest) {
   if (!target) return NextResponse.json({ success: false, message: "Staff member not found." }, { status: 404 });
   if (target.id === session.user.id && body.status && body.status !== "ACTIVE") {
     return NextResponse.json({ success: false, message: "You can't lock or disable your own account." }, { status: 400 });
+  }
+
+  // Anti-escalation: you cannot move anyone (yourself included) into a role that grants
+  // more than you hold. This is the exact hole that let an admin tick "Super Admin".
+  if (body.roleId) {
+    const [actorRights, role] = await Promise.all([getRights(session), prisma.role.findFirst({ where: { id: body.roleId, orgId: session.user.orgId }, select: { rights: true } })]);
+    if (!role) return NextResponse.json({ success: false, message: "Role not found." }, { status: 404 });
+    if (!canGrantRights(actorRights, role.rights)) {
+      return NextResponse.json({ success: false, message: "You can't assign a role with more access than your own." }, { status: 403 });
+    }
+    // Step-up: moving someone into an access-managing role demands a fresh code.
+    if (grantsAccessAdmin(role.rights)) {
+      const step = await requireStepUp(session.user.orgId!, session.user.id!, "team:privileged-role", body.otp);
+      if (step) return step;
+    }
   }
 
   const t = body.tiers;

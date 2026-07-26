@@ -97,7 +97,7 @@ export function DocumentsClient() {
     const res = await fetch(`/api/console/documents/${id}`);
     const d = await res.json();
     if (d.url) window.open(d.url, "_blank", "noopener");
-    else alert("The file itself is not stored — object storage is running in simulation.");
+    else alert("Document storage isn't connected for this organisation yet, so the file itself wasn't kept — only its record. An administrator can connect it under Settings & Vault.");
   };
 
   return (

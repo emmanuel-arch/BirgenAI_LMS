@@ -27,6 +27,10 @@ export type NavItem = {
   icon: string; // lucide icon name — mapped to a component in the client shell
   /** Right that admits the caller. Absent ⇒ visible to every signed-in staff. */
   right?: Right;
+  /** Any-of rights: the item shows if the caller holds AT LEAST ONE — used for
+   *  per-report access, where the umbrella `reports.view` OR a specific report right
+   *  both admit. When both `right` and `anyRight` are set, both must pass. */
+  anyRight?: Right[];
   /** Plan feature that must be entitled. Absent ⇒ every plan. */
   feature?: Feature;
   /** false ⇒ rendered as "coming up", not clickable. */
@@ -108,15 +112,20 @@ export const NAV_REGISTRY: NavModule[] = [
     label: "Intelligence",
     icon: "BrainCircuit",
     items: [
+      // FIRST, and on every plan. This is the screen that explains why the rest of
+      // the module exists: what the platform is learning from this lender's own
+      // book, and how far it is from deciding with a model fitted on it. A lender
+      // who cannot see that has no reason to keep feeding the loop.
+      { key: "closed-loop", label: "Closed ML Loop", href: "/console/intelligence/loop", icon: "Infinity", right: "intelligence.view" },
       { key: "early-warning", label: "Early Warning", href: "/console/intelligence", icon: "Gauge", right: "intelligence.view", feature: "portfolio-scan", exact: true },
       { key: "scoring", label: "Credit Scoring", href: "/console/intelligence/scoring", icon: "Target", right: "intelligence.view", feature: "portfolio-scan" },
-      { key: "analytics", label: "Analytics Studio", href: "/console/intelligence/analytics", icon: "LineChart", right: "reports.view" },
+      { key: "analytics", label: "Analytics Studio", href: "/console/intelligence/analytics", icon: "LineChart", anyRight: ["reports.view", "reports.analytics"] },
       { key: "model-tuning", label: "Model Tuning", href: "/console/intelligence/tuning", icon: "SlidersHorizontal", right: "intelligence.tune", feature: "model-tuning" },
       { key: "metrics", label: "Metric Catalogue", href: "/console/intelligence/metrics", icon: "Ruler", right: "metrics.view", feature: "riri" },
       { key: "documents", label: "Document Parser", href: "/console/documents", icon: "ScanLine", right: "documents.view", feature: "document-parser" },
-      { key: "report-builder", label: "Report Builder", href: "/console/intelligence/reports", icon: "FilePlus2", right: "reports.view", feature: "riri" },
-      { key: "reports", label: "Reports", href: "/console/report", icon: "FileBarChart", right: "reports.view", exact: true },
-      { key: "income-statement", label: "Income Statement", href: "/console/report/income", icon: "Coins", right: "reports.view" },
+      { key: "report-builder", label: "Report Builder", href: "/console/intelligence/reports", icon: "FilePlus2", anyRight: ["reports.view", "reports.builder"], feature: "riri" },
+      { key: "reports", label: "Reports", href: "/console/report", icon: "FileBarChart", anyRight: ["reports.view", "reports.portfolio"], exact: true },
+      { key: "income-statement", label: "Income Statement", href: "/console/report/income", icon: "Coins", anyRight: ["reports.view", "reports.income"] },
     ],
   },
   {
@@ -215,7 +224,10 @@ export function navFor(rights: ReadonlySet<string>, features: ReadonlySet<string
   return NAV_REGISTRY.map((mod) => ({
     ...mod,
     items: mod.items.filter(
-      (item) => (!item.right || rights.has(item.right)) && (!item.feature || features.has(item.feature)),
+      (item) =>
+        (!item.right || rights.has(item.right)) &&
+        (!item.anyRight || item.anyRight.some((r) => rights.has(r))) &&
+        (!item.feature || features.has(item.feature)),
     ),
   })).filter((mod) => mod.items.length > 0);
 }

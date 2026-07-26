@@ -79,6 +79,29 @@ export async function hasRight(session: Session, right: Right): Promise<boolean>
 }
 
 /**
+ * Per-report access: the umbrella `reports.view` opens every report; otherwise the
+ * caller needs the specific report's right. The Report Access Manager grants either.
+ */
+export async function hasReportAccess(session: Session, specific: Right): Promise<boolean> {
+  const r = await getRights(session);
+  return r.has("reports.view") || r.has(specific);
+}
+
+/**
+ * THE ANTI-ESCALATION RULE. May an actor holding `actorRights` grant a role whose
+ * rights are `roleRightsRaw`? Only if that role grants NOTHING the actor lacks — you
+ * cannot hand out access you do not hold, so you cannot promote anyone (least of all
+ * yourself) above your own ceiling. This is the exact hole that lets an "Administrator"
+ * tick "Super Admin" out of a dropdown; here the server refuses, and the UI never
+ * offers it. A wildcard/everything actor may grant anything.
+ */
+export function canGrantRights(actorRights: ReadonlySet<string>, roleRightsRaw: unknown): boolean {
+  const target = rightsSetFrom(roleRightsRaw);
+  for (const r of target) if (!actorRights.has(r)) return false;
+  return true;
+}
+
+/**
  * Route guard, `requireFeature` ergonomics: returns a ready-to-send response to
  * refuse, or null to proceed. 401 without a session, 403 naming the missing right
  * so the UI can explain rather than shrug.

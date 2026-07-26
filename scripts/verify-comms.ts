@@ -52,7 +52,7 @@ async function main() {
     ok("invite explains the daily code", invite.html.includes("whole day") && invite.text.includes("whole day"));
     ok("invite wears the lender's brand", invite.html.includes("#E11D48") && invite.html.includes("Comms Test Ltd") && invite.html.includes(`${slug}.birgenai.com`));
     ok("no logo ⇒ wordmark tile, not a broken <img>", !invite.html.includes("<img") && invite.html.includes(">C</span>"));
-    ok("footer credits the platform", invite.html.includes("BirgenAI LMS"));
+    ok("footer credits the platform", invite.html.includes("Powered by") && invite.html.includes(">BirgenAI</a>"));
 
     const evil = staffInviteEmail(brand, { name: `<script>alert(1)</script>`, email: "e@x.test", tempPassword: "p".repeat(10) });
     ok("user-supplied name is escaped", !evil.html.includes("<script>") && evil.html.includes("&lt;script&gt;"));
@@ -82,9 +82,27 @@ async function main() {
     const eod = endOfDayNairobi(new Date("2026-07-11T10:00:00Z"));
     ok("expiry is midnight Nairobi (21:00 UTC)", eod.toISOString() === "2026-07-11T21:00:00.000Z", eod.toISOString());
 
+    // THE CODE IS NOT HANDED BACK TO CALLERS. issueDailyLoginOtp returns the
+    // plaintext only when BOTH channels failed outside production — a lockout
+    // escape hatch, not a test seam. So this suite reads the code the way an
+    // operator would if a staffer lost the email: off the queued SMS row.
+    //
+    // That also makes the assertion below meaningful. Asserting on a value the
+    // function volunteered proves nothing about whether the code was DELIVERED;
+    // parsing it out of the outbound message proves the whole path.
+    const readQueuedCode = async (): Promise<string | null> => {
+      const row = await ctx(() => prisma.smsMessage.findFirst({
+        where: { orgId: org.id, templateKey: "login_code" },
+        orderBy: { createdAt: "desc" },
+      }));
+      return /(\d{6})/.exec(row?.message ?? "")?.[1] ?? null;
+    };
+
     const issue1 = await ctx(() => issueDailyLoginOtp(org.id, staff.id));
-    ok("first issue creates + returns a dev code outside production", issue1.issued && !!issue1.devCode);
-    const code = issue1.devCode!;
+    ok("first issue creates a challenge and sends it", issue1.issued);
+    ok("the plaintext is NOT returned when a channel delivered it", !(issue1.delivered && issue1.fallbackCode));
+    const code = (await readQueuedCode())!;
+    ok("the outbound SMS carries a 6-digit code", /^\d{6}$/.test(code ?? ""), code ?? "none");
     const issue2 = await ctx(() => issueDailyLoginOtp(org.id, staff.id));
     ok("second sign-in the same day does NOT reissue (the morning email still works)", !issue2.issued && issue2.delivered);
 
@@ -96,10 +114,11 @@ async function main() {
     for (let i = 0; i < 5; i++) await ctx(() => verifyDailyLoginOtp(org.id, staff.id, "999999"));
     ok("five straight wrong guesses burn the code", !(await ctx(() => verifyDailyLoginOtp(org.id, staff.id, code))));
     const issue3 = await ctx(() => issueDailyLoginOtp(org.id, staff.id));
-    ok("a burned code reissues fresh", issue3.issued && !!issue3.devCode && issue3.devCode !== code);
+    const fresh = await readQueuedCode();
+    ok("a burned code reissues fresh", issue3.issued && !!fresh && fresh !== code);
 
-    const smsRow = await ctx(() => prisma.smsMessage.findFirst({ where: { orgId: org.id, templateKey: "login_code" } }));
-    ok("the code also queued as SMS (flushes when a provider exists)", smsRow?.state === "QUEUED" && smsRow.message.includes(issue1.devCode!));
+    const smsRow = await ctx(() => prisma.smsMessage.findFirst({ where: { orgId: org.id, templateKey: "login_code" }, orderBy: { createdAt: "asc" } }));
+    ok("the code also queued as SMS (flushes when a provider exists)", smsRow?.state === "QUEUED" && smsRow.message.includes(code));
     const challenge = await ctx(() => prisma.otpChallenge.findFirst({ where: { orgId: org.id, staffId: staff.id, purpose: LOGIN_PURPOSE, usedAt: null } }));
     ok("the live challenge expires today, Nairobi time", !!challenge && (challenge.expiresAt.getTime() + 3 * 3600_000) % 86_400_000 === 0);
 

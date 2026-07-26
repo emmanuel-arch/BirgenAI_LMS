@@ -249,8 +249,45 @@ body {
   animation: riri-sheen 3.2s ease-in-out infinite;
 }
 
+/* ── The door's atmosphere (sign-in / OTP) ───────────────────────────────────
+   Black rays drifting left → right, and two enormous brand blooms breathing in
+   place. Both are set at opacities you feel rather than see: the brief was
+   "something on the background, but it should not carry so much attention". */
+
+@keyframes auth-ray {
+  0%   { transform: translateX(-60vw) skewX(-16deg); opacity: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { transform: translateX(140vw) skewX(-16deg); opacity: 0; }
+}
+@keyframes auth-bloom {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(3vw, -2vh, 0) scale(1.09); }
+}
+
+.auth-ray { animation: auth-ray linear infinite; will-change: transform; }
+.auth-bloom { animation: auth-bloom 22s ease-in-out infinite; will-change: transform; }
+.auth-bloom-b { animation-duration: 29s; animation-direction: reverse; }
+
+/* ── ServiceSuite AI — the dock's phone OS ───────────────────────────────────
+   The dock behaves like a handset: apps launch from a home grid, the status bar
+   is always truthful about which app is open, and the "screen" gets a faint
+   scanline sheen so the glass reads as a display rather than a panel. */
+
+@keyframes dock-scan {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(400%); }
+}
+@keyframes dock-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+.dock-scan { animation: dock-scan 7s linear infinite; }
+.dock-pulse { animation: dock-pulse 1.8s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
-  .riri-breathe, .riri-eye, .riri-halo, .riri-float, .riri-think-dot, .riri-orbit-dot, .riri-sheen {
+  .riri-breathe, .riri-eye, .riri-halo, .riri-float, .riri-think-dot, .riri-orbit-dot, .riri-sheen,
+  .auth-ray, .auth-bloom, .dock-scan, .dock-pulse {
     animation: none;
   }
 }

@@ -140,7 +140,7 @@ export default function PortalHero({
 
       {/* Footer */}
       <div className="relative z-20 flex items-center justify-center gap-1.5 pb-5 text-[11px] text-white/45">
-        <ShieldCheck className="h-3 w-3" /> Powered by <span className="font-semibold text-white/60">LMS Platform</span>
+        <ShieldCheck className="h-3 w-3" /> Powered by <span className="font-semibold text-white/60">BirgenAI</span>
       </div>
     </div>
   );

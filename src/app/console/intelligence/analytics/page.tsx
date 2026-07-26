@@ -13,6 +13,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LineChart, Landmark, Users, Package, ArrowRight, FileBarChart } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { hasReportAccess } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { portfolioTrend } from "@/lib/intelligence/portfolio";
 import { PageHeader } from "@/components/shell/PageHeader";
@@ -34,6 +35,7 @@ const WEEKS = 12;
 export default async function AnalyticsPage() {
   const session = await auth();
   if (!session?.user?.orgId) redirect("/login");
+  if (!(await hasReportAccess(session, "reports.analytics"))) redirect("/console");
   const orgId = session.user.orgId;
 
   const since = new Date(Date.now() - WEEKS * 7 * 86_400_000);

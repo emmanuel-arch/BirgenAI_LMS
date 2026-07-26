@@ -75,8 +75,18 @@ export type DailyOtpIssue = {
   /** False when a still-valid code from earlier today already exists (no re-email). */
   issued: boolean;
   delivered: boolean;
-  /** Outside production the UI shows the code — same seam as the borrower OTP. */
-  devCode?: string;
+  /**
+   * The plaintext code, returned ONLY when neither email nor SMS could deliver it
+   * AND we are outside production — a lockout escape hatch for an environment with
+   * no mail credentials.
+   *
+   * It used to come back on EVERY non-production issue, so a perfectly delivered
+   * code was still printed on the screen under a violet "Dev code" chip. On a
+   * lender's laptop, in front of their board, that reads as unfinished software —
+   * and it is a real disclosure besides. A code that reached the inbox is never
+   * echoed back here.
+   */
+  fallbackCode?: string;
 };
 
 /**
@@ -110,10 +120,11 @@ export async function issueDailyLoginOtp(orgId: string, staffId: string): Promis
     smsed = !!(await sendSms(orgId, staff.phone, "login_code", { code, org: brand.name }));
   }
 
+  const delivered = mailed || smsed;
   return {
     issued: true,
-    delivered: mailed || smsed,
-    ...(process.env.NODE_ENV !== "production" ? { devCode: code } : {}),
+    delivered,
+    ...(!delivered && process.env.NODE_ENV !== "production" ? { fallbackCode: code } : {}),
   };
 }
 

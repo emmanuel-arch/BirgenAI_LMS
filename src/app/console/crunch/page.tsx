@@ -27,6 +27,7 @@ import {
 import { PageHeader } from "@/components/shell/PageHeader";
 import { BorrowerAvatar } from "@/components/kyc/BorrowerAvatar";
 import CrunchTheatre, { type CrunchData } from "@/components/statement/CrunchTheatre";
+import { toFeatureMap } from "@/lib/statement/model-features";
 
 type Picked = { id: string; name: string | null; phone: string };
 type QueueRow = {
@@ -106,6 +107,12 @@ function Crunch() {
           creditScore: d.creditScore, features: d.features, affordability: d.affordability,
           monthly: d.monthly, transactionCount: d.transactionCount, nameCheck: d.nameCheck ?? null,
           qualification: d.qualification ?? null,
+          // The derived vector the scorer consumed, frozen beside the raw statement
+          // features. The server re-derives nothing from this — it is a record of
+          // what was true on the day, so a model refitted a year from now trains on
+          // the values that produced the decision rather than on today's mapping
+          // re-applied to an old statement. See the training-row note in the route.
+          modelFeatures: toFeatureMap(d.features),
         }),
       });
       const out = await res.json();

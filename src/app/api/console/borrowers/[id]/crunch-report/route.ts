@@ -36,6 +36,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   let body: {
     creditScore?: { modelVersion?: string; score?: number; pd?: number; band?: string; decision?: string; reasonCodes?: unknown };
     features?: Record<string, unknown>;
+    /** The derived model vector the scorer actually consumed (see the training-row note below). */
+    modelFeatures?: Record<string, number>;
     affordability?: Record<string, unknown>;
     monthly?: unknown;
     transactionCount?: number;
@@ -56,6 +58,33 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const band = typeof cs.band === "string" ? cs.band.slice(0, 30) : null;
   const pd = Number(cs.pd);
 
+  // THE TRAINING ROW.
+  //
+  // What is frozen here is the X of a supervised example whose y arrives months
+  // later from the outcome backfill. It used to be the raw cashflow vector alone,
+  // which is enough to RE-DERIVE the model features but not enough to reproduce a
+  // decision: the derivation itself is code that will change. So three blocks are
+  // stored side by side —
+  //
+  //   <raw cashflow>   spread flat, so every existing reader keeps working;
+  //   _model           the exact numeric vector the scorer consumed, so a model
+  //                    refitted next year sees the values that were actually used,
+  //                    not today's mapping applied to yesterday's statement;
+  //   _qualification   the internal score, starting limit, tier and reason codes —
+  //                    the OUTPUT half of the decision, which is what makes this a
+  //                    labelled example of our policy and not just of the borrower.
+  //
+  // The underscore prefix is load-bearing: lib/intelligence/loop.ts counts the raw
+  // signal keys by filtering it out, so adding a block never inflates the feature
+  // count on the Closed Loop screen.
+  const featureBlob: Prisma.InputJsonValue | undefined = body.features
+    ? {
+        ...(body.features as Record<string, unknown>),
+        ...(body.modelFeatures ? { _model: body.modelFeatures } : {}),
+        ...(body.qualification ? { _qualification: body.qualification } : {}),
+      } as Prisma.InputJsonValue
+    : undefined;
+
   const snapshot = await prisma.scoreSnapshot.create({
     data: {
       orgId,
@@ -65,8 +94,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       score,
       pd: Number.isFinite(pd) ? pd : null,
       riskBand: band,
-      features: (body.features ?? undefined) as Prisma.InputJsonValue | undefined,
+      features: featureBlob,
       reasons: (cs.reasonCodes ?? undefined) as Prisma.InputJsonValue | undefined,
+      // The amount the decision was made ABOUT. Without it the loop can measure
+      // whether we were right but never what being wrong cost.
+      loanContextAmount: Number.isFinite(Number(body.qualification?.startingLimit))
+        ? Number(body.qualification!.startingLimit)
+        : null,
       capturedBy: "console-crunch",
     },
   });

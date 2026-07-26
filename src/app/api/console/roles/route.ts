@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { requireRight, invalidateRights, rightsSetFrom } from "@/lib/rbac/authz";
+import { requireRight, invalidateRights, rightsSetFrom, getRights, canGrantRights } from "@/lib/rbac/authz";
 import { ALL_RIGHTS_SET, WILDCARD } from "@/lib/rbac/rights";
 
 export const runtime = "nodejs";
@@ -91,6 +91,11 @@ export async function POST(req: NextRequest) {
   if (!rights) {
     return NextResponse.json({ success: false, message: "Pick at least one permission for this role." }, { status: 400 });
   }
+  // Anti-escalation: you can't mint a role that grants more than you hold — otherwise
+  // you'd create "Super Admin", assign it, and be back where Jasiri was.
+  if (!canGrantRights(await getRights(session), rights)) {
+    return NextResponse.json({ success: false, message: "You can't create a role with more access than your own." }, { status: 403 });
+  }
 
   const exists = await prisma.role.findUnique({ where: { orgId_title: { orgId, title } } });
   if (exists) return NextResponse.json({ success: false, message: "A role with that name already exists." }, { status: 409 });
@@ -125,6 +130,16 @@ export async function PUT(req: NextRequest) {
     const cleaned = cleanRights(body.rights);
     if (!cleaned) return NextResponse.json({ success: false, message: "Pick at least one valid permission." }, { status: 400 });
     rights = cleaned;
+    // Anti-escalation: you may only edit a role that is already within your own
+    // ceiling, and never raise one above it — the fix that closes editing your OWN
+    // role to grant yourself more.
+    const actorRights = await getRights(session);
+    if (!canGrantRights(actorRights, role.rights)) {
+      return NextResponse.json({ success: false, message: "You can't edit a role that has more access than your own." }, { status: 403 });
+    }
+    if (!canGrantRights(actorRights, cleaned)) {
+      return NextResponse.json({ success: false, message: "You can't give a role more access than your own." }, { status: 403 });
+    }
     // Lockout guard: stripping the org's only staffed role-managing role would
     // leave nobody able to fix it — the support call this feature exists to avoid.
     if (grantsAdmin(role.rights) && !grantsAdmin(rights) && !(await orgKeepsAnAdmin(orgId, role.id))) {

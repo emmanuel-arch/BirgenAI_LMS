@@ -101,7 +101,7 @@ async function main() {
     items.every((i) => (i.ready === false ? !i.href : !!i.href || !!i.open)),
   );
   ok("no reserved right sits on a ready item", items.every((i) => i.ready === false || !i.right || !reserved.has(i.right)));
-  ok("hrefs all live under /console", items.every((i) => !i.href || i.href.startsWith("/console")));
+  ok("hrefs live under /console or /suite (the connected-suite launcher)", items.every((i) => !i.href || i.href.startsWith("/console") || i.href.startsWith("/suite")));
 
   console.log("\n4. navFor — the sidebar is rights × features");
   const allFeatures = features as ReadonlySet<string>;
@@ -129,13 +129,14 @@ async function main() {
   ok("Starter admin keeps the document parser (sold on Starter)", starterItems.has("documents"));
   ok("Starter admin keeps team, roles, settings, billing", ["team", "roles", "settings", "billing"].every((k) => starterItems.has(k)));
 
-  // With NO rights at all, exactly two things survive, and both are deliberate: the
-  // dashboard, and Riri's Help & How-to. Support carries no right and no plan feature —
-  // a person who cannot yet do anything is precisely the person who most needs to be
-  // able to ask why. Everything that touches the book still requires a right.
+  // With NO rights at all, three things survive, each deliberate: the dashboard, the
+  // connected-suite launcher (a cross-system hop that touches no lending data), and
+  // Riri's Help & How-to. Support carries no right and no plan feature — a person who
+  // cannot yet do anything is precisely the person who most needs to be able to ask
+  // why. Everything that TOUCHES THE BOOK still requires a right (asserted below).
   const nobody = navFor(new Set(), allFeatures);
   const nobodyItems = new Set(nobody.flatMap((m) => m.items.map((i) => i.key)));
-  ok("no rights ⇒ only the dashboard and Riri Support survive", nobody.length === 2, nobody.map((m) => m.key).join(", "));
+  ok("no rights ⇒ only the dashboard, the connected-suite launcher and Riri Support survive", nobody.length === 3, nobody.map((m) => m.key).join(", "));
   ok("…and Help & How-to is the ungated one (support is never sold)", nobodyItems.has("riri-support") && !nobodyItems.has("riri"));
   ok("…while nothing that touches the book is reachable", !["borrowers-list", "loans-list", "disbursements", "team"].some((k) => nobodyItems.has(k)));
 

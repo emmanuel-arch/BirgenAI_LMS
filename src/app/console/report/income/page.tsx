@@ -12,6 +12,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { hasReportAccess } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { PrintButton } from "@/components/print/PrintButton";
 
@@ -28,6 +29,7 @@ const zero = (): Pair => ({ mtd: 0, ytd: 0 });
 export default async function IncomeStatement() {
   const session = await auth();
   if (!session?.user?.orgId) redirect("/login");
+  if (!(await hasReportAccess(session, "reports.income"))) redirect("/console");
   const orgId = session.user.orgId;
 
   const now = new Date();

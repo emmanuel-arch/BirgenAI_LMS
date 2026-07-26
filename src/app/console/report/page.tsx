@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { hasReportAccess } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { hasFeature } from "@/lib/billing/entitlements";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
@@ -17,6 +18,7 @@ const pct = (a: number, b: number) => (b > 0 ? (a / b) * 100 : 0);
 export default async function PortfolioReport() {
   const session = await auth();
   if (!session?.user?.orgId) redirect("/login");
+  if (!(await hasReportAccess(session, "reports.portfolio"))) redirect("/console");
   const orgId = session.user.orgId;
 
   // PAR 30 is a standard portfolio metric and stays on every plan. The ranked

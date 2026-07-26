@@ -54,11 +54,31 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   if (!app) return NextResponse.json({ success: false, message: "Application not found." }, { status: 404 });
 
   const b = app.borrower;
-  const [kyc, portraitUrl, idFrontUrl] = await Promise.all([
+  const [kyc, portraitUrl, idFrontUrl, trailRows, staffRows] = await Promise.all([
     prisma.kycSession.findFirst({ where: { orgId, OR: [{ borrowerId: b.id }, { phone: b.phone }] }, orderBy: { createdAt: "desc" }, select: { livenessScore: true, livenessPassed: true, faceMatchScore: true, iprsMatched: true, idQualityScore: true, status: true } }),
     b.portraitKey ? signedUrl(b.portraitKey, PORTRAIT_TTL_SEC).catch(() => null) : Promise.resolve(null),
     b.idFrontKey ? signedUrl(b.idFrontKey, PORTRAIT_TTL_SEC).catch(() => null) : Promise.resolve(null),
+    // The approval trail — every stage decision and the message left with it.
+    prisma.auditLog.findMany({ where: { orgId, entityId: id, action: { startsWith: "application." } }, orderBy: { createdAt: "asc" }, take: 40 }),
+    prisma.staffUser.findMany({ where: { orgId }, select: { id: true, firstName: true, otherName: true } }),
   ]);
+  const staffNm = new Map(staffRows.map((s) => [s.id, `${s.firstName ?? ""} ${s.otherName ?? ""}`.trim() || "Staff"]));
+  const TRAIL_LABEL: Record<string, string> = {
+    "application.approve": "Approved to next stage", "application.decline": "Declined",
+    "application.send-back": "Sent back to fix", "application.finalize": "Finalized & booked",
+  };
+  const trail = trailRows.map((r) => {
+    const m = (r.meta ?? {}) as { note?: unknown; stageTitle?: unknown };
+    return {
+      id: r.id,
+      action: r.action.replace("application.", ""),
+      label: TRAIL_LABEL[r.action] ?? r.action.replace("application.", "").replace(/-/g, " "),
+      stage: typeof m.stageTitle === "string" ? m.stageTitle : null,
+      note: typeof m.note === "string" && m.note.trim() ? m.note.trim() : null,
+      actor: r.actorId ? staffNm.get(r.actorId) ?? null : null,
+      at: r.createdAt.toISOString(),
+    };
+  });
 
   const amount = Number(app.amountRequested);
   const rate = Number(app.product?.interestRate ?? 0);
@@ -136,6 +156,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       hasStatement: !!features?.avgMonthlyNet,
     },
     schedule, interest, loanAmount,
+    trail,
   });
 }
 

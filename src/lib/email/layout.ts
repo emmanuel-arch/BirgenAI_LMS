@@ -17,6 +17,7 @@
 // suite can assert content without a mail server.
 // ─────────────────────────────────────────────────────────────────────────────
 import { prisma } from "@/lib/prisma";
+import { logoMetrics } from "@/lib/lms/logo";
 
 export type EmailBrand = {
   orgId: string;
@@ -101,12 +102,22 @@ export function buildEmailDocumentHtml({ brand, pageTitle, mainCardRowsHtml, leg
   const brandedDoor = brand.slug && brand.slug !== "lms" ? `${base}/${brand.slug}` : `${base}/login`;
   const ctaHref = primaryCta?.href ?? brandedDoor;
   const ctaLabel = primaryCta?.label ?? "Open the console";
-  // Logo only — no wordmark beside it. The mark carries the brand; a wide logo
-  // (a wordmark like "Mular Credit Ltd") gets room via height-driven sizing with
-  // a generous max-width, so it reads as clearly as the console header logo.
+  // Logo only — no wordmark beside it; the mark carries the brand.
+  //
+  // Sized from the SAME table the console uses (src/lib/lms/logo.ts), so "how big
+  // is the logo in an email" has one answer that lives beside "how big is it on
+  // the sign-in card". `height="46"` used to be hard-coded here, which made a wide
+  // wordmark fight its own max-width and land at ~34px tall inside a 46px row —
+  // small, and floating.
+  //
+  // Both dimensions are caps and neither is pinned, so any aspect ratio scales to
+  // fit without letterboxing. `width` also goes on as an ATTRIBUTE: Outlook's Word
+  // renderer ignores <img> style and would otherwise draw the file at intrinsic
+  // size. It is the max, which is the right guess when the renderer won't do math.
+  const emailLogo = logoMetrics("email");
   const logoCell = brand.logoUrl
-    ? `<img src="${brand.logoUrl}" height="46" alt="${escapeHtml(brand.name)}" style="display:block;border:0;outline:none;height:46px;width:auto;max-height:52px;max-width:220px;border-radius:6px;-ms-interpolation-mode:bicubic;" />`
-    : `<span style="display:inline-block;width:46px;height:46px;line-height:46px;text-align:center;background:${brand.accent};border-radius:10px;font-family:${FONT};font-size:22px;font-weight:800;color:#ffffff;">${escapeHtml(brand.name.slice(0, 1).toUpperCase())}</span>`;
+    ? `<img src="${brand.logoUrl}" width="${emailLogo.maxWidth}" alt="${escapeHtml(brand.name)}" style="display:block;border:0;outline:none;width:auto;height:auto;max-width:${emailLogo.maxWidth}px;max-height:${emailLogo.maxHeight}px;border-radius:4px;-ms-interpolation-mode:bicubic;" />`
+    : `<span style="display:inline-block;width:52px;height:52px;line-height:52px;text-align:center;background:${brand.accent};border-radius:12px;font-family:${FONT};font-size:24px;font-weight:800;color:#ffffff;">${escapeHtml(brand.name.slice(0, 1).toUpperCase())}</span>`;
 
   return `
 <!DOCTYPE html>
@@ -127,10 +138,10 @@ export function buildEmailDocumentHtml({ brand, pageTitle, mainCardRowsHtml, leg
             <td style="padding:18px 24px 14px;">
               <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
-                  <td valign="middle" align="left" style="width:50%;">
+                  <td valign="middle" align="left" style="width:${emailLogo.maxWidth + 10}px;">
                     ${logoCell}
                   </td>
-                  <td valign="middle" align="right" style="width:50%;white-space:nowrap;">
+                  <td valign="middle" align="right" style="white-space:nowrap;">
                     <a href="${ctaHref}" style="display:inline-block;margin:4px 0;padding:9px 16px;background:transparent;border:1px solid ${brand.accent};border-radius:999px;font-family:${FONT};font-size:12px;font-weight:600;color:${brand.accent};text-decoration:none;">${escapeHtml(ctaLabel)}</a>
                     <a href="mailto:${SUPPORT_MAIL}" style="display:inline-block;margin:4px 0 4px 8px;padding:9px 16px;background:${brand.accent};border-radius:999px;font-family:${FONT};font-size:12px;font-weight:600;color:#ffffff;text-decoration:none;">Help</a>
                   </td>
@@ -166,7 +177,7 @@ export function buildEmailDocumentHtml({ brand, pageTitle, mainCardRowsHtml, leg
             <td style="padding:18px 16px 8px;text-align:center;">
               <p style="margin:0;font-family:${FONT};font-size:11px;line-height:1.5;color:${PALETTE.legal};">
                 ${legalFooterInnerHtml}<br />
-                ${escapeHtml(brand.name)} runs on <a href="https://birgenai.com" style="color:${PALETTE.legal};text-decoration:underline;">LMS</a>.
+                Powered by <a href="https://birgenai.com" style="color:${PALETTE.legal};text-decoration:underline;">BirgenAI</a>.
               </p>
             </td>
           </tr>

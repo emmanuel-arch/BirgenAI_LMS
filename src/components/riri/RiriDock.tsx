@@ -1,28 +1,49 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// RiriDock — the floating AI companion, mounted once in the console layout so it
-// persists across every page (conversation and position survive navigation).
+// ServiceSuite AI — the dock, operated as a handset.
 //
-// DESIGN DECISION (founder asked draggable vs. fixed): draggable, but it snaps to
-// the nearer BOTTOM corner on release and remembers the side (localStorage),
-// defaulting bottom-right. Free-floating assistants end up covering content or in
-// awkward spots; a snapped corner stays thumb-reachable, predictable, and out of
-// the way — while still letting the user move it to whichever side they like.
+// It used to be a chat panel with a segmented switcher across the top. That shape
+// had one structural defect and one presentational one, and both are fixed here.
 //
-// All three models are surfaced at once via a segmented switcher. Answers render
-// rich: metric chips, a mini sparkline and small tables for Analyst; structured
-// prose for Copilot/Max. Every answer is tagged Live data or Simulated.
+// THE DEFECT (correctness). A switcher means the model can change under a
+// half-typed question. Someone composes "what's my PAR 30 by product", taps
+// Assistant while thinking, hits send — and a request for a hard number off the
+// book goes to the model that reasons instead of the one that queries. It answers
+// plausibly. That is the worst possible failure in a lending system: a made-up
+// number with our name on it. So the switcher is gone. ONE APP IS OPEN AT A TIME.
+// Changing app means closing this one and launching another from home, and each
+// app keeps its own thread — nothing you typed for Analytics can arrive anywhere
+// else.
+//
+// THE DEFECT (presentation). The chrome carried a truncated blurb — "LIVE DATA ·
+// Talks to your live book — by period, product or borrower. Sho…" — in the most
+// valuable pixels on the panel, saying nothing. Capabilities now get a briefing
+// SCREEN (DockScreens.tsx) that an officer reads once and continues past.
+//
+// THE SHAPE. Status bar, screen, home indicator: it reads as a device because a
+// device is the metaphor people already have for "several apps, one at a time".
+// Launching an app expands its tile into the screen (shared layoutId), Back pops
+// one level, and the status bar is the single honest statement of where you are.
+//
+// AUTOPILOT is the one place the dock is allowed to move the screen for you, it is
+// OFF by default, it lives only in Support, and it only ever NAVIGATES. Riri can
+// take you to the disbursement screen; she cannot press the button when she gets
+// there. Speech recognition mishears, and in a lending system the gap between
+// "show me" and "send it" is one syllable.
 // ─────────────────────────────────────────────────────────────────────────────
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Gauge, Bot, LifeBuoy, Send, Loader2, X, ArrowRight, AlertCircle, Database, Mic, Sheet, FileText, Download, UserRound } from "lucide-react";
+import { Gauge, Bot, LifeBuoy, Send, Loader2, X, ArrowRight, AlertCircle, Database, Mic, Sheet, FileText, Download, UserRound, ChevronLeft, Navigation, Pin, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useVoice } from "@/lib/hooks/useVoice";
 import { RiriAvatar } from "./RiriAvatar";
 import { RiriAccount } from "./RiriAccount";
-import { RIRI_MODELS, RIRI_MODEL_IDS, normaliseModelId, type RiriModelId } from "@/lib/riri/models";
+import { HomeScreen, BriefScreen, UseCaseDeck, FindScreen } from "./DockScreens";
+import { RIRI_MODELS, normaliseModelId, type RiriModelId } from "@/lib/riri/models";
+import { RIRI_APPS } from "@/lib/riri/apps";
 import { ASSISTANT_NAME } from "@/lib/riri/brand";
+import type { LookupMatch } from "@/app/api/console/riri/lookup/route";
 
 const ICON = { Gauge, Bot, LifeBuoy } as const;
 const INSET = 16;
@@ -32,7 +53,7 @@ const GAP = 12;
 type Chip = { label: string; value: string; sub?: string; tone?: "good" | "warn" | "bad" };
 type Series = { unit: "KES" | "count"; points: { x: string; y: number }[] };
 type Table = { head: string[]; rows: string[][] };
-/** Something Riri offers to do. She proposes; the human taps. */
+/** Something Riri offers to do. She proposes; the human taps — unless Autopilot is on. */
 type Action = { kind: "navigate"; label: string; href: string };
 type Turn = {
   id: string; question: string; model: RiriModelId; loading: boolean;
@@ -42,11 +63,16 @@ type Turn = {
   actions?: Action[]; suggestions?: string[];
 };
 
+/** Which screen of the OS is on. `app` is the conversation; the rest are chrome. */
+type Screen = "home" | "brief" | "app" | "find" | "account";
+
 const placeholderFor: Record<RiriModelId, string> = {
   support: "Ask me how to do anything…",
-  assistant: "Ask me about your day, or this customer…",
+  assistant: "Ask about your day, or this customer…",
   analytics: "Ask your loan book a question…",
 };
+
+const emptyThreads = (): Record<RiriModelId, Turn[]> => ({ support: [], assistant: [], analytics: [] });
 
 // ── Tiny rich-text renderer (bold + bullets + numbered), no dependency ────────
 function renderInline(text: string, k: string): ReactNode {
@@ -173,7 +199,7 @@ function ExportBar({ question, sql }: { question: string; sql: string }) {
       {done && (
         <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600">
           <Download className="h-2.5 w-2.5" />
-          {done.stored ? `Saved as ${done.filename}` : `${done.filename} (storage is in simulation — not kept)`}
+          {done.stored ? `Saved as ${done.filename}` : `${done.filename} — downloaded, not filed (document storage isn't connected yet)`}
         </span>
       )}
       {error && <span className="text-[10px] text-rose-600">{error}</span>}
@@ -224,6 +250,7 @@ function pref(key: string): string | null {
   if (typeof window === "undefined") return null;
   try { return localStorage.getItem(key); } catch { return null; }
 }
+const setPref = (key: string, v: string) => { try { localStorage.setItem(key, v); } catch {} };
 
 /** The viewport, cached — getSnapshot must return a stable reference or it loops forever. */
 let vpCache = { w: 1200, h: 800 };
@@ -257,24 +284,25 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
   // them and there is nothing to mismatch on hydration.
   const [open, setOpen] = useState(() => pref("riri:open") === "1");
   const [corner, setCorner] = useState<"br" | "bl">(() => (pref("riri:corner") === "bl" ? "bl" : "br"));
-  const [model, setModel] = useState<RiriModelId>(() => {
-    const m = pref("riri:model");
-    // normalise, not validate: an officer with "copilot" saved from last week must land
-    // on Assistant, not be silently reset to Support.
-    return normaliseModelId(m) ?? "support";
-  });
+  const [screen, setScreen] = useState<Screen>("home");
+  const [app, setApp] = useState<RiriModelId | null>(null);
+  const [lastApp, setLastApp] = useState<RiriModelId | null>(() => normaliseModelId(pref("riri:model")));
+  const [skipBrief, setSkipBrief] = useState(() => pref("riri:skipbrief") === "1");
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
   const [greet, setGreet] = useState(() => pref("riri:greeted") !== "1");
-  const [turns, setTurns] = useState<Turn[]>([]);
+  // ONE THREAD PER APP. This is the switcher fix made structural: a question typed
+  // for Analytics lives in the Analytics thread and cannot be sent from anywhere else.
+  const [threads, setThreads] = useState<Record<RiriModelId, Turn[]>>(emptyThreads);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   // Voice preferences. Both OFF by default — an assistant that starts talking, or
   // navigates on its own, before anyone asked it to is a hostile assistant.
   const [voiceOn, setVoiceOn] = useState(() => pref("riri:voice") === "1");
   const [autoGo, setAutoGo] = useState(() => pref("riri:autogo") === "1");
-  // chat | account — the panel's two faces. Account is who Riri thinks you are, your
-  // usage, her memory of you, and settings. Not persisted: the dock reopens on chat.
-  const [view, setView] = useState<"chat" | "account">("chat");
+  /** Who the open app is pinned to, if anything. Display half of subjectRef. */
+  const [pinned, setPinned] = useState<{ id: string; name: string } | null>(null);
+  /** Where Autopilot just took us — shown briefly so a moving screen is never a mystery. */
+  const [flight, setFlight] = useState<string | null>(null);
   const down = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -285,49 +313,89 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
   // not state: it is read inside handlers, and re-rendering the whole dock because the
   // subject changed would buy nothing.
   const subjectRef = useRef<{ kind: string; id: string } | null>(null);
-  const briefRef = useRef<(s: { kind: string; id: string }) => void>(() => {});
+  const briefRef = useRef<(s: { kind: string; id: string }, label?: string) => void>(() => {});
+  const launchRef = useRef<(id: RiriModelId, opts?: { skipBrief?: boolean }) => void>(() => {});
   const voice = useVoice({ onTranscript: (text) => askRef.current(text) });
 
-  const dismissGreet = () => { setGreet(false); try { localStorage.setItem("riri:greeted", "1"); } catch {} };
+  const turns = app ? threads[app] : [];
+
+  const dismissGreet = () => { setGreet(false); setPref("riri:greeted", "1"); };
 
   // Persist prefs.
-  useEffect(() => { try { localStorage.setItem("riri:corner", corner); } catch {} }, [corner]);
-  useEffect(() => { try { localStorage.setItem("riri:model", model); } catch {} }, [model]);
-  useEffect(() => { try { localStorage.setItem("riri:open", open ? "1" : "0"); } catch {} }, [open]);
-  useEffect(() => { try { localStorage.setItem("riri:voice", voiceOn ? "1" : "0"); } catch {} }, [voiceOn]);
-  useEffect(() => { try { localStorage.setItem("riri:autogo", autoGo ? "1" : "0"); } catch {} }, [autoGo]);
+  useEffect(() => { setPref("riri:corner", corner); }, [corner]);
+  useEffect(() => { if (lastApp) setPref("riri:model", lastApp); }, [lastApp]);
+  useEffect(() => { setPref("riri:open", open ? "1" : "0"); }, [open]);
+  useEffect(() => { setPref("riri:voice", voiceOn ? "1" : "0"); }, [voiceOn]);
+  useEffect(() => { setPref("riri:autogo", autoGo ? "1" : "0"); }, [autoGo]);
+  useEffect(() => { setPref("riri:skipbrief", skipBrief ? "1" : "0"); }, [skipBrief]);
 
-  useEffect(() => { if (open) endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [turns, open]);
+  useEffect(() => { if (open && screen === "app") endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [threads, open, screen]);
 
-  // Open Riri from anywhere: any element with [data-riri-open] (optionally
-  // [data-riri-open="analyst|copilot|max"]) or a window "riri:open" event.
+  // The Autopilot flight card clears itself.
+  useEffect(() => {
+    if (!flight) return;
+    const t = setTimeout(() => setFlight(null), 2600);
+    return () => clearTimeout(t);
+  }, [flight]);
+
+  /** Launch an app: briefing first (once), then the conversation. */
+  const launch = useCallback((id: RiriModelId, opts?: { skipBrief?: boolean }) => {
+    setApp(id);
+    setLastApp(id);
+    setInput("");
+    // The briefing is shown per app per browser, unless it has been read and skipped.
+    const read = pref(`riri:brief:${id}`) === "1";
+    setScreen(opts?.skipBrief || skipBrief || read ? "app" : "brief");
+  }, [skipBrief]);
+
+  /** Close the open app and go home. The thread survives; the composer does not. */
+  const goHome = useCallback(() => {
+    setScreen("home");
+    setApp(null);
+    setInput("");
+    setPinned(null);
+    subjectRef.current = null;
+    if (voice.speaking) voice.stopSpeaking();
+  }, [voice]);
+
+  // Open ServiceSuite AI from anywhere: any element with [data-riri-open]
+  // (optionally [data-riri-open="analytics|assistant|support"]) or a window
+  // "riri:open" event. A caller that names a model LAUNCHES it — arriving from a
+  // customer's page should land in a conversation, not on a home screen.
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const el = (e.target as Element | null)?.closest?.("[data-riri-open]");
       if (!el) return;
       e.preventDefault();
-      const m = el.getAttribute("data-riri-open");
-      const want = normaliseModelId(m);
-      if (want) setModel(want);
+      const want = normaliseModelId(el.getAttribute("data-riri-open"));
       setOpen(true); dismissGreet();
+      if (want) launchRef.current(want);
+      else setScreen("home");
     };
     const onEvent = (e: Event) => {
       const detail = (e as CustomEvent).detail ?? {};
       const want = normaliseModelId(detail.model);
-      if (want) setModel(want);
-      // A caller may hand Riri an opening question — Field Ops does this with
-      // the live route context — asked immediately so she answers on arrival.
-      if (typeof detail.prompt === "string" && detail.prompt.trim()) {
-        setTimeout(() => askRef.current(detail.prompt.trim()), 300);
-      }
+      setOpen(true); dismissGreet();
       // Or a caller may point her at someone. She opens by saying what she can see,
       // and every question after that stays about them.
       const s = detail.subject;
-      if (s && typeof s.id === "string" && typeof s.kind === "string") {
-        subjectRef.current = { kind: s.kind, id: s.id };
-        briefRef.current({ kind: s.kind, id: s.id });
+      const named = s && typeof s.id === "string" && typeof s.kind === "string";
+      if (want || named) {
+        // A caller arriving WITH a subject skips the briefing: they came from a
+        // customer's page to ask about that customer, not to read a capability list.
+        launchRef.current(want ?? "assistant", { skipBrief: named });
+      } else {
+        setScreen("home");
       }
-      setOpen(true); dismissGreet();
+      if (named) {
+        subjectRef.current = { kind: s.kind, id: s.id };
+        briefRef.current({ kind: s.kind, id: s.id }, typeof s.label === "string" ? s.label : undefined);
+      }
+      // A caller may hand her an opening question — Field Ops does this with the
+      // live route context — asked immediately so she answers on arrival.
+      if (typeof detail.prompt === "string" && detail.prompt.trim()) {
+        setTimeout(() => askRef.current(detail.prompt.trim()), 320);
+      }
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("click", onClick);
@@ -336,34 +404,32 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
     return () => { document.removeEventListener("click", onClick); window.removeEventListener("riri:open", onEvent as EventListener); window.removeEventListener("keydown", onKey); };
   }, []);
 
-  // THE WELCOME. Fetched the first time the panel is ever opened on Support, and pushed
-  // in as Riri's opening turn — so a new admin's first experience of the console is
-  // being told, by name, what to do next, rather than being left to guess which of
+  // THE WELCOME. Fetched the first time the Support CONVERSATION is entered (not the
+  // briefing — that is a capability list, this is "here is where YOUR lender actually
+  // stands"), and pushed in as the opening turn. A new admin's first experience of the
+  // console is being told, by name, what to do next, rather than guessing which of
   // eleven menus comes first.
   const welcomed = useRef(false);
   useEffect(() => {
-    if (!open || model !== "support" || turns.length > 0 || welcomed.current) return;
+    if (!open || screen !== "app" || app !== "support" || threads.support.length > 0 || welcomed.current) return;
     welcomed.current = true;
     (async () => {
       try {
         const res = await fetch("/api/console/riri/welcome");
         const data = await res.json();
         if (!data.success) return;
-        setTurns([{
-          id: crypto.randomUUID(),
-          question: "",
-          model: "support",
-          loading: false,
-          answer: data.answer,
-          actions: data.actions ?? [],
-          suggestions: data.suggestions ?? [],
-          mode: "live",
-          route: "knowledge",
-        }]);
+        setThreads((t) => ({
+          ...t,
+          support: [{
+            id: crypto.randomUUID(), question: "", model: "support", loading: false,
+            answer: data.answer, actions: data.actions ?? [], suggestions: data.suggestions ?? [],
+            mode: "live", route: "knowledge",
+          }],
+        }));
         if (voiceOn) void voice.speak(data.answer as string);
-      } catch { /* the empty state is a perfectly good fallback */ }
+      } catch { /* the use-case deck is a perfectly good fallback */ }
     })();
-  }, [open, model, turns.length, voiceOn, voice]);
+  }, [open, screen, app, threads.support.length, voiceOn, voice]);
 
   // Launcher coordinates (left/top so the snap can animate smoothly).
   const anchorLeft = corner === "br" ? vp.w - INSET - SIZE : INSET;
@@ -390,23 +456,28 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
 
   const ask = async (q: string) => {
     const question = q.trim();
-    if (!question || busy) return;
+    // No open app ⇒ no send. The composer is only rendered inside an app, but the
+    // voice hook can fire from anywhere, and a spoken question with no app open must
+    // not silently pick a model.
+    if (!question || busy || !app || screen !== "app") return;
     const id = crypto.randomUUID();
-    const m = model;
-    setTurns((t) => [...t, { id, question, model: m, loading: true }]);
+    const m = app;
+    setThreads((t) => ({ ...t, [m]: [...t[m], { id, question, model: m, loading: true }] }));
     setInput(""); setBusy(true);
+    const patch = (fn: (x: Turn) => Turn) =>
+      setThreads((t) => ({ ...t, [m]: t[m].map((x) => (x.id === id ? fn(x) : x)) }));
     try {
       // The voice toggle is an explicit language choice — support answers follow it.
       // Typed questions with the toggle on English still flip via detectLang server-side.
       // If Riri was opened from a customer's page, every question stays about THEM
-      // until she is opened from somewhere else — an officer who asked "why is their
-      // limit so low?" should not have to say who "they" are. Only the id travels; the
-      // server reads the facts (see lib/riri/context.ts).
+      // until the app is closed — an officer who asked "why is their limit so low?"
+      // should not have to say who "they" are. Only the id travels; the server reads
+      // the facts (see lib/riri/context.ts).
       //
       // The Assistant also gets the conversation so far, so "what about last month?"
       // has an antecedent. Server-side sanitizeHistory caps it.
       const history = m === "assistant"
-        ? turns.flatMap((t) => [
+        ? threads[m].flatMap((t) => [
             ...(t.question ? [{ role: "user" as const, text: t.question }] : []),
             ...(t.answer ? [{ role: "model" as const, text: t.answer }] : []),
           ])
@@ -422,26 +493,27 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
         }),
       });
       const data = await res.json();
-      setTurns((t) => t.map((x) => x.id === id
-        ? (data.success
-          ? { ...x, loading: false, answer: data.answer, chips: data.chips, series: data.series, table: data.table, mode: data.mode, sql: data.sql, rows: data.rows, ms: data.ms, route: data.route, actions: data.actions ?? [], suggestions: data.suggestions ?? [] }
-          : { ...x, loading: false, error: data.message || `${ASSISTANT_NAME} couldn't answer that.` })
-        : x));
+      patch((x) => (data.success
+        ? { ...x, loading: false, answer: data.answer, chips: data.chips, series: data.series, table: data.table, mode: data.mode, sql: data.sql, rows: data.rows, ms: data.ms, route: data.route, actions: data.actions ?? [], suggestions: data.suggestions ?? [] }
+        : { ...x, loading: false, error: data.message || `${ASSISTANT_NAME} couldn't answer that.` }));
 
       if (data.success) {
         if (voiceOn) void voice.speak(data.answer as string);
 
-        // AUTO-NAVIGATE IS OPT-IN, AND ONLY EVER NAVIGATION. Riri can take you to a
-        // screen; she cannot press the button when she gets there. Speech recognition
-        // mishears, and in a lending system the gap between "show me" and "send it" is
-        // one misheard syllable — so the irreversible half always stays with a human.
+        // AUTOPILOT. Opt-in, Support-only, and ONLY EVER NAVIGATION. Riri can take you
+        // to a screen; she cannot press the button when she gets there. The irreversible
+        // half always stays with a human.
         const first: Action | undefined = (data.actions ?? [])[0];
-        if (autoGo && first?.href) router.push(first.href);
+        if (autoGo && m === "support" && first?.href) {
+          setFlight(first.label);
+          router.push(first.href);
+        }
       }
     } catch {
-      setTurns((t) => t.map((x) => x.id === id ? { ...x, loading: false, error: "Network error. Try again." } : x));
+      patch((x) => ({ ...x, loading: false, error: "Network error. Try again." }));
     } finally { setBusy(false); }
   };
+
   /**
    * Open on a customer by saying what we hold about them.
    *
@@ -450,36 +522,63 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
    * not a model output, so it is marked live: it is true whether or not an LLM key
    * exists, and mislabelling it as reasoning would be the lie.
    */
-  const brief = async (s: { kind: string; id: string }) => {
+  const briefOn = async (s: { kind: string; id: string }, label?: string) => {
+    const m: RiriModelId = "assistant";
     const id = crypto.randomUUID();
-    setTurns((t) => [...t, { id, question: "", model, loading: true }]);
+    if (label) setPinned({ id: s.id, name: label });
+    setThreads((t) => ({ ...t, [m]: [...t[m], { id, question: "", model: m, loading: true }] }));
+    const patch = (fn: (x: Turn) => Turn) =>
+      setThreads((t) => ({ ...t, [m]: t[m].map((x) => (x.id === id ? fn(x) : x)) }));
     try {
       const res = await fetch("/api/console/riri/brief", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(s),
       });
       const data = await res.json();
-      setTurns((t) => t.map((x) => x.id === id
-        ? (data.success
-          ? { ...x, loading: false, answer: data.answer, mode: "live", route: "record" }
-          : { ...x, loading: false, error: data.message || "Could not read that customer." })
-        : x));
+      patch((x) => (data.success
+        ? { ...x, loading: false, answer: data.answer, mode: "live", route: "record" }
+        : { ...x, loading: false, error: data.message || "Could not read that customer." }));
     } catch {
-      setTurns((t) => t.map((x) => x.id === id ? { ...x, loading: false, error: "Network error. Try again." } : x));
+      patch((x) => ({ ...x, loading: false, error: "Network error. Try again." }));
     }
   };
+
+  /** From the finder: pin the person and open the Assistant on them. */
+  const openCustomer = (m: LookupMatch) => {
+    subjectRef.current = { kind: "borrower", id: m.id };
+    launch("assistant", { skipBrief: true });
+    setPinned({ id: m.id, name: m.name });
+    void briefOn({ kind: "borrower", id: m.id }, m.name);
+  };
+
   // The mount-only listeners and the voice hook call whichever version of these exists
   // NOW, so the refs are re-pointed after every render — in an effect, because a ref
   // written during render is a write to something React may not have committed yet.
   useEffect(() => {
     askRef.current = ask;
-    briefRef.current = brief;
+    briefRef.current = briefOn;
+    launchRef.current = launch;
   });
 
   if (!mounted) return null;
-  const active = RIRI_MODELS[model];
   const sideStyle = corner === "br" ? { right: INSET } : { left: INSET };
   const panelBottom = INSET + SIZE + GAP;
+  const openApp = app ? RIRI_MODELS[app] : null;
+  const openArt = app ? RIRI_APPS[app].tile : null;
+
+  // The status bar's title. It is the single honest statement of where you are, and
+  // it is why a question can never be sent to the wrong brain without the screen
+  // having said so first.
+  const title =
+    screen === "home" ? ASSISTANT_NAME
+      : screen === "find" ? "Find a customer"
+        : screen === "account" ? "Account"
+          : openApp?.name ?? ASSISTANT_NAME;
+  const subtitle =
+    screen === "app" && busy ? "Working…"
+      : screen === "app" ? (pinned ? `On ${pinned.name}` : "Ready")
+        : screen === "brief" ? "About this app"
+          : screen === "home" ? `${orgName}` : "";
 
   return (
     <>
@@ -494,212 +593,315 @@ export default function RiriDock({ orgName, userName }: { orgName: string; userN
             className="no-print fixed z-[9998] max-w-[240px] glass rounded-2xl bg-white/85 px-3.5 py-2.5 text-left shadow-xl"
           >
             <p className="text-[13px] font-semibold text-zinc-900">Hi{userName ? `, ${userName.split(" ")[0]}` : ""} 👋 I&apos;m {ASSISTANT_NAME}</p>
-            <p className="mt-0.5 text-[11px] text-zinc-500 leading-snug">I&apos;ll show you around {orgName} — ask me how to do anything, or just talk to me.</p>
+            <p className="mt-0.5 text-[11px] text-zinc-500 leading-snug">Three intelligences for {orgName} — help, judgement, and your live numbers.</p>
             <span onClick={(e) => { e.stopPropagation(); dismissGreet(); }} className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-900 text-white" aria-label="Dismiss"><X className="h-3 w-3" /></span>
           </motion.button>
         )}
       </AnimatePresence>
 
-      {/* Panel */}
+      {/* THE DEVICE */}
       <AnimatePresence>
         {open && (
           <motion.div
-            key="riri-panel"
+            key="riri-device"
             initial={{ opacity: 0, scale: 0.9, y: 14 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 10 }}
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            role="dialog" aria-label={`${ASSISTANT_NAME} assistant`}
-            style={{ ...sideStyle, bottom: panelBottom, transformOrigin: corner === "br" ? "bottom right" : "bottom left", width: "min(384px, calc(100vw - 24px))", maxHeight: "min(600px, calc(100vh - 120px))" }}
-            className="no-print fixed z-[9998] flex flex-col overflow-hidden rounded-3xl border border-white/60 bg-white/85 shadow-2xl backdrop-blur-2xl"
+            role="dialog" aria-label={`${ASSISTANT_NAME}`}
+            style={{
+              ...sideStyle, bottom: panelBottom,
+              transformOrigin: corner === "br" ? "bottom right" : "bottom left",
+              width: "min(396px, calc(100vw - 24px))",
+              height: "min(688px, calc(100vh - 116px))",
+            }}
+            className="no-print fixed z-[9998] flex flex-col overflow-hidden rounded-[34px] bg-zinc-900 p-[3px] shadow-[0_30px_70px_-12px_rgba(0,0,0,0.45)] ring-1 ring-white/10"
           >
-            {/* Header */}
-            <div className="relative shrink-0 px-4 pt-3.5 pb-3" style={{ background: "linear-gradient(135deg, var(--brand-soft), transparent)" }}>
-              <div className="flex items-center gap-2.5">
-                <div className="relative h-10 w-10 shrink-0 rounded-full shadow-md ring-2 ring-white overflow-hidden">
-                  <RiriAvatar size={40} state={busy ? "thinking" : "listening"} />
-                </div>
+            {/* The screen */}
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[31px] bg-white/90 backdrop-blur-2xl">
+
+              {/* ── STATUS BAR ─────────────────────────────────────────────── */}
+              <div
+                className="relative z-10 flex shrink-0 items-center gap-2 px-3 pb-2 pt-2.5"
+                style={openArt && screen !== "home"
+                  ? { background: `linear-gradient(135deg, ${openArt.from}14, transparent)` }
+                  : { background: "linear-gradient(135deg, var(--brand-soft), transparent)" }}
+              >
+                {screen === "home" ? (
+                  <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full shadow ring-2 ring-white">
+                    <RiriAvatar size={36} state={busy ? "thinking" : "listening"} />
+                  </div>
+                ) : (
+                  <button
+                    onClick={goHome}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-900/5 hover:text-zinc-900"
+                    aria-label="Close this app and go back"
+                    title="Close this app"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                )}
+
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold leading-tight">{ASSISTANT_NAME}</p>
-                  <p className="text-[11px] text-zinc-500 leading-tight flex items-center gap-1">
-                    {busy ? <>Thinking<span className="riri-think-dot">.</span><span className="riri-think-dot" style={{ animationDelay: ".2s" }}>.</span><span className="riri-think-dot" style={{ animationDelay: ".4s" }}>.</span></>
-                      : <><span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" /> {active.short} · Online</>}
+                  <p className="truncate text-[13px] font-bold leading-tight text-zinc-900">{title}</p>
+                  <p className="flex items-center gap-1 truncate text-[10.5px] leading-tight text-zinc-500">
+                    {busy && screen === "app"
+                      ? <>Thinking<span className="riri-think-dot">.</span><span className="riri-think-dot" style={{ animationDelay: ".2s" }}>.</span><span className="riri-think-dot" style={{ animationDelay: ".4s" }}>.</span></>
+                      : <><span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> {subtitle}</>}
                   </p>
                 </div>
-                <button
-                  onClick={() => setView((v) => (v === "chat" ? "account" : "chat"))}
-                  className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${view === "account" ? "text-white" : "text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-900"}`}
-                  style={view === "account" ? { backgroundColor: "var(--brand)" } : undefined}
-                  aria-label={view === "account" ? "Back to the conversation" : `Your account, usage and what ${ASSISTANT_NAME} remembers`}
-                  title={view === "account" ? "Back to the conversation" : "Account & usage"}
-                >
-                  <UserRound className="h-4 w-4" />
+
+                {/* Autopilot lives in Support only — the only app whose answers end in
+                    a destination. Showing the switch where it does nothing would be a
+                    lie about what the product can do. */}
+                {screen === "app" && app === "support" && (
+                  <button
+                    onClick={() => setAutoGo((v) => !v)}
+                    title={autoGo ? "Autopilot on — I move the screen when I answer" : "Autopilot off — I offer a button, you tap it"}
+                    aria-pressed={autoGo}
+                    className={`flex h-7 items-center gap-1 rounded-full px-2 text-[10px] font-bold transition-colors ${
+                      autoGo ? "text-white shadow-sm" : "bg-zinc-900/5 text-zinc-500 hover:text-zinc-800"
+                    }`}
+                    style={autoGo ? { backgroundColor: "var(--brand)" } : undefined}
+                  >
+                    <Navigation className={`h-3 w-3 ${autoGo ? "dock-pulse" : ""}`} /> AUTO
+                  </button>
+                )}
+
+                {screen === "home" && (
+                  <button
+                    onClick={() => setScreen("account")}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-900/5 hover:text-zinc-900"
+                    aria-label="Account, usage and settings"
+                  >
+                    <UserRound className="h-4 w-4" />
+                  </button>
+                )}
+                <button onClick={() => setOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-900/5 hover:text-zinc-900" aria-label={`Close ${ASSISTANT_NAME}`}>
+                  <X className="h-4 w-4" />
                 </button>
-                <button onClick={() => setOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-900" aria-label={`Close ${ASSISTANT_NAME}`}><X className="h-4 w-4" /></button>
               </div>
 
-              {/* Model switcher — chat only; the account view is tier-less */}
-              {view === "chat" && (<>
-              <div className="mt-3 flex gap-1 rounded-xl bg-white/60 p-1">
-                {RIRI_MODEL_IDS.map((id) => {
-                  const m = RIRI_MODELS[id]; const Icon = ICON[m.icon]; const on = id === model;
-                  return (
-                    <button key={id} onClick={() => setModel(id)}
-                      className={`relative flex flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 text-[11px] font-semibold transition-colors ${on ? "text-white shadow-sm" : "text-zinc-600 hover:text-zinc-900"} ${m.pro && on ? "riri-sheen" : ""}`}
-                      style={on ? { backgroundColor: "var(--brand)" } : undefined}>
-                      <Icon className="h-3.5 w-3.5 shrink-0" />
-                      <span>{m.short}</span>
-                      {m.pro && <span className={`rounded px-1 text-[7px] font-bold leading-none ${on ? "bg-white/25 text-white" : "bg-amber-100 text-amber-700"}`}>PRO</span>}
+              {/* Pinned customer — the whole app is about them until it is closed */}
+              <AnimatePresence>
+                {pinned && screen === "app" && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                    className="shrink-0 overflow-hidden px-3"
+                  >
+                    <div className="mb-1.5 flex items-center gap-1.5 rounded-lg px-2 py-1.5" style={{ backgroundColor: "var(--brand-soft)" }}>
+                      <Pin className="h-3 w-3 shrink-0" style={{ color: "var(--brand)" }} />
+                      <p className="min-w-0 flex-1 truncate text-[11px] font-semibold text-zinc-700">
+                        Every question is about {pinned.name}
+                      </p>
+                      <button
+                        onClick={() => { setPinned(null); subjectRef.current = null; }}
+                        className="shrink-0 rounded px-1 text-[10px] font-semibold text-zinc-500 hover:text-zinc-800"
+                      >
+                        Unpin
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* ── SCREEN ─────────────────────────────────────────────────── */}
+              <div className="relative min-h-0 flex-1">
+                <AnimatePresence mode="wait" initial={false}>
+                  {screen === "home" && (
+                    <HomeScreen
+                      key="s-home"
+                      orgName={orgName}
+                      userName={userName}
+                      lastApp={lastApp}
+                      onLaunch={(id) => launch(id)}
+                      onFind={() => setScreen("find")}
+                      onAccount={() => setScreen("account")}
+                    />
+                  )}
+
+                  {screen === "brief" && app && (
+                    <BriefScreen
+                      key={`s-brief-${app}`}
+                      id={app}
+                      orgName={orgName}
+                      userName={userName}
+                      skip={skipBrief}
+                      onSkipChange={setSkipBrief}
+                      onContinue={() => { setPref(`riri:brief:${app}`, "1"); setScreen("app"); }}
+                    />
+                  )}
+
+                  {screen === "find" && (
+                    <FindScreen key="s-find" onOpen={openCustomer} onBack={goHome} />
+                  )}
+
+                  {screen === "account" && (
+                    <motion.div
+                      key="s-account"
+                      initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }}
+                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                      className="h-full overflow-y-auto"
+                    >
+                      <RiriAccount
+                        voiceOn={voiceOn}
+                        onVoice={() => { if (voice.speaking) voice.stopSpeaking(); setVoiceOn((v) => !v); }}
+                        autoGo={autoGo}
+                        onAutoGo={() => setAutoGo((v) => !v)}
+                        lang={voice.lang}
+                        onLang={() => voice.setLang(voice.lang === "en-KE" ? "sw-KE" : "en-KE")}
+                        speaking={voice.speaking}
+                      />
+                    </motion.div>
+                  )}
+
+                  {screen === "app" && app && (
+                    <motion.div
+                      key={`s-app-${app}`}
+                      initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                      className="h-full overflow-y-auto px-3.5 py-3"
+                    >
+                      {turns.length === 0 ? (
+                        <UseCaseDeck id={app} onPick={(p) => ask(p)} />
+                      ) : (
+                        <div className="space-y-4">
+                          {turns.map((t) => {
+                            const TIcon = ICON[RIRI_MODELS[t.model].icon];
+                            return (
+                              <div key={t.id} className="space-y-2.5">
+                                {t.question && (
+                                  <div className="flex justify-end">
+                                    <div className="max-w-[85%] rounded-2xl rounded-br-sm px-3 py-2 text-[13px] text-white shadow-sm" style={{ backgroundColor: "var(--brand)" }}>{t.question}</div>
+                                  </div>
+                                )}
+                                <div className="flex gap-2">
+                                  <div className="mt-0.5 h-6 w-6 shrink-0 overflow-hidden rounded-full ring-1 ring-white"><RiriAvatar size={24} state={t.loading ? "thinking" : "idle"} animated={t.loading} /></div>
+                                  <div className="min-w-0 flex-1 rounded-2xl rounded-bl-sm border border-zinc-900/10 bg-white/70 px-3.5 py-3">
+                                    {t.loading ? (
+                                      <span className="flex items-center gap-2 text-[13px] text-zinc-400"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Reading your book…</span>
+                                    ) : t.error ? (
+                                      <span className="flex items-center gap-2 text-[13px] text-rose-600"><AlertCircle className="h-3.5 w-3.5" /> {t.error}</span>
+                                    ) : (
+                                      <>
+                                        <RichText text={t.answer ?? ""} />
+                                        {t.chips && t.chips.length > 0 && <Chips chips={t.chips} />}
+                                        {t.series && <Sparkline series={t.series} />}
+                                        {t.table && <MiniTable table={t.table} />}
+                                        {t.sql && <ExportBar question={t.question} sql={t.sql} />}
+                                        {t.sql && <SqlDisclosure sql={t.sql} rows={t.rows} ms={t.ms} />}
+
+                                        {/* WHAT SHE OFFERS TO DO. She proposes; you tap —
+                                            unless Autopilot took the first one already. */}
+                                        {t.actions && t.actions.length > 0 && (
+                                          <div className="mt-2.5 flex flex-wrap gap-1.5">
+                                            {t.actions.map((a, i) => (
+                                              <button
+                                                key={i}
+                                                onClick={() => router.push(a.href)}
+                                                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-white"
+                                                style={{ backgroundColor: "var(--brand)" }}
+                                              >
+                                                {a.label} <ArrowRight className="h-3 w-3" />
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+
+                                        {t.suggestions && t.suggestions.length > 0 && (
+                                          <div className="mt-2 flex flex-wrap gap-1.5">
+                                            {t.suggestions.filter(Boolean).map((sg) => (
+                                              <button
+                                                key={sg}
+                                                onClick={() => ask(sg)}
+                                                className="rounded-full border border-zinc-900/12 bg-white/70 px-2 py-0.5 text-[10px] text-zinc-500 hover:border-[color:var(--brand)] hover:text-zinc-900"
+                                              >
+                                                {sg}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+                                        <div className="mt-2.5 flex items-center gap-1.5">
+                                          <span className="inline-flex items-center gap-1 rounded-full bg-zinc-900/5 px-1.5 py-0.5 text-[9px] font-medium text-zinc-500"><TIcon className="h-2.5 w-2.5" /> {RIRI_MODELS[t.model].short}</span>
+                                          <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium ${t.mode === "live" ? "text-emerald-600" : "text-zinc-400"}`}>{t.mode === "live" ? "Live data" : "Simulated"}</span>
+                                          {t.route === "llm" && <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">AI-WRITTEN</span>}
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                          <div ref={endRef} />
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Autopilot flight card — a moving screen is never a mystery */}
+                <AnimatePresence>
+                  {flight && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 14, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 28 }}
+                      className="pointer-events-none absolute inset-x-3 bottom-3 flex items-center gap-2 rounded-2xl px-3 py-2.5 text-white shadow-xl"
+                      style={{ backgroundColor: "var(--brand)" }}
+                    >
+                      <Zap className="h-4 w-4 shrink-0" />
+                      <p className="min-w-0 flex-1 text-[12px] font-semibold leading-snug">Autopilot — taking you to {flight}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* ── COMPOSER — only inside an app ──────────────────────────── */}
+              {screen === "app" && app && (
+                <div className="shrink-0 border-t border-zinc-900/10 bg-white/70 p-2.5">
+                  <div className="flex items-center gap-1.5 rounded-2xl border border-zinc-900/15 bg-white px-2 focus-within:border-[color:var(--brand)]">
+                    {voice.supported && (
+                      <button
+                        onClick={() => voice.listen()}
+                        title={voice.listening ? "Stop listening" : `Talk to ${ASSISTANT_NAME}`}
+                        aria-label={voice.listening ? "Stop listening" : `Talk to ${ASSISTANT_NAME}`}
+                        className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                          voice.listening ? "text-white" : "text-zinc-400 hover:bg-zinc-900/5 hover:text-zinc-700"
+                        }`}
+                        style={voice.listening ? { backgroundColor: "var(--brand)" } : undefined}
+                      >
+                        <Mic className="h-4 w-4" />
+                        {voice.listening && <span className="absolute inset-0 rounded-lg riri-halo" style={{ background: "var(--brand)", opacity: 0.35 }} />}
+                      </button>
+                    )}
+                    <input
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), ask(input))}
+                      placeholder={voice.listening ? "Listening…" : placeholderFor[app]}
+                      className="flex-1 bg-transparent py-2.5 text-[13px] outline-none placeholder:text-zinc-400"
+                    />
+                    <button onClick={() => ask(input)} disabled={busy || !input.trim()}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white disabled:opacity-40" style={{ backgroundColor: "var(--brand)" }} aria-label="Send">
+                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                     </button>
-                  );
-                })}
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold tracking-wide ${active.badge === "LIVE DATA" ? "bg-emerald-100 text-emerald-700" : active.badge === "PRO" ? "bg-amber-100 text-amber-700" : "bg-zinc-900/5 text-zinc-500"}`}>{active.badge}</span>
-                <p className="text-[11px] text-zinc-500 leading-tight truncate">{active.blurb}</p>
-              </div>
-              </>)}
-            </div>
-
-            {view === "account" ? (
-              <RiriAccount
-                voiceOn={voiceOn}
-                onVoice={() => { if (voice.speaking) voice.stopSpeaking(); setVoiceOn((v) => !v); }}
-                autoGo={autoGo}
-                onAutoGo={() => setAutoGo((v) => !v)}
-                lang={voice.lang}
-                onLang={() => voice.setLang(voice.lang === "en-KE" ? "sw-KE" : "en-KE")}
-                speaking={voice.speaking}
-              />
-            ) : (<>
-            {/* Conversation */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4">
-              {turns.length === 0 && (
-                <div>
-                  <div className="rounded-2xl rounded-bl-sm border border-zinc-900/10 bg-white/70 px-3.5 py-3">
-                    <RichText text={active.id === "support"
-                      ? `Hey${userName ? ` ${userName.split(" ")[0]}` : ""} — I know this platform inside out. Ask me how to do anything, why something is blocked, or what to do next, and I'll take you straight there.
-
-You can talk to me out loud with the microphone.`
-                      : active.id === "assistant"
-                        ? `Niaje${userName ? ` ${userName.split(" ")[0]}` : ""} 👋 I know your role, your book and whoever you have open. Ask me who to chase, whether to lend, or what I told you last week — in English, Kiswahili or Sheng.`
-                        : `Hey${userName ? ` ${userName.split(" ")[0]}` : ""} — I read **${orgName}**'s live book. Ask me a number and I'll pull it straight from your data, show you the SQL I ran, and hand you an Excel or PDF of it.`} />
                   </div>
-                  <div className="mt-2.5 flex flex-wrap gap-1.5">
-                    {active.suggestions.map((s) => (
-                      <button key={s} onClick={() => ask(s)} className="rounded-full border border-zinc-900/12 bg-white/70 px-2.5 py-1 text-[11px] text-zinc-600 hover:border-[color:var(--brand)] hover:text-zinc-900 transition-colors">{s}</button>
-                    ))}
-                  </div>
+                  <p className="mt-1 text-center text-[9px] text-zinc-400">
+                    {voice.speaking ? "Speaking… · " : ""}
+                    {autoGo && app === "support" ? "Autopilot on — I'll move the screen · " : ""}
+                    Powered by BirgenAI
+                  </p>
                 </div>
               )}
 
-              {turns.map((t) => {
-                const Icon = ICON[RIRI_MODELS[t.model].icon];
-                return (
-                  <div key={t.id} className="space-y-2.5">
-                    {t.question && (
-                      <div className="flex justify-end">
-                        <div className="max-w-[85%] rounded-2xl rounded-br-sm px-3 py-2 text-[13px] text-white shadow-sm" style={{ backgroundColor: "var(--brand)" }}>{t.question}</div>
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <div className="mt-0.5 h-6 w-6 shrink-0 rounded-full ring-1 ring-white overflow-hidden"><RiriAvatar size={24} state={t.loading ? "thinking" : "idle"} animated={t.loading} /></div>
-                      <div className="min-w-0 flex-1 rounded-2xl rounded-bl-sm border border-zinc-900/10 bg-white/70 px-3.5 py-3">
-                        {t.loading ? (
-                          <span className="flex items-center gap-2 text-[13px] text-zinc-400"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Reading your book…</span>
-                        ) : t.error ? (
-                          <span className="flex items-center gap-2 text-[13px] text-rose-600"><AlertCircle className="h-3.5 w-3.5" /> {t.error}</span>
-                        ) : (
-                          <>
-                            <RichText text={t.answer ?? ""} />
-                            {t.chips && t.chips.length > 0 && <Chips chips={t.chips} />}
-                            {t.series && <Sparkline series={t.series} />}
-                            {t.table && <MiniTable table={t.table} />}
-                            {t.sql && <ExportBar question={t.question} sql={t.sql} />}
-                            {t.sql && <SqlDisclosure sql={t.sql} rows={t.rows} ms={t.ms} />}
-
-                            {/* WHAT SHE OFFERS TO DO. She proposes; you tap. Nothing here
-                                moves money or changes a permission — the destination is
-                                the action, and the button at the other end is still yours. */}
-                            {t.actions && t.actions.length > 0 && (
-                              <div className="mt-2.5 flex flex-wrap gap-1.5">
-                                {t.actions.map((a, i) => (
-                                  <button
-                                    key={i}
-                                    onClick={() => router.push(a.href)}
-                                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-white"
-                                    style={{ backgroundColor: "var(--brand)" }}
-                                  >
-                                    {a.label} <ArrowRight className="h-3 w-3" />
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-
-                            {t.suggestions && t.suggestions.length > 0 && (
-                              <div className="mt-2 flex flex-wrap gap-1.5">
-                                {t.suggestions.filter(Boolean).map((sg) => (
-                                  <button
-                                    key={sg}
-                                    onClick={() => ask(sg)}
-                                    className="rounded-full border border-zinc-900/12 bg-white/70 px-2 py-0.5 text-[10px] text-zinc-500 hover:border-[color:var(--brand)] hover:text-zinc-900"
-                                  >
-                                    {sg}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                            <div className="mt-2.5 flex items-center gap-1.5">
-                              <span className="inline-flex items-center gap-1 rounded-full bg-zinc-900/5 px-1.5 py-0.5 text-[9px] font-medium text-zinc-500"><Icon className="h-2.5 w-2.5" /> {RIRI_MODELS[t.model].short}</span>
-                              <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium ${t.mode === "live" ? "text-emerald-600" : "text-zinc-400"}`}>{t.mode === "live" ? "Live data" : "Simulated"}</span>
-                              {t.route === "llm" && <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[9px] font-bold text-violet-700">AI-WRITTEN</span>}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={endRef} />
-            </div>
-
-            {/* Composer */}
-            <div className="shrink-0 border-t border-zinc-900/10 bg-white/60 p-2.5">
-              <div className="flex items-center gap-1.5 rounded-xl border border-zinc-900/15 bg-white/80 px-2 focus-within:border-[color:var(--brand)]">
-                {voice.supported && (
-                  <button
-                    onClick={() => voice.listen()}
-                    title={voice.listening ? "Stop listening" : `Talk to ${ASSISTANT_NAME}`}
-                    aria-label={voice.listening ? "Stop listening" : `Talk to ${ASSISTANT_NAME}`}
-                    className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                      voice.listening ? "text-white" : "text-zinc-400 hover:bg-zinc-900/5 hover:text-zinc-700"
-                    }`}
-                    style={voice.listening ? { backgroundColor: "var(--brand)" } : undefined}
-                  >
-                    <Mic className="h-4 w-4" />
-                    {voice.listening && <span className="absolute inset-0 rounded-lg riri-halo" style={{ background: "var(--brand)", opacity: 0.35 }} />}
-                  </button>
-                )}
-                <input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), ask(input))}
-                  placeholder={voice.listening ? "Listening…" : placeholderFor[model]}
-                  className="flex-1 bg-transparent py-2.5 text-[13px] outline-none placeholder:text-zinc-400"
+              {/* Home indicator — the affordance that says "this is a device" */}
+              <div className="flex shrink-0 items-center justify-center pb-1.5 pt-1">
+                <button
+                  onClick={goHome}
+                  disabled={screen === "home"}
+                  aria-label="Home"
+                  className="h-1 w-28 rounded-full bg-zinc-900/20 transition-colors enabled:hover:bg-zinc-900/40 disabled:opacity-40"
                 />
-                <button onClick={() => ask(input)} disabled={busy || !input.trim()}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white disabled:opacity-40" style={{ backgroundColor: "var(--brand)" }} aria-label="Send">
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                </button>
               </div>
-
-              {/* Voice/consent settings moved to the Account panel (the person icon,
-                  top-right) — one home for settings. Speaking still shows here so a
-                  talking Riri is never mysterious. */}
-              <p className="mt-1 text-center text-[9px] text-zinc-400">
-                {voice.speaking ? "Speaking… · " : ""}{ASSISTANT_NAME} can be wrong — verify figures before acting · Powered by BirgenAI
-              </p>
             </div>
-            </>)}
           </motion.div>
         )}
       </AnimatePresence>
@@ -709,7 +911,7 @@ You can talk to me out loud with the microphone.`
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
         style={{ ...pos, width: SIZE, height: SIZE, touchAction: "none", transition: drag ? "none" : "left .38s cubic-bezier(.22,1,.36,1), top .38s cubic-bezier(.22,1,.36,1)" }}
         className="no-print fixed z-[9999] cursor-grab active:cursor-grabbing select-none"
-        title={open ? `Close ${ASSISTANT_NAME}` : `Ask ${ASSISTANT_NAME}`}
+        title={open ? `Close ${ASSISTANT_NAME}` : `Open ${ASSISTANT_NAME}`}
       >
         {!open && <span className="pointer-events-none absolute inset-0 rounded-full riri-halo" style={{ background: "var(--brand)", opacity: 0.25 }} />}
         <div className={`relative h-full w-full rounded-full shadow-2xl ring-2 ring-white ${open ? "" : "riri-float"}`} style={{ boxShadow: "0 12px 32px rgba(0,0,0,.22)" }}>

@@ -5,8 +5,10 @@
 //     taken to /platform to pick a console;
 //   • a prospective lender (Mular, and others) clicks "Create your organization"
 //     and self-onboards at /onboard.
-// De-branded to "LMS Platform" so a prospect running a demo never sees a vendor
-// name they don't recognise — the product is the platform, not us.
+// Branded "BirgenAI LMS": this is the apex operator door on lms.birgenai.com, and
+// a nameless "LMS Platform" reads like a template someone forgot to fill in. The
+// LENDER consoles stay white-label (their logo, their accent); the platform floor
+// underneath them is ours and says so.
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -61,8 +63,8 @@ export default function PlatformLogin() {
           <form onSubmit={submit} className="p-6 sm:p-8">
             <div className="text-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/logo.png" alt="LMS Platform" className="mx-auto mb-3 h-11 w-auto object-contain" />
-              <h1 className="text-2xl font-bold tracking-tight">LMS Platform</h1>
+              <img src="/images/logo.png" alt="BirgenAI" className="mx-auto mb-3 h-11 w-auto object-contain" />
+              <h1 className="text-2xl font-bold tracking-tight">BirgenAI LMS</h1>
               <p className="mt-1.5 text-sm text-zinc-500">The lending operating system. Sign in to your platform.</p>
             </div>
 

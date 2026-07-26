@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       success: true,
       url: null,
       simulated: true,
-      message: "This image was captured while storage was in simulation — no file was stored.",
+      message: "This image was captured before document storage was connected, so no file was kept — only the check result.",
     });
   }
 
