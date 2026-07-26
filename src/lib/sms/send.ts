@@ -31,6 +31,10 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
   declined: "{org}: We could not approve your application this time. Reply HELP for the reasons and how to appeal.",
   otp: "Your approval code is {code}. It expires in 10 minutes. Never share it.",
   login_code: "{code} is your {org} staff sign-in code for today. It works until midnight. Never share it.",
+  // A PIN is not a one-time code and must not be described like one — it does not
+  // expire, so "never share it" is the whole security model, and the message says
+  // where it is used so a customer who did not ask for it knows what was touched.
+  portal_pin: "{org}: your new customer portal PIN is {pin}. Sign in with your ID number and this PIN. Keep it private — {org} will never ask you for it.",
   verify: "{code} is your {org} verification code. It expires in 5 minutes. Never share it — {org} will never ask you for this code.",
   // A signing code must name what it signs. A borrower who receives "your code is
   // 123456" cannot tell an identity check from a credit agreement worth KES 50,000.
@@ -59,6 +63,7 @@ const SW_TEMPLATES: Record<string, string> = {
   payment: "{org}: Tumepokea KES {amount}. Salio la mkopo: KES {balance}. Asante!",
   cleared: "{org}: Mkopo wako umelipwa kikamilifu. Asante — kikomo chako hukua kwa kila mkopo unaolipwa kwa wakati!",
   declined: "{org}: Hatukuweza kuidhinisha ombi lako wakati huu. Jibu HELP kupata sababu na jinsi ya kukata rufaa.",
+  portal_pin: "{org}: PIN yako mpya ya tovuti ya wateja ni {pin}. Ingia kwa nambari yako ya kitambulisho na PIN hii. Iweke siri — {org} haitawahi kukuuliza.",
   verify: "{code} ni nambari yako ya uthibitisho ya {org}. Inaisha baada ya dakika 5. Usimpe mtu yeyote — {org} haitawahi kukuuliza nambari hii.",
   offer_sign: "{code} ni nambari yako ya KUTIA SAHIHI na kukubali mkopo wa KES {principal} kutoka {org}, ukilipa KES {repayable} ifikapo {clearDate}. Iweke tu ikiwa unakubali. Inaisha baada ya dakika 5.",
   guarantor_invite: "{org}: {borrower} amekuomba udhamini mkopo wake wa KES {amount}. Asipolipa, utaombwa ulipe wewe. Soma masharti kisha uamue: {link}",

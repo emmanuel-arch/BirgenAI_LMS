@@ -34,7 +34,10 @@ export type SmsFunding = "own-provider" | "allowance" | "credit" | "overdraft" |
  * money-saving but survivable. Dunning stops at zero credit — that pressure is
  * the product working, not a bug.
  */
-const CRITICAL_TEMPLATES = new Set(["otp", "verify", "offer_sign", "guarantor_sign", "guarantor_invite", "login_code"]);
+// portal_pin is a credential, not a notification: if a low SMS wallet swallowed it
+// the customer would be locked out of an account whose old PIN has already been
+// replaced. Critical templates send regardless of balance and settle after.
+const CRITICAL_TEMPLATES = new Set(["otp", "verify", "offer_sign", "guarantor_sign", "guarantor_invite", "login_code", "portal_pin"]);
 
 export const isCriticalTemplate = (templateKey: string): boolean => CRITICAL_TEMPLATES.has(templateKey);
 

@@ -195,3 +195,58 @@ export function welcomeOrgEmail(brand: EmailBrand, p: { name: string; email: str
     }),
   };
 }
+
+/**
+ * A customer's new portal PIN.
+ *
+ * Sent to the BORROWER, not to staff — the officer who pressed reset never sees
+ * the digits. The copy has one job beyond delivering them: telling someone who
+ * did NOT ask for this that their account was touched and what to do about it.
+ * A credential email that only says "here is your PIN" is indistinguishable from
+ * the phishing it will eventually be imitated by.
+ */
+export function portalPinEmail(brand: EmailBrand, p: {
+  name?: string | null; email?: string | null; pin: string;
+}): EmailParts {
+  const digits = p.pin.replace(/\D/g, "");
+  const subject = `Your new ${brand.name} customer PIN`;
+  const portal = `https://${brand.slug}.birgenai.com`;
+
+  const text = [
+    greet(p.name),
+    "",
+    `Here is your new PIN for the ${brand.name} customer portal:`,
+    "",
+    `PIN: ${digits}`,
+    "",
+    `Sign in at ${portal} with your national ID number and this PIN.`,
+    "",
+    `Keep it private. ${brand.name} staff will never ask you for it — not on the phone, not by SMS, not by email.`,
+    "If you did not ask for a new PIN, call your loan officer now: someone requested a reset on your account.",
+  ].join("\n");
+
+  const rows = [
+    headingRow(
+      brand,
+      "Your new customer PIN",
+      `${escapeHtml(greet(p.name))}<br /><br />This PIN gets you into the <strong>${escapeHtml(brand.name)}</strong> customer portal, where you can see your loan, your balance and your next payment.`,
+    ),
+    valueBarRow(brand, "Your PIN", digits),
+    buttonRow(brand, portal, "Open the customer portal"),
+    noteRow(
+      `Sign in with your <strong>national ID number</strong> and this PIN — no waiting for a code.<br /><br />` +
+      `Keep it private. <strong>${escapeHtml(brand.name)} will never ask you for your PIN</strong> — not on the phone, not by SMS, not by email.<br /><br />` +
+      `<strong>Didn't ask for this?</strong> Someone requested a reset on your account. Call your loan officer now, and do not use this PIN.`,
+    ),
+  ].join("");
+
+  return {
+    subject,
+    text,
+    html: buildEmailDocumentHtml({
+      brand, pageTitle: subject, mainCardRowsHtml: rows,
+      primaryCta: { href: portal, label: "Customer portal" },
+      legalFooterInnerHtml: `Sent${p.email ? ` to ${escapeHtml(p.email)}` : ""} because a ${escapeHtml(brand.name)} staff member reset the PIN on your customer account.`,
+    }),
+  };
+}

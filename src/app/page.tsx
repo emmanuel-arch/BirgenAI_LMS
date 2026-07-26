@@ -438,6 +438,10 @@ export default function LmsPortal() {
         onContinue={requestOtp}
         loading={loading}
         error={error}
+        // The ID + PIN door mints the SAME borrower session the OTP funnel does,
+        // so there is nothing to hand over: eligibility reads the phone from the
+        // cookie and the funnel resumes exactly where it would have.
+        onPinSignedIn={runEligibility}
       />
     );
   }

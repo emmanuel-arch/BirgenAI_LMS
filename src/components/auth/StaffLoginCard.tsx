@@ -139,7 +139,7 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
   const logo = logoMetrics("auth", brand?.logoScale);
 
   const heading =
-    mode === "signin" ? (brand ? `Sign in to ${brand.name}` : "Sign in to the console")
+    mode === "signin" ? ""
       : mode === "otp" ? "Enter today's code"
         : mode === "forgot" ? "Reset your password" : "Set a new password";
   const eyebrow =
@@ -179,11 +179,16 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
               onError={(e) => (((e.target as HTMLImageElement).src = logoFallback))}
             />
 
-            {/* Heading row: text left, Sentinel right. Balanced, zero extra height. */}
+            {/* Heading row: label left, Sentinel right. Balanced, zero extra height.
+                On the sign-in step the eyebrow IS the heading — the logo above has
+                already said which lender this is, and "Sign in to Mular Credit Ltd"
+                under a Mular logo is the same sentence twice. The recovery and
+                second-factor steps still carry a title, because there the eyebrow
+                alone would not say what the screen wants from you. */}
             <div className="mt-5 flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: accent }}>{eyebrow}</p>
-                <h1 className="mt-1 text-[22px] font-bold leading-tight tracking-tight text-zinc-900">{heading}</h1>
+                {heading && <h1 className="mt-1 text-[22px] font-bold leading-tight tracking-tight text-zinc-900">{heading}</h1>}
               </div>
               <AuthSentinel mood={mood} accent={accent} accent2={accent2} size={62} />
             </div>

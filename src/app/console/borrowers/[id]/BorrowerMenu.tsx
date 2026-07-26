@@ -22,7 +22,7 @@ import {
   MoreVertical, UserPen, Users, Banknote, Gauge, Paperclip, UserCog, MessageSquare,
   Loader2, X, CheckCircle2, AlertTriangle, FileText, Upload, ScanFace, Calculator,
   Download, Trash2, Scale, MapPin, User, Receipt, ChevronRight, ShieldCheck,
-  Building2, Home, Navigation,
+  Building2, Home, Navigation, KeyRound,
 } from "lucide-react";
 import { PinDropMap, type LatLng } from "@/components/maps/PinDropMap";
 import { Modal as ModalShell } from "@/components/ui/Modal";
@@ -125,6 +125,21 @@ export function BorrowerMenu(props: Props) {
     setModal(null);
     setToast(msg);
     router.refresh();
+  };
+
+  /**
+   * "I can't get into the app" — the single most common inbound call, ended in
+   * one press. A fresh PIN goes to their handset and their inbox; the officer is
+   * never shown it (see the route), so the toast can only ever say it was sent.
+   */
+  const resetPortalPin = async () => {
+    closeDrawer();
+    setToast("Sending a new PIN…");
+    try {
+      const res = await fetch(`/api/console/borrowers/${props.borrowerId}/portal-pin`, { method: "POST" });
+      const d = await res.json();
+      setToast(d.message || (d.success ? "New PIN sent." : "Could not reset the PIN."));
+    } catch { setToast("Could not reach the server."); }
   };
 
   const sendKycLink = async () => {
@@ -231,6 +246,15 @@ export function BorrowerMenu(props: Props) {
               {item(<Banknote {...ic} />, "Loan limit", props.loanLimit != null ? `Currently KES ${Math.round(props.loanLimit).toLocaleString()}` : "No limit set — the engine decides", () => { closeDrawer(); setModal("limit"); })}
               {item(<Gauge {...ic} />, "Credit score", props.creditScore != null ? `Currently ${props.creditScore} / 900` : "No score yet", () => { closeDrawer(); setModal("score"); })}
               {item(<Calculator {...ic} />, "Crunch their statement", "Score their M-Pesa statement — the report saves back here", () => { router.push(`/console/crunch?borrowerId=${props.borrowerId}&from=360`); })}
+
+              {groupLabel("Customer portal")}
+              {item(
+                <KeyRound {...ic} />, "Reset their portal PIN",
+                props.nationalId
+                  ? "Sends a new PIN by SMS and email — they sign in with their ID"
+                  : "Add their national ID first — the portal asks for it before the PIN",
+                resetPortalPin,
+              )}
 
               {groupLabel("Records")}
               {item(<Paperclip {...ic} />, "Attachments", "Upload and read their documents", () => { closeDrawer(); setModal("attachments"); })}

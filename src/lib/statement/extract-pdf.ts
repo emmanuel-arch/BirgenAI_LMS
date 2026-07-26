@@ -27,6 +27,22 @@ export class PdfPasswordIncorrectError extends Error {
   }
 }
 
+/**
+ * The PDF engine itself is missing or broken in this environment.
+ *
+ * Kept distinct from "this file isn't a statement" because they demand opposite
+ * responses: one is fixed by asking the customer for a different file, the other
+ * by fixing a deployment. Telling an officer the first when it is the second sends
+ * them to argue with a customer who did nothing wrong.
+ */
+export class PdfEngineUnavailableError extends Error {
+  constructor(cause?: unknown) {
+    super("The PDF engine isn't available on this server. This is a system fault, not a problem with the statement — tell BirgenAI support.");
+    this.name = "PdfEngineUnavailableError";
+    this.cause = cause;
+  }
+}
+
 // pdfjs PasswordResponses: NEED_PASSWORD = 1, INCORRECT_PASSWORD = 2
 const NEED_PASSWORD = 1;
 const INCORRECT_PASSWORD = 2;
@@ -35,13 +51,33 @@ type PdfTextItem = { str: string; transform: number[] };
 
 /** Extract plain text from a PDF buffer. `password` unlocks encrypted statements. */
 export async function extractPdfText(buffer: Buffer, password?: string): Promise<string> {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // THE IMPORT IS ITS OWN FAILURE MODE, and it is not the customer's fault.
+  //
+  // `serverExternalPackages` keeps pdfjs out of the bundle, which is right — but
+  // it does not guarantee the package is UPLOADED. If the deployment's file
+  // tracer missed it (see outputFileTracingIncludes in next.config.ts), this
+  // import throws MODULE_NOT_FOUND, the old catch below swallowed it, and an
+  // officer was told their customer's statement was invalid. Days get lost to
+  // that, because the message points at the file and the fault is in the deploy.
+  //
+  // So the import gets its own try, and its own honest error.
+  let pdfjs: typeof import("pdfjs-dist/legacy/build/pdf.mjs");
+  try {
+    pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  } catch (err) {
+    console.error("[extract-pdf] pdfjs-dist could not be loaded — this is a DEPLOYMENT fault, not a bad statement:", err);
+    throw new PdfEngineUnavailableError(err);
+  }
 
   const loadingTask = pdfjs.getDocument({
     data: new Uint8Array(buffer),
     password: password || undefined,
     isEvalSupported: false,
-    useSystemFonts: true,
+    // FALSE, deliberately. System fonts do not exist on a serverless runtime, and
+    // asking for them makes pdfjs try to enumerate a font directory that isn't
+    // there. We extract TEXT — glyph rendering never happens — so the fonts buy
+    // nothing and can only fail in production.
+    useSystemFonts: false,
     // No worker in Node — pdfjs runs on the main thread for text extraction.
   });
 

@@ -52,12 +52,17 @@ export async function POST(req: NextRequest) {
   const res = await runReadQuery(orgId, guard.sql);
   if (!res.ok) return NextResponse.json({ success: false, message: `Could not re-run the query: ${res.error}` }, { status: 400 });
 
-  const org = await prisma.org.findUnique({ where: { id: orgId }, select: { name: true } });
+  const org = await prisma.org.findUnique({ where: { id: orgId }, select: { name: true, accent: true, accent2: true } });
   const meta = {
     question,
     lenderName: org?.name ?? "Your lender",
     sql: guard.sql,
     actorName: session.user.name ?? null,
+    // The report wears the lender's colour, like every other artifact we hand
+    // them. These files get forwarded into board packs — arriving in a stranger's
+    // palette is how a white-label product stops looking white-label.
+    accent: org?.accent ?? null,
+    accent2: org?.accent2 ?? null,
   };
 
   const filename = exportName(question, format);

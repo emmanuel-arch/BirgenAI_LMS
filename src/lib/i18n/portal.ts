@@ -49,6 +49,19 @@ export const EN = {
     phonePlaceholderScoped: "07XX XXX XXX",
     phonePlaceholderOpen: "Phone number (07XX XXX XXX)",
     smsNote: "We'll text you a code to confirm it's you",
+    // The returning-customer door. Kept short: these are read on a phone, in
+    // sunlight, by someone who wants their balance and not a paragraph.
+    doorNew: "I'm new here",
+    doorReturning: "I'm a customer",
+    pinIdPlaceholder: "National ID number",
+    pinPlaceholder: "6-digit PIN",
+    pinSignIn: "Sign in",
+    pinEnterId: "Enter your national ID number.",
+    pinSixDigits: "Your PIN is 6 digits.",
+    pinFoundAccount: "Found your account — the one ending {phone}. Enter your PIN.",
+    pinDifferentId: "Use a different ID number",
+    pinUsePhoneInstead: "Forgot your PIN? Sign in with your phone number instead",
+    pinNote: "Your PIN never expires — keep it private",
   },
 
   errors: {
@@ -447,6 +460,17 @@ export const SW: PortalDict = {
     phonePlaceholderScoped: "07XX XXX XXX",
     phonePlaceholderOpen: "Nambari ya simu (07XX XXX XXX)",
     smsNote: "Tutakutumia nambari ya uthibitisho kuthibitisha ni wewe",
+    doorNew: "Mimi ni mgeni",
+    doorReturning: "Mimi ni mteja",
+    pinIdPlaceholder: "Nambari ya kitambulisho",
+    pinPlaceholder: "PIN ya tarakimu 6",
+    pinSignIn: "Ingia",
+    pinEnterId: "Weka nambari yako ya kitambulisho.",
+    pinSixDigits: "PIN yako ina tarakimu 6.",
+    pinFoundAccount: "Tumeipata akaunti yako — ile inayoishia {phone}. Weka PIN yako.",
+    pinDifferentId: "Tumia nambari nyingine ya kitambulisho",
+    pinUsePhoneInstead: "Umesahau PIN? Ingia kwa nambari yako ya simu badala yake",
+    pinNote: "PIN yako haiishi muda — iweke siri",
   },
 
   errors: {

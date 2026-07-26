@@ -17,6 +17,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
+import { planChart, fmtValue, humanise, rampColor, gridlines, niceMax, type ChartPlan } from "./charts";
 
 export type ExportRow = Record<string, unknown>;
 
@@ -28,6 +29,9 @@ export type ExportMeta = {
   sql?: string | null;
   /** Who asked, for the footer. */
   actorName?: string | null;
+  /** The lender's brand hex — the report wears their colour like every other artifact. */
+  accent?: string | null;
+  accent2?: string | null;
 };
 
 /**
@@ -119,60 +123,249 @@ export async function toExcel(rows: ExportRow[], meta: ExportMeta): Promise<Buff
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-export async function toPdf(rows: ExportRow[], meta: ExportMeta): Promise<Buffer> {
+// ── The report ───────────────────────────────────────────────────────────────
+//
+// Built to be FORWARDED. These files leave our system the moment they are
+// downloaded — into an inbox, a WhatsApp group, a board pack — and once there they
+// are the only thing representing us. So the layout is the one a finance audience
+// already reads: a branded band, a KPI row, ONE chart that was chosen rather than
+// defaulted to, then the table, then the query that produced it.
+//
+// Everything is drawn with pdfkit vector primitives — no headless browser, no
+// chart-image service, no network call. A report generator that depends on
+// rendering a web page somewhere else is a report generator that falls over at
+// month end, when every lender runs one at once.
+//
+// The chart TYPE is inferred (see charts.ts) and the reason is printed on the
+// page, so a reader who disagrees can see why that shape was chosen instead of
+// assuming the tool only knows one.
+
+const INK = "#18181b";
+const MUTED = "#71717a";
+const FAINT = "#a1a1aa";
+const HAIRLINE = "#e4e4e7";
+
+/** The one place a colour from outside is trusted — and only if it is a hex. */
+function safeHex(v: string | null | undefined, fallback: string): string {
+  return /^#[0-9a-fA-F]{6}$/.test(v ?? "") ? (v as string) : fallback;
+}
+
+type Ctx = InstanceType<typeof PDFDocument>;
+
+/** The brand band across the top of page 1 — the thing that says whose report this is. */
+function coverBand(doc: Ctx, meta: ExportMeta, plan: ChartPlan, accent: string, accent2: string) {
+  const W = doc.page.width;
+  doc.save();
+  doc.rect(0, 0, W, 96).fill(accent);
+  // A second, lighter wedge, so the band reads as designed rather than as a
+  // rectangle somebody filled in.
+  doc.rect(W * 0.63, 0, W * 0.37, 96).fill(accent2);
+  doc.restore();
+
+  doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(8)
+    .text(meta.lenderName.toUpperCase(), 40, 24, { characterSpacing: 1.4, width: W - 80, ellipsis: true });
+  doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(17)
+    .text(plan.title, 40, 40, { width: W - 80, height: 34, ellipsis: true });
+  doc.fillColor("#ffffff").font("Helvetica").fontSize(7.5).fillOpacity(0.85)
+    .text(
+      `Generated ${new Date().toISOString().slice(0, 16).replace("T", " ")}${meta.actorName ? ` by ${meta.actorName}` : ""}  ·  ServiceSuite AI Analytics  ·  read-only, org-scoped`,
+      40, 78, { width: W - 80, ellipsis: true },
+    );
+  doc.fillOpacity(1);
+}
+
+/** The KPI strip — the four numbers someone reads before deciding to read the rest. */
+function kpiRow(doc: Ctx, plan: ChartPlan, y: number, accent: string): number {
+  if (plan.kpis.length === 0) return y;
+  const W = doc.page.width;
+  const gap = 10;
+  const n = Math.min(4, plan.kpis.length);
+  const w = (W - 80 - gap * (n - 1)) / n;
+
+  plan.kpis.slice(0, n).forEach((k, i) => {
+    const x = 40 + i * (w + gap);
+    doc.roundedRect(x, y, w, 52, 6).fillAndStroke("#fafafa", HAIRLINE);
+    doc.fillColor(MUTED).font("Helvetica-Bold").fontSize(6.5)
+      .text(k.label.toUpperCase(), x + 10, y + 11, { width: w - 20, characterSpacing: 0.8, ellipsis: true });
+    doc.fillColor(accent).font("Helvetica-Bold").fontSize(15)
+      .text(k.value, x + 10, y + 24, { width: w - 20, ellipsis: true });
+  });
+  return y + 52 + 20;
+}
+
+/** Horizontal bars — magnitude across categories, largest first, every bar labelled. */
+function barChart(doc: Ctx, plan: ChartPlan, y: number, height: number): number {
+  const W = doc.page.width;
+  const left = 40;
+  const right = W - 40;
+  const labelW = Math.min(150, (right - left) * 0.3);
+  const plotL = left + labelW + 8;
+  const valueW = 64;
+  const plotR = right - valueW;
+  const max = Math.max(...plan.points.map((p) => p.value), 0);
+  const top = niceMax(max);
+  const rowH = Math.min(26, Math.max(14, height / Math.max(1, plan.points.length)));
+  const bottom = y + plan.points.length * rowH;
+
+  // Gridlines behind the bars, recessive — scaffolding, not data.
+  gridlines(max, 4).forEach((g) => {
+    const x = plotL + (top > 0 ? g / top : 0) * (plotR - plotL);
+    doc.moveTo(x, y).lineTo(x, bottom).strokeColor(HAIRLINE).lineWidth(0.5).stroke();
+    doc.fillColor(FAINT).font("Helvetica").fontSize(6)
+      .text(fmtValue(g, plan.unit), x - 20, bottom + 4, { width: 40, align: "center" });
+  });
+
+  plan.points.forEach((p, i) => {
+    const by = y + i * rowH;
+    const bh = rowH - 6;
+    const bw = top > 0 ? Math.max(1.5, (p.value / top) * (plotR - plotL)) : 1.5;
+    const t = max > 0 ? p.value / max : 0;
+
+    doc.fillColor(INK).font("Helvetica").fontSize(7.5)
+      .text(p.label, left, by + bh / 2 - 4, { width: labelW, align: "right", ellipsis: true });
+    // Rounded data-end anchored to the baseline.
+    doc.roundedRect(plotL, by, bw, bh, Math.min(3, bh / 2)).fill(rampColor(t));
+    // The direct label is not decoration. The ramp's lighter steps sit under 3:1
+    // against white, so the number has to be readable without relying on colour.
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(7.5)
+      .text(fmtValue(p.value, plan.unit), plotR + 6, by + bh / 2 - 4, { width: valueW - 6, ellipsis: true });
+  });
+
+  return bottom + 20;
+}
+
+/** Columns — a period axis, in time order. Never re-sorted by size. */
+function columnChart(doc: Ctx, plan: ChartPlan, y: number, height: number): number {
+  const W = doc.page.width;
+  const left = 40;
+  const right = W - 40;
+  const axisW = 46;
+  const plotL = left + axisW;
+  const plotB = y + height;
+  const max = Math.max(...plan.points.map((p) => p.value), 0);
+  const top = niceMax(max);
+  const n = plan.points.length;
+  const slot = (right - plotL) / Math.max(1, n);
+  const bw = Math.min(46, slot * 0.62);
+
+  gridlines(max, 4).forEach((g) => {
+    const gy = plotB - (top > 0 ? g / top : 0) * height;
+    doc.moveTo(plotL, gy).lineTo(right, gy).strokeColor(HAIRLINE).lineWidth(0.5).stroke();
+    doc.fillColor(FAINT).font("Helvetica").fontSize(6)
+      .text(fmtValue(g, plan.unit), left, gy - 3, { width: axisW - 6, align: "right" });
+  });
+
+  plan.points.forEach((p, i) => {
+    const x = plotL + i * slot + (slot - bw) / 2;
+    const bh = top > 0 ? Math.max(1.5, (p.value / top) * height) : 1.5;
+    const t = max > 0 ? p.value / max : 0;
+    doc.roundedRect(x, plotB - bh, bw, bh, Math.min(3, bw / 2)).fill(rampColor(t));
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(6)
+      .text(fmtValue(p.value, plan.unit), x - 8, plotB - bh - 9, { width: bw + 16, align: "center" });
+    doc.fillColor(MUTED).font("Helvetica").fontSize(6)
+      .text(p.label.slice(-7), x - 8, plotB + 5, { width: bw + 16, align: "center", ellipsis: true });
+  });
+
+  doc.moveTo(plotL, plotB).lineTo(right, plotB).strokeColor("#d4d4d8").lineWidth(0.7).stroke();
+  return plotB + 22;
+}
+
+/** One number, large. A single value is a figure, not a one-bar chart. */
+function heroFigure(doc: Ctx, plan: ChartPlan, y: number, accent: string): number {
+  const W = doc.page.width;
+  const p = plan.points[0];
+  doc.roundedRect(40, y, W - 80, 92, 8).fillAndStroke("#fafafa", HAIRLINE);
+  doc.fillColor(MUTED).font("Helvetica-Bold").fontSize(7)
+    .text(humanise(plan.valueKey ?? "").toUpperCase(), 56, y + 18, { characterSpacing: 1, width: W - 112, ellipsis: true });
+  doc.fillColor(accent).font("Helvetica-Bold").fontSize(38)
+    .text(fmtValue(p.value, plan.unit), 56, y + 34, { width: W - 112, ellipsis: true });
+  return y + 92 + 20;
+}
+
+/** The rows, always — a chart is a READING of the data, never a replacement for it. */
+function dataTable(doc: Ctx, rows: ExportRow[], y: number): number {
   const cols = rows.length ? Object.keys(rows[0]) : [];
-  // Landscape once a table is wide — a 7-column report on portrait A4 is unreadable.
-  const doc = new PDFDocument({ size: "A4", layout: cols.length > 4 ? "landscape" : "portrait", margin: 36 });
+  if (!cols.length) return y;
+  const avail = doc.page.width - 80;
+  const w = avail / cols.length;
+
+  const head = (yy: number) => {
+    doc.rect(40, yy - 3, avail, 16).fill("#f4f4f5");
+    doc.fillColor(MUTED).font("Helvetica-Bold").fontSize(6.5);
+    cols.forEach((c, i) => doc.text(humanise(c).toUpperCase(), 44 + i * w, yy + 1, { width: w - 8, ellipsis: true }));
+    return yy + 18;
+  };
+
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(9).text("The data", 40, y);
+  let yy = head(y + 16);
+
+  rows.forEach((r, ri) => {
+    // A new page needs its header repeated, or page 2 is a wall of unlabelled numbers.
+    if (yy > doc.page.height - 56) { doc.addPage(); yy = head(48); }
+    if (ri % 2 === 1) doc.rect(40, yy - 3, avail, 13).fill("#fbfbfb");
+    doc.fillColor("#3f3f46").font("Helvetica").fontSize(7);
+    cols.forEach((c, i) => {
+      const v = r[c];
+      doc.text(v === null || v === undefined ? "" : String(cell(v)), 44 + i * w, yy, {
+        width: w - 8, ellipsis: true, align: isNum(v) ? "right" : "left",
+      });
+    });
+    yy += 13;
+  });
+  return yy;
+}
+
+export async function toPdf(rows: ExportRow[], meta: ExportMeta): Promise<Buffer> {
+  const plan = planChart(rows, meta.question);
+  const accent = safeHex(meta.accent, "#18181b");
+  const accent2 = safeHex(meta.accent2, accent);
+
+  // Orientation follows the widest thing on the page, which is always the table —
+  // the chart is laid out to whatever page it is given.
+  const colCount = rows.length ? Object.keys(rows[0]).length : 0;
+  const doc = new PDFDocument({ size: "A4", layout: colCount > 5 ? "landscape" : "portrait", margin: 40 });
 
   const chunks: Buffer[] = [];
   doc.on("data", (c: Buffer) => chunks.push(c));
   const done = new Promise<Buffer>((resolve) => doc.on("end", () => resolve(Buffer.concat(chunks))));
 
-  doc.fontSize(15).fillColor("#111").text(meta.question, { width: doc.page.width - 72 });
-  doc.moveDown(0.2);
-  doc.fontSize(8).fillColor("#888").text(
-    `${meta.lenderName} · generated ${new Date().toISOString().slice(0, 16).replace("T", " ")}${meta.actorName ? ` · by ${meta.actorName}` : ""}`,
-  );
-  doc.moveDown(0.8);
+  coverBand(doc, meta, plan, accent, accent2);
 
-  if (cols.length === 0) {
-    doc.fontSize(10).fillColor("#333").text("No rows.");
-    doc.end();
-    return done;
+  let y = 118;
+  y = kpiRow(doc, plan, y, accent);
+
+  if (plan.form !== "table" && plan.points.length > 0) {
+    doc.fillColor(FAINT).font("Helvetica-Oblique").fontSize(6.5)
+      .text(plan.rationale, 40, y - 14, { width: doc.page.width - 80, ellipsis: true });
+
+    const room = Math.min(240, doc.page.height - y - 200);
+    y = plan.form === "hero"
+      ? heroFigure(doc, plan, y, accent)
+      : plan.form === "bar"
+        ? barChart(doc, plan, y, Math.max(70, room))
+        : columnChart(doc, plan, y, Math.max(90, room));
   }
 
-  const avail = doc.page.width - 72;
-  const w = avail / cols.length;
-  const line = (y: number) => doc.moveTo(36, y).lineTo(doc.page.width - 36, y).strokeColor("#ddd").lineWidth(0.5).stroke();
-
-  const header = (y: number) => {
-    doc.fontSize(8).fillColor("#555");
-    cols.forEach((c, i) => doc.text(String(c), 36 + i * w, y, { width: w - 4, ellipsis: true }));
-    line(y + 11);
-    return y + 15;
-  };
-
-  let y = header(doc.y);
-  for (const r of rows) {
-    // A new page needs its header repeated, or page 2 is a wall of unlabelled numbers.
-    if (y > doc.page.height - 54) { doc.addPage(); y = header(36); }
-    doc.fontSize(8).fillColor("#222");
-    cols.forEach((c, i) => {
-      const v = r[c];
-      doc.text(v === null || v === undefined ? "" : String(cell(v)), 36 + i * w, y, {
-        width: w - 4, ellipsis: true, align: isNum(v) ? "right" : "left",
-      });
-    });
-    y += 13;
+  if (rows.length === 0) {
+    doc.fillColor(MUTED).font("Helvetica").fontSize(10).text("No rows matched this question.", 40, y);
+  } else {
+    y = dataTable(doc, rows, y + 4);
+    doc.fillColor(FAINT).font("Helvetica").fontSize(6.5)
+      .text(`${rows.length} row${rows.length === 1 ? "" : "s"}`, 40, y + 6);
   }
 
-  line(y + 2);
-  doc.fontSize(7).fillColor("#999").text(`${rows.length} row(s)`, 36, y + 6);
+  // The query, on its own page. The promise the chat panel makes — "you can check
+  // this number" — has to survive the file leaving the chat panel.
   if (meta.sql) {
-    doc.addPage({ size: "A4", layout: "portrait", margin: 36 });
-    doc.fontSize(10).fillColor("#111").text("The query that produced this report");
-    doc.moveDown(0.5);
-    doc.fontSize(7).fillColor("#555").font("Courier").text(meta.sql, { width: doc.page.width - 72 });
+    doc.addPage({ size: "A4", layout: "portrait", margin: 40 });
+    doc.rect(0, 0, doc.page.width, 6).fill(accent);
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(11)
+      .text("The query that produced this report", 40, 42);
+    doc.fillColor(MUTED).font("Helvetica").fontSize(7.5)
+      .text("Read-only, and scoped to your organisation by the database itself. Re-run it and you will get these rows.",
+        40, 60, { width: doc.page.width - 80 });
+    doc.fillColor("#3f3f46").font("Courier").fontSize(7.5)
+      .text(meta.sql, 40, 86, { width: doc.page.width - 80 });
   }
 
   doc.end();

@@ -530,6 +530,26 @@ model Borrower {
   hubUserId              String? // birgenai.com account id (federated login)
   deviceFingerprint      String?
 
+  /// PORTAL PIN — how a KNOWN customer gets back into their own portal.
+  ///
+  /// The first visit is still phone + OTP: that proves possession of a number we
+  /// can reach, which is the only thing a stranger can prove. But an SMS round
+  /// trip on every return visit costs the lender money, fails on a flat battery in
+  /// a coverage hole, and trains people to expect codes — which is exactly what a
+  /// phishing SMS relies on. So a returning customer identifies with their
+  /// national ID and unlocks with a PIN they chose or were issued.
+  ///
+  /// bcrypt, never the digits: a database read must not yield live credentials.
+  /// The lockout fields are what make a 6-digit secret defensible — a million
+  /// combinations is nothing to a script and everything to a human with five
+  /// tries. Reset is a STAFF action from Customer-360 (audited), or a self-serve
+  /// fall back to phone + OTP, which is the account-recovery path that already
+  /// exists and is already proven.
+  portalPinHash        String?
+  portalPinSetAt       DateTime?
+  portalPinAttempts    Int       @default(0)
+  portalPinLockedUntil DateTime?
+
   /// WHO owns this customer and WHERE they belong. Both are stamped at registration
   /// and are what every data-scope decision reads (src/lib/rbac/scope.ts).
   /// A borrower who arrived through the public portal has no officer; they are stamped
