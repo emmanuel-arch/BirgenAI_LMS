@@ -146,6 +146,8 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
     mode === "signin" ? "Staff access"
       : mode === "otp" ? "Second factor"
         : "Account recovery";
+  /** No heading under it ⇒ the label carries the row, and is sized to. */
+  const soloEyebrow = !heading;
 
   const mood: SentinelMood =
     loading ? "working"
@@ -184,10 +186,23 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
                 already said which lender this is, and "Sign in to Mular Credit Ltd"
                 under a Mular logo is the same sentence twice. The recovery and
                 second-factor steps still carry a title, because there the eyebrow
-                alone would not say what the screen wants from you. */}
-            <div className="mt-5 flex items-start justify-between gap-4">
+                alone would not say what the screen wants from you.
+
+                So the label is sized for the JOB IT IS DOING, not for its name.
+                Standing alone it inherits the space the deleted heading left —
+                sitting lower, set larger, and centred against the Sentinel so the
+                row reads as one deliberate line rather than a caption that lost
+                its title. Above a real heading it shrinks back to a true eyebrow,
+                because two things competing to be the heading is worse than
+                either of them being it. */}
+            <div className={`flex justify-between gap-4 ${soloEyebrow ? "mt-8 items-center" : "mt-5 items-start"}`}>
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: accent }}>{eyebrow}</p>
+                <p
+                  className={`font-semibold uppercase ${soloEyebrow ? "text-[15px] tracking-[0.2em]" : "text-[11px] tracking-[0.16em]"}`}
+                  style={{ color: accent }}
+                >
+                  {eyebrow}
+                </p>
                 {heading && <h1 className="mt-1 text-[22px] font-bold leading-tight tracking-tight text-zinc-900">{heading}</h1>}
               </div>
               <AuthSentinel mood={mood} accent={accent} accent2={accent2} size={62} />
