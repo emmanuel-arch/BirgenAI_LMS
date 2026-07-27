@@ -9,8 +9,7 @@ import type { LenderBrand } from "@/lib/lms/branding";
 import { logoMetrics } from "@/lib/lms/logo";
 import CodeInput from "@/components/auth/CodeInput";
 import AuthAmbient from "@/components/auth/AuthAmbient";
-import AuthSentinel, { type SentinelMood } from "@/components/auth/AuthSentinel";
-import VaultSeal, { type VaultState } from "@/components/auth/VaultSeal";
+import AccessSeal, { type SealState } from "@/components/auth/AccessSeal";
 
 // Staff sign-in (org-scoped console). Borrowers never need this — the funnel
 // at / identifies them by phone inside the wizard.
@@ -26,8 +25,10 @@ import VaultSeal, { type VaultState } from "@/components/auth/VaultSeal";
 // LAYOUT: everything in this card is LEFT-ALIGNED except the logo. Centred forms
 // read like a consumer signup; a staff console is a workplace tool, and the eye
 // should fall down one edge — eyebrow, heading, fields, button — without hunting.
-// The Sentinel sits on the heading's right so the row is balanced without costing
-// a single pixel of vertical rhythm.
+// The Access Seal is part of the LOCKUP, not furniture parked at the far edge: it
+// sits immediately after the step label, so "STAFF ACCESS 🔒" reads as one object.
+// Pushed to the right margin it was a decoration floating in whitespace; beside
+// the words it is a padlock ON the words, which is the whole point of it.
 type Mode = "signin" | "otp" | "forgot" | "reset";
 
 export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }) {
@@ -76,9 +77,10 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
         return;
       }
       if (!data.success) { setError(data.message || "Sign-in failed."); return; }
-      // Let the vault finish opening before the console replaces the screen — the
-      // seal snapping shut mid-animation is the difference between a product and a
-      // prototype. Only on the OTP path; a bare password sign-in has no vault.
+      // Let the seal finish opening before the console replaces the screen — the
+      // shackle snapping shut mid-animation is the difference between a product and
+      // a prototype. Only on the OTP path; a bare password sign-in has no second
+      // door to open, so it goes straight through.
       if (withOtp) {
         setSealed(true);
         setTimeout(() => router.replace("/console"), 620);
@@ -138,23 +140,30 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
   // what actually made the heading look shoved down the card.
   const logo = logoMetrics("auth", brand?.logoScale);
 
+  // ONE label per step. The OTP step used to carry both "Second factor" (eyebrow)
+  // and "Enter today's code" (heading) — two ways of saying the same thing, with
+  // the more useful of the two demoted to small print. Now the instruction IS the
+  // label, set in the same treatment that "STAFF ACCESS" wears, so the two doors a
+  // staffer walks through look like a sequence rather than two different screens.
   const heading =
-    mode === "signin" ? ""
-      : mode === "otp" ? "Enter today's code"
-        : mode === "forgot" ? "Reset your password" : "Set a new password";
+    mode === "forgot" ? "Reset your password"
+      : mode === "reset" ? "Set a new password" : "";
   const eyebrow =
     mode === "signin" ? "Staff access"
-      : mode === "otp" ? "Second factor"
+      : mode === "otp" ? "Enter today's code"
         : "Account recovery";
   /** No heading under it ⇒ the label carries the row, and is sized to. */
   const soloEyebrow = !heading;
 
-  const mood: SentinelMood =
-    loading ? "working"
-      : error ? "error"
-        : focusField === "password" ? "password"
-          : focusField === "email" ? "email" : "idle";
-  const vault: VaultState = sealed ? "open" : loading ? "working" : error ? "error" : "sealed";
+  // The door's state, in one expression. Note the ORDER: a granted seal outranks
+  // everything, and a live error outranks whichever field has the caret — the mark
+  // must never sit there looking calm while a red banner is up.
+  const seal: SealState =
+    sealed ? "granted"
+      : loading ? "working"
+        : error ? "error"
+          : focusField === "password" ? "shielded"
+            : focusField === "email" ? "open" : "locked";
 
   return (
     <div className="min-h-screen relative text-zinc-900" style={accentVars}>
@@ -181,31 +190,38 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
               onError={(e) => (((e.target as HTMLImageElement).src = logoFallback))}
             />
 
-            {/* Heading row: label left, Sentinel right. Balanced, zero extra height.
-                On the sign-in step the eyebrow IS the heading — the logo above has
-                already said which lender this is, and "Sign in to Mular Credit Ltd"
-                under a Mular logo is the same sentence twice. The recovery and
-                second-factor steps still carry a title, because there the eyebrow
-                alone would not say what the screen wants from you.
+            {/* Heading lockup: label, then seal. On the sign-in and second-factor
+                steps the eyebrow IS the heading — the logo above has already said
+                which lender this is, and "Sign in to Mular Credit Ltd" under a Mular
+                logo is the same sentence twice. Only the recovery steps still carry a
+                title, because there the label alone would not say what the screen
+                wants from you.
 
                 So the label is sized for the JOB IT IS DOING, not for its name.
-                Standing alone it inherits the space the deleted heading left —
-                sitting lower, set larger, and centred against the Sentinel so the
-                row reads as one deliberate line rather than a caption that lost
-                its title. Above a real heading it shrinks back to a true eyebrow,
-                because two things competing to be the heading is worse than
+                Standing alone it inherits the space the absent heading left — sitting
+                lower and set larger. Above a real heading it shrinks back to a true
+                eyebrow, because two things competing to be the heading is worse than
                 either of them being it. */}
-            <div className={`flex justify-between gap-4 ${soloEyebrow ? "mt-8 items-center" : "mt-5 items-start"}`}>
-              <div className="min-w-0">
+            <div className={soloEyebrow ? "mt-8" : "mt-5"}>
+              {/* The seal rides WITH the label, not opposite it — so it stays in the
+                  lockup at every step, and the heading (when a step has one) flows
+                  underneath the pair rather than beside a floating glyph. */}
+              <div className="flex items-center gap-2.5">
+                {/* Letter-spacing is applied AFTER the last glyph too, so a tracked
+                    label carries an invisible 0.2em tail. Left in, the seal sits
+                    visibly further from "ACCESS" than the gap says it should — so
+                    the tail is subtracted back out and the optical gap is the real one. */}
                 <p
                   className={`font-semibold uppercase ${soloEyebrow ? "text-[15px] tracking-[0.2em]" : "text-[11px] tracking-[0.16em]"}`}
-                  style={{ color: accent }}
+                  style={{ color: accent, marginRight: soloEyebrow ? "-0.2em" : "-0.16em" }}
                 >
                   {eyebrow}
                 </p>
-                {heading && <h1 className="mt-1 text-[22px] font-bold leading-tight tracking-tight text-zinc-900">{heading}</h1>}
+                {/* Sized to the label it accompanies: a 34px lock next to an 11px
+                    eyebrow would be the tail wagging the dog. */}
+                <AccessSeal state={seal} accent={accent} accent2={accent2} size={soloEyebrow ? 34 : 26} />
               </div>
-              <AuthSentinel mood={mood} accent={accent} accent2={accent2} size={62} />
+              {heading && <h1 className="mt-1.5 text-[22px] font-bold leading-tight tracking-tight text-zinc-900">{heading}</h1>}
             </div>
 
             {error && (
@@ -259,12 +275,11 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
 
               {mode === "otp" && (
                 <motion.div key="otp" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-                  {/* One object instead of three sentences: a sealed vault that opens
-                      as the digits land. The bolts ARE the progress indicator. */}
-                  <div className="mt-4 flex justify-center">
-                    <VaultSeal state={vault} filled={otp.length} accent={accent} accent2={accent2} size={132} />
-                  </div>
-
+                  {/* No centrepiece here any more. The 132px vault door was the most
+                      elaborate thing on the screen and it guarded the LEAST important
+                      moment — a person copying six digits out of their inbox. The six
+                      boxes are the progress indicator; the seal in the lockup above
+                      carries the state, and opens when the code clears. */}
                   <div className="mt-5">
                     <CodeInput value={otp} onChange={(v) => { setOtp(v); if (error) setError(null); }} onComplete={(c) => submit(c)} disabled={loading || sealed} />
                   </div>
