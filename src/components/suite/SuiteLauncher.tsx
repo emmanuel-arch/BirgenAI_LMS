@@ -20,15 +20,19 @@ import {
   KeyRound, ArrowRight, ShieldCheck, Check, Globe, Lock, Layers, Sparkle, Building2,
 } from "lucide-react";
 import { SUITE_APPS, type SuiteApp } from "@/lib/suite/apps";
+import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 
 type Props = {
   who: string;
   orgName: string;
   /** App ids this person actually holds a role in. Others offer "request access". */
   entered: string[];
+  /** Resolved per request: each system's live href, and whether it has been split out. */
+  hosts: ResolvedSuiteApp[];
 };
 
-export default function SuiteLauncher({ who, orgName, entered }: Props) {
+export default function SuiteLauncher({ who, orgName, entered, hosts }: Props) {
+  const hostOf = (id: string) => hosts.find((h) => h.id === id);
   const reduce = useReducedMotion();
   const [hovered, setHovered] = useState<string | null>(null);
 
@@ -96,6 +100,8 @@ export default function SuiteLauncher({ who, orgName, entered }: Props) {
               <AppCard
                 app={app}
                 entered={entered.includes(app.id)}
+                href={hostOf(app.id)?.href ?? app.href}
+                federated={hostOf(app.id)?.federated ?? false}
                 onHover={() => setHovered(app.id)}
                 onLeave={() => setHovered(null)}
               />
@@ -123,15 +129,19 @@ export default function SuiteLauncher({ who, orgName, entered }: Props) {
             <Explainer
               icon={Globe}
               title="Real subdomains, real separation"
-              body="Each system deploys independently on its own subdomain. One can be upgraded, scaled or taken down without touching the others — and your people never notice a boundary."
+              body="Every system has its own subdomain reserved, and moves onto it one at a time — no flag day. Once split, each can be upgraded, scaled or taken down without touching the others, and your people never notice a boundary."
             />
           </div>
         </motion.div>
 
+        {/* Every claim on this line is mechanically true of the current build, and
+            deliberately no more than that: the cookie really is one domain-scoped
+            cookie (lib/suite/hosts.ts), signing out really does clear it for the
+            whole suite (lib/auth.ts), and the expiry really is 12 hours. */}
         <motion.p {...rise(10)} className="t-meta mt-4 flex items-center gap-2 px-1 text-[11px]">
           <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-          Federated single sign-on. Sessions are signed, short-lived and revocable centrally — signing
-          someone out of BirgenAI ID signs them out of every system at once.
+          Federated single sign-on. Your session is a single signed, domain-scoped cookie that expires
+          after 12 hours — so signing out of BirgenAI ID signs you out of every system at once.
         </motion.p>
       </div>
     </div>
@@ -192,10 +202,14 @@ function IdentityRail({ hovered, reduce }: { hovered: string | null; reduce: boo
 
 // ── One system ────────────────────────────────────────────────────────────────
 function AppCard({
-  app, entered, onHover, onLeave,
+  app, entered, href, federated, onHover, onLeave,
 }: {
   app: SuiteApp;
   entered: boolean;
+  /** Its own origin once split out; the in-app route until then. */
+  href: string;
+  /** True when this system is already serving from its own subdomain. */
+  federated: boolean;
   onHover: () => void;
   onLeave: () => void;
 }) {
@@ -253,7 +267,14 @@ function AppCard({
       )}
 
       <div className="relative mt-3 flex items-center justify-between gap-2">
-        <span className="font-mono text-[10px] text-[color:var(--ink-faint)]">{app.subdomain}</span>
+        {/* The subdomain is shown as a live fact when the system is really there,
+            and as its reserved destination when it is not — never as a claim that
+            a split has happened when it has not. */}
+        <span className="inline-flex items-center gap-1 font-mono text-[10px] text-[color:var(--ink-faint)]">
+          {federated && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />}
+          {app.subdomain}
+          {!federated && !app.system && <span className="font-sans not-italic"> · reserved</span>}
+        </span>
         <span
           className="inline-flex items-center gap-1.5 text-[13px] font-semibold transition-transform duration-300 group-hover:translate-x-0.5"
           style={{ color: app.accent }}
@@ -265,8 +286,18 @@ function AppCard({
     </div>
   );
 
+  // A federated system is a different ORIGIN, so it gets a plain anchor: Next's
+  // client router cannot prefetch or soft-navigate across origins, and asking it to
+  // only produces a failed prefetch before the full load happens anyway.
+  if (federated) {
+    return (
+      <a href={href} className="block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)]">
+        {card}
+      </a>
+    );
+  }
   return (
-    <Link href={app.href} className="block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)] rounded-2xl">
+    <Link href={href} className="block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)] rounded-2xl">
       {card}
     </Link>
   );

@@ -12,6 +12,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRights } from "@/lib/rbac/authz";
 import { SUITE_APPS } from "@/lib/suite/apps";
+import { resolveSuite } from "@/lib/suite/hosts";
 import SuiteLauncher from "@/components/suite/SuiteLauncher";
 
 export const runtime = "nodejs";
@@ -45,6 +46,10 @@ export default async function SuiteLauncherPage() {
         who={session.user.name ?? session.user.email ?? "Signed in"}
         orgName={org?.name ?? "Your organisation"}
         entered={entered}
+        // Where each system actually lives right now: its own origin once split
+        // out, its in-app route until then. Resolved on the server because the
+        // environment is the only thing that knows.
+        hosts={resolveSuite()}
       />
     </div>
   );

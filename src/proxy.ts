@@ -11,17 +11,17 @@
 // subdomain passes straight through, so the portal code is never touched.
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-
-// Labels that are platform surfaces, never a lender slug. Mirrors the borrower
-// portal's own reserved list so the two agree on "what is a lender subdomain".
-const RESERVED = new Set([
-  "lms", "www", "api", "app", "admin", "console", "hub", "birgenai", "platform", "login", "onboard", "localhost",
-]);
+// ONE reserved list, shared with org signup (api/orgs) — see lib/suite/hosts.ts.
+// This file and that route used to keep separate lists which had already drifted
+// apart, and the suite subdomains (people/books/desk/my) would have been read here
+// as lender slugs: a request to desk.birgenai.com would have been served the
+// borrower funnel for a lender named "desk".
+import { isReservedLabel } from "@/lib/suite/hosts";
 
 /** True when the request is on a real lender subdomain (mular.birgenai.com). */
 function isLenderSubdomain(host: string): boolean {
   const label = host.split(".")[0] ?? "";
-  if (!label || RESERVED.has(label) || /^\d+$/.test(label)) return false;
+  if (!label || isReservedLabel(label) || /^\d+$/.test(label)) return false;
   if (host.endsWith(".localhost")) return true;              // mular.localhost (dev)
   if (host.endsWith(".vercel.app")) return false;            // preview builds = apex
   return host.split(".").length >= 3;                        // mular.birgenai.com

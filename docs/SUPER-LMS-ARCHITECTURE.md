@@ -281,19 +281,111 @@ Nothing on that list is a developer task. That is the point.
 
 ## 8. Phase plan
 
-| Phase | Deliverable | Unlocks |
-| --- | --- | --- |
-| **0** | Suite launcher + console app-switcher, console theme | The demo narrative |
-| **1** | Role-aware Filter Surface | Item 2 — visible sophistication, no schema change |
-| **2** | TDL core (`ConfigDefinition/Version/Value`) + `ConfigForm` renderer | The foundation |
-| **3** | Settings & Vault on the launcher grid, live-apply | Item 4 |
-| **4** | Borrower Settings — 6 namespaces on the TDL | Item 5 |
-| **5** | Product blocks + versioning + template packs | Beats their wizard outright |
-| **6** | Decision fabric with reason codes | The Mular centrepiece |
-| **7** | Real subdomain split for the satellites | Federation in production |
+| Phase | Deliverable | Status | Unlocks |
+| --- | --- | --- | --- |
+| **0** | Suite launcher + console app-switcher, console theme | ✅ done | The demo narrative |
+| **1** | Role-aware Filter Surface | ✅ done | Item 2 — visible sophistication, no schema change |
+| **2** | TDL core (`OrgConfig` / `OrgConfigRevision`) + one `/api/config/:ns` | ✅ done | The foundation |
+| **3** | Settings & Vault on the launcher grid, live-apply | ✅ done | Item 4 |
+| **4** | Borrower Settings — 6 sections on the TDL | ✅ done | Item 5 |
+| **5** | Product blocks + versioning + template packs | ✅ done | Beats their wizard outright |
+| **6** | Decision fabric with reason codes | ✅ done | The Mular centrepiece |
+| **7** | Real subdomain split for the satellites | ✅ done | Federation in production |
 
-Phases 0–1 are demo-facing and land first. Phase 2 is the load-bearing one; 3–5 are then fast
-because they are all the same renderer.
+Phases 0–1 are demo-facing and landed first. Phase 2 is the load-bearing one; 3–5 followed fast
+because they are all the same idea.
+
+### What Phase 5 actually shipped
+
+- `ProductVersion` — immutable snapshot per publish; `Product.version` counts, the flat columns
+  become a **projection** of the live version (`projectToColumns`) so every pre-existing query
+  keeps working unchanged.
+- `Loan.productVersionId` / `LoanApplication.productVersionId` — stamped at booking
+  (`lib/lending/book.ts`), so a loan can name the catalogue entry it came off forever.
+- Eight blocks (`lib/products/definition.ts`) replacing 60 untyped `int?` columns, with
+  **cross-block validation** their model cannot express — a monthly rate on a sub-monthly loan, a
+  security-derived limit on a product requiring no security, an uncapped recurring rollover penalty.
+- Five template packs (`lib/products/templates.ts`) — Micro Business, Salary Advance, Asset
+  Finance, Logbook, Group/Chama — verified by `npm run test:products`, which also round-trips the
+  column projection to prove a legacy product's first publish cannot corrupt its own terms.
+- `POST /api/console/products/publish` is now the **only** write path for terms; the old
+  field-by-field `POST`/`PUT` is gone rather than deprecated, because a bypass that exists is a
+  bypass that will be used. `PUT` keeps shelving only — that changes nothing anyone agreed to.
+- Version history with **loan counts per version** — the blast radius, which is the question a
+  credit manager actually asks before moving a rate — plus a field-level diff between any two.
+
+### What Phase 6 actually shipped
+
+The centrepiece already existed — `lib/lending/qualify.ts` turns an internal score into a starting
+limit, a matched product and reason codes. But it was **Mular's underwriting compiled into the
+platform**: a hardcoded `SCORE_CEILING` table, the INUKA/KUZA/FADHILI ladder, product matching by
+*name prefix*, and a 6-week/37.5% reference loan. The second lender needs different ceilings; the
+third does not name their products INUKA; the fourth lends monthly. On that shape each is a code
+change shipped to everyone.
+
+- **`credit` — a new TDL namespace** (`lib/decision/policy.ts`). Score ceilings, capacity model,
+  hard stops, haircuts, matching mode and verdict bands are now a lender's own document. What
+  deliberately did *not* move: how a statement becomes a score. A score a lender can dial is not a
+  score — policy decides what to *do* with it.
+- **A seven-stage pipeline** (`lib/decision/engine.ts`):
+  `capacity → stops → limit → match → price → route → verdict`. Pure and serialisable — same
+  context, same decision, always. Every stage emits reason codes; the full trace is returned and
+  stored on the application.
+- **Rules-mode matching** reads each product's own published `eligibility` block — minimum score,
+  cleared loans, age, one-at-a-time — instead of a name prefix. A lender writes the rule once, on
+  the product, and the engine obeys it without knowing anything about that lender.
+- **`POST /api/decisions`** — the same `decide()` the console calls, no second implementation to
+  drift. Persists verdict, reason codes and the priced product **version** when given an
+  `applicationId`.
+- **Parity is proven, not asserted.** `npm run test:decisions` runs the new engine under a
+  `MULAR_POLICY` preset against the live `qualify()` over ten borrower profiles and diffs limit,
+  tier, ceilings, recommendation, per-shilling pricing and decline reasons. It also exercises what
+  the old path could never do: product-level eligibility gating, policy haircuts, and reachable
+  auto-approve bands with an amount cap.
+
+The parity run caught one genuine defect on the way in: a declined applicant was still being
+reported with a tier, which reads on screen as an offer that was withdrawn.
+
+`qualify.ts` remains the live Mular path until `/api/enterprise/statement-cruncher` is cut over,
+and now carries a header saying so, so no new rule is added to the wrong engine.
+
+### What Phase 7 actually shipped
+
+Phase 7 found that **the federation story was not yet true in production**, and made it true.
+
+- **The session cookie had no `domain`.** A cookie set on `lms.birgenai.com` with no domain
+  attribute is *host-only* — the browser will not send it to `people.birgenai.com`. Single sign-on
+  "worked" purely because all five systems were one deployment. `SUITE_COOKIE_DOMAIN` now scopes it
+  to the parent domain, which is the entire mechanism the suite rests on.
+- **Set and clear are built from one `cookieIdentity()`.** A cookie is identified by
+  `(name, domain, path)`; clearing with a different domain writes a *second, empty* cookie beside
+  the live one and the browser keeps sending the original — a signed-out user who is still signed
+  in. This is now structurally impossible.
+- **The reserved-label lists were unified.** `src/proxy.ts` and `api/orgs` each kept their own hand-
+  maintained list and had **already drifted**, and neither carried the satellite labels — so a
+  lender could have signed up as `desk` and taken `desk.birgenai.com` out from under the
+  call-centre. There is now one list (`lib/suite/hosts.ts`), derived partly from `SUITE_APPS`, so
+  adding a system to the launcher reserves its subdomain automatically.
+- **`SUITE_<ID>_ORIGIN` moves a system onto its own host, one at a time.** Unset means it keeps its
+  in-app route; a malformed value degrades to that route rather than a dead link. No flag day.
+- **Cross-origin links use plain anchors,** since the client router cannot soft-navigate off the
+  current origin — `Link` would only add a failed prefetch before the full load happens anyway.
+- **The launcher's copy was corrected** to say only what is mechanically true of the build, and the
+  subdomain on each card now reads as *live* (green dot) or *reserved*, never as a split that has
+  not happened.
+
+`npm run test:federation` covers domain normalisation and rejection (`.localhost`, empty, `.`),
+set/clear symmetry, every reserved label including case-insensitivity, that real lender slugs
+(`mular`, `micromart`) stay available, origin resolution with trailing slashes, and malformed-origin
+fallback.
+
+### Deployment contract
+
+| Variable | Purpose |
+| --- | --- |
+| `SUITE_COOKIE_DOMAIN` | Parent domain for the session cookie. Blank in dev/preview. |
+| `SUITE_PORTAL_ORIGIN` etc. | Move one system onto its own origin. Blank = in-app route. |
+| `NEXTAUTH_SECRET` | **Must be identical across every satellite** — it is what lets them verify a BirgenAI ID issued here. |
 
 ---
 

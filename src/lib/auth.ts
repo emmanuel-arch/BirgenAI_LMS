@@ -9,6 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
+import { cookieDomain } from "@/lib/suite/hosts";
 
 /** Also read by the Prisma client to resolve the RLS tenant (db/session-tenant.ts). */
 export const SESSION_COOKIE = "lms_session";
@@ -50,7 +51,31 @@ export async function auth(): Promise<Session> {
   }
 }
 
-/** Issue the session cookie (call from a route handler after verifying credentials). */
+/**
+ * The cookie's identity: name, path and DOMAIN.
+ *
+ * Shared by the setter and the clearer on purpose. A cookie is identified by the
+ * triple (name, domain, path); clearing it with a different domain than it was set
+ * with does not delete it, it writes a SECOND, empty cookie beside the live one —
+ * and the browser keeps sending the original. That is a signed-out user who is
+ * still signed in, which is the worst possible way to get this wrong.
+ *
+ * `domain` is undefined outside production (see lib/suite/hosts.ts), which makes
+ * the cookie host-only — the safe default, and exactly right for a single-deployment
+ * demo where every system shares a host anyway.
+ */
+function cookieIdentity() {
+  const domain = cookieDomain();
+  return { name: COOKIE, path: "/", ...(domain ? { domain } : {}) };
+}
+
+/**
+ * Issue the session cookie (call from a route handler after verifying credentials).
+ *
+ * Scoped to the parent domain in production, which is the mechanism the whole
+ * connected suite rests on: one sign-in at lms.birgenai.com is honoured at
+ * people.birgenai.com because the browser sends the same cookie to both.
+ */
 export async function createSession(user: SessionUser): Promise<void> {
   const token = await new SignJWT({ user } as JWTPayload)
     .setProtectedHeader({ alg: "HS256" })
@@ -58,18 +83,26 @@ export async function createSession(user: SessionUser): Promise<void> {
     .setExpirationTime(`${MAX_AGE_S}s`)
     .sign(secret());
   const jar = await cookies();
-  jar.set(COOKIE, token, {
+  jar.set({
+    ...cookieIdentity(),
+    value: token,
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    path: "/",
     maxAge: MAX_AGE_S,
   });
 }
 
+/**
+ * Sign out — of every system at once.
+ *
+ * Because the cookie is one domain-scoped cookie rather than five host-scoped ones,
+ * clearing it here clears it for the whole suite. That is what makes the launcher's
+ * promise true rather than aspirational.
+ */
 export async function destroySession(): Promise<void> {
   const jar = await cookies();
-  jar.set(COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+  jar.set({ ...cookieIdentity(), value: "", httpOnly: true, maxAge: 0 });
 }
 
 /** Org-admin surfaces (vault, users, manual backfill trigger). */

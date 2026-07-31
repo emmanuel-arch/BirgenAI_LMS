@@ -16,8 +16,15 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Grip, KeyRound, ArrowUpRight } from "lucide-react";
 import { SUITE_APPS } from "@/lib/suite/apps";
+import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 
-export default function SuiteSwitcher({ currentId = "lms" }: { currentId?: string }) {
+export default function SuiteSwitcher({
+  currentId = "lms", hosts = [],
+}: {
+  currentId?: string;
+  /** Resolved server-side: each system's live href once it has its own origin. */
+  hosts?: ResolvedSuiteApp[];
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -71,10 +78,15 @@ export default function SuiteSwitcher({ currentId = "lms" }: { currentId?: strin
           <div className="p-1.5">
             {SUITE_APPS.map((app) => {
               const here = app.id === currentId;
+              const host = hosts.find((h) => h.id === app.id);
+              // Cross-origin destinations get a plain anchor — the client router
+              // cannot soft-navigate off this origin, and Link would only add a
+              // failed prefetch before the full page load happens regardless.
+              const Nav = (host?.federated ? "a" : Link) as typeof Link;
               return (
-                <Link
+                <Nav
                   key={app.id}
-                  href={app.href}
+                  href={host?.href ?? app.href}
                   onClick={() => setOpen(false)}
                   className={`group flex items-start gap-3 rounded-xl px-2.5 py-2.5 transition-colors ${
                     here ? "bg-[color:var(--ink)]/[0.04]" : "hover:bg-[color:var(--ink)]/[0.04]"
@@ -114,7 +126,7 @@ export default function SuiteSwitcher({ currentId = "lms" }: { currentId?: strin
                   {!here && (
                     <ArrowUpRight className="mt-1 h-3.5 w-3.5 shrink-0 text-[color:var(--ink-faint)] opacity-0 transition-opacity group-hover:opacity-100" />
                   )}
-                </Link>
+                </Nav>
               );
             })}
           </div>

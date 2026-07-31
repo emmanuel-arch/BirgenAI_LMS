@@ -1,4 +1,22 @@
 // ─────────────────────────────────────────────────────────────────────────────
+// ⚠ SUPERSEDED BY src/lib/decision/engine.ts — DO NOT ADD RULES HERE.
+//
+// This file is MULAR'S underwriting, hardcoded: the SCORE_CEILING table, the
+// INUKA/KUZA/FADHILI ladder, the name-prefix product match and the 6-week/37.5%
+// reference loan are all one lender's numbers living in platform code. The decision
+// fabric replaces every one of them with policy a lender holds
+// (lib/decision/policy.ts, TDL namespace `credit`) plus the product's own published
+// eligibility block.
+//
+// It is still here because it is the LIVE path for Mular via
+// /api/enterprise/statement-cruncher, and it stays until that route is cut over.
+// `decide()` under MULAR_POLICY is proven to reproduce this function's output —
+// limit, tier, ceilings, recommendation, pricing and decline reasons — across ten
+// borrower profiles by `npm run test:decisions`. The cutover is: read the org's
+// `credit` policy, call `decide()`, map the result. Any new rule added here instead
+// of there will silently apply to Mular alone and to no other lender.
+//
+// ─────────────────────────────────────────────────────────────────────────────
 // STARTING LIMIT · PRODUCT MATCH · REASON CODES — the moment after the crunch.
 //
 // A brand-new customer has no cleared loans, so behavioural graduation (risk/

@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { getRights } from "@/lib/rbac/authz";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 import { navFor } from "@/lib/nav/registry";
+import { resolveSuite } from "@/lib/suite/hosts";
 import Shell from "@/components/shell/Shell";
 import RiriDock from "@/components/riri/RiriDock";
 import BrandHead from "@/components/BrandHead";
@@ -41,6 +42,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
         org={{ name: org.name, slug: org.slug, mode: org.mode, status: org.status, logoUrl: org.logoUrl, logoScale: org.logoScale }}
         user={{ name: session.user.name ?? "Staff", email: session.user.email, role: session.user.role }}
         impersonator={session.user.impersonator ? { name: session.user.impersonator.name } : null}
+        suiteHosts={resolveSuite()}
       >
         {children}
       </Shell>

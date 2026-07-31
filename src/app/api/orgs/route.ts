@@ -16,6 +16,7 @@ import { runAsPlatform } from "@/lib/db/context";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { putBrandLogo, InvalidImageError } from "@/lib/storage/provider";
 import { isHexColor, accentSoftFrom } from "@/lib/branding/palette";
+import { isReservedLabel } from "@/lib/suite/hosts";
 import { sendTemplatedEmail } from "@/lib/email/send";
 import { emailBrandFor } from "@/lib/email/layout";
 import { welcomeOrgEmail } from "@/lib/email/templates";
@@ -39,7 +40,10 @@ type Body = {
 };
 
 const SLUG_RE = /^[a-z][a-z0-9-]{2,30}$/;
-const RESERVED = new Set(["www", "api", "lms", "app", "admin", "console", "hub", "birgenai", "login", "onboard", "platform", "demo"]);
+// Reserved labels come from lib/suite/hosts.ts, which the request proxy also reads.
+// They were two hand-kept lists that had already drifted, and neither carried the
+// suite subdomains — so a lender could have signed up as "desk" and taken
+// desk.birgenai.com out from under the call-centre.
 
 /** Sensible defaults a new lender can rename, reshape or delete on day one. */
 // Each starter role ships with the VISIBILITY its job implies, not just its rights: an
@@ -105,7 +109,7 @@ export async function POST(req: NextRequest) {
   const password = body.password ?? "";
 
   if (name.length < 3) return NextResponse.json({ success: false, message: "Enter the organization name." }, { status: 400 });
-  if (!SLUG_RE.test(slug) || RESERVED.has(slug)) {
+  if (!SLUG_RE.test(slug) || isReservedLabel(slug)) {
     return NextResponse.json({ success: false, message: "Choose a different subdomain (lowercase letters, numbers, dashes)." }, { status: 400 });
   }
   if (!adminName || !adminEmail.includes("@")) {

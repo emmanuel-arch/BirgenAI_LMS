@@ -16,6 +16,9 @@ import {
   BORROWER_DEFAULTS, mergeBorrowerConfig, validateBorrowerConfig,
   type BorrowerConfig, type ConfigIssue,
 } from "./borrower";
+import {
+  CREDIT_DEFAULTS, mergeCreditPolicy, validateCreditPolicy, type CreditPolicy,
+} from "@/lib/decision/policy";
 
 /** Every namespace the platform knows, and how each is filled forward + checked. */
 const NAMESPACES = {
@@ -24,6 +27,12 @@ const NAMESPACES = {
     defaults: BORROWER_DEFAULTS as unknown,
     merge: mergeBorrowerConfig as (stored: unknown) => unknown,
     validate: validateBorrowerConfig as (c: unknown) => ConfigIssue[],
+  },
+  credit: {
+    label: "Credit policy",
+    defaults: CREDIT_DEFAULTS as unknown,
+    merge: mergeCreditPolicy as (stored: unknown) => unknown,
+    validate: validateCreditPolicy as (c: unknown) => ConfigIssue[],
   },
 } as const;
 
@@ -53,8 +62,9 @@ export async function read<T = unknown>(orgId: string, ns: Namespace): Promise<C
   return { value: spec.merge(row.value) as T, version: row.version, updatedAt: row.updatedAt, isDefault: false };
 }
 
-/** Typed convenience for the namespace every screen touches. */
+/** Typed convenience for the namespaces the app reads by name. */
 export const readBorrowerConfig = (orgId: string) => read<BorrowerConfig>(orgId, "borrower");
+export const readCreditPolicy = (orgId: string) => read<CreditPolicy>(orgId, "credit");
 
 export type PublishResult =
   | { ok: true; version: number; value: unknown }

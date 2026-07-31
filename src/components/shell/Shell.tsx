@@ -32,6 +32,7 @@ import { useLoad } from "@/lib/hooks/useLoad";
 import { Menu, ShieldCheck, X } from "lucide-react";
 import type { NavModule } from "@/lib/nav/registry";
 import type { ShellOrg, ShellUser } from "./types";
+import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 import Sidebar from "./Sidebar";
 import ProfileMenu from "./ProfileMenu";
 import SuiteSwitcher from "./SuiteSwitcher";
@@ -42,12 +43,15 @@ export default function Shell({
   org,
   user,
   impersonator,
+  suiteHosts,
   children,
 }: {
   nav: NavModule[];
   org: ShellOrg;
   user: ShellUser;
   impersonator?: { name: string } | null;
+  /** Resolved server-side: where each suite system currently lives. */
+  suiteHosts: ResolvedSuiteApp[];
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -111,7 +115,7 @@ export default function Shell({
                 )}
                 {/* The suite grip sits beside the profile: identity on the right,
                     the systems that identity opens immediately to its left. */}
-                <SuiteSwitcher currentId="lms" />
+                <SuiteSwitcher currentId="lms" hosts={suiteHosts} />
                 {/* Far right: the authenticated profile, always. */}
                 <ProfileMenu name={user.name} email={user.email} role={user.role} />
               </div>
