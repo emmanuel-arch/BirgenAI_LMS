@@ -1,17 +1,25 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // THE CONNECTED SUITE — "BirgenAI ID".
 //
-// The CEO's ask: show the lending platform sitting alongside a HR system, an
-// accounting system and a call-centre system — each its OWN product with its OWN
-// login page — yet a user signs in ONCE and every system knows them.
+// Five systems, five front doors, one identity. The lending console is the anchor;
+// the customer portal, HR, accounting and the call-centre sit beside it as their
+// OWN products with their OWN login pages — yet a user signs in ONCE and every
+// system knows them, their org and their branch.
 //
-// In this demo the satellites live in the same app, so the session genuinely
-// carries across (real SSO, not a mock). In production they are separate
-// deployments federated by a shared identity token; the experience is identical,
-// and that is the point being sold: BirgenAI ID is the spine the rest plugs into.
+// In this build the satellites live in the same deployment, so the session
+// genuinely carries across (real SSO, not a mock). In production each moves to its
+// own subdomain federated by the shared `.birgenai.com` session cookie — the same
+// mechanism already proven for hub + Movies. The experience is identical, which is
+// the point being sold: BirgenAI ID is the spine the rest plugs into.
+//
+// WHAT CROSSES AND WHAT DOES NOT: identity, org and the branch tree cross. RIGHTS
+// DO NOT. An HR manager with full PeopleHub access must not inherit disbursement
+// authority in the LMS just because they share an ID — so each app declares the
+// right that admits you, and the launcher shows "request access" rather than a
+// door that opens onto a 403.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { ComponentType, CSSProperties } from "react";
-import { Landmark, Users2, Calculator, Headphones } from "lucide-react";
+import { Landmark, Users2, Calculator, Headphones, Smartphone } from "lucide-react";
 
 export type SuiteIcon = ComponentType<{ className?: string; style?: CSSProperties }>;
 
@@ -20,12 +28,22 @@ export type SuiteApp = {
   name: string;
   short: string;
   tagline: string;
+  /** What this system is FOR, in the lender's words — shown on the launcher card. */
+  purpose: string;
   accent: string;
   icon: SuiteIcon;
   href: string;
+  /** The subdomain this system gets when it is split out of this deployment. */
+  subdomain: string;
   /** true = this LMS itself (the anchor of the suite). */
   system: boolean;
+  /** The right that admits you here. Undefined = every signed-in staff member. */
+  right?: string;
+  /** Live today vs. shipping — honest labelling on the launcher. */
+  live: boolean;
   modules: string[];
+  /** One cross-system flow this app takes part in. The federation sales argument. */
+  handoff?: string;
   demo?: {
     kpis: { label: string; value: string }[];
     table: { title: string; cols: string[]; rows: string[][] };
@@ -38,22 +56,45 @@ export const SUITE_APPS: SuiteApp[] = [
     name: "Lending Console",
     short: "Lending",
     tagline: "Originate, score, disburse and collect — the core BirgenAI platform.",
+    purpose: "Where your officers work the book, every day.",
     accent: "#2a78d6",
     icon: Landmark,
     href: "/console",
+    subdomain: "lms.birgenai.com",
     system: true,
+    live: true,
     modules: ["Borrowers", "Loans", "Payments", "Collections", "Intelligence"],
+    handoff: "Every disbursement posts a journal to Ledgerly automatically.",
+  },
+  {
+    id: "portal",
+    name: "Customer Portal",
+    short: "Portal",
+    tagline: "Your borrowers apply, track and repay — in your brand, on their phone.",
+    purpose: "The front door your customers see.",
+    accent: "#0e7490",
+    icon: Smartphone,
+    href: "/",
+    subdomain: "my.birgenai.com",
+    system: false,
+    live: true,
+    modules: ["Apply", "My loans", "Repay", "Statements"],
+    handoff: "A portal application lands in the console queue already scored.",
   },
   {
     id: "hr",
     name: "PeopleHub HR",
     short: "HR",
     tagline: "Employees, payroll and leave for the whole lender — one directory.",
+    purpose: "The people behind the book.",
     accent: "#6d28d9",
     icon: Users2,
     href: "/suite/hr",
+    subdomain: "people.birgenai.com",
     system: false,
+    live: false,
     modules: ["Employees", "Payroll", "Leave", "Performance"],
+    handoff: "An officer's approved leave reassigns their collections queue in the LMS.",
     demo: {
       kpis: [
         { label: "Headcount", value: "48" },
@@ -79,11 +120,15 @@ export const SUITE_APPS: SuiteApp[] = [
     name: "Ledgerly Accounting",
     short: "Accounting",
     tagline: "General ledger, journals and statements — the books, kept straight.",
+    purpose: "The truth about the money.",
     accent: "#0f766e",
     icon: Calculator,
     href: "/suite/accounting",
+    subdomain: "books.birgenai.com",
     system: false,
+    live: false,
     modules: ["Chart of Accounts", "Journals", "Invoices", "P&L"],
+    handoff: "Loan-book cash and payroll reconcile against the same M-Pesa float ledger.",
     demo: {
       kpis: [
         { label: "Cash & bank", value: "KES 8.63M" },
@@ -109,11 +154,15 @@ export const SUITE_APPS: SuiteApp[] = [
     name: "ConnectDesk Call-Center",
     short: "Call-Center",
     tagline: "Queues, agents and dispositions — every customer conversation, logged.",
+    purpose: "Every conversation, on the record.",
     accent: "#be123c",
     icon: Headphones,
     href: "/suite/callcenter",
+    subdomain: "desk.birgenai.com",
     system: false,
+    live: false,
     modules: ["Live Queue", "Dispositions", "Agents", "SLA"],
+    handoff: "A missed installment opens a task here with the borrower's 360 attached.",
     demo: {
       kpis: [
         { label: "In queue", value: "6" },

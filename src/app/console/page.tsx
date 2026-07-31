@@ -3,11 +3,13 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRights } from "@/lib/rbac/authz";
 import { entitlementsFor } from "@/lib/billing/entitlements";
+import { resolveScope } from "@/lib/rbac/scope";
+import { capabilityFor } from "@/lib/dashboard/filters.server";
 import { LayoutGrid } from "lucide-react";
 import SetupChecklist, { type ChecklistItem } from "@/components/console/SetupChecklist";
 import ModuleLauncher from "@/components/console/ModuleLauncher";
 import CinematicDashboard from "@/components/dashboard/CinematicDashboard";
-import type { LiveSnapshot, Scope } from "@/lib/dashboard/model";
+import type { LiveSnapshot } from "@/lib/dashboard/model";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,15 +27,19 @@ export default async function Console() {
   });
   if (!org) redirect("/login");
 
-  const [rights, ent] = await Promise.all([getRights(session), entitlementsFor(orgId)]);
+  const [rights, ent, scope] = await Promise.all([
+    getRights(session),
+    entitlementsFor(orgId),
+    resolveScope(session),
+  ]);
 
-  // Who is asking, and how much of the book may they see? Mirrors the proc's three
-  // scopes: validator/admin → whole entity, authorizer → their unit, else own book.
-  const tiers = session.user.tiers;
   const adminRole = (session.user.role ?? "").toLowerCase().includes("admin");
   const isAdmin = rights.has("settings.manage") || rights.has("roles.manage") || adminRole;
-  const scope: Scope = (tiers?.validator || isAdmin) ? "entity" : tiers?.authorizer ? "unit" : "agent";
-  const canPickScope = isAdmin || !!tiers?.validator;
+
+  // How much of the book may they see, and along which axes may they re-cut it?
+  // Both answers come from the SAME resolved DataScope that filters their rows, so
+  // the filter surface can never offer a branch whose loans they may not read.
+  const capability = await capabilityFor(scope);
 
   // Real portfolio position (range-invariant, always "as of now"). An empty book
   // (a lender that just onboarded) yields null → the dashboard runs its showcase.
@@ -90,8 +96,7 @@ export default async function Console() {
         orgSlug={org.slug}
         accent={org.accent || "#0f172a"}
         accent2={org.accent2 || org.accent || "#334155"}
-        initialScope={scope}
-        canPickScope={canPickScope}
+        capability={capability}
         live={live}
       />
 

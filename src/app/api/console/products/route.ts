@@ -1,70 +1,32 @@
+// ─────────────────────────────────────────────────────────────────────────────
 // Console products API (staff, own org).
-//   GET  → active + inactive products for the org
-//   POST → create a product (admin only)
-//   PUT  → update a product by id (admin only)
+//
+//   GET → active + inactive products for the org
+//   PUT → shelve or unshelve a product: { id, isActive }
+//
+// TERMS ARE NOT WRITABLE HERE. Creating a product, and every subsequent change to
+// what it costs or how it repays, goes through POST /api/console/products/publish,
+// which snapshots an immutable ProductVersion and stamps it on every loan booked
+// afterwards. This route used to accept the full field set on POST and PUT; that is
+// exactly the shape that makes a product's past unknowable, so it is gone rather
+// than merely discouraged — a bypass that exists will eventually be used.
+//
+// `isActive` stays here on purpose: shelving a product does not change what anyone
+// already agreed to, so it is not a new version and should not create one.
+// ─────────────────────────────────────────────────────────────────────────────
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-type Body = {
-  id?: string;
-  name?: string;
-  description?: string;
-  minPrincipal?: number;
-  maxPrincipal?: number;
-  interestRate?: number;
-  interestMethod?: "flat" | "reducing";
-  interestType?: "fixed" | "variable";
-  principalType?: "standard" | "interest_first" | "balloon";
-  interestPeriodUnit?: string;
-  repaymentPeriod?: number;
-  repaymentPeriodUnit?: string;
-  gracePeriodDays?: number;
-  penaltyRate?: number;
-  earlySettlementEnabled?: boolean;
-  earlySettlementDays?: number | null;
-  earlySettlementRate?: number | null;
-  repaymentOrder?: string;
-  minLoanLimit?: number | null;
-  minCreditScore?: number;
-  guarantorRequired?: boolean;
-  guarantorReborrow?: boolean;
-  securityRequired?: boolean;
-  securityCoverPct?: number;
-  disbursementMode?: "B2C_MPESA" | "MANUAL" | "TO_THIRD_PARTY" | "LENDER_SIDE";
-  isActive?: boolean;
-  newWorkflowId?: string | null;
-  repeatWorkflowId?: string | null;
-};
-
-const INTEREST_TYPES = ["fixed", "variable"];
-const PRINCIPAL_TYPES = ["standard", "interest_first", "balloon"];
-/** Shared writable-field mapper for POST/PUT — the curated ServiceSuite subset. */
-function curatedFields(b: Body) {
-  return {
-    interestType: b.interestType && INTEREST_TYPES.includes(b.interestType) ? b.interestType : undefined,
-    principalType: b.principalType && PRINCIPAL_TYPES.includes(b.principalType) ? b.principalType : undefined,
-    earlySettlementEnabled: typeof b.earlySettlementEnabled === "boolean" ? b.earlySettlementEnabled : undefined,
-    earlySettlementDays: b.earlySettlementDays !== undefined ? (Number.isInteger(b.earlySettlementDays) ? b.earlySettlementDays : null) : undefined,
-    earlySettlementRate: b.earlySettlementRate !== undefined ? (Number.isFinite(Number(b.earlySettlementRate)) ? new Prisma.Decimal(Number(b.earlySettlementRate)) : null) : undefined,
-    repaymentOrder: b.repaymentOrder?.trim() || undefined,
-    minLoanLimit: b.minLoanLimit !== undefined ? (Number.isFinite(Number(b.minLoanLimit)) && Number(b.minLoanLimit) > 0 ? new Prisma.Decimal(Number(b.minLoanLimit)) : null) : undefined,
-    guarantorRequired: typeof b.guarantorRequired === "boolean" ? b.guarantorRequired : undefined,
-    guarantorReborrow: typeof b.guarantorReborrow === "boolean" ? b.guarantorReborrow : undefined,
-    securityRequired: typeof b.securityRequired === "boolean" ? b.securityRequired : undefined,
-    securityCoverPct: Number.isInteger(b.securityCoverPct) ? b.securityCoverPct : undefined,
-  };
-}
-
 export async function GET() {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
   const denied = await requireRight(session, "products.view");
   if (denied) return denied;
+
   const products = await prisma.product.findMany({
     where: { orgId: session.user.orgId },
     orderBy: [{ isActive: "desc" }, { minPrincipal: "asc" }],
@@ -73,95 +35,47 @@ export async function GET() {
   return NextResponse.json({ success: true, products });
 }
 
-function validate(b: Body): string | null {
-  if (!b.name || b.name.trim().length < 3) return "Enter the product name.";
-  const min = Number(b.minPrincipal), max = Number(b.maxPrincipal), rate = Number(b.interestRate);
-  if (!Number.isFinite(min) || min < 0) return "Enter a valid minimum principal.";
-  if (!Number.isFinite(max) || max < min) return "Maximum principal must be ≥ the minimum.";
-  if (!Number.isFinite(rate) || rate < 0 || rate > 100) return "Enter a valid interest rate (0–100%).";
-  const n = Number(b.repaymentPeriod);
-  if (!Number.isInteger(n) || n < 1 || n > 120) return "Repayment period must be 1–120 installments.";
-  return null;
-}
-
-export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
-  const denied = await requireRight(session, "products.manage");
-  if (denied) return denied;
-  let body: Body;
-  try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
-
-  const err = validate(body);
-  if (err) return NextResponse.json({ success: false, message: err }, { status: 400 });
-
-  const product = await prisma.product.create({
-    data: {
-      orgId: session.user.orgId,
-      name: body.name!.trim(),
-      description: body.description?.trim() || null,
-      minPrincipal: new Prisma.Decimal(Number(body.minPrincipal)),
-      maxPrincipal: new Prisma.Decimal(Number(body.maxPrincipal)),
-      interestRate: new Prisma.Decimal(Number(body.interestRate)),
-      interestMethod: body.interestMethod === "reducing" ? "reducing" : "flat",
-      interestPeriodUnit: body.interestPeriodUnit || "term",
-      repaymentPeriod: Number(body.repaymentPeriod),
-      repaymentPeriodUnit: body.repaymentPeriodUnit || "week",
-      gracePeriodDays: Number.isInteger(body.gracePeriodDays) ? body.gracePeriodDays! : 0,
-      penaltyRate: Number.isFinite(Number(body.penaltyRate)) ? new Prisma.Decimal(Number(body.penaltyRate)) : null,
-      minCreditScore: Number.isInteger(body.minCreditScore) ? body.minCreditScore! : null,
-      disbursementMode: body.disbursementMode ?? "B2C_MPESA",
-      isActive: body.isActive ?? true,
-      newWorkflowId: body.newWorkflowId || null,
-      repeatWorkflowId: body.repeatWorkflowId || null,
-      ...curatedFields(body),
-    },
-  });
-  await prisma.auditLog.create({
-    data: { orgId: session.user.orgId, actorId: session.user.id, actorType: "staff", action: "product.create", entity: "Product", entityId: product.id },
-  }).catch(() => {});
-  return NextResponse.json({ success: true, product });
-}
-
 export async function PUT(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
   const denied = await requireRight(session, "products.manage");
   if (denied) return denied;
-  let body: Body;
-  try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
+
+  let body: { id?: string; isActive?: boolean };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 });
+  }
   if (!body.id) return NextResponse.json({ success: false, message: "Product id required." }, { status: 400 });
+  if (typeof body.isActive !== "boolean") {
+    return NextResponse.json(
+      { success: false, message: "Only availability is set here. Publish a new version to change a product's terms." },
+      { status: 400 },
+    );
+  }
 
-  const existing = await prisma.product.findFirst({ where: { id: body.id, orgId: session.user.orgId } });
+  const existing = await prisma.product.findFirst({
+    where: { id: body.id, orgId: session.user.orgId },
+    select: { id: true },
+  });
   if (!existing) return NextResponse.json({ success: false, message: "Product not found." }, { status: 404 });
-
-  const err = validate({ ...existing, ...body, minPrincipal: Number(body.minPrincipal ?? existing.minPrincipal), maxPrincipal: Number(body.maxPrincipal ?? existing.maxPrincipal), interestRate: Number(body.interestRate ?? existing.interestRate), repaymentPeriod: body.repaymentPeriod ?? existing.repaymentPeriod, name: body.name ?? existing.name } as Body);
-  if (err) return NextResponse.json({ success: false, message: err }, { status: 400 });
 
   const product = await prisma.product.update({
     where: { id: existing.id },
-    data: {
-      name: body.name?.trim() ?? undefined,
-      description: body.description !== undefined ? body.description?.trim() || null : undefined,
-      minPrincipal: body.minPrincipal !== undefined ? new Prisma.Decimal(Number(body.minPrincipal)) : undefined,
-      maxPrincipal: body.maxPrincipal !== undefined ? new Prisma.Decimal(Number(body.maxPrincipal)) : undefined,
-      interestRate: body.interestRate !== undefined ? new Prisma.Decimal(Number(body.interestRate)) : undefined,
-      interestMethod: body.interestMethod ?? undefined,
-      repaymentPeriod: body.repaymentPeriod ?? undefined,
-      repaymentPeriodUnit: body.repaymentPeriodUnit ?? undefined,
-      gracePeriodDays: body.gracePeriodDays ?? undefined,
-      penaltyRate: body.penaltyRate !== undefined ? new Prisma.Decimal(Number(body.penaltyRate)) : undefined,
-      minCreditScore: body.minCreditScore !== undefined ? body.minCreditScore : undefined,
-      interestPeriodUnit: body.interestPeriodUnit || undefined,
-      disbursementMode: body.disbursementMode ?? undefined,
-      isActive: body.isActive ?? undefined,
-      newWorkflowId: body.newWorkflowId !== undefined ? body.newWorkflowId || null : undefined,
-      repeatWorkflowId: body.repeatWorkflowId !== undefined ? body.repeatWorkflowId || null : undefined,
-      ...curatedFields(body),
-    },
+    data: { isActive: body.isActive },
   });
+
   await prisma.auditLog.create({
-    data: { orgId: session.user.orgId, actorId: session.user.id, actorType: "staff", action: "product.update", entity: "Product", entityId: product.id },
+    data: {
+      orgId: session.user.orgId,
+      actorId: session.user.id,
+      actorType: "staff",
+      action: body.isActive ? "product.activate" : "product.deactivate",
+      entity: "Product",
+      entityId: product.id,
+    },
   }).catch(() => {});
+
   return NextResponse.json({ success: true, product });
 }

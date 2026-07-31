@@ -21,6 +21,10 @@ import {
   Percent, Calendar, ShieldCheck, GitBranch, Coins, ChevronRight,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
+import { PRODUCT_TEMPLATES, templateBlanks } from "@/lib/products/templates";
+import { formToDefinition, formFromDefinition, EMPTY_FORM, type Form } from "@/lib/products/form";
+import TemplateGallery from "@/components/products/TemplateGallery";
+import VersionPanel from "@/components/products/VersionPanel";
 
 type Product = {
   id: string; name: string; description: string | null;
@@ -31,33 +35,15 @@ type Product = {
   earlySettlementEnabled: boolean; earlySettlementDays: number | null; earlySettlementRate: string | number | null;
   minCreditScore: number | null;
   guarantorRequired: boolean; guarantorReborrow: boolean; securityRequired: boolean; securityCoverPct: number;
-  disbursementMode: string; isActive: boolean;
+  disbursementMode: string; isActive: boolean; version?: number;
   newWorkflowId: string | null; repeatWorkflowId: string | null;
 };
 
 const fmtKES = (n: string | number) => `KES ${Math.round(Number(n)).toLocaleString()}`;
 
-// The wizard's own form shape — everything a string so inputs stay controlled.
-type Form = {
-  id: string;
-  name: string; description: string;
-  principalType: string; minPrincipal: string; maxPrincipal: string; minLoanLimit: string;
-  interestType: string; interestMethod: string; interestRate: string; interestPeriodUnit: string;
-  earlySettlementEnabled: boolean; earlySettlementDays: string; earlySettlementRate: string;
-  repaymentPeriod: string; repaymentPeriodUnit: string; gracePeriodDays: string; penaltyRate: string; repaymentOrder: string;
-  minCreditScore: string; guarantorRequired: boolean; guarantorReborrow: boolean; securityRequired: boolean; securityCoverPct: string;
-  disbursementMode: string; newWorkflowId: string; repeatWorkflowId: string;
-};
-
-const EMPTY: Form = {
-  id: "", name: "", description: "",
-  principalType: "standard", minPrincipal: "1000", maxPrincipal: "50000", minLoanLimit: "",
-  interestType: "fixed", interestMethod: "flat", interestRate: "12", interestPeriodUnit: "term",
-  earlySettlementEnabled: false, earlySettlementDays: "", earlySettlementRate: "",
-  repaymentPeriod: "8", repaymentPeriodUnit: "week", gracePeriodDays: "0", penaltyRate: "5", repaymentOrder: "penalty,interest,principal,fees",
-  minCreditScore: "", guarantorRequired: false, guarantorReborrow: false, securityRequired: false, securityCoverPct: "100",
-  disbursementMode: "B2C_MPESA", newWorkflowId: "", repeatWorkflowId: "",
-};
+// The wizard's form shape and both converters now live in lib/products/form.ts —
+// the single place the string-keyed form and the typed block definition meet.
+const EMPTY = EMPTY_FORM;
 
 function fromProduct(p: Product): Form {
   return {
@@ -96,6 +82,11 @@ export default function ProductsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [workflows, setWorkflows] = useState<{ id: string; title: string }[]>([]);
   const [editing, setEditing] = useState<Form | null>(null); // non-null = wizard open
+  // The full document behind whatever the wizard is editing, so blocks the wizard
+  // does not render still survive the publish.
+  const [baseDef, setBaseDef] = useState<ReturnType<typeof formToDefinition> | null>(null);
+  const [picking, setPicking] = useState(false); // template gallery open
+  const [historyFor, setHistoryFor] = useState<Product | null>(null);
 
   const load = async () => {
     try {
@@ -121,7 +112,7 @@ export default function ProductsPage() {
     <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
       <div className="mt-3 flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold flex items-center gap-2"><Package className="h-5 w-5" style={{ color: "var(--brand)" }} /> Products</h1>
-        <button onClick={() => { setEditing(EMPTY); setNotice(null); setError(null); }}
+        <button onClick={() => { setPicking(true); setNotice(null); setError(null); }}
           className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
           <Plus className="h-3.5 w-3.5" /> New product
         </button>
@@ -147,7 +138,14 @@ export default function ProductsPage() {
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              <button onClick={() => { setEditing(fromProduct(p)); setNotice(null); setError(null); }}
+              {/* The version is the product's most load-bearing fact once loans are
+                  booked against it, so it sits on the card rather than two clicks in. */}
+              <button onClick={() => setHistoryFor(p)}
+                className="rounded-md bg-zinc-900/5 px-2 py-1 text-[10px] font-bold text-zinc-500 hover:text-zinc-800"
+                aria-label={`Version history for ${p.name}`}>
+                {p.version && p.version > 0 ? `v${p.version}` : "UNVERSIONED"}
+              </button>
+              <button onClick={() => { setEditing(fromProduct(p)); setBaseDef(null); setNotice(null); setError(null); }}
                 className="rounded-md border border-zinc-900/10 bg-white/70 p-1.5 text-zinc-500 hover:text-zinc-800" aria-label={`Edit ${p.name}`}>
                 <Pencil className="h-3.5 w-3.5" />
               </button>
@@ -160,12 +158,39 @@ export default function ProductsPage() {
         ))}
       </div>
 
+      {picking && (
+        <TemplateGallery
+          templates={PRODUCT_TEMPLATES}
+          blanksOf={templateBlanks}
+          onClose={() => setPicking(false)}
+          onPick={(def) => {
+            setPicking(false);
+            setBaseDef(def);
+            setEditing(def ? formFromDefinition(def) : EMPTY);
+            setNotice(null); setError(null);
+          }}
+        />
+      )}
+
       {editing && (
         <ProductWizard
           initial={editing}
+          baseDefinition={baseDef}
           workflows={workflows}
-          onClose={() => setEditing(null)}
-          onSaved={(name, isEdit) => { setEditing(null); setNotice(`Product "${name}" ${isEdit ? "updated" : "created"}.`); load(); }}
+          onClose={() => { setEditing(null); setBaseDef(null); }}
+          onSaved={(name, isEdit, version) => {
+            setEditing(null); setBaseDef(null);
+            setNotice(`"${name}" published as v${version}${isEdit ? "" : " — your first version"}.`);
+            load();
+          }}
+        />
+      )}
+
+      {historyFor && (
+        <VersionPanel
+          productId={historyFor.id}
+          productName={historyFor.name}
+          onClose={() => setHistoryFor(null)}
         />
       )}
     </main>
@@ -177,8 +202,13 @@ export default function ProductsPage() {
 const FIELD = "w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400";
 const LABEL = "text-xs font-semibold text-zinc-600";
 
-function ProductWizard({ initial, workflows, onClose, onSaved }: {
-  initial: Form; workflows: { id: string; title: string }[]; onClose: () => void; onSaved: (name: string, isEdit: boolean) => void;
+function ProductWizard({ initial, baseDefinition, workflows, onClose, onSaved }: {
+  initial: Form;
+  /** The full document being edited, so untouched blocks survive a publish. */
+  baseDefinition?: ReturnType<typeof formToDefinition> | null;
+  workflows: { id: string; title: string }[];
+  onClose: () => void;
+  onSaved: (name: string, isEdit: boolean, version: number) => void;
 }) {
   const [f, setF] = useState<Form>(initial);
   const [step, setStep] = useState(0);
@@ -213,36 +243,29 @@ function ProductWizard({ initial, workflows, onClose, onSaved }: {
   };
   const back = () => { setError(null); setStep((s) => Math.max(0, s - 1)); };
 
+  // Saving PUBLISHES A VERSION. There is deliberately no field-by-field update path:
+  // a product whose terms can be edited in place is a product whose past loans can no
+  // longer say what they agreed to. `baseDefinition` carries forward every block the
+  // wizard does not expose (rollover detail, skip days, evidence, availability) so
+  // editing the rate never silently resets a cap somebody set on purpose.
   const save = async () => {
     setSaving(true); setError(null);
     try {
-      const payload = {
-        ...(isEdit ? { id: f.id } : {}),
-        name: f.name.trim(), description: f.description.trim() || undefined,
-        principalType: f.principalType,
-        minPrincipal: Number(f.minPrincipal), maxPrincipal: Number(f.maxPrincipal),
-        minLoanLimit: f.minLoanLimit ? Number(f.minLoanLimit) : null,
-        interestType: f.interestType, interestMethod: f.interestMethod, interestRate: Number(f.interestRate),
-        interestPeriodUnit: f.interestPeriodUnit,
-        earlySettlementEnabled: f.earlySettlementEnabled,
-        earlySettlementDays: f.earlySettlementEnabled && f.earlySettlementDays ? Number(f.earlySettlementDays) : null,
-        earlySettlementRate: f.earlySettlementEnabled && f.earlySettlementRate ? Number(f.earlySettlementRate) : null,
-        repaymentPeriod: Number(f.repaymentPeriod), repaymentPeriodUnit: f.repaymentPeriodUnit,
-        gracePeriodDays: Number(f.gracePeriodDays) || 0, penaltyRate: f.penaltyRate ? Number(f.penaltyRate) : undefined,
-        repaymentOrder: f.repaymentOrder,
-        minCreditScore: f.minCreditScore ? Number(f.minCreditScore) : undefined,
-        guarantorRequired: f.guarantorRequired, guarantorReborrow: f.guarantorReborrow,
-        securityRequired: f.securityRequired, securityCoverPct: Number(f.securityCoverPct) || 100,
-        disbursementMode: f.disbursementMode,
-        newWorkflowId: f.newWorkflowId || null,
-        repeatWorkflowId: (f.repeatWorkflowId || f.newWorkflowId) || null,
-      };
-      const res = await fetch("/api/console/products", {
-        method: isEdit ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      const definition = formToDefinition(f, baseDefinition ?? undefined);
+      const res = await fetch("/api/console/products/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...(isEdit ? { productId: f.id } : {}), definition }),
       });
       const data = await res.json();
+      if (res.status === 422) {
+        // The server speaks in definition paths ("pricing.rate"); show the messages,
+        // which are written to be read by whoever is filling the form in.
+        setError((data.issues ?? []).map((i: { message: string }) => i.message).join(" "));
+        return;
+      }
       if (!data.success) { setError(data.message || "Could not save."); return; }
-      onSaved(data.product?.name ?? f.name, isEdit);
+      onSaved(f.name, isEdit, data.version);
     } catch { setError("Could not save."); } finally { setSaving(false); }
   };
 

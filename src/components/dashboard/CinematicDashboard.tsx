@@ -19,38 +19,61 @@ import {
 } from "recharts";
 import { Banknote, Landmark, Gauge, ArrowUpRight, ArrowDownRight, Activity } from "lucide-react";
 import {
-  simulate, applyLive, RANGES, SCOPES, KES, KESc, compact, pct,
-  type RangeKey, type Scope, type SeriesPoint, type LiveSnapshot,
+  simulate, applyLive, KES, KESc, compact, pct,
+  type Scope, type SeriesPoint, type LiveSnapshot,
 } from "@/lib/dashboard/model";
+import {
+  EMPTY_SELECTION, activeCount,
+  type FilterCapability, type FilterSelection,
+} from "@/lib/dashboard/filters";
+import FilterSurface from "./FilterSurface";
 
 type ChartType = "area" | "bar" | "line";
 
 const TONE: Record<string, string> = { good: "#16a34a", warn: "#f59e0b", high: "#f97316", bad: "#ef4444" };
 
+// The simulation still speaks in the proc's three scopes. The caller's DataScope
+// sets the WIDEST cut available; narrowing the filter tightens it from there, so
+// picking a single branch genuinely reads as a unit view rather than leaving the
+// headline figures on "whole book" while the chips say otherwise.
+function effectiveScope(capability: FilterCapability, sel: FilterSelection): Scope {
+  const base: Scope =
+    capability.scopeKind === "ORG" ? "entity" : capability.scopeKind === "OWN" ? "agent" : "unit";
+  if (sel.officerIds.length > 0) return "agent";
+  if (sel.branchIds.length > 0 && base === "entity") return "unit";
+  return base;
+}
+
 export default function CinematicDashboard({
-  orgName, orgSlug, accent, accent2, initialScope, canPickScope, live,
+  orgName, orgSlug, accent, accent2, capability, live,
 }: {
   orgName: string;
   orgSlug: string;
   accent: string;
   accent2: string;
-  initialScope: Scope;
-  canPickScope: boolean;
+  capability: FilterCapability;
   live?: LiveSnapshot | null;
 }) {
-  const [range, setRange] = useState<RangeKey>("30d");
-  const [scope, setScope] = useState<Scope>(initialScope);
+  const [filters, setFilters] = useState<FilterSelection>(EMPTY_SELECTION);
   const [chart, setChart] = useState<ChartType>("area");
-  const [compare, setCompare] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  const { range, compare } = filters;
+  const scope = effectiveScope(capability, filters);
+  const narrowed = activeCount(filters) > 0;
+
   const data = useMemo(() => {
-    const sim = simulate(range, scope, { seed: orgSlug });
-    // Live snapshot overrides range-invariant KPIs only on the whole-book view at
-    // the natural period; drilled-down scopes fall back to the modeled cut.
-    return live && scope === "entity" ? applyLive(sim, live) : sim;
-  }, [range, scope, orgSlug, live]);
+    // The seed carries the applied filter, so a cut is stable and reproducible:
+    // re-picking the same branch always yields the same figures rather than
+    // reshuffling the showcase under the founder mid-demo.
+    const seed = [orgSlug, ...filters.branchIds, ...filters.officerIds, ...filters.productIds].join("|");
+    const sim = simulate(range, scope, { seed });
+    // Live snapshot overrides range-invariant KPIs only on the UNFILTERED whole-book
+    // view; any drill-down falls back to the modeled cut, because a real total must
+    // never be presented as though it were a filtered subtotal.
+    return live && scope === "entity" && !narrowed ? applyLive(sim, live) : sim;
+  }, [range, scope, orgSlug, live, narrowed, filters.branchIds, filters.officerIds, filters.productIds]);
   const k = data.kpis;
 
   // Deltas vs the comparison period drive the trend chips.
@@ -77,17 +100,10 @@ export default function CinematicDashboard({
             </span>
           </div>
           <p className="mt-0.5 text-sm text-zinc-500">
-            {orgName} · {SCOPES.find((s) => s.key === scope)?.label} · updated moments ago
+            {orgName} · {narrowed ? "Filtered view" : capability.scopeLabel} · updated moments ago
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {canPickScope && (
-            <Segmented value={scope} onChange={(v) => setScope(v as Scope)}
-              options={SCOPES.map((s) => ({ value: s.key, label: s.label }))} accent={accent} />
-          )}
-          <Segmented value={range} onChange={(v) => setRange(v as RangeKey)}
-            options={RANGES.map((r) => ({ value: r.key, label: r.short }))} accent={accent} />
-        </div>
+        <FilterSurface capability={capability} value={filters} onChange={setFilters} accent={accent} />
       </div>
 
       {/* ── KPI hero row ────────────────────────────────────────────── */}
@@ -107,7 +123,7 @@ export default function CinematicDashboard({
         <Panel className="lg:col-span-2" title="Production & collections" subtitle="Money out vs money in"
           right={
             <div className="flex items-center gap-2">
-              <button onClick={() => setCompare((c) => !c)}
+              <button onClick={() => setFilters((f) => ({ ...f, compare: !f.compare }))}
                 className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ring-1 transition-colors ${compare ? "text-white" : "text-zinc-500 ring-zinc-900/10 hover:bg-zinc-900/5"}`}
                 style={compare ? { backgroundColor: accent, borderColor: accent } : undefined}>
                 vs previous

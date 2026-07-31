@@ -139,6 +139,22 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
   const loanAmount = sched.loanAmount;
   const expectedClearDate = sched.expectedClearDate;
 
+  // WHICH PUBLISHED PRODUCT THIS LOAN CAME OFF. The offer already freezes the MONEY
+  // (see above), so this is not what protects the borrower's terms — it is the
+  // catalogue provenance: which version of the product was on the shelf when this
+  // was sold, including the parts an offer does not carry (eligibility, evidence,
+  // rollover policy). Prefer the version the application was priced against; fall
+  // back to whatever is live now. Null only for products that predate versioning,
+  // and those self-heal on their owner's first publish.
+  const productVersionId =
+    app.productVersionId ??
+    (await prisma.productVersion.findFirst({
+      where: { productId: app.product.id, orgId: app.orgId },
+      orderBy: { version: "desc" },
+      select: { id: true },
+    }))?.id ??
+    null;
+
   const result = await orgTx(async (tx) => {
     const loan = await tx.loan.create({
       data: {
@@ -156,6 +172,7 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
         borrowerId: app.borrowerId,
         applicationId: app.id,
         productId: app.product!.id,
+        productVersionId,
         principal: new Prisma.Decimal(principal),
         interest: new Prisma.Decimal(interest),
         loanAmount: new Prisma.Decimal(loanAmount),

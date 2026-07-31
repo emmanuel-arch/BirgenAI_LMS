@@ -44,7 +44,11 @@ import { prisma } from "@/lib/prisma";
 import { runWithOrg } from "@/lib/db/context";
 import type { Session } from "@/lib/auth";
 
-export type DataScopeKind = "OWN" | "BRANCH" | "BRANCH_TREE" | "ORG";
+// Defined in scope-kind.ts (import-free) so client components can name a scope
+// without pulling Prisma into the browser bundle. Re-exported here so every
+// existing `import type { DataScopeKind } from "@/lib/rbac/scope"` still works.
+export type { DataScopeKind } from "./scope-kind";
+import type { DataScopeKind } from "./scope-kind";
 
 export type ResolvedScope = {
   kind: DataScopeKind;

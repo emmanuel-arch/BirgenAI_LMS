@@ -34,6 +34,7 @@ import type { NavModule } from "@/lib/nav/registry";
 import type { ShellOrg, ShellUser } from "./types";
 import Sidebar from "./Sidebar";
 import ProfileMenu from "./ProfileMenu";
+import SuiteSwitcher from "./SuiteSwitcher";
 import ImpersonationBanner from "./ImpersonationBanner";
 
 export default function Shell({
@@ -108,6 +109,9 @@ export default function Shell({
                     Pending activation
                   </span>
                 )}
+                {/* The suite grip sits beside the profile: identity on the right,
+                    the systems that identity opens immediately to its left. */}
+                <SuiteSwitcher currentId="lms" />
                 {/* Far right: the authenticated profile, always. */}
                 <ProfileMenu name={user.name} email={user.email} role={user.role} />
               </div>

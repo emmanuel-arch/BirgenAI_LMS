@@ -153,6 +153,7 @@ model Org {
   ririMemories        RiriMemory[]
   poolMembership      SharingPoolMember?
   standingOrders      StandingOrder[]
+  configs             OrgConfig[]
 }
 
 // ── Cross-entity data sharing ─────────────────────────────────────────────────
@@ -688,6 +689,12 @@ model Product {
   newWorkflowId      String?
   repeatWorkflowId   String?
   isActive           Boolean @default(true)
+
+  /// The published version these columns are a projection of. Bumped by
+  /// lib/products/versioning.ts on every publish; 0 means the product predates
+  /// versioning and has never been republished.
+  version Int @default(0)
+
   // Bridged link
   serviceSuiteProductId Int?
   createdAt DateTime @default(now())
@@ -696,8 +703,47 @@ model Product {
   org          Org               @relation(fields: [orgId], references: [id])
   applications LoanApplication[]
   loans        Loan[]
+  versions     ProductVersion[]
 
   @@index([orgId, isActive])
+}
+
+/// An immutable snapshot of everything a product WAS at one version.
+///
+/// The system we are replacing points `Loan` straight at the product row, so editing
+/// a rate on Tuesday silently rewrites what Monday's borrowers agreed to — the audit
+/// answer and the screen answer diverge and there is no way to tell which is true.
+/// Here every booked loan and every application records the version it was made
+/// under, so "what were the terms?" is a lookup rather than an argument.
+///
+/// `definition` is the block-composed document (lib/products/definition.ts). The flat
+/// columns on Product are a PROJECTION of the live version, kept so that every query
+/// written before versioning existed keeps working unchanged.
+model ProductVersion {
+  id        String @id @default(uuid())
+  orgId     String
+  productId String
+  version   Int
+
+  /// The full block document as published. Never updated after write.
+  definition Json
+
+  /// Which blocks differ from the previous version — drives the history list and
+  /// the diff screen ("pricing, schedule").
+  changed Json @default("[]")
+
+  /// Free-text note from whoever published it: why the terms moved.
+  note String?
+
+  authorId  String?
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  loans        Loan[]
+  applications LoanApplication[]
+
+  @@unique([productId, version])
+  @@index([orgId, productId])
 }
 
 model Workflow {
@@ -751,6 +797,9 @@ model LoanApplication {
   orgId      String
   borrowerId String
   productId  String?
+  /// The product version the offer was priced against, so a decision can be
+  /// reproduced even after the product moves on.
+  productVersionId String?
   // Bridged-mode product reference (ServiceSuite Products.ID) + display name —
   // native orgs use productId instead.
   productRef  String?
@@ -815,6 +864,7 @@ model LoanApplication {
   org      Org        @relation(fields: [orgId], references: [id])
   borrower Borrower   @relation(fields: [borrowerId], references: [id])
   product  Product?   @relation(fields: [productId], references: [id])
+  productVersion ProductVersion? @relation(fields: [productVersionId], references: [id])
   loan       Loan?
   offer      LoanOffer?
   guarantors Guarantor[]
@@ -1103,6 +1153,9 @@ model Loan {
   borrowerId    String
   applicationId String?    @unique
   productId     String
+  /// The exact product terms this loan was booked under. Null only for loans that
+  /// predate versioning; every new booking stamps it.
+  productVersionId String?
   principal     Decimal    @db.Decimal(18, 2)
   interest      Decimal    @db.Decimal(18, 2)
   loanAmount    Decimal    @db.Decimal(18, 2) // principal + interest (+fees)
@@ -1122,6 +1175,7 @@ model Loan {
   org          Org              @relation(fields: [orgId], references: [id])
   borrower     Borrower         @relation(fields: [borrowerId], references: [id])
   product      Product          @relation(fields: [productId], references: [id])
+  productVersion ProductVersion? @relation(fields: [productVersionId], references: [id])
   application  LoanApplication? @relation(fields: [applicationId], references: [id])
   installments Installment[]
   disbursement Disbursement?
@@ -2236,4 +2290,68 @@ model ComplianceRequest {
   @@index([orgId, status])
   @@index([orgId, createdAt])
   @@index([orgId, subjectId])
+}
+
+// ── The Tenant Definition Layer ───────────────────────────────────────────────
+//
+// A lender's configuration is DATA, not columns. See docs/SUPER-LMS-ARCHITECTURE.md.
+//
+// The system we are replacing keeps per-tenant settings as one wide table with a
+// column per idea (`BorrowerSettings.minReferees`, `.JoiningFee`, `.AgeLimit` …) and
+// a hand-written MERGE per form. Every new setting is an ALTER TABLE that lands on
+// all 27 tenants at once, whether they asked for it or not — which is exactly why
+// onboarding a lender there is a project rather than an afternoon.
+//
+// Here a namespace ("borrower", "product", "collections") holds ONE typed JSON
+// document per org. The shape lives in src/lib/config/* as a TypeScript schema with
+// defaults and validation, so adding a setting is a field in a type — no migration,
+// no per-tenant rollout, and a lender who never touched it silently inherits the
+// platform default.
+model OrgConfig {
+  id        String @id @default(uuid())
+  orgId     String
+  /// Which part of the platform this document configures.
+  namespace String
+
+  /// The live document. Always a COMPLETE document (defaults merged in on write),
+  /// so a reader never has to know which platform version wrote it.
+  value Json
+
+  /// Bumped on every publish; `OrgConfigRevision` holds the history. Artefacts that
+  /// must be reproducible later (a loan, an offer, a decision) store the version
+  /// they were created under, so "what were the rules that day" is a lookup.
+  version Int @default(1)
+
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org       Org                 @relation(fields: [orgId], references: [id])
+  revisions OrgConfigRevision[]
+
+  @@unique([orgId, namespace])
+  @@index([orgId])
+}
+
+/// An immutable snapshot of a namespace at one version. Written on every publish and
+/// never updated — this is what makes a config version citable rather than merely
+/// counted, and what lets a bad change be rolled back by pointing at the row before it.
+model OrgConfigRevision {
+  id        String @id @default(uuid())
+  configId  String
+  orgId     String
+  namespace String
+  version   Int
+  value     Json
+
+  /// Which top-level sections changed, for the history list ("kyc, rules").
+  changed Json @default("[]")
+
+  authorId  String?
+  createdAt DateTime @default(now())
+
+  config OrgConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@unique([configId, version])
+  @@index([orgId, namespace])
 }

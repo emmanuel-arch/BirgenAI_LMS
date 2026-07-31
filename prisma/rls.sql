@@ -51,7 +51,8 @@ DECLARE
     'FloatLedger','ReconciliationException','SmsMessage','SmsTemplate','SmsWallet','SmsTopUp','ScoreSnapshot','PortfolioRun','GeoPin','UsageEvent','TuningProfile','Invoice','InvoiceLine',
     'PromiseToPay','CollectionCall','CollectionTicket','SmsCampaign','EmailMessage',
     'MetricDefinition','RiriQueryLog','ComplianceRequest','Charge','GraduationEvent',
-    'SavingsAccount','SavingsTransaction','RiriMemory','StandingOrder'
+    'SavingsAccount','SavingsTransaction','RiriMemory','StandingOrder',
+    'OrgConfig','OrgConfigRevision','ProductVersion'
   ];
 BEGIN
   FOREACH t IN ARRAY tables LOOP

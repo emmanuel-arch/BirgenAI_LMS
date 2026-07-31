@@ -17,13 +17,16 @@ export const dynamic = "force-dynamic";
 export default async function SatelliteApp({ params }: { params: Promise<{ app: string }> }) {
   const { app: appId } = await params;
   const app = suiteApp(appId);
-  if (!app || app.system) redirect("/suite");
+  // Only the satellites that ship a demo dataset render here. The Customer Portal
+  // is a real surface at its own route, so it has none and must not fall through
+  // to `app.demo!` — it would be a crash reachable by typing a URL.
+  if (!app || app.system || !app.demo) redirect("/suite");
 
   const session = await auth();
   if (!session?.user?.orgId) redirect(`/suite/${appId}/login`);
   const org = await prisma.org.findUnique({ where: { id: session.user.orgId }, select: { name: true } });
   const who = session.user.name ?? session.user.email ?? "Signed in";
-  const demo = app.demo!;
+  const demo = app.demo;
 
   return (
     <main className="min-h-screen bg-zinc-50">
