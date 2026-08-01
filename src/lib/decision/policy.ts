@@ -24,6 +24,11 @@
 // what to DO with it.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { ConfigIssue } from "@/lib/config/borrower";
+import {
+  BEHAVIOUR_DEFAULTS, GRADUATION_DEFAULTS, MICROMART_BEHAVIOUR, MICROMART_GRADUATION,
+  mergeBehaviour, mergeGraduation, validateBehaviour,
+  type BehaviourBlock, type GraduationBlock,
+} from "@/lib/scoring/behaviour-policy";
 
 export type ScoreBand = "Excellent" | "Good" | "Fair" | "Poor" | "Very Poor";
 export const SCORE_BANDS: ScoreBand[] = ["Excellent", "Good", "Fair", "Poor", "Very Poor"];
@@ -98,6 +103,14 @@ export type CreditPolicy = {
     prefer: "shortest_affordable" | "lowest_installment" | "cheapest_total";
   };
 
+  /**
+   * How a REPEAT borrower is scored on their own repayment record, and what that
+   * earns them. Ported from sp_CreditScoringAndGraduation and made per-lender —
+   * see lib/scoring/behaviour-policy.ts.
+   */
+  behaviour: BehaviourBlock;
+  graduation: GraduationBlock;
+
   verdict: {
     /** At or above this score, and affordable → APPROVE without a human. */
     autoApproveAbove: number;
@@ -136,6 +149,8 @@ export const CREDIT_DEFAULTS: CreditPolicy = {
     ladder: [],
     prefer: "shortest_affordable",
   },
+  behaviour: BEHAVIOUR_DEFAULTS,
+  graduation: GRADUATION_DEFAULTS,
   verdict: { autoApproveAbove: 1001, autoDeclineBelow: 0, autoApproveMaxAmount: 0 },
 };
 
@@ -149,6 +164,8 @@ export const CREDIT_DEFAULTS: CreditPolicy = {
  */
 export const MULAR_POLICY: CreditPolicy = {
   ...CREDIT_DEFAULTS,
+  behaviour: MICROMART_BEHAVIOUR,
+  graduation: MICROMART_GRADUATION,
   match: {
     mode: "ladder",
     ladder: [
@@ -217,6 +234,8 @@ export function validateCreditPolicy(p: CreditPolicy): ConfigIssue[] {
     }
   }
 
+  out.push(...validateBehaviour(p.behaviour, p.graduation));
+
   if (p.verdict.autoDeclineBelow > p.verdict.autoApproveAbove) {
     bad("verdict.autoDeclineBelow", "The auto-decline floor is above the auto-approve ceiling — every application would be both.");
   }
@@ -235,6 +254,8 @@ export function mergeCreditPolicy(stored: unknown): CreditPolicy {
     stops: { ...d.stops, ...s.stops },
     haircuts: { ...d.haircuts, ...s.haircuts },
     match: { ...d.match, ...s.match, ladder: s.match?.ladder ?? d.match.ladder },
+    behaviour: mergeBehaviour(s.behaviour),
+    graduation: mergeGraduation(s.graduation),
     verdict: { ...d.verdict, ...s.verdict },
   };
 }

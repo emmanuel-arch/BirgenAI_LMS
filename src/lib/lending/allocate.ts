@@ -5,9 +5,17 @@
 // amountDue (+ penalty). Loan.balance decrements by what was allocated; when it
 // reaches zero the loan is CLEARED (clearedAt set, borrower's cleared count is
 // what graduation reads). Idempotency is the CALLER's job (unique receipt ids).
+//
+// RESCORING HAPPENS HERE, AFTER the transaction commits. A borrower's behavioural
+// score is a function of their schedule, so the moment money lands the score is
+// stale — and a limit that only moves on a nightly batch is a limit that tells a
+// customer at the counter the wrong thing. Deliberately OUTSIDE the transaction and
+// deliberately swallowed: the payment is the important event, and a scoring failure
+// must never roll back somebody's money.
 // ─────────────────────────────────────────────────────────────────────────────
 import { Prisma } from "@prisma/client";
 import { prisma, orgTx } from "@/lib/prisma";
+import { onRepayment, onLoanCleared } from "@/lib/risk/graduation";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -24,6 +32,22 @@ export type AllocationResult = {
 export async function allocateRepayment(loanId: string, amount: number, ref?: string): Promise<AllocationResult> {
   if (!(amount > 0)) throw new Error("Allocation amount must be positive.");
 
+  const result = await allocateInTransaction(loanId, amount, ref);
+
+  // Rescore the borrower now that their record has changed. `onRepayment` respects
+  // the lender's own trigger — a lender who graduates only on clearance still gets
+  // the SCORE refreshed here, they just do not get a limit move until the loan
+  // closes. Both helpers already swallow their own failures.
+  const who = await prisma.loan.findUnique({ where: { id: loanId }, select: { orgId: true, borrowerId: true } });
+  if (who) {
+    if (result.cleared) await onLoanCleared(who.orgId, who.borrowerId);
+    else await onRepayment(who.orgId, who.borrowerId);
+  }
+
+  return result;
+}
+
+async function allocateInTransaction(loanId: string, amount: number, ref?: string): Promise<AllocationResult> {
   return orgTx(async (tx) => {
     const loan = await tx.loan.findUnique({
       where: { id: loanId },

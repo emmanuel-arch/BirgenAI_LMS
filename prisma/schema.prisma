@@ -1438,8 +1438,24 @@ model GraduationEvent {
   clearedLoans      Int
   /// The principal they cleared twice — what actually earned the increase.
   provenPrincipal   Decimal @db.Decimal(18, 2)
-  /// True when the KES 5,000 ceiling, not the percentage, decided the increase.
+  /// True when the per-step cap, not the percentage, decided the increase.
   cappedByCeiling   Boolean @default(false)
+
+  /// Which way the ladder moved. The engine can now LOWER a limit as well as raise
+  /// one (the stored procedure this was ported from could only ever go up), and a
+  /// history that recorded both as "graduation" would be unreadable.
+  move String @default("graduate") // graduate | demote
+
+  /// The full factor breakdown as scored, e.g.
+  /// [{ key, label, weight, raw, contribution, commonBand }].
+  /// The two named columns above are the platform's default factors; a lender who
+  /// scores on four keeps all four here, and the columns hold whichever of the two
+  /// they still use.
+  factors Json?
+
+  /// The policy version these numbers were produced under, so a limit move can be
+  /// reproduced against the rules as they stood rather than as they stand now.
+  policyVersion Int @default(0)
 
   /// "cron" or a StaffUser.id — a limit can be moved by the engine or by a human.
   decidedBy String?

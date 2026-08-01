@@ -26,7 +26,8 @@ import "dotenv/config";
 import { platformPrisma } from "../prisma/seed-client";
 import { enterPlatform } from "@/lib/db/context";
 import { bandForScore, bandForBehavioural, defaultProbability, normaliseBandName, RISK_BANDS } from "@/lib/risk/bands";
-import { repaymentPoints, arrearsPoints, behaviouralScore, assessGraduation, runGraduations, MAX_INCREASE_KES } from "@/lib/risk/graduation";
+import { assessBorrower, runGraduations } from "@/lib/risk/graduation";
+import { CREDIT_DEFAULTS } from "@/lib/decision/policy";
 import { deleteTenant } from "@/lib/compliance/tenant";
 
 let pass = 0, fail = 0;
@@ -72,22 +73,17 @@ async function main() {
   ok("no band and no model = no number invented", defaultProbability(null, null) === null);
 
   // ── The stored procedure's arithmetic ──────────────────────────────────────
-  section("The arithmetic is sp_CreditScoringAndGraduation's, exactly");
-
-  ok("paid in full = 100", repaymentPoints(5000, 5000) === 100);
-  ok("paid three quarters = 75", repaymentPoints(5000, 3750) === 75);
-  ok("paid half = 50", repaymentPoints(5000, 2500) === 50);
-  ok("paid a third = 0 (not 33 — the curve is a cliff, on purpose)", repaymentPoints(5000, 1650) === 0);
-
-  const due = new Date("2026-06-10");
-  ok("paid on the day = 100", arrearsPoints(due, new Date("2026-06-10")) === 100);
-  ok("paid early = 100", arrearsPoints(due, new Date("2026-06-08")) === 100);
-  ok("★ ONE DAY LATE = 30. Seventy points, for one day. It is meant to hurt.",
-    arrearsPoints(due, new Date("2026-06-11")) === 30);
-  ok("four days late = 10", arrearsPoints(due, new Date("2026-06-14")) === 10);
-  ok("a week late = 0", arrearsPoints(due, new Date("2026-06-18")) === 0);
-  ok("★ never paid at all = scored against TODAY, so it gets worse every day",
-    arrearsPoints(new Date(Date.now() - 30 * DAY), null) === 0);
+  // MOVED. The per-installment scoring curves are no longer constants in this
+  // module — they are bands in the lender's own policy — so they are checked
+  // against sp_CreditScoringAndGraduation's arithmetic, on worked examples and
+  // with no database, by:
+  //
+  //     npm run test:behaviour
+  //
+  // That suite also proves the generalised engine reproduces the procedure under
+  // the MICROMART preset, which is the claim that actually matters at migration.
+  // What remains below is what only a live database can check: that the scores and
+  // limits are PERSISTED correctly and that the cron cannot double-graduate.
 
   // ── Live DB ────────────────────────────────────────────────────────────────
   const p = platformPrisma();
@@ -169,41 +165,48 @@ async function main() {
   // ── Behavioural scoring ────────────────────────────────────────────────────
   section("Scoring a real repayment record");
 
-  const sPrime = await behaviouralScore(org.id, prime.id);
-  ok("★ paid in full and on the day = 100/100", sPrime.score === 100, `${sPrime.score} (rh ${sPrime.repaymentHistory}, arrears ${sPrime.daysInArrears})`);
-  ok("…which is PRIME", sPrime.band?.key === "PRIME");
+  // The platform's default matrix, scoring CLEARED loans only so the fixtures'
+  // expected numbers mean what they meant before the engine became policy-driven.
+  const POLICY = {
+    ...CREDIT_DEFAULTS,
+    behaviour: { ...CREDIT_DEFAULTS.behaviour, window: { ...CREDIT_DEFAULTS.behaviour.window, includeActive: false } },
+  };
 
-  const sLate = await behaviouralScore(org.id, late.id);
+  const sPrime = (await assessBorrower(org.id, prime.id, POLICY)).behaviour;
+  ok("★ paid in full and on the day = 100/100", sPrime.score === 100, `${sPrime.score} — ${sPrime.factors.map((f) => `${f.label} ${f.raw}`).join(", ")}`);
+  ok("…which is PRIME", sPrime.category?.key === "PRIME");
+
+  const sLate = (await assessBorrower(org.id, late.id, POLICY)).behaviour;
   ok("★★ ALWAYS PAYS IN FULL, ALWAYS A WEEK LATE = 50/100 — half marks, and it is not PRIME",
-    sLate.score === 50, `${sLate.score} (rh ${sLate.repaymentHistory}, arrears ${sLate.daysInArrears})`);
+    sLate.score === 50, `${sLate.score} — ${sLate.factors.map((f) => `${f.label} ${f.raw}`).join(", ")}`);
   ok("…they land in HIGH, which is exactly the customer a full-payment-only model would keep lending to",
-    sLate.band?.key === "HIGH", sLate.band?.label);
+    sLate.category?.key === "HIGH", sLate.category?.label);
 
   // ── Graduation ─────────────────────────────────────────────────────────────
   section("Who climbs the ladder");
 
-  const gPrime = await assessGraduation(org.id, prime.id);
-  ok("★ two cleared 10,000s, spotless = ELIGIBLE", gPrime.eligible);
+  const gPrime = await assessBorrower(org.id, prime.id, POLICY);
+  ok("★ two cleared 10,000s, spotless = ELIGIBLE", gPrime.move === "graduate");
   ok("…at 30% (Prime)", gPrime.graduationPercent === 30);
   ok("★ new limit = 10,000 + 30% = 13,000", gPrime.newLimit === 13000, String(gPrime.newLimit));
-  ok("…and it explains itself in words", /Cleared KES 10,000 twice/.test(gPrime.reason), gPrime.reason);
+  ok("…and it explains itself in words", /Cleared KES 10,000/.test(gPrime.reason), gPrime.reason);
 
-  const gLate = await assessGraduation(org.id, late.id);
-  ok("★★ THE ALWAYS-LATE PAYER IS REFUSED, though they repaid every shilling", !gLate.eligible);
-  ok("…and is told why", /too low to earn an increase/.test(gLate.reason), gLate.reason);
+  const gLate = await assessBorrower(org.id, late.id, POLICY);
+  ok("★★ THE ALWAYS-LATE PAYER IS REFUSED, though they repaid every shilling", gLate.move !== "graduate");
+  ok("…and is told why", /not enough to earn an increase/.test(gLate.reason), gLate.reason);
 
-  const gClimb = await assessGraduation(org.id, climbing.id);
+  const gClimb = await assessBorrower(org.id, climbing.id, POLICY);
   ok("★★ TWO CLEARED LOANS OF DIFFERENT AMOUNTS DO NOT GRADUATE — the ceiling was never proved",
-    !gClimb.eligible);
+    gClimb.move !== "graduate");
   ok("…and the reason names both amounts", /5,000 and KES 12,000|12,000 and KES 5,000/.test(gClimb.reason), gClimb.reason);
 
-  const gNovice = await assessGraduation(org.id, novice.id);
-  ok("one cleared loan is not a track record", !gNovice.eligible && /1 more cleared loan/.test(gNovice.reason));
+  const gNovice = await assessBorrower(org.id, novice.id, POLICY);
+  ok("one cleared loan is not a track record", gNovice.move !== "graduate" && /1 more cleared loan/.test(gNovice.reason));
 
-  const gBig = await assessGraduation(org.id, big.id);
+  const gBig = await assessBorrower(org.id, big.id, POLICY);
   ok("★★ THE KES 5,000 CEILING BITES: 30% of 100,000 would be 30,000 of new exposure",
-    gBig.newLimit === 100000 + MAX_INCREASE_KES, String(gBig.newLimit));
-  ok("…and the assessment says the cap decided it, not the percentage", gBig.cappedByCeiling);
+    gBig.newLimit === 100000 + POLICY.graduation.capPerStep, String(gBig.newLimit));
+  ok("…and the assessment says the cap decided it, not the percentage", gBig.cappedByStep);
 
   // ── The cron ───────────────────────────────────────────────────────────────
   section("The nightly run");

@@ -1,321 +1,271 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// BEHAVIOURAL SCORING AND GRADUATION.
+// BEHAVIOURAL SCORING AND GRADUATION — the database side.
 //
-// A port of ServiceSuite's `sp_CreditScoringAndGraduation`, with its arithmetic kept
-// exactly and its plumbing thrown away.
+// The ARITHMETIC lives in lib/scoring/behaviour.ts and the MATRIX lives in the
+// lender's own `credit` policy (lib/scoring/behaviour-policy.ts). This file does
+// only what those two cannot: load the facts, and write the consequences.
 //
-// WHAT IS KEPT, BECAUSE IT IS RIGHT:
+// It was previously a faithful but HARDCODED port of ServiceSuite's
+// `sp_CreditScoringAndGraduation` — the 100/75/50 repayment cuts, the 0/3/6-day
+// arrears cuts, the 50/50 weights, four fixed bands and a KES 5,000 constant all
+// lived in this file. Every one of them is now a lender's choice.
 //
-//   THE SCORE IS TWO NUMBERS, HALF AND HALF.
-//     Repayment history (50%) — did they pay the whole installment?
-//     Days in arrears   (50%) — did they pay it on the day?
-//   Two customers can both repay in full and be completely different risks; one paid
-//   on the due date and one paid three weeks late every single time. A model that
-//   only looks at whether the money arrived cannot tell them apart, and will keep
-//   lending to the second one.
+// TWO BEHAVIOURS WORTH KNOWING ABOUT:
 //
-//   IT SCORES THE LAST TWO CLEARED LOANS, and nothing else. Not the live one (it has
-//   not finished, so it has nothing to say), and not the one from four years ago
-//   (they were a different person). A closed loan is a completed experiment.
+//   THE SCORE IS WRITTEN FOR EVERYONE; THE LIMIT MOVES FOR FEW. A lender wants the
+//   behavioural score of every customer who has ever repaid them, especially the
+//   ones sliding from Strong to Watch. Only the ones who have earned it get money.
 //
-//   GRADUATION NEEDS TWO CLEARED LOANS AT THE SAME PRINCIPAL. This is the clever part
-//   of the original and it is easy to miss: it is not "have they borrowed twice", it
-//   is "have they borrowed the SAME amount twice and cleared it both times" — i.e.
-//   they have proved the ceiling is no longer stretching them. That is exactly when a
-//   ladder should move, and never before.
-//
-//   THE INCREASE IS CAPPED AT KES 5,000. A 30% graduation on a 100,000 loan is 30,000
-//   of new exposure on the strength of two repayments. The cap is what keeps the
-//   ladder a ladder rather than a cliff.
-//
-// WHAT IS CHANGED:
-//
-//   FOUR BANDS, NOT THREE (src/lib/risk/bands.ts). The old top band ran from 77 to 100
-//   and paid everyone in it the same 30%, so a flawless customer and a merely good one
-//   graduated identically. Now: Prime 30% · Strong 20% · Watch 10% · High 0%.
-//
-//   IT IS AUDITED AND IT IS REVERSIBLE. Every graduation writes a GraduationEvent with
-//   the score, the band, the two loans it was based on and the before/after limit — so
-//   a customer who asks "why did my limit go up" gets an answer, and a lender who
-//   thinks the engine is wrong can see precisely what it thought.
+//   IT CAN NOW RUN ON EVERY REPAYMENT. `onRepayment()` rescores one borrower the
+//   moment their money lands, so a PD moves several times across a single loan
+//   cycle instead of once, months later, when the loan finally closes.
 // ─────────────────────────────────────────────────────────────────────────────
 import { prisma } from "@/lib/prisma";
-import { RISK_BANDS, bandForBehavioural, type RiskBand } from "./bands";
+import { runWithOrg } from "@/lib/db/context";
+import { readCreditPolicy } from "@/lib/config/store";
+import { scoreBehaviour, assessLadder, type LoanFact, type LadderAssessment } from "@/lib/scoring/behaviour";
+import type { BehaviourBlock, GraduationBlock } from "@/lib/scoring/behaviour-policy";
+import type { CreditPolicy } from "@/lib/decision/policy";
 
-/** The most a single graduation may add, whatever the percentage works out at. */
-export const MAX_INCREASE_KES = 5000;
-/** Two cleared loans at the same principal. Fewer is not a track record. */
-export const MIN_CLEARED_LOANS = 2;
+export type { LadderAssessment } from "@/lib/scoring/behaviour";
 
-export type BehaviouralScore = {
-  /** 0–100. The half-and-half blend. */
-  score: number;
-  repaymentHistory: number;
-  daysInArrears: number;
-  installmentsUsed: number;
-  band: RiskBand | null;
-};
+/** The loans a scoring window needs, newest first. */
+export async function loanFacts(orgId: string, borrowerId: string, policy: BehaviourBlock): Promise<LoanFact[]> {
+  const statuses = policy.window.includeActive
+    ? (["CLEARED", "ACTIVE"] as const)
+    : (["CLEARED"] as const);
 
-/**
- * Score one installment's repayment. Straight from the stored procedure:
- * paid the lot → 100 · three quarters → 75 · half → 50 · less → nothing.
- */
-export function repaymentPoints(amountDue: number, amountPaid: number): number {
-  if (amountDue <= 0) return 100;
-  if (amountPaid >= amountDue) return 100;
-  if (amountPaid >= 0.75 * amountDue) return 75;
-  if (amountPaid >= 0.5 * amountDue) return 50;
-  return 0;
-}
-
-/**
- * Score one installment's timeliness. Also straight from the procedure, and note how
- * BRUTAL it is: one day late costs you 70 points. That is deliberate — in a 30-day
- * microloan, "a few days late" is most of the way to not paying at all, and a scoring
- * curve that shrugs at it will happily lend again to someone who is already sliding.
- *
- * An installment that has not been paid AT ALL is scored against TODAY, so an account
- * in arrears gets worse every day it stays there rather than sitting frozen at its
- * last good score.
- */
-export function arrearsPoints(dueDate: Date, paidAt: Date | null, now = new Date()): number {
-  const asOf = paidAt ?? now;
-  const daysLate = Math.floor((asOf.getTime() - dueDate.getTime()) / 86_400_000);
-  if (daysLate <= 0) return 100;
-  if (daysLate <= 3) return 30;
-  if (daysLate <= 6) return 10;
-  return 0;
-}
-
-/**
- * The behavioural score for a borrower, from their last two CLEARED loans.
- *
- * Averaged per loan and then across loans — not across all installments pooled — so a
- * twelve-installment loan does not drown out a three-installment one. (The procedure
- * did the same, via its GROUP BY BorrowerId, LoanId.)
- */
-export async function behaviouralScore(orgId: string, borrowerId: string, now = new Date()): Promise<BehaviouralScore> {
-  const cleared = await prisma.loan.findMany({
-    where: { orgId, borrowerId, status: "CLEARED" },
-    orderBy: [{ clearedAt: "desc" }, { borrowDate: "desc" }],
-    take: MIN_CLEARED_LOANS,
-    select: {
-      id: true,
-      installments: { select: { amountDue: true, amountPaid: true, dueDate: true, paidAt: true } },
-    },
-  });
-
-  const perLoan: { rh: number; da: number; n: number }[] = [];
-  for (const loan of cleared) {
-    if (loan.installments.length === 0) continue;
-    let rh = 0, da = 0;
-    for (const i of loan.installments) {
-      rh += repaymentPoints(Number(i.amountDue), Number(i.amountPaid));
-      da += arrearsPoints(i.dueDate, i.paidAt, now);
-    }
-    perLoan.push({ rh: rh / loan.installments.length, da: da / loan.installments.length, n: loan.installments.length });
-  }
-
-  if (perLoan.length === 0) {
-    return { score: 0, repaymentHistory: 0, daysInArrears: 0, installmentsUsed: 0, band: null };
-  }
-
-  const repaymentHistory = round2(perLoan.reduce((s, l) => s + l.rh, 0) / perLoan.length);
-  const daysInArrears = round2(perLoan.reduce((s, l) => s + l.da, 0) / perLoan.length);
-  const score = round2(0.5 * repaymentHistory + 0.5 * daysInArrears);
-
-  return {
-    score,
-    repaymentHistory,
-    daysInArrears,
-    installmentsUsed: perLoan.reduce((s, l) => s + l.n, 0),
-    band: bandForBehavioural(score),
-  };
-}
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
-// ── Graduation ───────────────────────────────────────────────────────────────
-
-export type GraduationAssessment = {
-  eligible: boolean;
-  /** Why not — in words the officer can read to the customer. */
-  reason: string;
-  behavioural: BehaviouralScore;
-  clearedLoans: number;
-  /** The principal they have now cleared twice. */
-  provenPrincipal: number | null;
-  currentLimit: number;
-  graduationPercent: number;
-  newLimit: number | null;
-  increase: number | null;
-  /** True when the cap, not the percentage, decided the increase. */
-  cappedByCeiling: boolean;
-};
-
-export async function assessGraduation(orgId: string, borrowerId: string, now = new Date()): Promise<GraduationAssessment> {
-  const [borrower, cleared, behavioural] = await Promise.all([
-    prisma.borrower.findFirst({ where: { id: borrowerId, orgId }, select: { loanLimit: true } }),
+  // Load a little more than the window needs: the same-principal rule may look at
+  // cleared loans that a window including live ones would otherwise crowd out.
+  const rows = await runWithOrg(orgId, () =>
     prisma.loan.findMany({
-      where: { orgId, borrowerId, status: "CLEARED" },
+      where: { orgId, borrowerId, status: { in: [...statuses] } },
       orderBy: [{ clearedAt: "desc" }, { borrowDate: "desc" }],
-      take: MIN_CLEARED_LOANS,
-      select: { id: true, principal: true },
+      take: Math.max(policy.window.lookbackLoans, 4) + 2,
+      select: {
+        id: true, principal: true, status: true, clearedAt: true, borrowDate: true,
+        installments: {
+          select: { seq: true, amountDue: true, amountPaid: true, dueDate: true, paidAt: true },
+          orderBy: { seq: "asc" },
+        },
+      },
     }),
-    behaviouralScore(orgId, borrowerId, now),
-  ]);
+  );
 
-  const currentLimit = borrower?.loanLimit != null ? Number(borrower.loanLimit) : 0;
-  const nope = (reason: string): GraduationAssessment => ({
-    eligible: false, reason, behavioural, clearedLoans: cleared.length,
-    provenPrincipal: null, currentLimit, graduationPercent: 0, newLimit: null, increase: null,
-    cappedByCeiling: false,
-  });
-
-  if (cleared.length < MIN_CLEARED_LOANS) {
-    const need = MIN_CLEARED_LOANS - cleared.length;
-    return nope(`They need ${need} more cleared loan${need === 1 ? "" : "s"} before their limit can move.`);
-  }
-
-  // THE SAME-PRINCIPAL RULE. They must have cleared the SAME amount twice — that is
-  // what proves the ceiling is no longer a stretch. Two different amounts is not a
-  // plateau, it is a customer still finding their level.
-  const principals = cleared.map((l) => Number(l.principal));
-  const proven = principals[0];
-  if (principals.some((p) => p !== proven)) {
-    return nope(
-      `Their last two cleared loans were different amounts (KES ${principals.map((p) => Math.round(p).toLocaleString()).join(" and KES ")}). ` +
-      `A limit moves when someone clears the SAME amount twice — that is what shows the ceiling is holding them back.`,
-    );
-  }
-
-  const band = behavioural.band;
-  const percent = band?.graduationPercent ?? 0;
-
-  if (!band || percent <= 0) {
-    return {
-      ...nope(
-        `Their repayment record scores ${behavioural.score}/100 (${band?.label ?? "unscored"}) — too low to earn an increase. ` +
-        `Repayment history ${behavioural.repaymentHistory}, timeliness ${behavioural.daysInArrears}.`,
-      ),
-      graduationPercent: 0,
-    };
-  }
-
-  const uncapped = (proven * percent) / 100;
-  const increase = Math.min(uncapped, MAX_INCREASE_KES);
-  const newLimit = Math.round(proven + increase);
-
-  return {
-    eligible: true,
-    reason:
-      `Cleared KES ${Math.round(proven).toLocaleString()} twice, and their repayment record scores ` +
-      `${behavioural.score}/100 (${band.label}). That earns ${percent}%.`,
-    behavioural,
-    clearedLoans: cleared.length,
-    provenPrincipal: proven,
-    currentLimit,
-    graduationPercent: percent,
-    newLimit,
-    increase: Math.round(increase),
-    cappedByCeiling: uncapped > MAX_INCREASE_KES,
-  };
+  return rows.map((l) => ({
+    id: l.id,
+    principal: Number(l.principal),
+    status: l.status === "CLEARED" ? "CLEARED" : l.status === "ACTIVE" ? "ACTIVE" : "OTHER",
+    clearedAt: l.clearedAt,
+    borrowDate: l.borrowDate,
+    installments: l.installments.map((i) => ({
+      seq: i.seq,
+      amountDue: Number(i.amountDue),
+      amountPaid: Number(i.amountPaid),
+      dueDate: i.dueDate,
+      paidAt: i.paidAt,
+    })),
+  }));
 }
 
-export type GraduationRun = {
-  scored: number;
-  graduated: number;
-  skipped: number;
-  events: { borrowerId: string; from: number; to: number; band: string; score: number }[];
-};
+/** What this borrower's limit should be, under the lender's own rules. */
+export async function assessBorrower(
+  orgId: string,
+  borrowerId: string,
+  policy: CreditPolicy,
+  now = new Date(),
+): Promise<LadderAssessment> {
+  const [borrower, loans] = await Promise.all([
+    runWithOrg(orgId, () => prisma.borrower.findFirst({ where: { id: borrowerId, orgId }, select: { loanLimit: true } })),
+    loanFacts(orgId, borrowerId, policy.behaviour),
+  ]);
+  const currentLimit = borrower?.loanLimit != null ? Number(borrower.loanLimit) : 0;
+  return assessLadder({ loans, currentLimit }, policy.behaviour, policy.graduation, now);
+}
 
 /**
- * Score every borrower with a closed loan, and graduate the ones who have earned it.
+ * Persist a borrower's score, and move their limit if the ladder says so.
  *
- * ⚠ THE SCORE IS WRITTEN FOR EVERYONE; THE LIMIT MOVES FOR FEW. That asymmetry is the
- * point: a lender wants to see the behavioural score of every customer who has ever
- * repaid them, including the bad ones, and especially the ones sliding from Strong to
- * Watch. Only the ones who cleared the same amount twice with a clean record get more
- * money.
- *
- * Idempotent within a day: a borrower whose limit already equals what they would
- * graduate to is not graduated again, so a cron that fires twice does not double them.
+ * Idempotent: a borrower already at the limit the ladder computes is not moved
+ * again, so a cron that fires twice — or a repayment hook that races the cron —
+ * cannot double anyone.
  */
-export async function runGraduations(orgId: string, actor = "cron", now = new Date()): Promise<GraduationRun> {
-  const out: GraduationRun = { scored: 0, graduated: 0, skipped: 0, events: [] };
+export async function applyAssessment(
+  orgId: string,
+  borrowerId: string,
+  a: LadderAssessment,
+  opts: { actor?: string; policyVersion?: number; now?: Date } = {},
+): Promise<"graduated" | "demoted" | "scored" | "skipped"> {
+  const now = opts.now ?? new Date();
+  const b = a.behaviour;
 
-  // Only people with a CLOSED loan have anything to be scored on.
-  const borrowerIds = (
-    await prisma.loan.findMany({
-      where: { orgId, status: "CLEARED" },
-      select: { borrowerId: true },
-      distinct: ["borrowerId"],
-    })
-  ).map((l) => l.borrowerId);
-
-  for (const borrowerId of borrowerIds) {
-    const a = await assessGraduation(orgId, borrowerId, now);
-
-    // The score itself lands on the customer whether or not they graduate.
-    if (a.behavioural.installmentsUsed > 0) {
-      await prisma.borrower.update({
+  if (b.scored) {
+    await runWithOrg(orgId, () =>
+      prisma.borrower.update({
         where: { id: borrowerId },
-        data: {
-          behaviouralScore: a.behavioural.score,
-          riskBand: a.behavioural.band?.key ?? null,
-          lastScoredAt: now,
-        },
-      }).catch(() => {});
-      out.scored++;
-    }
+        data: { behaviouralScore: b.score, riskBand: b.category?.key ?? null, lastScoredAt: now },
+      }),
+    ).catch(() => {});
+  }
 
-    if (!a.eligible || a.newLimit == null) { out.skipped++; continue; }
-    // Already there — a second cron run in the same window must not stack.
-    if (a.currentLimit >= a.newLimit) { out.skipped++; continue; }
+  if ((a.move !== "graduate" && a.move !== "demote") || a.newLimit == null) {
+    return b.scored ? "scored" : "skipped";
+  }
+  if (a.newLimit === a.currentLimit) return "scored";
 
-    await prisma.$transaction(async (tx) => {
+  // The platform's default factors, kept in their own columns so existing screens
+  // and reports keep working; the full breakdown goes to `factors`.
+  const factorRaw = (key: string) => b.factors.find((f) => f.key === key)?.raw ?? 0;
+
+  await runWithOrg(orgId, () =>
+    prisma.$transaction(async (tx) => {
       await tx.borrower.update({
         where: { id: borrowerId },
         data: {
           previousLoanLimit: a.currentLimit || null,
           loanLimit: a.newLimit!,
-          graduationCount: { increment: 1 },
-          lastGraduationAt: now,
+          // A demotion is not a graduation: the count is a record of promotions.
+          ...(a.move === "graduate" ? { graduationCount: { increment: 1 }, lastGraduationAt: now } : {}),
         },
       });
       await tx.graduationEvent.create({
         data: {
           orgId, borrowerId,
+          move: a.move,
           previousLimit: a.currentLimit,
           newLimit: a.newLimit!,
-          increase: a.increase ?? 0,
-          riskScore: a.behavioural.score,
-          riskBand: a.behavioural.band?.key ?? "HIGH",
+          increase: a.change ?? 0,
+          riskScore: b.score,
+          riskBand: b.category?.key ?? "UNSCORED",
+          repaymentHistoryScore: factorRaw("repayment_history"),
+          daysInArrearsScore: factorRaw("days_in_arrears"),
+          factors: b.factors as never,
           graduationPercent: a.graduationPercent,
-          repaymentHistoryScore: a.behavioural.repaymentHistory,
-          daysInArrearsScore: a.behavioural.daysInArrears,
           clearedLoans: a.clearedLoans,
           provenPrincipal: a.provenPrincipal ?? 0,
-          cappedByCeiling: a.cappedByCeiling,
-          decidedBy: actor,
+          cappedByCeiling: a.cappedByStep || a.cappedByCeiling,
+          policyVersion: opts.policyVersion ?? 0,
+          decidedBy: opts.actor ?? "engine",
         },
       });
-    });
+    }),
+  );
 
-    out.graduated++;
-    out.events.push({
-      borrowerId,
-      from: a.currentLimit,
-      to: a.newLimit,
-      band: a.behavioural.band?.key ?? "HIGH",
-      score: a.behavioural.score,
-    });
+  return a.move === "graduate" ? "graduated" : "demoted";
+}
+
+/**
+ * THE AUTOMATIC PATH — rescore one borrower the moment a repayment lands.
+ *
+ * This is what makes a limit move "after repayment has happened" rather than at
+ * whatever hour a nightly batch happens to run, and what lets a PD change several
+ * times across one loan cycle. Call it from the payment allocator.
+ *
+ * Deliberately quiet: a scoring failure must never fail the payment that triggered
+ * it. Money landing on a loan is the important event; the score is a consequence.
+ */
+export async function onRepayment(orgId: string, borrowerId: string, now = new Date()): Promise<void> {
+  try {
+    const doc = await readCreditPolicy(orgId);
+    const policy = doc.value;
+    if (!policy.behaviour.enabled) return;
+    // `on_clearance` and `scheduled` lenders are not rescored here — respecting the
+    // trigger is what keeps a lender's chosen cadence theirs.
+    if (policy.graduation.trigger !== "on_repayment") {
+      const a = await assessBorrower(orgId, borrowerId, policy, now);
+      // Still write the SCORE — only the limit move waits for their trigger.
+      if (a.behaviour.scored) {
+        await runWithOrg(orgId, () =>
+          prisma.borrower.update({
+            where: { id: borrowerId },
+            data: { behaviouralScore: a.behaviour.score, riskBand: a.behaviour.category?.key ?? null, lastScoredAt: now },
+          }),
+        ).catch(() => {});
+      }
+      return;
+    }
+    const a = await assessBorrower(orgId, borrowerId, policy, now);
+    await applyAssessment(orgId, borrowerId, a, { actor: "repayment", policyVersion: doc.version, now });
+  } catch {
+    /* scoring must never break a payment */
+  }
+}
+
+/** Called when a loan closes — for lenders whose trigger is `on_clearance`. */
+export async function onLoanCleared(orgId: string, borrowerId: string, now = new Date()): Promise<void> {
+  try {
+    const doc = await readCreditPolicy(orgId);
+    if (doc.value.graduation.trigger === "scheduled") return;
+    const a = await assessBorrower(orgId, borrowerId, doc.value, now);
+    await applyAssessment(orgId, borrowerId, a, { actor: "clearance", policyVersion: doc.version, now });
+  } catch {
+    /* never break loan closure */
+  }
+}
+
+export type GraduationRun = {
+  scored: number;
+  graduated: number;
+  demoted: number;
+  skipped: number;
+  events: { borrowerId: string; move: string; from: number; to: number; band: string; score: number }[];
+};
+
+/**
+ * Score every borrower with repayment history, and move the ones who have earned it.
+ *
+ * The batch path — still useful for a lender on a `scheduled` trigger, for a first
+ * run after a policy change, and as a backstop if a repayment hook was ever missed.
+ */
+export async function runGraduations(orgId: string, actor = "cron", now = new Date()): Promise<GraduationRun> {
+  const out: GraduationRun = { scored: 0, graduated: 0, demoted: 0, skipped: 0, events: [] };
+  const doc = await readCreditPolicy(orgId);
+  const policy = doc.value;
+  if (!policy.behaviour.enabled) return out;
+
+  const statuses = policy.behaviour.window.includeActive ? ["CLEARED", "ACTIVE"] : ["CLEARED"];
+  const borrowerIds = (
+    await runWithOrg(orgId, () =>
+      prisma.loan.findMany({
+        where: { orgId, status: { in: statuses as never } },
+        select: { borrowerId: true },
+        distinct: ["borrowerId"],
+      }),
+    )
+  ).map((l) => l.borrowerId);
+
+  for (const borrowerId of borrowerIds) {
+    const a = await assessBorrower(orgId, borrowerId, policy, now);
+    const result = await applyAssessment(orgId, borrowerId, a, { actor, policyVersion: doc.version, now });
+
+    if (a.behaviour.scored) out.scored++;
+    if (result === "graduated" || result === "demoted") {
+      if (result === "graduated") out.graduated++; else out.demoted++;
+      out.events.push({
+        borrowerId, move: a.move, from: a.currentLimit, to: a.newLimit!,
+        band: a.behaviour.category?.key ?? "UNSCORED", score: a.behaviour.score,
+      });
+    } else {
+      out.skipped++;
+    }
   }
 
   return out;
 }
 
 /** The ladder, for a screen that wants to show a customer where they stand. */
-export const LADDER = RISK_BANDS.map((b) => ({
-  key: b.key, label: b.label, percent: b.graduationPercent, minBehavioural: b.minBehavioural,
-}));
+export function ladderFor(policy: CreditPolicy) {
+  return policy.behaviour.categories.map((c) => ({
+    key: c.key, label: c.label, percent: c.graduationPercent, minScore: c.minScore,
+  }));
+}
+
+/** A "what if" preview that writes nothing — for the Customer-360. */
+export async function previewLadder(orgId: string, borrowerId: string, now = new Date()) {
+  const doc = await readCreditPolicy(orgId);
+  return { policyVersion: doc.version, assessment: await assessBorrower(orgId, borrowerId, doc.value, now) };
+}
+
+/** Re-exported so callers that only want a score do not reach past this module. */
+export { scoreBehaviour };
+export type { BehaviourBlock, GraduationBlock };

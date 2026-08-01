@@ -17,7 +17,7 @@ import { BorrowerMenu } from "./BorrowerMenu";
 import { BorrowerActions } from "./BorrowerActions";
 import { RiskBandCard } from "@/components/risk/RiskBandCard";
 import { bandForScore, bandForBehavioural, defaultProbability, normaliseBandName, BAND_BY_KEY } from "@/lib/risk/bands";
-import { assessGraduation } from "@/lib/risk/graduation";
+import { previewLadder } from "@/lib/risk/graduation";
 import KycGallery from "./KycGallery";
 import { CustomerTimeline, type TimelineEvent } from "./CustomerTimeline";
 
@@ -191,7 +191,13 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
 
   // The ladder is only meaningful once they have repaid something.
   const graduation = clearedCount > 0
-    ? await assessGraduation(orgId, b.id).then((g) => ({ eligible: g.eligible, reason: g.reason, newLimit: g.newLimit }))
+    ? await previewLadder(orgId, b.id).then(({ assessment: g }) => ({
+        // "eligible" now means specifically that the ladder would RAISE them — the
+        // engine can also lower a limit, and a demotion must not render as good news.
+        eligible: g.move === "graduate",
+        reason: g.reason,
+        newLimit: g.newLimit,
+      }))
     : null;
 
   return (

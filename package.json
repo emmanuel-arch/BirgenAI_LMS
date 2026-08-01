@@ -61,7 +61,8 @@
     "test:assistant": "tsx scripts/verify-assistant.ts",
     "test:products": "tsx scripts/verify-product-templates.ts",
     "test:decisions": "tsx scripts/verify-decision-engine.ts",
-    "test:federation": "tsx scripts/verify-federation.ts"
+    "test:federation": "tsx scripts/verify-federation.ts",
+    "test:behaviour": "tsx scripts/verify-behaviour.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
