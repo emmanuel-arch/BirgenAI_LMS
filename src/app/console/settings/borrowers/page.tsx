@@ -25,6 +25,9 @@ import {
 } from "lucide-react";
 import { useLoad } from "@/lib/hooks/useLoad";
 import {
+  Toggle, SwitchRow, Choice, RuleBlock, NumberField, TextField, SelectField, Divider,
+} from "@/components/settings/controls";
+import {
   KYC_FIELDS, validateBorrowerConfig,
   type BorrowerConfig, type ConfigIssue, type KycFieldKey,
 } from "@/lib/config/borrower";
@@ -362,7 +365,7 @@ function AccountSection({ cfg, set }: { cfg: BorrowerConfig; set: SetFn }) {
 
       {cfg.account.numbering === "system" && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <NumberOrText
+          <TextField
             label="Prefix" value={cfg.account.prefix}
             placeholder="e.g. MM"
             help="Appears in front of every account number."
@@ -629,175 +632,6 @@ function AttachmentsSection({ cfg, set }: { cfg: BorrowerConfig; set: SetFn }) {
       <p className="t-meta mt-3 text-[11px]">
         A loan product may require additional documents on top of the application list — never fewer.
       </p>
-    </div>
-  );
-}
-
-// ── Controls ──────────────────────────────────────────────────────────────────
-
-function Toggle({
-  label, checked, onChange, disabled, hint,
-}: {
-  label: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; hint?: string;
-}) {
-  return (
-    <label
-      title={hint}
-      className={`flex items-center justify-center gap-1.5 sm:justify-center ${disabled ? "cursor-not-allowed opacity-40" : "cursor-pointer"}`}
-    >
-      <span className="t-label sm:hidden">{label}</span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
-        disabled={disabled}
-        onClick={() => !disabled && onChange(!checked)}
-        className="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors"
-        style={{ backgroundColor: checked ? "var(--brand)" : "rgba(15,15,25,0.15)" }}
-      >
-        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[1.15rem]" : "translate-x-0.5"}`} />
-      </button>
-    </label>
-  );
-}
-
-function SwitchRow({
-  title, desc, checked, onChange,
-}: {
-  title: string; desc: string; checked: boolean; onChange: (v: boolean) => void;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3 rounded-xl px-3 py-2.5 ring-1 ring-[color:var(--ink)]/[0.07]">
-      <div className="min-w-0">
-        <p className="text-[13px] font-semibold text-[color:var(--ink)]">{title}</p>
-        <p className="t-meta text-[11px] leading-snug">{desc}</p>
-      </div>
-      <Toggle label={title} checked={checked} onChange={onChange} />
-    </div>
-  );
-}
-
-function Choice({
-  label, value, onChange, options,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string; hint: string }[];
-}) {
-  return (
-    <div>
-      <p className="t-label mb-2">{label}</p>
-      <div className="grid gap-2 sm:grid-cols-3">
-        {options.map((o) => {
-          const on = o.value === value;
-          return (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => onChange(o.value)}
-              className="rounded-xl px-3 py-3 text-left ring-1 transition-colors"
-              style={
-                on
-                  ? { backgroundColor: "var(--brand-soft)", ["--tw-ring-color" as never]: "var(--brand)" }
-                  : { ["--tw-ring-color" as never]: "rgba(15,15,25,0.09)" }
-              }
-            >
-              <span className="flex items-center gap-2">
-                <span
-                  className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full ring-2"
-                  style={{ ["--tw-ring-color" as never]: on ? "var(--brand)" : "rgba(15,15,25,0.2)" }}
-                >
-                  {on && <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: "var(--brand)" }} />}
-                </span>
-                <span className="text-[13px] font-semibold text-[color:var(--ink)]">{o.label}</span>
-              </span>
-              <span className="t-meta mt-1 block text-[11px] leading-snug">{o.hint}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function RuleBlock({
-  title, desc, checked, onChange, children,
-}: {
-  title: string; desc: string; checked: boolean; onChange: (v: boolean) => void; children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-xl ring-1 ring-[color:var(--ink)]/[0.07]">
-      <div className="flex items-start justify-between gap-3 px-3 py-2.5">
-        <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-[color:var(--ink)]">{title}</p>
-          <p className="t-meta text-[11px] leading-snug">{desc}</p>
-        </div>
-        <Toggle label={title} checked={checked} onChange={onChange} />
-      </div>
-      {checked && <div className="border-t border-[color:var(--ink)]/[0.07] px-3 py-3">{children}</div>}
-    </div>
-  );
-}
-
-const INPUT =
-  "mt-1 w-full rounded-lg border border-[color:var(--ink)]/12 bg-white px-3 py-2.5 text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-[color:var(--brand)]";
-
-function NumberField({
-  label, value, onChange, min, max, step, help, money,
-}: {
-  label: string; value: number; onChange: (v: number) => void;
-  min?: number; max?: number; step?: number; help?: string; money?: boolean;
-}) {
-  return (
-    <label className="block">
-      <span className="t-label">{label}{money ? " (KES)" : ""}</span>
-      <input
-        type="number" inputMode="numeric" value={Number.isFinite(value) ? value : 0}
-        min={min} max={max} step={step ?? 1}
-        onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value))}
-        className={INPUT}
-      />
-      {help && <span className="mt-1 block text-[11px] text-[color:var(--ink-faint)]">{help}</span>}
-    </label>
-  );
-}
-
-function NumberOrText({
-  label, value, onChange, placeholder, help,
-}: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; help?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="t-label">{label}</span>
-      <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={INPUT} />
-      {help && <span className="mt-1 block text-[11px] text-[color:var(--ink-faint)]">{help}</span>}
-    </label>
-  );
-}
-
-function SelectField({
-  label, value, onChange, options,
-}: {
-  label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[];
-}) {
-  return (
-    <label className="block">
-      <span className="t-label">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className={INPUT}>
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </label>
-  );
-}
-
-function Divider({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-3 pt-1">
-      <span className="t-label shrink-0">{label}</span>
-      <span className="h-px flex-1 bg-[color:var(--ink)]/[0.08]" />
     </div>
   );
 }

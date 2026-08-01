@@ -21,7 +21,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import {
   Smartphone, Banknote, MessageSquare, Mail, ScanFace, Gauge, Plug,
-  Palette, Users2, GitBranch, Package, Building2, KeyRound, Receipt, Crown,
+  Palette, Users2, GitBranch, Package, Building2, KeyRound, Receipt, Crown, Scale,
   type LucideIcon,
 } from "lucide-react";
 import type { Right } from "@/lib/rbac/rights";
@@ -154,6 +154,16 @@ export const SETTINGS_TILES: SettingsTile[] = [
       { key: "apiKey", label: "API key", type: "password" },
       { key: "environment", label: "Environment", type: "select", options: ["production", "sandbox"] },
     ],
+  },
+  {
+    id: "credit-policy",
+    kind: "link",
+    href: "/console/settings/credit",
+    title: "Credit policy",
+    desc: "Ceilings, affordability, hard stops, the behaviour matrix and the graduation ladder.",
+    icon: Scale,
+    group: "Identity & risk",
+    right: "settings.view",
   },
   {
     id: "crb",
