@@ -63,7 +63,9 @@
     "test:decisions": "tsx scripts/verify-decision-engine.ts",
     "test:federation": "tsx scripts/verify-federation.ts",
     "test:behaviour": "tsx scripts/verify-behaviour.ts",
-    "test:credit-policy": "tsx scripts/verify-credit-policy.ts"
+    "test:credit-policy": "tsx scripts/verify-credit-policy.ts",
+    "test:map": "tsx scripts/verify-system-map.ts",
+    "test:router": "tsx scripts/verify-router.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

@@ -208,8 +208,13 @@ export const NAV_REGISTRY: NavModule[] = [
     label: ASSISTANT_NAME,
     icon: "Bot",
     items: [
-      // Support is FIRST and needs no plan: a lender on the 10k package who cannot get
-      // help is a lender who churns. The analytics tiers are the ones that are sold.
+      // TWO DOORS, ONE ASSISTANT. Both of these open the same conversation — there
+      // is no longer a model to pick, and the router chooses the engine from the
+      // question (src/lib/riri/router.ts). What they still express, correctly, is
+      // the BILLING boundary: help is free and ungated, because a lender on the 10k
+      // package who cannot get help is a lender who churns, while reading the live
+      // book is the thing that is sold. The `open` values are legacy model ids kept
+      // so old markup keeps resolving; the OS accepts and ignores them.
       { key: "riri-support", label: "Help & How-to", open: "support", icon: "LifeBuoy" },
       { key: "riri", label: `Ask ${ASSISTANT_NAME}`, open: "analyst", icon: "Bot", right: "riri.use", feature: "riri" },
     ],

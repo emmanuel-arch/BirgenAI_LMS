@@ -138,6 +138,10 @@ export async function deleteTenant(orgId: string): Promise<TenantDeletionOutcome
     // Riri's notes about this lender's staff go before the staff themselves — they FK
     // back to StaffUser, and a memory of somebody who no longer exists is not a memory.
     await del("ririMemories", () => tx.ririMemory.deleteMany({ where: { orgId } }));
+    // Messages before threads — the FK cascades, but naming both keeps the count
+    // in the teardown report honest about what was actually removed.
+    await del("ririMessages", () => tx.ririMessage.deleteMany({ where: { orgId } }));
+    await del("ririThreads", () => tx.ririThread.deleteMany({ where: { orgId } }));
     await del("metricDefs", () => tx.metricDefinition.deleteMany({ where: { orgId } }));
     await del("tuning", () => tx.tuningProfile.deleteMany({ where: { orgId } }));
 

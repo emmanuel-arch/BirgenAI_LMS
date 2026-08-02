@@ -1,5 +1,20 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Riri's lineup — the three intelligences a lender talks to.
+// THE ENGINE LINEUP — internal now, not a menu.
+//
+// ⚠ THIS IS NO LONGER A USER-FACING CHOICE. These three were once three tiles on
+// the dock's home screen and the lender picked one before typing. They are now
+// three engines behind ONE conversation, chosen per question by lib/riri/router.ts
+// and named on the answer afterwards. What survives here is the lineup itself:
+// the ids, the metering keys, and `normaliseModelId`, which is the only reason
+// this file is still imported — a decade of saved preferences, deep-link
+// attributes and RiriQueryLog rows still say `copilot`, `analyst` and `max`, and
+// they must keep resolving rather than silently resetting somebody to Support.
+//
+// The display copy below (names, blurbs, suggestions) is kept because the account
+// panel still reports usage per engine and the query log is still read per engine.
+// It is not what anybody chooses from.
+//
+// ── Historical note, still true of the engines themselves ────────────────────
 //
 //   • support   — how this platform works. Free, ungated, never metered.
 //   • assistant — Riri 2.5: knows who you are, your role, your book, and the customer

@@ -151,6 +151,8 @@ model Org {
   savingsAccounts     SavingsAccount[]
   savingsTransactions SavingsTransaction[]
   ririMemories        RiriMemory[]
+  ririThreads         RiriThread[]
+  ririMessages        RiriMessage[]
   poolMembership      SharingPoolMember?
   standingOrders      StandingOrder[]
   configs             OrgConfig[]
@@ -1351,6 +1353,88 @@ enum ChargeBeneficiary {
 ///   • Recommendations go stale. `expiresAt` lets advice die of old age rather than
 ///     Riri nagging in November about an October arrears run.
 /// ─────────────────────────────────────────────────────────────────────────────
+/// ─────────────────────────────────────────────────────────────────────────────
+/// A SAVED CONVERSATION.
+///
+/// RiriMemory is what the assistant remembers ABOUT you — distilled, expiring, no
+/// identifiers. This is the different thing: the transcript itself, so a person can
+/// come back on Monday and reopen Friday's thread instead of re-explaining it.
+///
+/// Why it is a table and not localStorage: an officer works from a counter machine, a
+/// phone in the field and a branch terminal, and a conversation that only exists in
+/// one browser is a conversation they will not trust enough to rely on. It is also
+/// how "what did you tell me last week?" stops being a memory question and starts
+/// being a lookup.
+///
+/// Scoped like a memory — per org, per staff, plain `staffId` column so a platform
+/// admin acting as the lender is not an FK violation. Anything the assistant said
+/// about a customer is a copy of what their record said at the time, so a thread is
+/// retained on the same clock as the rest of the book and dies with the tenant.
+/// ─────────────────────────────────────────────────────────────────────────────
+model RiriThread {
+  id      String @id @default(uuid())
+  orgId   String
+  /// Whose conversation this is. Plain column — see RiriMemory.staffId.
+  staffId String
+
+  /// Derived from the first question, and renameable. Never blank: a list of
+  /// conversations called "Conversation" is a list nobody opens.
+  title String
+
+  /// The customer this thread was pinned to, if it was opened from a file.
+  /// The NAME is denormalised so a thread list does not need a join per row — and
+  /// so an erased customer's thread shows what it was about without resurrecting them.
+  subjectId   String?
+  subjectName String?
+
+  pinned     Boolean   @default(false)
+  archivedAt DateTime?
+
+  /// Sort key for the list. Bumped on every message, so "most recent" is one index.
+  lastAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  org      Org           @relation(fields: [orgId], references: [id])
+  messages RiriMessage[]
+
+  @@index([orgId, staffId, lastAt])
+}
+
+/// One turn in a saved conversation.
+///
+/// `engine` is stored because the answer is only trustworthy WITH it: a figure from
+/// the live book and a paragraph of reasoning look identical six weeks later, and
+/// the difference is the whole point. `sql` is stored for the same reason it is shown
+/// live — a number nobody can re-check is a rumour.
+model RiriMessage {
+  id       String @id @default(uuid())
+  orgId    String
+  threadId String
+
+  /// user | assistant
+  role String
+  body String
+
+  /// support | assistant | analytics — which engine answered, and why it was chosen.
+  engine    String?
+  engineWhy String?
+  /// The analyst's own route (catalog | llm | engine | narrative | refused).
+  route String?
+  /// The exact statement that ran, when one did.
+  sql String?
+
+  /// Chips, series, table, actions and suggestions — the structured half of an
+  /// answer, kept as one blob because it is rendered, never queried.
+  data Json?
+
+  createdAt DateTime @default(now())
+
+  thread RiriThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  org    Org        @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, threadId, createdAt])
+}
+
 model RiriMemory {
   id      String @id @default(uuid())
   orgId   String

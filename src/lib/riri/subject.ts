@@ -27,7 +27,7 @@ export type RiriSubject = {
 /**
  * Open Riri already pointed at someone.
  *
- * Rides the existing `riri:open` event (RiriDock listens for it), so there is one way
+ * Rides the existing `riri:open` event (ServiceSuiteOS listens for it), so there is one way
  * to open Riri from anywhere and this is not a second mechanism.
  */
 export function askRiriAbout(subject: RiriSubject, model: "analyst" | "copilot" = "copilot") {

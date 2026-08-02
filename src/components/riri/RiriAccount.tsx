@@ -51,12 +51,17 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
 }
 
 export function RiriAccount({
-  voiceOn, onVoice, autoGo, onAutoGo, lang, onLang, speaking,
+  voiceOn, onVoice, autoGo, onAutoGo, lang, onLang, speaking, inline = false,
 }: {
   voiceOn: boolean; onVoice: () => void;
   autoGo: boolean; onAutoGo: () => void;
   lang: string; onLang: () => void;
   speaking: boolean;
+  /** Rendered INSIDE another scrolling screen (the OS Settings app) rather than as
+   *  its own full-height panel. Without this the panel becomes a scroll region
+   *  nested in a scroll region, which on a 400px device means two thumbs and a
+   *  section you can only reach by scrolling the inner one first. */
+  inline?: boolean;
 }) {
   const [acc, setAcc] = useState<Account | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +93,7 @@ export function RiriAccount({
   const u = acc.usage;
 
   return (
-    <div className="flex-1 min-h-0 space-y-4 overflow-y-auto px-4 py-3">
+    <div className={inline ? "space-y-4 px-4" : "flex-1 min-h-0 space-y-4 overflow-y-auto px-4 py-3"}>
       <Section icon={<UserRound className="h-3 w-3" />} title="Who I know you as">
         <div className="rounded-xl border border-zinc-900/10 bg-white/70 px-3 py-2.5">
           <p className="text-[13px] font-bold text-zinc-800">{acc.actor.name ?? "—"}</p>
@@ -105,10 +110,15 @@ export function RiriAccount({
 
       <Section icon={<Gauge className="h-3 w-3" />} title={`Your usage — ${u?.monthLabel ?? "this month"}`}>
         <div className="grid grid-cols-4 gap-1.5">
+          {/* ONE VOCABULARY. These used to be "Support / Assistant / Analytics" —
+              the names of the three tiles a lender picked between. There are no
+              tiles now, and the words on an answer's stamp are Platform, Judgement
+              and Live book. A usage panel that reports in the old vocabulary makes
+              somebody translate their own bill. */}
           {([
-            ["Support", u?.byModel.support],
-            ["Assistant", u?.byModel.assistant],
-            ["Analytics", u?.byModel.analytics],
+            ["Platform", u?.byModel.support],
+            ["Judgement", u?.byModel.assistant],
+            ["Live book", u?.byModel.analytics],
             ["Exports", u?.exports],
           ] as const).map(([label, n]) => (
             <div key={label} className="rounded-xl border border-zinc-900/10 bg-white/70 px-2 py-2 text-center">

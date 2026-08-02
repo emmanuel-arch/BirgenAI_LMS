@@ -285,9 +285,89 @@ body {
 .dock-scan { animation: dock-scan 7s linear infinite; }
 .dock-pulse { animation: dock-pulse 1.8s ease-in-out infinite; }
 
+/* ── The device ──────────────────────────────────────────────────────────────
+   Everything below draws the handset itself. The reason a console assistant is
+   worth dressing as a phone at all: a phone is the interface every officer in
+   Kenya already operates without being taught, and "several apps, one at a time,
+   a button that always goes home" is a mental model we get for free.
+
+   The chrome is CSS, not images — it themes with --brand, costs no request, and
+   stays crisp on a 4K branch monitor. */
+
+/* The titanium band: a hard specular edge, a soft body, a shadowed inner lip. */
+.os-frame {
+  background:
+    linear-gradient(160deg, #4b4f57 0%, #23262b 18%, #14161a 48%, #23262b 82%, #55595f 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.12) inset,
+    0 1px 0 rgba(255, 255, 255, 0.22) inset,
+    0 40px 90px -22px rgba(0, 0, 0, 0.62),
+    0 12px 28px -10px rgba(0, 0, 0, 0.42);
+}
+/* The screen sits under glass: one raking highlight, and an inner shadow so the
+   display looks recessed rather than printed on the front. */
+.os-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(147deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.08) 22%, transparent 44%);
+  mix-blend-mode: overlay;
+}
+.os-glass {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55) inset, 0 2px 14px rgba(0, 0, 0, 0.28) inset;
+}
+
+/* The wallpaper: the org's own colour, moving slowly enough to be felt, not watched. */
+@keyframes os-aurora {
+  0%   { transform: translate3d(-6%, -4%, 0) scale(1.08); }
+  50%  { transform: translate3d(6%, 5%, 0) scale(1.16); }
+  100% { transform: translate3d(-6%, -4%, 0) scale(1.08); }
+}
+.os-aurora { animation: os-aurora 26s ease-in-out infinite; }
+
+/* Home button: a real press. Travel, then a rim light on release. */
+@keyframes os-home-press {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+.os-home-press { animation: os-home-press 260ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* An app icon leaving the grid and becoming the screen. */
+@keyframes os-boot {
+  from { opacity: 0; transform: scale(0.965); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.os-boot { animation: os-boot 260ms cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* The signal bars and the charging pip in the status bar. */
+@keyframes os-breathe-dim {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+.os-live { animation: os-breathe-dim 2.6s ease-in-out infinite; }
+
+/* A badge arriving on an app icon. */
+@keyframes os-badge-pop {
+  0%   { transform: scale(0); }
+  70%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.os-badge { animation: os-badge-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* The dialler's keypad ripple — the one piece of feedback a keypad must have. */
+@keyframes os-key {
+  from { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.5); }
+  to   { box-shadow: 0 0 0 14px rgba(255, 255, 255, 0); }
+}
+.os-key:active { animation: os-key 380ms ease-out; }
+
 @media (prefers-reduced-motion: reduce) {
   .riri-breathe, .riri-eye, .riri-halo, .riri-float, .riri-think-dot, .riri-orbit-dot, .riri-sheen,
-  .auth-ray, .auth-bloom, .dock-scan, .dock-pulse {
+  .auth-ray, .auth-bloom, .dock-scan, .dock-pulse,
+  .os-aurora, .os-home-press, .os-boot, .os-live, .os-badge, .os-key:active {
     animation: none;
   }
 }

@@ -30,6 +30,8 @@ import { prisma } from "@/lib/prisma";
 import { runWithOrg } from "@/lib/db/context";
 import { cheapestPlanWith } from "@/lib/billing/plans";
 import { search, articlesFor, detectLang, type Article, type SupportLang } from "./knowledge";
+import { answerFromMap, isNavigationIntent, whatICanHelpWith } from "./guide";
+import { findScreens } from "./system-map";
 import { ASSISTANT_NAME } from "./brand";
 
 /** Something Riri offers to do. She never does it herself — the user taps. */
@@ -248,16 +250,64 @@ export async function answerSupport(
     };
   }
 
+  const access = { rights: ctx.rights, features: ctx.features };
+
+  // ── "TAKE ME THERE" GOES TO THE MAP FIRST ──────────────────────────────────
+  //
+  // The corpus knows 28 topics; the map knows every screen the console has. A
+  // navigation request is a question about the SECOND set — someone asking to be
+  // taken to the credit policy editor does not want the nearest article about
+  // scoring, they want that door. So an explicit navigation intent consults the
+  // map before the corpus, and only falls through if the map cannot name one
+  // screen with confidence.
+  if (isNavigationIntent(q)) {
+    const guided = answerFromMap(q, access, lang);
+    if (guided && guided.shape === "navigate") {
+      return { ...guided, articleId: guided.sourceId };
+    }
+  }
+
   const hits = search(q, { rights: ctx.rights, features: ctx.features, limit: 3 });
 
   if (!hits.length) {
-    // The honest failure. She does NOT guess a menu path.
-    const canDo = articlesFor(ctx.rights).slice(0, 6).map((a) => voiced(a, lang).title.toLowerCase());
+    // ── THE MAP CATCHES WHAT THE CORPUS NEVER COVERED ────────────────────────
+    //
+    // This is the gap that used to be silent. Fifty screens, twenty-eight
+    // articles: everything in between — the credit policy editor, the pipeline
+    // board, the income statement, reconciliation, oversight — answered "I don't
+    // know", which is honest and useless. The map answers those now, from what it
+    // actually holds and no more.
+    const guided = answerFromMap(q, access, lang);
+    if (guided) return { ...guided, articleId: guided.sourceId };
+
+    // The honest failure. She does NOT guess a menu path — but the menu she offers
+    // instead is now THIS caller's real console, not a generic feature list.
+    const canDo = [
+      ...articlesFor(ctx.rights).slice(0, 3).map((a) => voiced(a, lang).title.toLowerCase()),
+      ...whatICanHelpWith(access, 5).map((t) => t.toLowerCase()),
+    ];
     return {
-      answer: s.dontKnow(canDo.join(", ")),
+      answer: s.dontKnow([...new Set(canDo)].join(", ")),
       actions: [],
       suggestions: [...s.dontKnowSuggestions],
     };
+  }
+
+  // ── A NAMED SCREEN BEATS A GLANCING ARTICLE ────────────────────────────────
+  //
+  // The corpus floor (MIN_SCORE 8) admits matches made of nothing but word overlap.
+  // A real phrasing in the corpus scores 10 + its own length; anything under ~16 is
+  // two common nouns brushing past each other. When that is all the corpus has and
+  // the MAP recognised an actual phrase — someone said "credit policy", "income
+  // statement", "reconciliation" — the map is what was asked for, and answering
+  // from the corpus instead is the old "how do I export to QuickBooks" failure
+  // wearing a new coat.
+  if (hits[0].score < 16) {
+    const guided = answerFromMap(q, access, lang);
+    if (guided && guided.sourceId.startsWith("screen:")) {
+      const strong = findScreens(q, access, 1)[0];
+      if (strong && strong.score >= 40) return { ...guided, articleId: guided.sourceId };
+    }
   }
 
   const top = hits[0];

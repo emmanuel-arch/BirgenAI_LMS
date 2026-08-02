@@ -3,9 +3,12 @@
 // This is where "who sees what" is decided, once per request, server-side:
 // the caller's role rights (src/lib/rbac) intersect the org's plan entitlements
 // intersect the nav registry, and the client shell just renders the survivors.
-// The org accent is set here so the whole console (and the Riri dock, a fixed
-// child of this wrapper) inherits --brand. Riri mounts here, once, so her
-// conversation and position survive navigation between modules.
+// The org accent is set here so the whole console — and ServiceSuite OS, a fixed
+// child of this wrapper — inherits --brand. The assistant mounts here, once, so
+// its conversation, its position and its navigation stack survive moving between
+// modules. That matters more than it used to: Autopilot navigates the console
+// underneath the device, and a device that remounted on every route change would
+// lose the conversation that asked to be taken there.
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRights } from "@/lib/rbac/authz";
@@ -13,7 +16,7 @@ import { entitlementsFor } from "@/lib/billing/entitlements";
 import { navFor } from "@/lib/nav/registry";
 import { resolveSuite } from "@/lib/suite/hosts";
 import Shell from "@/components/shell/Shell";
-import RiriDock from "@/components/riri/RiriDock";
+import ServiceSuiteOS from "@/components/os/ServiceSuiteOS";
 import BrandHead from "@/components/BrandHead";
 
 export const runtime = "nodejs";
@@ -46,7 +49,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
       >
         {children}
       </Shell>
-      <RiriDock orgName={org.name} userName={session.user.name ?? null} />
+      <ServiceSuiteOS orgName={org.name} userName={session.user.name ?? null} />
     </div>
   );
 }
