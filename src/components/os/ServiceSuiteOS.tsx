@@ -42,6 +42,7 @@ import { RiriAvatar } from "@/components/riri/RiriAvatar";
 import { ASSISTANT_NAME } from "@/lib/riri/brand";
 import { normaliseModelId } from "@/lib/riri/models";
 import { PhoneShell } from "./PhoneShell";
+import { LockScreen } from "./LockScreen";
 import { useOsNav, ROUTE_TITLES, type Route } from "./nav";
 import { appFor } from "./apps";
 import { HomeScreen } from "./screens/Home";
@@ -51,6 +52,8 @@ import { AlertsScreen } from "./screens/Alerts";
 import { CallsScreen } from "./screens/Calls";
 import { FindScreen } from "./screens/Find";
 import { SettingsScreen } from "./screens/Settings";
+import { TodayScreen, type TodayKind } from "./screens/Today";
+import type { TodayPayload } from "@/app/api/console/riri/today/route";
 import type { Signal } from "@/lib/riri/signals";
 import type { ThreadSummary, StoredMessage } from "@/lib/riri/threads";
 import type { LookupMatch } from "@/app/api/console/riri/lookup/route";
@@ -105,6 +108,19 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
   const [autoGo, setAutoGo] = useState(() => pref("riri:autogo") === "1");
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
 
+  // THE PHONE OPENS LOCKED, AND RE-LOCKS WHEN IT IS PUT AWAY.
+  //
+  // Not security — the session is the security, and every figure on the lock screen
+  // was authorised on the server before it was printed. It is that the briefing is
+  // the product: the whole argument for a handset in a lending console is that it
+  // tells you what today is before you ask it anything, and a lock screen you have
+  // to go looking for is a briefing nobody reads. Opening costs one swipe.
+  //
+  // A caller that arrives WITH an intent — a sidebar link, a "talk about this
+  // customer" button — unlocks on the way in. They already said where they were
+  // going; making them swipe past a briefing to get there would be theatre.
+  const [locked, setLocked] = useState(true);
+
   const nav = useOsNav();
   const router = useRouter();
 
@@ -129,11 +145,29 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
   const [signalsAt, setSignalsAt] = useState<string | null>(null);
   const [scope, setScope] = useState<string | null>(null);
 
+  // ── Today (due / arrears / promises) ───────────────────────────────────────
+  // One payload behind three apps AND the lock screen, because they are three
+  // slices of one morning and four independent fetches of the same three counts
+  // is four chances for the badge to disagree with the screen it opens.
+  const [today, setToday] = useState<TodayPayload | null>(null);
+  const [todayLoading, setTodayLoading] = useState(false);
+
   const askRef = useRef<(q: string, engine?: Engine) => void>(() => {});
   const openOnRef = useRef<(id: string, name: string) => void>(() => {});
   const voice = useVoice({ onTranscript: (text) => askRef.current(text) });
 
   const dismissGreet = () => { setGreet(false); setPref("riri:greeted", "1"); };
+
+  /**
+   * Put the phone away — and re-lock it on the way down.
+   *
+   * The re-lock happens HERE, in the one action that closes the device, rather than
+   * in an effect watching `open`. An effect would be a setState synchronously
+   * inside an effect body, which is a cascading render and is banned by this
+   * project's hooks rules for exactly that reason. Closing is an event; treating it
+   * as one keeps the state change where the intent is.
+   */
+  const closeDevice = useCallback(() => { setOpen(false); setLocked(true); }, []);
 
   useEffect(() => { setPref("riri:corner", corner); }, [corner]);
   useEffect(() => { setPref("riri:open", open ? "1" : "0"); }, [open]);
@@ -156,6 +190,16 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
       if (d.success) { setSignals(d.signals ?? []); setBadge(d.badge ?? 0); setSignalsAt(d.at ?? null); setScope(d.scope ?? null); }
     } catch { /* the tray simply stays as it was */ }
     finally { setSignalsLoading(false); }
+  }, []);
+
+  const loadToday = useCallback(async () => {
+    setTodayLoading(true);
+    try {
+      const r = await fetch("/api/console/riri/today");
+      const d = await r.json();
+      if (d.success) setToday(d as TodayPayload);
+    } catch { /* the figures simply stay as they were */ }
+    finally { setTodayLoading(false); }
   }, []);
 
   const loadThreads = useCallback(async () => {
@@ -185,11 +229,20 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
     return () => window.clearTimeout(t);
   }, [loadSignals]);
 
+  // The morning figures are warmed a beat behind the tray, so the FIRST open of
+  // the device already has them on the glass. A lock screen that appears and then
+  // grows three numbers a half-second later is a lock screen that looks like it is
+  // still thinking — and this one's whole job is to have finished thinking.
+  useEffect(() => {
+    const t = window.setTimeout(() => void loadToday(), 1900);
+    return () => window.clearTimeout(t);
+  }, [loadToday]);
+
   useEffect(() => {
     if (!open) return;
-    const t = window.setTimeout(() => void loadSignals(), 0);
+    const t = window.setTimeout(() => { void loadSignals(); void loadToday(); }, 0);
     return () => window.clearTimeout(t);
-  }, [open, loadSignals]);
+  }, [open, loadSignals, loadToday]);
 
   const onChats = nav.route.name === "chats";
   useEffect(() => {
@@ -375,7 +428,7 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
       const el = (e.target as Element | null)?.closest?.("[data-riri-open]");
       if (!el) return;
       e.preventDefault();
-      setOpen(true); dismissGreet();
+      setOpen(true); setLocked(false); dismissGreet();
       // The attribute used to choose a MODEL. There is one conversation now, so a
       // named model is honoured as "open the conversation" and the router decides
       // the rest — the old attributes keep working without meaning what they said.
@@ -383,7 +436,7 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
     };
     const onEvent = (e: Event) => {
       const detail = (e as CustomEvent).detail ?? {};
-      setOpen(true); dismissGreet();
+      setOpen(true); setLocked(false); dismissGreet();
       const s = detail.subject;
       const named = s && typeof s.id === "string" && typeof s.kind === "string";
       openAsk();
@@ -394,7 +447,9 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
       // Legacy callers still send a model id; it is accepted and ignored on purpose.
       void normaliseModelId(detail.model);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    // Escape closes AND re-locks, same as the close button — the two ways out of
+    // the device must not leave it in two different states.
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); setLocked(true); } };
 
     document.addEventListener("click", onClick);
     window.addEventListener("riri:open", onEvent as EventListener);
@@ -425,7 +480,7 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
   const onUp = (e: ReactPointerEvent) => {
     const d = down.current; down.current = null;
     if (!d) return;
-    if (!d.moved) { setOpen((o) => !o); dismissGreet(); return; }
+    if (!d.moved) { if (open) closeDevice(); else setOpen(true); dismissGreet(); return; }
     setCorner(e.clientX < vp.w / 2 ? "bl" : "br");
     setDrag(null);
   };
@@ -442,7 +497,13 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
       : nav.route.name === "ask" ? (pinned ? `On ${pinned.name}` : turns.length ? "In conversation" : "Ready")
         : nav.route.name === "alerts" ? `${signals.length} thing${signals.length === 1 ? "" : "s"} on your book`
           : nav.route.name === "chats" ? `${threads.length} saved`
-            : app?.blurb ?? "";
+            // The morning three put the FIGURE in the status bar, not a description.
+            // On these screens the subtitle is the answer, and repeating the blurb
+            // under the title would be the one line of chrome that says nothing.
+            : nav.route.name === "due" ? (today ? `${today.due.amount} across ${today.due.count}` : "Reading your book…")
+              : nav.route.name === "arrears" ? (today ? `${today.arrears.amount} over ${today.arrears.count}` : "Reading your book…")
+                : nav.route.name === "promises" ? (today ? `${today.promises.count} due today` : "Reading your book…")
+                  : app?.blurb ?? "";
 
   return (
     <>
@@ -491,13 +552,28 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
             className="no-print fixed z-[9998]"
           >
             <PhoneShell
+              cover={
+                locked ? (
+                  <LockScreen
+                    orgName={orgName}
+                    userName={userName}
+                    signals={signals}
+                    today={today}
+                    scope={scope}
+                    loading={signalsLoading || todayLoading}
+                    onUnlock={() => setLocked(false)}
+                    onOpen={(r) => { setLocked(false); nav.launch(r); }}
+                    onSignal={(s) => { setLocked(false); setFlight(s.actionLabel); router.push(s.href); }}
+                  />
+                ) : undefined
+              }
               title={title}
               subtitle={subtitle}
               atHome={nav.atHome}
               onBack={nav.atHome ? null : nav.pop}
               backLabel={nav.backLabel}
               onHome={nav.home}
-              onClose={() => setOpen(false)}
+              onClose={closeDevice}
               busy={busy && nav.route.name === "ask"}
               accent={app?.tile ?? null}
               leading={
@@ -563,6 +639,7 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
                     userName={userName}
                     signals={signals}
                     badge={badge}
+                    counts={today ? { due: today.due.count, arrears: today.arrears.count, promises: today.promises.count } : null}
                     lastRoute={null}
                     onOpen={(r: Route) => nav.launch(r)}
                     onSignal={(s) => { setFlight(s.actionLabel); router.push(s.href); }}
@@ -614,6 +691,18 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
                     at={signalsAt}
                     onRefresh={() => void loadSignals()}
                     onOpen={(s) => { setFlight(s.actionLabel); router.push(s.href); }}
+                  />
+                )}
+
+                {(nav.route.name === "due" || nav.route.name === "arrears" || nav.route.name === "promises") && (
+                  <TodayScreen
+                    key={nav.route.name}
+                    kind={nav.route.name as TodayKind}
+                    data={today}
+                    loading={todayLoading}
+                    onRefresh={() => void loadToday()}
+                    onOpenCustomer={(id, name) => void openOnCustomer(id, name)}
+                    onNavigate={(href) => { setFlight(null); router.push(href); }}
                   />
                 )}
 

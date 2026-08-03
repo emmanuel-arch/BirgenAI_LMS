@@ -66,7 +66,14 @@ function clockSnapshot() {
 // snapshot is how a clock avoids a hydration mismatch on every page load.
 const clockServer = () => "--:--";
 
-const useClock = () => useSyncExternalStore(subscribeClock, clockSnapshot, clockServer);
+/**
+ * The wall clock, as a stable "HH:MM" string.
+ *
+ * Exported because the lock screen needs the same tick: two independent minute
+ * timers in one device is how a status bar and a lock screen end up a minute
+ * apart on the same screenshot.
+ */
+export const useClock = () => useSyncExternalStore(subscribeClock, clockSnapshot, clockServer);
 
 export type ShellProps = {
   /** Bottom-left of the status bar's title block. */
@@ -89,11 +96,20 @@ export type ShellProps = {
   /** The composer or keypad, pinned below the screen. */
   footer?: ReactNode;
   atHome: boolean;
+  /**
+   * A layer that takes the whole glass — the lock screen, and nothing else so far.
+   *
+   * It REPLACES the chrome rather than sitting over it, because a locked phone has
+   * no back button, no home button and no close affordance: those are things you
+   * get after you have opened it. Rendering them underneath and hiding them with
+   * opacity would leave a tab order that walks straight through a locked device.
+   */
+  cover?: ReactNode;
 };
 
 export function PhoneShell({
   title, subtitle, onBack, backLabel, onHome, onClose, action, leading,
-  busy, accent, children, footer, atHome,
+  busy, accent, children, footer, atHome, cover,
 }: ShellProps) {
   const clock = useClock();
   const [pressed, setPressed] = useState(false);
@@ -116,6 +132,10 @@ export function PhoneShell({
       <span aria-hidden className="pointer-events-none absolute -right-[2px] top-[136px] h-20 w-[3px] rounded-r-sm bg-zinc-500/70" />
 
       <div className="os-glass relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[34px] bg-white">
+        {cover ? (
+          cover
+        ) : (
+          <>
         {/* ── STATUS BAR ─────────────────────────────────────────────────────
             Carrier, clock, radios. The carrier is the lender's own assistant
             name, because on this device that is who is providing service. */}
@@ -219,6 +239,8 @@ export function PhoneShell({
             />
           </motion.button>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

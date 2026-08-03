@@ -9,8 +9,9 @@
 // "sagging its trousers". Now the SIDEBAR runs to the very top: the lender's
 // letterhead card is the first thing in the top-left corner of the screen, with
 // the collapse control as a slim tab at its side (see Sidebar). The only chrome
-// on the right is a floating profile pill — and on mobile, the drawer button —
-// sitting directly on the artwork.
+// on the right is a single floating identity pill — the app grip and the signed-in
+// person merged into one control (see IdentityMenu) — and on mobile, the drawer
+// button, both sitting directly on the artwork.
 //
 // The page canvas is deliberately NARROWER than the space it sits in: capped
 // and centred, with real gutters, so the artwork shows on every side of it
@@ -34,8 +35,7 @@ import type { NavModule } from "@/lib/nav/registry";
 import type { ShellOrg, ShellUser } from "./types";
 import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 import Sidebar from "./Sidebar";
-import ProfileMenu from "./ProfileMenu";
-import SuiteSwitcher from "./SuiteSwitcher";
+import IdentityMenu from "./IdentityMenu";
 import ImpersonationBanner from "./ImpersonationBanner";
 
 export default function Shell({
@@ -113,11 +113,17 @@ export default function Shell({
                     Pending activation
                   </span>
                 )}
-                {/* The suite grip sits beside the profile: identity on the right,
-                    the systems that identity opens immediately to its left. */}
-                <SuiteSwitcher currentId="lms" hosts={suiteHosts} />
-                {/* Far right: the authenticated profile, always. */}
-                <ProfileMenu name={user.name} email={user.email} role={user.role} />
+                {/* ONE control, far right: the grip and the person are the same
+                    button now, because the systems it opens are opened BY that
+                    identity. See IdentityMenu. */}
+                <IdentityMenu
+                  name={user.name}
+                  email={user.email}
+                  role={user.role}
+                  orgName={org.name}
+                  currentId="lms"
+                  hosts={suiteHosts}
+                />
               </div>
             </div>
 

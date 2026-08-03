@@ -22,6 +22,7 @@
 import { motion } from "framer-motion";
 import {
   MessageCircle, BellRing, Phone, History, UserSearch, Settings,
+  CalendarClock, TrendingDown, Handshake,
   ChevronRight, ShieldCheck, type LucideIcon,
 } from "lucide-react";
 import { GRID_APPS, DOCK_APPS, type OsApp } from "../apps";
@@ -30,7 +31,10 @@ import type { Signal } from "@/lib/riri/signals";
 import { SPRING } from "../kit";
 import { ASSISTANT_NAME } from "@/lib/riri/brand";
 
-const ICONS: Record<string, LucideIcon> = { MessageCircle, BellRing, Phone, History, UserSearch, Settings };
+const ICONS: Record<string, LucideIcon> = {
+  MessageCircle, BellRing, Phone, History, UserSearch, Settings,
+  CalendarClock, TrendingDown, Handshake,
+};
 
 const SEV_DOT: Record<Signal["severity"], string> = {
   critical: "bg-rose-500",
@@ -40,12 +44,14 @@ const SEV_DOT: Record<Signal["severity"], string> = {
 };
 
 export function HomeScreen({
-  orgName, userName, signals, badge, onOpen, onSignal, lastRoute,
+  orgName, userName, signals, badge, counts, onOpen, onSignal, lastRoute,
 }: {
   orgName: string;
   userName?: string | null;
   signals: Signal[];
   badge: number;
+  /** Live counts behind the morning three, so their icons carry a number. */
+  counts?: { due: number; arrears: number; promises: number } | null;
   onOpen: (r: Route) => void;
   onSignal: (s: Signal) => void;
   lastRoute: Route["name"] | null;
@@ -55,7 +61,15 @@ export function HomeScreen({
   const salutation = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const lead = signals[0] ?? null;
 
-  const badgeFor = (app: OsApp) => (app.route === "alerts" ? badge : 0);
+  // A badge is a count of things waiting, so the morning three carry theirs for
+  // the same reason Alerts does: an icon that has to be opened to find out whether
+  // it needed opening is an icon that gets opened out of anxiety, or not at all.
+  const badgeFor = (app: OsApp) =>
+    app.route === "alerts" ? badge
+      : app.route === "due" ? counts?.due ?? 0
+        : app.route === "arrears" ? counts?.arrears ?? 0
+          : app.route === "promises" ? counts?.promises ?? 0
+            : 0;
 
   return (
     <motion.div
@@ -117,9 +131,13 @@ export function HomeScreen({
           )}
         </motion.button>
 
-        {/* THE GRID. Three across — big enough to hit with a thumb on a tablet at
-            a counter, small enough that six apps fit above the fold. */}
-        <div className="mt-4 grid shrink-0 grid-cols-3 gap-x-2.5 gap-y-3.5">
+        {/* THE GRID. FOUR across, two rows, eight apps — a full rectangle.
+            It was three across when there were six apps; adding the morning three
+            made nine, and nine at that size pushed the dock below the fold on a
+            laptop. Four across is the same grid a phone actually uses, and it buys
+            back the room the live line and the dock both need to stay visible
+            without scrolling — which is the whole point of a home screen. */}
+        <div className="mt-4 grid shrink-0 grid-cols-4 gap-x-2 gap-y-3">
           {GRID_APPS.map((app, i) => {
             const Glyph = ICONS[app.icon] ?? MessageCircle;
             const n = badgeFor(app);
@@ -132,20 +150,20 @@ export function HomeScreen({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.06 + i * 0.035, ...SPRING }}
                 whileTap={{ scale: 0.9 }}
-                className="group flex flex-col items-center gap-1.5"
+                className="group flex min-w-0 flex-col items-center gap-1.5"
                 title={app.blurb}
               >
                 <span
-                  className="relative flex aspect-square w-full items-center justify-center rounded-[21px] shadow-lg shadow-zinc-900/20 ring-1 ring-inset ring-white/30"
+                  className="relative flex aspect-square w-full items-center justify-center rounded-[18px] shadow-lg shadow-zinc-900/20 ring-1 ring-inset ring-white/30"
                   style={{ background: `linear-gradient(147deg, ${app.tile.from}, ${app.tile.to})` }}
                 >
                   {/* The specular sweep every real icon has across its top-left. */}
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute inset-0 rounded-[21px]"
+                    className="pointer-events-none absolute inset-0 rounded-[18px]"
                     style={{ background: "linear-gradient(150deg, rgba(255,255,255,0.42), transparent 52%)" }}
                   />
-                  <Glyph className="relative h-6 w-6 text-white drop-shadow-sm" />
+                  <Glyph className="relative h-[22px] w-[22px] text-white drop-shadow-sm" />
                   {n > 0 && (
                     <span className="os-badge absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white ring-2 ring-white">
                       {n > 99 ? "99+" : n}
@@ -155,7 +173,7 @@ export function HomeScreen({
                     <span className="absolute -bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-zinc-900/30" />
                   )}
                 </span>
-                <span className="text-[10.5px] font-semibold leading-tight text-zinc-700">{app.name}</span>
+                <span className="w-full truncate text-center text-[9.5px] font-semibold leading-tight text-zinc-700">{app.name}</span>
               </motion.button>
             );
           })}

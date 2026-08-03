@@ -32,6 +32,14 @@ export type Route =
   | { name: "alerts" }
   | { name: "calls" }
   | { name: "find" }
+  // The morning three. They are separate destinations rather than tabs inside one
+  // "Today" screen because they belong to different people: the officer opens
+  // Arrears, the branch manager opens Due Today, the call-centre agent lives in
+  // Promises. A shared screen with a tab bar makes all three of them navigate past
+  // somebody else's job to reach their own.
+  | { name: "due" }
+  | { name: "arrears" }
+  | { name: "promises" }
   | { name: "settings" };
 
 export type RouteName = Route["name"];
@@ -44,6 +52,9 @@ export const ROUTE_TITLES: Record<RouteName, string> = {
   alerts: "Alerts",
   calls: "Calls",
   find: "Customers",
+  due: "Due Today",
+  arrears: "Arrears",
+  promises: "Promises",
   settings: "Settings",
 };
 
