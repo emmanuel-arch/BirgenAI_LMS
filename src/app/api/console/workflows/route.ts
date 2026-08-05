@@ -11,7 +11,7 @@ import { prisma, orgTx } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-type StageIn = { title?: string; accessTier?: number; canFinalize?: boolean; otpRequired?: boolean; maxAmount?: number | null };
+type StageIn = { title?: string; accessTier?: number; canFinalize?: boolean; otpRequired?: boolean; crbRequired?: boolean; maxAmount?: number | null };
 
 function validateStages(stages: StageIn[]): string | null {
   if (!Array.isArray(stages) || stages.length === 0) return "Add at least one stage.";
@@ -40,7 +40,7 @@ export async function GET() {
       id: w.id, title: w.title, description: w.description,
       stages: w.stages.map((s) => ({
         id: s.id, title: s.title, order: s.order, accessTier: s.accessTier,
-        canFinalize: s.canFinalize, otpRequired: s.otpRequired,
+        canFinalize: s.canFinalize, otpRequired: s.otpRequired, crbRequired: s.crbRequired,
         maxAmount: s.maxAmount != null ? Number(s.maxAmount) : null,
       })),
     })),
@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
           accessTier: Number(s.accessTier),
           canFinalize: !!s.canFinalize,
           otpRequired: s.otpRequired ?? true,
+          crbRequired: !!s.crbRequired,
           maxAmount: s.maxAmount != null && Number.isFinite(Number(s.maxAmount)) ? new Prisma.Decimal(Number(s.maxAmount)) : null,
         })),
       },

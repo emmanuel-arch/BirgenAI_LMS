@@ -65,7 +65,9 @@
     "test:behaviour": "tsx scripts/verify-behaviour.ts",
     "test:credit-policy": "tsx scripts/verify-credit-policy.ts",
     "test:map": "tsx scripts/verify-system-map.ts",
-    "test:router": "tsx scripts/verify-router.ts"
+    "test:router": "tsx scripts/verify-router.ts",
+    "test:crb": "tsx scripts/verify-metropol.ts",
+    "crb:set-micromart": "tsx scripts/set-micromart-crb.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

@@ -83,9 +83,23 @@ export type KycConfig = {
 
 export type CrbConfig = {
   bureau: "transunion" | "metropol" | "creditinfo";
-  username: string;
-  password: string;
+  /** Legacy / other-bureau basic auth. Metropol uses the key pair below. */
+  username?: string;
+  password?: string;
   endpoint?: string;
+  // ── Metropol CRB (MA Kenya API) ──────────────────────────────────────────
+  /** X-METROPOL-REST-API-KEY (falls back to `username`). */
+  publicKey?: string;
+  /** Private key used to build the SHA-256 request hash (falls back to `password`). */
+  privateKey?: string;
+  /** Hostname only, no scheme. Default api.metropol.co.ke. */
+  host?: string;
+  /** API port Metropol assigns. Default 5555. */
+  port?: string;
+  /** URL version segment Metropol assigns (e.g. v2_1). Required to go live. */
+  apiVersion?: string;
+  /** How much of Metropol to pull per check: "score" | "standard" | "full". */
+  reportDepth?: "score" | "standard" | "full";
 };
 
 type ConfigFor = {

@@ -36,6 +36,8 @@ import { fuseScores } from "@/lib/scoring/fusion";
 import { computeApprovedLimit } from "@/lib/lending/limits";
 import { attachKycSession } from "@/lib/kyc/attach";
 import { activeLoanElsewhere } from "@/lib/pool/pool";
+import { runCrbCheck, type CrbReport } from "@/lib/crb/provider";
+import { REPORT_REASON } from "@/lib/crb/metropol";
 
 export const runtime = "nodejs";
 
@@ -257,6 +259,37 @@ export async function POST(req: NextRequest) {
     fusionComponents: fused.components,
   };
 
+  // ── CRB (Metropol) at origination ─────────────────────────────────────────────
+  // A new credit application is the textbook reason to pull the bureau (Report
+  // Reason 1). Runs only with the borrower's recorded consent and only when a
+  // national ID is on the application (Metropol keys on the ID). Best-effort: a
+  // bureau outage or duplicate must never sink a submission. A live ADVERSE file
+  // can only make the decision MORE conservative — APPROVE → REFER for a human —
+  // never auto-decline (DPA: no purely-automated adverse decision).
+  let crbReport: CrbReport | null = null;
+  const crbReasonCodes: string[] = [];
+  if (c.crbCheck) {
+    try {
+      crbReport = await runCrbCheck(
+        org.id,
+        { nationalId: body.nationalId?.trim() || null, phone, name: borrowerName },
+        { loanAmount: amount, reason: REPORT_REASON.NEW_APPLICATION },
+      );
+    } catch {
+      /* bureau unreachable / E409 duplicate — proceed on the cashflow decision */
+    }
+    if (crbReport) {
+      if (crbReport.verdict === "ADVERSE") {
+        crbReasonCodes.push(`CRB adverse (${crbReport.bureau}, score ${crbReport.score}): ${crbReport.summary}`);
+        if (scored.decision === "APPROVE") scored.decision = "REFER";
+      } else if (crbReport.verdict === "CAUTION") {
+        crbReasonCodes.push(`CRB caution (${crbReport.bureau}, score ${crbReport.score}, ${crbReport.accounts.npl} NPL).`);
+      } else {
+        crbReasonCodes.push(`CRB clear (${crbReport.bureau}, score ${crbReport.score}).`);
+      }
+    }
+  }
+
   // ── The approved limit ───────────────────────────────────────────────────────
   // Cashflow capacity × risk × the progressive-exposure ladder (lib/lending/limits).
   // NATIVE books ENFORCE it — the borrower chooses any figure UP TO the limit, and
@@ -387,6 +420,7 @@ export async function POST(req: NextRequest) {
         reasonCodes: [
           ...((scored.reasonCodes as unknown[]) ?? []),
           ...limit.reasons,
+          ...crbReasonCodes,
         ] as unknown as Prisma.InputJsonValue,
         approvedLimit: new Prisma.Decimal(limit.approvedLimit),
         featuresSnapshot: body.features as unknown as Prisma.InputJsonValue,
@@ -441,6 +475,25 @@ export async function POST(req: NextRequest) {
       await attachKycSession(orgRow.id, borrowerRowId, phone, body.nationalId?.trim() || null);
     } catch (err) {
       console.error("[apply] KYC attach failed:", err);
+    }
+  }
+
+  // Persist the origination CRB pull against the borrower + application (the
+  // auditable justification for the pull), and meter the billable check. Only
+  // when a report was actually produced. Best-effort.
+  if (crbReport && borrowerRowId) {
+    try {
+      await prisma.kycCheck.create({
+        data: {
+          orgId: orgRow.id, borrowerId: borrowerRowId, kind: "CRB",
+          passed: crbReport.verdict !== "ADVERSE", score: crbReport.score,
+          provider: crbReport.mode === "live" ? crbReport.bureau : "simulation",
+          payload: crbReport as unknown as Prisma.InputJsonValue,
+        },
+      });
+      void meter(orgRow.id, "crb", 1, { applicationId: app.id, bureau: crbReport.bureau, verdict: crbReport.verdict, mode: crbReport.mode });
+    } catch (err) {
+      console.error("[apply] CRB persist failed:", err);
     }
   }
 
@@ -568,6 +621,7 @@ export async function POST(req: NextRequest) {
     pd: scored.pd,
     band: scored.band,
     reasonCodes: scored.reasonCodes,
+    crb: crbReport ? { verdict: crbReport.verdict, score: crbReport.score, band: crbReport.band, mode: crbReport.mode, summary: crbReport.summary } : null,
     posting,
   });
 }

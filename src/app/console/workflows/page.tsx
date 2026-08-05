@@ -4,11 +4,11 @@ import { useCallback, useState } from "react";
 import { useLoad } from "@/lib/hooks/useLoad";
 import { Loader2, AlertTriangle, CheckCircle2, GitBranch, Plus, Trash2 } from "lucide-react";
 
-type Stage = { title: string; accessTier: number; canFinalize: boolean; otpRequired: boolean; maxAmount: string };
-type Workflow = { id: string; title: string; stages: { id: string; title: string; order: number; accessTier: number; canFinalize: boolean; otpRequired: boolean; maxAmount: number | null }[] };
+type Stage = { title: string; accessTier: number; canFinalize: boolean; otpRequired: boolean; crbRequired: boolean; maxAmount: string };
+type Workflow = { id: string; title: string; stages: { id: string; title: string; order: number; accessTier: number; canFinalize: boolean; otpRequired: boolean; crbRequired: boolean; maxAmount: number | null }[] };
 
 const TIER_LABEL: Record<number, string> = { 1: "Initiator", 2: "Authorizer", 3: "Validator" };
-const emptyStage = (): Stage => ({ title: "", accessTier: 1, canFinalize: false, otpRequired: true, maxAmount: "" });
+const emptyStage = (): Stage => ({ title: "", accessTier: 1, canFinalize: false, otpRequired: true, crbRequired: false, maxAmount: "" });
 
 export default function WorkflowsPage() {
   const [rows, setRows] = useState<Workflow[] | null>(null);
@@ -18,8 +18,8 @@ export default function WorkflowsPage() {
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState("");
   const [stages, setStages] = useState<Stage[]>([
-    { title: "Officer Review", accessTier: 1, canFinalize: false, otpRequired: false, maxAmount: "" },
-    { title: "Final Approval", accessTier: 3, canFinalize: true, otpRequired: true, maxAmount: "" },
+    { title: "Officer Review", accessTier: 1, canFinalize: false, otpRequired: false, crbRequired: true, maxAmount: "" },
+    { title: "Final Approval", accessTier: 3, canFinalize: true, otpRequired: true, crbRequired: false, maxAmount: "" },
   ]);
 
   const load = useCallback(async () => {
@@ -87,9 +87,10 @@ export default function WorkflowsPage() {
                       <button onClick={() => setStages((x) => x.filter((_, j) => j !== i))} className="text-zinc-400 hover:text-red-500"><Trash2 className="h-4 w-4" /></button>
                     )}
                   </div>
-                  <div className="mt-2 flex items-center gap-4 text-xs text-zinc-600">
+                  <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-zinc-600">
                     <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.canFinalize} onChange={(e) => setStage(i, { canFinalize: e.target.checked })} /> finalizes (books the loan)</label>
                     <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.otpRequired} onChange={(e) => setStage(i, { otpRequired: e.target.checked })} /> OTP required</label>
+                    <label className="flex items-center gap-1.5" title="A CRB (Metropol) check must exist for the borrower before this stage can be actioned."><input type="checkbox" checked={s.crbRequired} onChange={(e) => setStage(i, { crbRequired: e.target.checked })} /> CRB check required</label>
                   </div>
                 </div>
               ))}
@@ -118,7 +119,7 @@ export default function WorkflowsPage() {
                 {w.stages.map((s, i) => (
                   <span key={s.id} className="flex items-center gap-1.5">
                     <span className={`rounded-md px-2 py-1 text-[11px] font-semibold ${s.canFinalize ? "bg-emerald-100 text-emerald-700" : "bg-zinc-900/5 text-zinc-600"}`}>
-                      {s.title} · {TIER_LABEL[s.accessTier]}{s.otpRequired ? " · OTP" : ""}{s.maxAmount ? ` · ≤${Math.round(s.maxAmount / 1000)}k` : ""}
+                      {s.title} · {TIER_LABEL[s.accessTier]}{s.otpRequired ? " · OTP" : ""}{s.crbRequired ? " · CRB" : ""}{s.maxAmount ? ` · ≤${Math.round(s.maxAmount / 1000)}k` : ""}
                     </span>
                     {i < w.stages.length - 1 && <span className="text-zinc-300">→</span>}
                   </span>

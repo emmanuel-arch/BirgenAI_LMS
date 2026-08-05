@@ -772,6 +772,7 @@ model WorkflowStage {
   canFinalize Boolean @default(false) // finalize → disbursement queue
   canUpdate   Boolean @default(false)
   otpRequired Boolean @default(true)
+  crbRequired Boolean @default(false) // a fresh CRB pull must exist to advance this stage
   maxAmount   Decimal? @db.Decimal(18, 2) // finalize amount cap
 
   workflow Workflow        @relation(fields: [workflowId], references: [id])

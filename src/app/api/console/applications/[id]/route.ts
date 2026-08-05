@@ -221,10 +221,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // ── Approve: advance the product's workflow (or the virtual two-tier default) ─
   // Resolve the stage chain: product.newWorkflowId (repeatWorkflowId for repeat
   // borrowers) → org workflow stages ordered by `order`; no workflow → virtual.
-  type StageDef = { id: string; title: string; accessTier: number; canFinalize: boolean; otpRequired: boolean; maxAmount: number | null };
+  type StageDef = { id: string; title: string; accessTier: number; canFinalize: boolean; otpRequired: boolean; crbRequired: boolean; maxAmount: number | null };
   let chain: StageDef[] = [
-    { id: STAGE_OFFICER, title: "Officer Review", accessTier: 1, canFinalize: false, otpRequired: false, maxAmount: null },
-    { id: STAGE_FINAL, title: "Final Approval", accessTier: 3, canFinalize: true, otpRequired: true, maxAmount: null },
+    { id: STAGE_OFFICER, title: "Officer Review", accessTier: 1, canFinalize: false, otpRequired: false, crbRequired: false, maxAmount: null },
+    { id: STAGE_FINAL, title: "Final Approval", accessTier: 3, canFinalize: true, otpRequired: true, crbRequired: false, maxAmount: null },
   ];
   if (app.productId) {
     const product = await prisma.product.findUnique({
@@ -241,7 +241,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       if (stages.length > 0) {
         chain = stages.map((s) => ({
           id: s.id, title: s.title, accessTier: s.accessTier, canFinalize: s.canFinalize,
-          otpRequired: s.otpRequired, maxAmount: s.maxAmount != null ? Number(s.maxAmount) : null,
+          otpRequired: s.otpRequired, crbRequired: s.crbRequired, maxAmount: s.maxAmount != null ? Number(s.maxAmount) : null,
         }));
       }
     }
@@ -259,6 +259,23 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!tierOk) {
     const need = stageDef.accessTier === 1 ? "Initiator" : stageDef.accessTier === 2 ? "Authorizer" : "Validator";
     return NextResponse.json({ success: false, message: `"${stageDef.title}" requires the ${need} tier.` }, { status: 403 });
+  }
+
+  // Per-stage CRB gate: a stage flagged crbRequired cannot be actioned until a
+  // recent bureau (Metropol) pull exists for the borrower. Runs from the
+  // borrower's Customer 360 (Run CRB check) or automatically at origination.
+  if (stageDef.crbRequired && app.borrowerId) {
+    const CRB_FRESH_DAYS = 30;
+    const recentCrb = await prisma.kycCheck.findFirst({
+      where: { orgId: app.orgId, borrowerId: app.borrowerId, kind: "CRB", createdAt: { gte: new Date(Date.now() - CRB_FRESH_DAYS * 24 * 60 * 60 * 1000) } },
+      orderBy: { createdAt: "desc" }, select: { id: true },
+    });
+    if (!recentCrb) {
+      return NextResponse.json(
+        { success: false, code: "CRB_REQUIRED", message: `"${stageDef.title}" requires a CRB check — run one from the borrower's Customer 360 (Run CRB check), then action this stage.` },
+        { status: 409 },
+      );
+    }
   }
 
   // Per-stage finalize amount cap (ServiceSuite finalizeamount parity).
