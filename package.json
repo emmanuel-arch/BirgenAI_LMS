@@ -67,7 +67,8 @@
     "test:map": "tsx scripts/verify-system-map.ts",
     "test:router": "tsx scripts/verify-router.ts",
     "test:crb": "tsx scripts/verify-metropol.ts",
-    "crb:set-micromart": "tsx scripts/set-micromart-crb.ts"
+    "crb:set-micromart": "tsx scripts/set-micromart-crb.ts",
+    "org:activate": "tsx scripts/activate-org.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

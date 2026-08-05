@@ -23,14 +23,19 @@ const VERDICT: Record<CrbReport["verdict"], { text: string; cls: string }> = {
 export function Customer360Client({ borrowerId, initialCrb }: { borrowerId: string; initialCrb: CrbReport | null }) {
   const [report, setReport] = useState<CrbReport | null>(initialCrb);
   const [crbBusy, setCrbBusy] = useState(false);
+  const [crbError, setCrbError] = useState<string | null>(null);
 
   const runCrb = async () => {
     setCrbBusy(true);
+    setCrbError(null);
     try {
       const res = await fetch("/api/console/crb", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ borrowerId }) });
       const d = await res.json();
       if (d.success) setReport(d.report);
-    } catch { /* leave prior report */ } finally { setCrbBusy(false); }
+      else setCrbError(d.message || "The bureau check could not be completed.");
+    } catch {
+      setCrbError("Could not reach the server for the bureau check.");
+    } finally { setCrbBusy(false); }
   };
 
   const scorePct = report ? Math.max(2, Math.min(100, ((report.score - 200) / 700) * 100)) : 0;
@@ -41,8 +46,9 @@ export function Customer360Client({ borrowerId, initialCrb }: { borrowerId: stri
         <h2 className="text-sm font-semibold flex items-center gap-2"><FileSearch className="h-4 w-4" style={{ color: "var(--brand)" }} /> Credit bureau (CRB)</h2>
         <div className="flex items-center gap-2">
           {report && (
-            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold ${report.mode === "live" ? "bg-emerald-100 text-emerald-700" : "bg-violet-100 text-violet-700"}`}>
-              {report.mode === "live" ? <ShieldCheck className="h-3 w-3" /> : <FlaskConical className="h-3 w-3" />}{report.mode === "live" ? "LIVE" : "SIMULATED"}
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold ${report.sandbox ? "bg-amber-100 text-amber-700" : report.mode === "live" ? "bg-emerald-100 text-emerald-700" : "bg-violet-100 text-violet-700"}`}>
+              {report.mode === "live" ? <ShieldCheck className="h-3 w-3" /> : <FlaskConical className="h-3 w-3" />}
+              {report.sandbox ? "LIVE · SANDBOX" : report.mode === "live" ? "LIVE" : "SIMULATED"}
             </span>
           )}
           <button onClick={runCrb} disabled={crbBusy} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50" style={{ backgroundColor: "var(--brand)" }}>
@@ -51,6 +57,10 @@ export function Customer360Client({ borrowerId, initialCrb }: { borrowerId: stri
           </button>
         </div>
       </div>
+
+      {crbError && (
+        <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50/80 px-3 py-2 text-xs text-rose-700">{crbError}</div>
+      )}
 
       {!report ? (
         <p className="mt-3 text-sm text-zinc-500">No bureau file pulled yet. Run a check to see accounts, listings and the bureau score{" "}

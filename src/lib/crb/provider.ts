@@ -17,7 +17,7 @@
 import { createHash } from "crypto";
 import { getIntegration, type CrbConfig } from "@/lib/vault/integrations";
 import {
-  pullMetropol, MetropolError, REPORT_REASON,
+  pullMetropol, MetropolError, REPORT_REASON, sandboxTestIdFor,
   type MetropolReport, type ReportReason, type MetropolAccount,
 } from "@/lib/crb/metropol";
 
@@ -85,6 +85,13 @@ export type CrbReport = {
   verdict: "CLEAR" | "CAUTION" | "ADVERSE";
   summary: string;
   mode: CrbMode;
+  /**
+   * True when the pull ran against a Metropol TEST subscription and the
+   * borrower's real ID was remapped to a sandbox identity (test keys only answer
+   * for 5 dummy IDs). The data is REAL and LIVE, but it is NOT this borrower's
+   * file — swap to production keys to lift this.
+   */
+  sandbox?: boolean;
   /** Present only on a LIVE Metropol pull — the full bureau detail. */
   metropol?: CrbMetropolDetail;
 };
@@ -143,11 +150,24 @@ export async function runCrbCheck(orgId: string, subject: CrbSubject, opts: CrbO
 // ── Live: Metropol → CrbReport ───────────────────────────────────────────────
 async function liveMetropol(cfg: CrbConfig, subject: CrbSubject, opts: CrbOptions): Promise<CrbReport> {
   const identityNumber = (subject.nationalId || "").trim();
-  const m = await pullMetropol(
-    cfg,
-    { identityNumber, identityType: subject.identityType || "001" },
-    { loanAmount: opts.loanAmount ?? 10_000, reportReason: opts.reason ?? REPORT_REASON.NEW_APPLICATION },
-  );
+  const pullOpts = { loanAmount: opts.loanAmount ?? 10_000, reportReason: opts.reason ?? REPORT_REASON.NEW_APPLICATION };
+
+  let sandbox = false;
+  let m: MetropolReport;
+  try {
+    m = await pullMetropol(cfg, { identityNumber, identityType: subject.identityType || "001" }, pullOpts);
+  } catch (err) {
+    // A TEST subscription rejects any ID outside its 5 sandbox identities (E018).
+    // Rather than dead-end a demo, remap to a deterministic sandbox identity, pull
+    // the REAL live file for it, and label the report as sandbox so nobody mistakes
+    // it for this borrower. Production keys never hit E018, so this never fires live.
+    if (err instanceof MetropolError && err.apiCode === "E018") {
+      sandbox = true;
+      m = await pullMetropol(cfg, { identityNumber: sandboxTestIdFor(identityNumber || subject.phone), identityType: "001" }, pullOpts);
+    } else {
+      throw err;
+    }
+  }
 
   // The score: Metro Score when returned; else derive a conservative proxy from
   // the delinquency picture so a thin/adverse file never scores as "unknown-good".
@@ -199,8 +219,11 @@ async function liveMetropol(cfg: CrbConfig, subject: CrbSubject, opts: CrbOption
     enquiriesLast6m: m.enquiries.last6m,
     negativeListings,
     verdict,
-    summary,
+    summary: sandbox
+      ? `SANDBOX (Metropol test subscription — live data from a sandbox identity, not this borrower). ${summary}`
+      : summary,
     mode: "live",
+    sandbox,
     metropol: {
       reportsPulled: m.reportsPulled,
       trxIds: m.trxIds,

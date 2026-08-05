@@ -15,7 +15,7 @@
 // 880000088, 990000099. 770/990 carry a populated credit file; 55/66 are clean.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { CrbConfig } from "@/lib/vault/integrations";
-import { health, verifyIdentity, metroScore, delinquencyStatus, pullMetropol, MetropolError } from "@/lib/crb/metropol";
+import { health, verifyIdentity, metroScore, delinquencyStatus, pullMetropol, fullEnhancedCreditInfo, sandboxTestIdFor, MetropolError } from "@/lib/crb/metropol";
 
 const cfg: CrbConfig = {
   bureau: "metropol",
@@ -86,6 +86,24 @@ async function main() {
   } catch (e) {
     // A raw E017 escaping here would be the bug we're guarding against.
     ok("Thin file resolves cleanly", e instanceof MetropolError && e.apiCode === "E017" ? false : false, e instanceof Error ? e.message : String(e));
+  }
+
+  // 7. Test-key behaviour: a real (non-sandbox) ID is rejected with E018, which is
+  //    exactly what the provider catches to trigger its sandbox remap onto a
+  //    populated test identity (the live pull itself is proven by check 5).
+  try {
+    const realId = "31122334"; // not one of the 5 sandbox IDs
+    let e018 = false;
+    try {
+      await fullEnhancedCreditInfo(cfg, { identityNumber: realId, loanAmount: 20000 });
+    } catch (e) {
+      e018 = e instanceof MetropolError && e.apiCode === "E018";
+    }
+    const target = sandboxTestIdFor(realId);
+    ok("E018 on real ID → maps to a populated sandbox ID", e018 && ["770000077", "990000099"].includes(target),
+      `${realId} rejected (E018), remaps → ${target}`);
+  } catch (e) {
+    ok("E018 → sandbox remap", false, e instanceof Error ? e.message : String(e));
   }
 
   console.log(`\n${fail === 0 ? "✓ ALL PASSED" : "✗ FAILURES"} — ${pass} passed, ${fail} failed\n`);

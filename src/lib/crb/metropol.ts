@@ -97,6 +97,22 @@ const ENDPOINT = {
   HEALTH: "/health",
 } as const;
 
+// The five identities a Metropol TEST subscription will answer for (Developer
+// Guide §4.3). Any other ID returns E018 on the testbed.
+export const SANDBOX_TEST_IDS = ["550000055", "660000066", "770000077", "880000088", "990000099"] as const;
+
+// The two testbed IDs that carry a POPULATED credit file — 770 is a delinquent
+// 4-account file, 990 a clean one. The sandbox remap prefers these so a demo on
+// test keys always shows real accounts, a real score and a real delinquency
+// picture rather than an empty thin file.
+export const SANDBOX_RICH_IDS = ["770000077", "990000099"] as const;
+
+/** Deterministically map any ID to a populated sandbox test ID (stable per person). */
+export function sandboxTestIdFor(identityNumber: string): string {
+  const h = createHash("sha256").update(String(identityNumber)).digest();
+  return SANDBOX_RICH_IDS[h[0] % SANDBOX_RICH_IDS.length];
+}
+
 // ── Wire helpers ─────────────────────────────────────────────────────────────
 
 export class MetropolError extends Error {
