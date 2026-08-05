@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- MICRO EAZY — horizontal lockup, Concept C "The Ring". -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 260" width="1040" height="260" role="img" aria-label="Micro Eazy">
+  <defs>
+    <linearGradient id="lkC" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#04352C"/>
+      <stop offset="1" stop-color="#0E9F6E"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(20,20) scale(0.4297)">
+    <rect width="512" height="512" rx="114" ry="114" fill="url(#lkC)"/>
+    <circle cx="256" cy="256" r="150" fill="none" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="44"/>
+    <circle cx="256" cy="256" r="150" fill="none" stroke="#FFFFFF" stroke-width="44"
+            stroke-linecap="round" stroke-dasharray="679 264" transform="rotate(-90 256 256)"/>
+    <circle cx="256" cy="256" r="62" fill="#F5A524"/>
+  </g>
+
+  <g font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif">
+    <text x="290" y="146" font-size="104" letter-spacing="-3">
+      <tspan fill="#0F172A" font-weight="500">Micro</tspan><tspan fill="#04352C" font-weight="800"> Eazy</tspan>
+    </text>
+    <text x="294" y="200" font-size="31" font-weight="600" letter-spacing="4.5" fill="#6B7280">
+      SEE EXACTLY WHERE YOU STAND
+    </text>
+  </g>
+</svg>

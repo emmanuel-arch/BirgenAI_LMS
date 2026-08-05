@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MICRO EAZY — horizontal lockup, Concept A "The Ladder".
+  Wordmark is live text so it can be tuned; convert to outlines before it goes
+  anywhere it must render without our font stack (print, a lender's deck).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 260" width="1040" height="260" role="img" aria-label="Micro Eazy">
+  <defs>
+    <linearGradient id="lkA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#065F46"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(20,20) scale(0.4297)">
+    <rect width="512" height="512" rx="114" ry="114" fill="url(#lkA)"/>
+    <g fill="#FFFFFF">
+      <rect x="114" y="300" width="64" height="100" rx="32"/>
+      <rect x="224" y="244" width="64" height="156" rx="32"/>
+      <rect x="334" y="176" width="64" height="224" rx="32"/>
+    </g>
+    <g fill="none" stroke="#FBBF24" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M126 268 L346 140"/>
+      <path d="M282 130 L352 136 L323 200"/>
+    </g>
+  </g>
+
+  <g font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif">
+    <text x="290" y="146" font-size="104" letter-spacing="-3">
+      <tspan fill="#0F172A" font-weight="500">Micro</tspan><tspan fill="#065F46" font-weight="800"> Eazy</tspan>
+    </text>
+    <text x="294" y="200" font-size="31" font-weight="600" letter-spacing="4.5" fill="#6B7280">
+      CREDIT THAT GROWS WITH YOU
+    </text>
+  </g>
+</svg>

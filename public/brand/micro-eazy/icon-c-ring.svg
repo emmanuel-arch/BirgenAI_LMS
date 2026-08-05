@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MICRO EAZY — Concept C · "THE RING"
+  The promise it draws: you can see where you stand. The arc is literally the
+  graduation percentage the platform already computes, wrapped around the money.
+  Nothing hidden — which is the whole Trust Contract in one shape.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Micro Eazy">
+  <defs>
+    <linearGradient id="meC" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#04352C"/>
+      <stop offset="1" stop-color="#0E9F6E"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="114" ry="114" fill="url(#meC)"/>
+
+  <!-- The track: the whole ladder, all seven rungs, always visible. -->
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#FFFFFF" stroke-opacity="0.22" stroke-width="44"/>
+
+  <!-- The progress: r=150 → circumference 942.5; 679 of it filled ≈ 72%. -->
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#FFFFFF" stroke-width="44"
+          stroke-linecap="round" stroke-dasharray="679 264" transform="rotate(-90 256 256)"/>
+
+  <!-- The money at the centre of it. -->
+  <circle cx="256" cy="256" r="62" fill="#F5A524"/>
+</svg>

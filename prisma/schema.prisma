@@ -664,6 +664,20 @@ model Product {
   principalType  String  @default("standard") // standard | interest_first | balloon
   interestPeriodUnit String @default("month")
   repaymentPeriod    Int
+  /// THE SHORTEST TERM THIS PRODUCT WILL BOOK, in `repaymentPeriodUnit`s.
+  ///
+  /// Null means the term is fixed at `repaymentPeriod` — the old behaviour, and
+  /// still the right one for most products. When it IS set, every term from here
+  /// up to `repaymentPeriod` is a genuine offer and the decision engine picks the
+  /// one this borrower's cashflow actually carries: Micromart's Micro Eazy is
+  /// "10 (Week)" on their screen, but a customer who can only service four weeks
+  /// should be offered four, not declined for ten.
+  ///
+  /// FLAT PRODUCTS ONLY. `interestRate` is the whole-TERM rate, so a shorter term
+  /// prices at `interestRate / repaymentPeriod × term` — exact for flat interest,
+  /// wrong for reducing balance. lib/decision/candidates.ts refuses to fan out a
+  /// reducing-balance product for that reason.
+  minRepaymentPeriod Int?
   repaymentPeriodUnit String @default("week")
   gracePeriodDays    Int     @default(0)
   penaltyRate        Decimal? @db.Decimal(9, 4)
@@ -748,6 +762,20 @@ model ProductVersion {
   @@index([orgId, productId])
 }
 
+/// The two ways a finalized loan can actually pay out. Deliberately NOT the same
+/// enum as `DisbursementMode` (which says HOW money leaves — B2C, manual, third
+/// party): this says WHOSE SYSTEM does the leaving.
+enum DisbursementRoute {
+  /// BirgenAI books the loan and moves the money — maker-checker queue → Daraja
+  /// B2C → callback → auto-reconciliation. The product's own `disbursementMode`
+  /// still decides the instrument.
+  LMS_NATIVE
+  /// The loan is posted into the lender's own approval workflow and their process
+  /// disburses it. We keep the application, the score and the audit trail; they
+  /// keep the book and the float.
+  LENDER_BRIDGE
+}
+
 model Workflow {
   id          String  @id @default(uuid())
   orgId       String
@@ -774,6 +802,15 @@ model WorkflowStage {
   otpRequired Boolean @default(true)
   crbRequired Boolean @default(false) // a fresh CRB pull must exist to advance this stage
   maxAmount   Decimal? @db.Decimal(18, 2) // finalize amount cap
+  /// WHERE THE MONEY GOES WHEN THIS STAGE FINALIZES. Only meaningful on a stage
+  /// with `canFinalize`. Null = inherit the org's mode (NATIVE books here, BRIDGED
+  /// posts to the lender) — which is exactly what every existing workflow did
+  /// before this column existed, so adding it changed nothing.
+  ///
+  /// Setting it makes the choice the LENDER'S, per workflow, instead of a property
+  /// of how their org happens to be wired: a bridged lender can run one product
+  /// through our B2C queue while everything else still lands in their own system.
+  disbursementRoute DisbursementRoute?
 
   workflow Workflow        @relation(fields: [workflowId], references: [id])
   parent   WorkflowStage?  @relation("StageTree", fields: [parentId], references: [id])

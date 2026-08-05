@@ -82,6 +82,30 @@ export type Decision = {
   trace: StageResult[];
 };
 
+/** One upfront fee, exactly as the lender wrote it on their price list. */
+export type ChargeSpec = {
+  code?: string;
+  percent: boolean;
+  amount: number;
+  /** Floor and ceiling for a PERCENTAGE fee; ignored for a flat one. */
+  minValue?: number | null;
+  maxValue?: number | null;
+};
+
+/**
+ * What one fee costs on this principal. Mirrors lib/payments/request.ts
+ * `chargeAmount` deliberately — the number quoted in an offer and the number
+ * demanded at the counter must be produced by the same rule.
+ */
+export function priceCharge(c: ChargeSpec, principal: number): number {
+  if (!c.percent) return Math.round(c.amount);
+  if (!(principal > 0)) return 0;
+  let priced = (principal * c.amount) / 100;
+  if (c.minValue != null) priced = Math.max(priced, c.minValue);
+  if (c.maxValue != null) priced = Math.min(priced, c.maxValue);
+  return Math.round(priced);
+}
+
 /** A product as the engine needs it: identity, terms, and the definition's rules. */
 export type ProductCandidate = {
   id: string;
@@ -92,8 +116,21 @@ export type ProductCandidate = {
   interestPct: number;
   termCount: number;
   termUnit: "day" | "week" | "fortnight" | "month";
-  /** Processing charge, flat KES or a percent of principal. */
+  /**
+   * Processing charge, flat KES or a percent of principal.
+   *
+   * Kept for callers that price a single fee. When `charges` is present it wins:
+   * a real fee sheet is a LIST, and Micromart's Micro Eazy carries three
+   * mandatory before-disbursement fees, not one.
+   */
   processing: { percent: boolean; amount: number };
+  /**
+   * The full upfront fee sheet, priced and summed. Each entry is flat or a
+   * percentage of principal, and a percentage is CLAMPED — Micromart's processing
+   * fee is 6% but never below KES 650 nor above KES 6,000, which is their actual
+   * price list. Charging the raw percentage would undercharge every small loan.
+   */
+  charges?: ChargeSpec[];
   /** The published rules, when the product has been versioned. */
   eligibility?: ProductDefinition["eligibility"];
   /** The version these terms came off, so the decision can cite it. */
@@ -411,9 +448,12 @@ function matchProducts(
 
     const principal = Math.min(state.startingLimit, p.maxPrincipal);
     const interest = Math.round((principal * p.interestPct) / 100);
-    const processing = p.processing.percent
-      ? Math.round((principal * p.processing.amount) / 100)
-      : p.processing.amount;
+    // The whole upfront sheet, clamped per fee — not one fee, and not a raw
+    // percentage. `charges` wins when the caller supplied it; `processing` is the
+    // single-fee shorthand the parity fixtures still use.
+    const processing = p.charges?.length
+      ? p.charges.reduce((sum, c) => sum + priceCharge(c, principal), 0)
+      : priceCharge(p.processing, principal);
     const totalRepayable = principal + interest;
 
     offered.push({

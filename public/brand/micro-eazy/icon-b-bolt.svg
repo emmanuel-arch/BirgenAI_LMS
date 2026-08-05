@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MICRO EAZY — Concept B · "THE BOLT"
+  The promise it draws: money now. A coin behind, a bolt through it. The most
+  legible of the three at 48px on a cheap Android launcher, and the one a
+  customer reads before they read the name.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Micro Eazy">
+  <defs>
+    <linearGradient id="meB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1F3A"/>
+      <stop offset="1" stop-color="#0E7C66"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="114" ry="114" fill="url(#meB)"/>
+
+  <!-- The coin: money, sitting still, until the bolt goes through it. -->
+  <circle cx="256" cy="256" r="132" fill="#FFC53D"/>
+  <circle cx="256" cy="256" r="132" fill="none" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="10"/>
+
+  <!-- The bolt, knocked out in white so it reads at any size. -->
+  <path d="M296 96 L176 288 L248 288 L216 416 L336 224 L264 224 Z"
+        fill="#FFFFFF" stroke="#0B1F3A" stroke-width="14" stroke-linejoin="round"/>
+</svg>

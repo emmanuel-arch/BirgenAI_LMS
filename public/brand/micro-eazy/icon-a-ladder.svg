@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MICRO EAZY — Concept A · "THE LADDER"
+  The promise it draws: your limit grows. Three rungs rising, and the arrow that
+  says where the next one is. The one mark that argues for graduation, which is
+  the single behaviour the whole ecosystem is built to reward.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Micro Eazy">
+  <defs>
+    <linearGradient id="meA" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#065F46"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="114" ry="114" fill="url(#meA)"/>
+
+  <!-- Three rungs, bottom-aligned at y=400. -->
+  <g fill="#FFFFFF">
+    <rect x="114" y="300" width="64" height="100" rx="32"/>
+    <rect x="224" y="244" width="64" height="156" rx="32"/>
+    <rect x="334" y="176" width="64" height="224" rx="32"/>
+  </g>
+
+  <!-- The climb, clearing every rung top. -->
+  <g fill="none" stroke="#FBBF24" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M126 268 L346 140"/>
+    <path d="M282 130 L352 136 L323 200"/>
+  </g>
+</svg>

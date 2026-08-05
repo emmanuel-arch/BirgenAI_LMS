@@ -177,6 +177,80 @@ export const MULAR_POLICY: CreditPolicy = {
   },
 };
 
+/**
+ * MICROMART — Micro Eazy. ServiceSuite parity on the commercial matrix, with two
+ * departures that are named, measured and argued for rather than assumed.
+ *
+ * THE BEHAVIOUR HALF is `sp_CreditScoringAndGraduation` verbatim: repayment history
+ * and days in arrears at 50/50, the 100/75/50/0 and 100/30/10/0 cuts, three
+ * categories at >76 / 51–76 / below, earning 30% / 15% / 0%, a KES 5,000 cap per
+ * step, and graduation gated on TWO cleared loans OF THE SAME PRINCIPAL — the
+ * genuinely clever part of the original, since it asks not "have they borrowed
+ * twice" but "have they proved this ceiling has stopped stretching them".
+ *
+ * DEPARTURE 1 — `window.includeActive: true`.
+ *   The procedure reads `WHERE l.LoanCleared = 1`, so a borrower's score is frozen
+ *   between borrowing and clearing: a post-mortem, not a monitor. Measured against
+ *   Micromart's own book on 6 Aug 2026, cleared-only leaves 97 of 150 sampled
+ *   borrowers with NO SCORE AT ALL — only 2 of their 162 borrowers have cleared two
+ *   loans yet. Parity here would blind the platform to its own book for months,
+ *   through exactly the pilot window that has to demonstrate the ladder working.
+ *   Future installments are not punished (an undue instalment is not late), so
+ *   including live loans is generous, not harsh.
+ *
+ * DEPARTURE 2 — `graduation.basis: "higher_of"`.
+ *   The procedure computes the new limit from the LAST PRINCIPAL, so a borrower
+ *   holding a KES 10,000 limit who twice borrowed 5,000 and repaid perfectly is
+ *   "graduated" to 6,500 — a 35% CUT, recorded in the graduation history and
+ *   reported as a success. `higher_of` grows whichever of limit and last principal
+ *   is larger, so a graduation can never reduce a limit. Measured impact on
+ *   Micromart's book today: ZERO borrowers — nobody has yet cleared two loans at
+ *   the same principal — which makes this the cheapest possible moment to fix it.
+ *
+ * Everything else — trigger on clearance, rounding to the shilling — is parity,
+ * and each was measured at zero impact before being adopted.
+ *
+ * THE ORIGINATION HALF has no counterpart in the procedure: ServiceSuite scores a
+ * repayment record, not an M-Pesa statement. The reference loan is Micro Eazy's own
+ * shape (10 weeks at 82.5% — the fees are collected before disbursement and never
+ * appear in an instalment, so including them would double-count against
+ * affordability), and the starting ceilings keep a first cycle small on the
+ * principle the ladder is built on: lend little, then let behaviour earn the rest.
+ */
+export const MICROMART_POLICY: CreditPolicy = {
+  ...CREDIT_DEFAULTS,
+  behaviour: {
+    ...MICROMART_BEHAVIOUR,
+    window: { ...MICROMART_BEHAVIOUR.window, includeActive: true }, // departure 1
+  },
+  graduation: {
+    ...MICROMART_GRADUATION,
+    basis: "higher_of", // departure 2
+    // The stock preset points demotion at a category key ("HIGH") that does not
+    // exist in this matrix, so switching demotion on would silently match nobody.
+    demotion: { enabled: false, belowCategory: "MAJOR", percent: 25, floor: 0 },
+  },
+  capacity: {
+    ...CREDIT_DEFAULTS.capacity,
+    referenceTermUnit: "week",
+    referenceTermCount: 10, // Micro Eazy's full term
+    referenceAllInPct: 82.5, // 8.25% per week × 10 — instalment cost only
+  },
+  // A first cycle is deliberately small; graduation adds at most KES 5,000 a time.
+  // The floor is the product's own minimum bookable amount — below KES 5,000 there
+  // is no Micro Eazy loan to offer.
+  scoreCeilings: { Excellent: 25_000, Good: 15_000, Fair: 8_000, Poor: 5_000, "Very Poor": 0 },
+  verdict: {
+    // Micromart's own product rule: "Min Credit Score 500". A disclosed floor is
+    // the only automatic adverse decision this policy makes.
+    autoDeclineBelow: 500,
+    // Nothing auto-approves at launch — every Micro Eazy loan meets one of their
+    // officers. Raise this once the closed loop has outcomes to justify it.
+    autoApproveAbove: 1001,
+    autoApproveMaxAmount: 0,
+  },
+};
+
 // ── Validation ────────────────────────────────────────────────────────────────
 
 export function validateCreditPolicy(p: CreditPolicy): ConfigIssue[] {

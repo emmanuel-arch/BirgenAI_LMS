@@ -67,6 +67,9 @@
     "test:map": "tsx scripts/verify-system-map.ts",
     "test:router": "tsx scripts/verify-router.ts",
     "test:crb": "tsx scripts/verify-metropol.ts",
+    "test:micro-eazy": "tsx scripts/verify-micro-eazy.ts",
+    "db:seed:micro-eazy": "tsx scripts/seed-micro-eazy.ts",
+    "db:seed:micromart-policy": "tsx scripts/seed-micromart-policy.ts",
     "crb:set-micromart": "tsx scripts/set-micromart-crb.ts",
     "org:activate": "tsx scripts/activate-org.ts"
   },

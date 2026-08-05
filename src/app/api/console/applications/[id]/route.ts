@@ -11,7 +11,7 @@
 // Adverse actions (decline) are always a HUMAN decision here — the model only
 // ever routes to REFERRED (DPA human-in-the-loop).
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma, type DisbursementRoute } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
@@ -23,6 +23,7 @@ import { signedUrl } from "@/lib/storage/provider";
 import { PORTRAIT_TTL_SEC } from "@/lib/kyc/avatars";
 import { buildSchedule } from "@/lib/lending/schedule";
 import { computeApprovedLimit } from "@/lib/lending/limits";
+import { resolveDisbursementRoute } from "@/lib/lending/disbursement-route";
 
 export const runtime = "nodejs";
 
@@ -221,10 +222,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // ── Approve: advance the product's workflow (or the virtual two-tier default) ─
   // Resolve the stage chain: product.newWorkflowId (repeatWorkflowId for repeat
   // borrowers) → org workflow stages ordered by `order`; no workflow → virtual.
-  type StageDef = { id: string; title: string; accessTier: number; canFinalize: boolean; otpRequired: boolean; crbRequired: boolean; maxAmount: number | null };
+  type StageDef = { id: string; title: string; accessTier: number; canFinalize: boolean; otpRequired: boolean; crbRequired: boolean; maxAmount: number | null; disbursementRoute: DisbursementRoute | null };
   let chain: StageDef[] = [
-    { id: STAGE_OFFICER, title: "Officer Review", accessTier: 1, canFinalize: false, otpRequired: false, crbRequired: false, maxAmount: null },
-    { id: STAGE_FINAL, title: "Final Approval", accessTier: 3, canFinalize: true, otpRequired: true, crbRequired: false, maxAmount: null },
+    { id: STAGE_OFFICER, title: "Officer Review", accessTier: 1, canFinalize: false, otpRequired: false, crbRequired: false, maxAmount: null, disbursementRoute: null },
+    { id: STAGE_FINAL, title: "Final Approval", accessTier: 3, canFinalize: true, otpRequired: true, crbRequired: false, maxAmount: null, disbursementRoute: null },
   ];
   if (app.productId) {
     const product = await prisma.product.findUnique({
@@ -242,6 +243,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         chain = stages.map((s) => ({
           id: s.id, title: s.title, accessTier: s.accessTier, canFinalize: s.canFinalize,
           otpRequired: s.otpRequired, crbRequired: s.crbRequired, maxAmount: s.maxAmount != null ? Number(s.maxAmount) : null,
+          disbursementRoute: s.disbursementRoute,
         }));
       }
     }
@@ -318,14 +320,25 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     return NextResponse.json({ success: true, status: "OFFICER_REVIEW", stageTitle: next.title });
   }
 
-  if (app.org.mode === "NATIVE") {
+  // WHOSE SYSTEM PAYS THIS OUT. The finalizing stage decides; an unset stage falls
+  // back to the org's mode, which is what this branch used to read directly.
+  const routing = resolveDisbursementRoute({
+    stageRoute: stageDef.disbursementRoute,
+    stageTitle: stageDef.title,
+    orgMode: app.org.mode,
+  });
+
+  if (routing.route === "LMS_NATIVE") {
     // Live lending gates on platform activation.
     if (app.org.status !== "ACTIVE") {
       return NextResponse.json({ success: false, message: "Your organization is pending BirgenAI activation — booking is disabled until then." }, { status: 403 });
     }
     try {
       const booked = await bookLoanFromApplication(app.id, session.user.id);
-      await audit("application.finalize", { stage, note: body.note ?? null, loanId: booked.loanId });
+      await audit("application.finalize", {
+        stage, note: body.note ?? null, loanId: booked.loanId,
+        route: routing.route, routeSource: routing.source,
+      });
       return NextResponse.json({ success: true, status: "APPROVED", booked });
     } catch (err) {
       // The commonest failure here is now the consent gate — no signed agreement.
@@ -335,10 +348,10 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     }
   }
 
-  // BRIDGED orgs: the book lives in ServiceSuite. Final approval here BOOKS the
-  // loan into the lender's own approval workflow (the Micromart pilot: product
-  // 31418 in the boss's fintech deployment, workflow "FINTECH APPROVAL" — Risk →
-  // Customer Service — takes over from there). A pilot customer is brand-new to
+  // LENDER_BRIDGE: the book lives in ServiceSuite. Final approval here BOOKS the
+  // loan into the lender's own approval workflow — for Micro Eazy that is
+  // Micromart's own "Micro Eazy" workflow (Risk → Customer Service), which their
+  // officers work exactly as they do today. A pilot customer is brand-new to
   // that ledger, so the borrower is registered there first when missing. Reads
   // (history, graduation) stay on the lender's MAIN server; only the booking
   // goes to the posting target — getPostingOrg() keeps those apart.
@@ -391,6 +404,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       stage, note: body.note ?? null, bridged: true,
       posted: true, target: postingOrg.slug, serviceSuiteLoanId: res.loanId,
       borrowerRegistered: ensured.created,
+      route: routing.route, routeSource: routing.source,
     });
     return NextResponse.json({ success: true, status: "APPROVED", posted: true, serviceSuiteLoanId: res.loanId });
   }
