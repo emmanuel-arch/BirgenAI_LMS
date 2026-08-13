@@ -27,15 +27,19 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
   approved: "Congratulations {name}! Your loan of KES {amount} has been approved and is being prepared for disbursement.",
   disbursed: "{org}: KES {amount} has been sent to your M-PESA {phone}. Repay by {due}. Loan ref {ref}.",
   payment: "{org}: We received KES {amount}. Loan balance: KES {balance}. Thank you!",
-  cleared: "{org}: Your loan is fully repaid. Thank you — your limit grows with every on-time loan!",
+  cleared: "{org}: Your loan is fully repaid. Thank you - your limit grows with every on-time loan!",
   declined: "{org}: We could not approve your application this time. Reply HELP for the reasons and how to appeal.",
   otp: "Your approval code is {code}. It expires in 10 minutes. Never share it.",
   login_code: "{code} is your {org} staff sign-in code for today. It works until midnight. Never share it.",
   // A PIN is not a one-time code and must not be described like one — it does not
   // expire, so "never share it" is the whole security model, and the message says
   // where it is used so a customer who did not ask for it knows what was touched.
-  portal_pin: "{org}: your new customer portal PIN is {pin}. Sign in with your ID number and this PIN. Keep it private — {org} will never ask you for it.",
-  verify: "{code} is your {org} verification code. It expires in 5 minutes. Never share it — {org} will never ask you for this code.",
+  // Carries {org} TWICE and still fits one segment: the second is the anti-phishing
+  // line, and naming the lender is the whole point of it — "we will never ask" is
+  // worthless if the reader cannot tell who "we" is. The words around it were cut
+  // instead.
+  portal_pin: "{org}: your portal PIN is {pin}. Sign in with your ID number and this PIN. Keep it private - {org} will never ask for it.",
+  verify: "{code} is your {org} verification code. It expires in 5 minutes. Never share it - {org} will never ask you for this code.",
   // A signing code must name what it signs. A borrower who receives "your code is
   // 123456" cannot tell an identity check from a credit agreement worth KES 50,000.
   offer_sign: "{code} is your code to SIGN and accept a loan of KES {principal} from {org}, repaying KES {repayable} by {clearDate}. Only enter it if you agree. Expires in 5 minutes.",
@@ -46,10 +50,21 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
   // Sent from the KYC queue when a customer was registered but never verified. It says
   // what it unlocks, because "complete your verification" motivates nobody — being told
   // your loan cannot be paid out until you do, does.
-  kyc_link: "{org}: Hi {name}, your registration is not complete — we still need to verify your identity, and no loan can be paid out until it is. It takes two minutes: {link}",
-  reminder: "{org}: A friendly reminder — KES {amount} is due on {date}. Pay early, pay less. Dial your paybill or use Pay Now.",
+  kyc_link: "{org}: Hi {name}, your registration is not complete - we still need to verify your identity, and no loan can be paid out until it is. It takes two minutes: {link}",
+  // ── The repayment ladder ────────────────────────────────────────────────
+  // Five touches around one installment, at T-2, T-1, T+0, T+1 and T+3. The
+  // shape follows what Micromart run against their own book, because it is
+  // tuned to a Kenyan weekly cycle and they have the collection record to
+  // justify it: two nudges that assume good faith, then the due date, then two
+  // that escalate. Five per installment is the ceiling, by design — a borrower
+  // on a weekly product who is messaged more than that stops reading any of it.
+  reminder: "{org}: A friendly reminder - KES {amount} is due on {date}. Pay early, pay less. Dial your paybill or use Pay Now.",
+  due_tomorrow: "{org}: Hi {name}, KES {amount} is due tomorrow {date}. Pay on time and your limit grows. Paybill or Pay Now.",
   due_today: "{org}: KES {amount} is due TODAY on loan {ref}. Pay via your paybill or the Pay Now link to stay on track.",
   arrears: "{org}: Your installment of KES {amount} on loan {ref} is overdue. Please pay today to avoid penalties and protect your limit.",
+  // The firmer follow-up. Deliberately still gives the way to pay: a final
+  // notice that does not tell you how to settle is a threat, not a collection.
+  arrears_final: "{org}: KES {amount} on loan {ref} is still unpaid and seriously overdue. Settle today via paybill to protect your credit record.",
 };
 
 // The BORROWER-facing templates, in Kiswahili (item 20, blueprint §5.1). A key's
@@ -61,17 +76,19 @@ const SW_TEMPLATES: Record<string, string> = {
   approved: "Hongera {name}! Mkopo wako wa KES {amount} umeidhinishwa na unaandaliwa kutumwa.",
   disbursed: "{org}: KES {amount} imetumwa kwenye M-PESA yako {phone}. Lipa ifikapo {due}. Kumbukumbu ya mkopo {ref}.",
   payment: "{org}: Tumepokea KES {amount}. Salio la mkopo: KES {balance}. Asante!",
-  cleared: "{org}: Mkopo wako umelipwa kikamilifu. Asante — kikomo chako hukua kwa kila mkopo unaolipwa kwa wakati!",
+  cleared: "{org}: Mkopo wako umelipwa kikamilifu. Asante - kikomo chako hukua kwa kila mkopo unaolipwa kwa wakati!",
   declined: "{org}: Hatukuweza kuidhinisha ombi lako wakati huu. Jibu HELP kupata sababu na jinsi ya kukata rufaa.",
-  portal_pin: "{org}: PIN yako mpya ya tovuti ya wateja ni {pin}. Ingia kwa nambari yako ya kitambulisho na PIN hii. Iweke siri — {org} haitawahi kukuuliza.",
-  verify: "{code} ni nambari yako ya uthibitisho ya {org}. Inaisha baada ya dakika 5. Usimpe mtu yeyote — {org} haitawahi kukuuliza nambari hii.",
+  portal_pin: "{org}: PIN yako ya tovuti ni {pin}. Ingia kwa nambari yako ya kitambulisho na PIN hii. Iweke siri - {org} haitawahi kukuuliza.",
+  verify: "{code} ni nambari yako ya uthibitisho ya {org}. Inaisha baada ya dakika 5. Usimpe mtu yeyote - {org} haitawahi kukuuliza nambari hii.",
   offer_sign: "{code} ni nambari yako ya KUTIA SAHIHI na kukubali mkopo wa KES {principal} kutoka {org}, ukilipa KES {repayable} ifikapo {clearDate}. Iweke tu ikiwa unakubali. Inaisha baada ya dakika 5.",
   guarantor_invite: "{org}: {borrower} amekuomba udhamini mkopo wake wa KES {amount}. Asipolipa, utaombwa ulipe wewe. Soma masharti kisha uamue: {link}",
   guarantor_sign: "{code} ni nambari yako ya KUDHAMINI mkopo wa KES {amount} kutoka {org}. Kuiweka kunakufanya uwajibike ikiwa mkopaji hatalipa. Iweke tu ikiwa unakubali. Inaisha baada ya dakika 5.",
-  kyc_link: "{org}: Habari {name}, usajili wako haujakamilika — bado tunahitaji kuthibitisha utambulisho wako, na hakuna mkopo utakaotolewa hadi ukamilike. Inachukua dakika mbili: {link}",
-  reminder: "{org}: Kumbusho — KES {amount} inastahili kulipwa tarehe {date}. Lipa mapema, lipa kidogo. Tumia paybill yako au Lipa Sasa.",
+  kyc_link: "{org}: Habari {name}, usajili wako haujakamilika - bado tunahitaji kuthibitisha utambulisho wako, na hakuna mkopo utakaotolewa hadi ukamilike. Inachukua dakika mbili: {link}",
+  reminder: "{org}: Kumbusho - KES {amount} inastahili kulipwa tarehe {date}. Lipa mapema, lipa kidogo. Tumia paybill yako au Lipa Sasa.",
+  due_tomorrow: "{org}: Habari {name}, KES {amount} inastahili kesho {date}. Lipa kwa wakati, kikomo chako hukua. Paybill au Lipa Sasa.",
   due_today: "{org}: KES {amount} inastahili kulipwa LEO kwa mkopo {ref}. Lipa kupitia paybill yako au kiungo cha Lipa Sasa ili usibaki nyuma.",
   arrears: "{org}: Awamu yako ya KES {amount} kwa mkopo {ref} imechelewa. Tafadhali lipa leo kuepuka adhabu na kulinda kikomo chako.",
+  arrears_final: "{org}: KES {amount} kwa mkopo {ref} bado haijalipwa na imechelewa sana. Lipa leo kwa paybill kulinda rekodi yako ya mkopo.",
 };
 
 export type SmsLang = "en" | "sw" | "auto";

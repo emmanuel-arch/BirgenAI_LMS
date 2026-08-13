@@ -93,28 +93,44 @@ export const ORGS: Record<OrgSlug, OrgDef> = {
     isAdmin: true,
   },
   techcrast: {
-    // Techcrast Software Solutions lends off the SAME deployment as the
-    // Micromart-fintech pilot (102.214.69.233,4410) — it is Techcrast's own
-    // server. EntityId 7 = their book there. Unlike micromart-fintech (a
-    // posting-only target), techcrast is a full bridged lender: staff console +
-    // borrower portal read this book directly.
+    // Techcrast Software Solutions. It USED to share the retired test box at
+    // 102.214.69.233,4410 with the fintech pilot; that server is no longer the
+    // live deployment, so this org now has its own connection env and stays
+    // UNCONFIGURED until it is pointed at Techcrast's real book. Leaving it on
+    // the old shared var would have it silently reading a test ledger.
+    // TODO(founder): supply SERVICESUITE_CONN_TECHCRAST + confirm the EntityId.
     slug: "techcrast",
     name: "Techcrast Software Solutions",
     defaultEntityId: 7,
-    connEnv: "MICROMART_FINTECH",
+    connEnv: "SERVICESUITE_CONN_TECHCRAST",
     entityEnv: "SERVICESUITE_ENTITYID_TECHCRAST",
     isAdmin: false,
   },
   "micromart-fintech": {
-    // The MIROMART FINTECH pilot deployment (Techcrast's server, 102.214.69.233,4410
-    // — the conn string's "localhost,4410" was copied off the box itself). EntityId 7,
-    // one product: MIROMART FINTECH (Products.ID 31418) on workflow 55 "FINTECH
-    // APPROVAL" (Risk → Customer Service). This is a POSTING TARGET, not a portal
-    // lender — micromart's portal reads its book from the main Micromart server and
-    // BOOKS pilot loans here (see getPostingOrg).
+    // MICROMART FINTECH — verified live 12 Aug 2026 on Micromart's OWN server
+    // (reachable over Tailscale at 100.72.35.56,4230 / Serviceconnect).
+    //
+    // EntityId 3005, org unit 129, paybill 4116125. Two active products —
+    // Micro Eazy (30219, 8.25% flat/week, customer-selected tenor up to 10) and
+    // Micro Eazy Monthly (30220, 22% flat/month x 2) — both on workflow 1022
+    // "Micro Eazy" (stage 2058 Risk -> stage 2059 Customer Service). 17,016
+    // borrowers were migrated here from 3002 on 2 Aug 2026.
+    //
+    // HISTORY, so nobody repoints this by mistake again: this entry used to
+    // describe EntityId 7 / product 31418 / workflow 55 on a Techcrast box at
+    // 102.214.69.233,4410. None of those objects exist on the live server — that
+    // deployment was a TEST environment, and every rehearsal against it proved a
+    // pipe into the wrong building.
+    //
+    // Still a POSTING TARGET rather than a portal lender, and the split is now
+    // cross-ENTITY on one server rather than cross-server: eligibility and
+    // history are read from Micromart's main book (3002, 140k borrowers) while
+    // pilot loans BOOK into the Fintech entity (3005). See getPostingOrg, and
+    // note that collapsing the two would resolve a Micro Eazy customer's phone
+    // against 3002 — where 13 of those numbers belong to a DIFFERENT borrower.
     slug: "micromart-fintech",
-    name: "Miromart Fintech",
-    defaultEntityId: 7,
+    name: "Micromart Fintech",
+    defaultEntityId: 3005,
     connEnv: "MICROMART_FINTECH",
     entityEnv: "MICROMART_FINTECH_ENTITYID",
     isAdmin: false,
@@ -122,10 +138,16 @@ export const ORGS: Record<OrgSlug, OrgDef> = {
 };
 
 /**
- * Orgs whose loans are POSTED into a different ServiceSuite than the one their
- * book is read from. The Micromart pilot: eligibility/history reads stay on
- * Micromart's own server; the booked loan goes to the boss's fintech deployment,
- * where the FINTECH APPROVAL workflow takes over.
+ * Orgs whose loans are POSTED into a different ledger than the one their book is
+ * read from. The Micromart pilot: eligibility/history reads stay on Micromart's
+ * main book (entity 3002), while the booked loan goes to the Fintech entity
+ * (3005), where the "Micro Eazy" workflow takes over.
+ *
+ * This is deliberately NOT collapsed. Both sides are now the same SQL server, so
+ * it is tempting to delete the indirection — but the two entities hold different
+ * borrower populations, and 13 phone numbers exist in BOTH. Resolving a Micro
+ * Eazy customer against 3002 can hand back a different human being, and the
+ * posting path looks borrowers up by phone. The split is the safety property.
  */
 const POSTING_TARGETS: Partial<Record<OrgSlug, OrgSlug>> = {
   micromart: "micromart-fintech",

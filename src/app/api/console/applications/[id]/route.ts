@@ -356,15 +356,33 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // (history, graduation) stay on the lender's MAIN server; only the booking
   // goes to the posting target — getPostingOrg() keeps those apart.
   const postingOrg = getPostingOrg(app.org.slug);
-  const [pilotProduct, borrowerRow] = await Promise.all([
+  const [pilotProduct, borrowerRow, signedOffer] = await Promise.all([
     app.productId
       ? prisma.product.findUnique({ where: { id: app.productId }, select: { serviceSuiteProductId: true, name: true } })
       : Promise.resolve(null),
     app.borrowerId
       ? prisma.borrower.findUnique({ where: { id: app.borrowerId }, select: { firstName: true, otherName: true, phone: true, nationalId: true, email: true } })
       : Promise.resolve(null),
+    prisma.loanOffer.findUnique({ where: { applicationId: app.id }, select: { termCount: true, termUnit: true } }),
   ]);
   const ssProductId = pilotProduct?.serviceSuiteProductId ?? (/^\d+$/.test(app.productRef ?? "") ? Number(app.productRef) : null);
+
+  // BOOK THE TERM THE BORROWER SIGNED FOR, not the product's ceiling.
+  //
+  // Flexible-tenor products fan out one candidate per allowable term
+  // (candidates.ts), so the engine may well have offered four weeks on a product
+  // whose ServiceSuite row reads "10 (Week)". sp_InsertLoan defaults @SelectedPeriod
+  // to that ceiling, which on Micro Eazy means pricing every posted loan at 82.5%
+  // instead of the 33% the customer accepted. LoanOffer.termCount is the number
+  // that was on screen and inside the signed terms hash.
+  //
+  // Units must line up with the lender's RepaymentPeriodType (day/week/month), and
+  // "fortnight" has no equivalent there — our own column stores those as weeks, so
+  // an offer still carrying "fortnight" is an inconsistency we decline to guess at.
+  const selectedPeriod =
+    signedOffer && ["day", "week", "month"].includes(signedOffer.termUnit) && signedOffer.termCount > 0
+      ? signedOffer.termCount
+      : null;
 
   if (isPostingEnabled() && postingOrg && ssProductId && borrowerRow?.phone) {
     const entityId = getEntityId(postingOrg);
@@ -384,6 +402,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       principal: Number(app.amountRequested),
       productId: ssProductId,
       applicationId: app.id,
+      selectedPeriod,
     });
     if (!res.ok) {
       await prisma.loanApplication.update({ where: { id: app.id }, data: { postError: res.message } });

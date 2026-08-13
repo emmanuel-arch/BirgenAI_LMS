@@ -58,9 +58,14 @@ export type LogoSpec = {
 };
 
 export const LOGO_SLOTS: Record<LogoSlot, LogoSpec> = {
-  // 320×140 inside a 384px content column: a wordmark gets the full width, a
-  // square crest gets a commanding 140px, and neither leaves dead space.
-  auth: { maxWidth: 320, maxHeight: 140, bleed: 0.06 },
+  // 344×152 inside a 384px content column — a wide wordmark lands at ~89% of the
+  // column, which is what makes the sign-in card read as a PRODUCT'S front door
+  // rather than a form with a small picture on it. A square crest gets 152px.
+  //
+  // Raised from 320×140 deliberately: the door is the one screen every user sees
+  // before they have any other impression of the system, and the old cap left a
+  // wide mark looking incidental. Any lender who wants it smaller has `logoScale`.
+  auth: { maxWidth: 344, maxHeight: 152, bleed: 0.03 },
   email: { maxWidth: 200, maxHeight: 72, bleed: 0 },
   sidebar: { maxWidth: 210, maxHeight: 150, bleed: 0.03 },
   rail: { maxWidth: 40, maxHeight: 40, bleed: 0 },

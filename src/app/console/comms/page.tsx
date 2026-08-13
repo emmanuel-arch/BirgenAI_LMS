@@ -11,6 +11,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
+import { smsCostLabel, smsCostTone, templateWorstCase } from "@/lib/sms/segments";
 import {
   MessageSquare, FileText, Mail, Loader2, AlertTriangle, CheckCircle2, Send, Users, RotateCcw,
 } from "lucide-react";
@@ -136,7 +137,6 @@ function CampaignsTab({ setNotice, setError }: { setNotice: (s: string | null) =
     } catch { setError("Could not send the campaign."); } finally { setBusy(null); }
   };
 
-  const segments = Math.max(1, Math.ceil(message.length / 160));
 
   return (
     <div className="mt-4 space-y-4">
@@ -160,10 +160,11 @@ function CampaignsTab({ setNotice, setError }: { setNotice: (s: string | null) =
         </div>
         <label className="mt-3 block">
           <span className="text-[11px] font-semibold text-zinc-600">Message</span>
-          <span className="block text-[11px] text-zinc-500">{"{name}"} becomes each borrower&apos;s first name. {message.length}/480 characters · {segments} SMS segment{segments > 1 ? "s" : ""} per recipient.</span>
+          <span className="block text-[11px] text-zinc-500">{"{name}"} becomes each borrower&apos;s first name.</span>
           <textarea value={message} onChange={(e) => { setMessage(e.target.value.slice(0, 480)); setEstimate(null); }} rows={3}
             placeholder="Hi {name}, pay your loan early this month and grow your limit! Dial your paybill or use Pay Now."
             className="mt-1.5 w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none" />
+          <SegmentMeter body={message} />
         </label>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button onClick={dryRun} disabled={busy !== null || message.trim().length < 10}
@@ -213,6 +214,52 @@ function CampaignsTab({ setNotice, setError }: { setNotice: (s: string | null) =
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── The segment meter ─────────────────────────────────────────────────────────
+//
+// What a lender needs while typing is not "148/160". It is "12 characters
+// remaining", because the question they are actually asking is whether one more
+// clause will fit — and at 159 the answer has to read "1 character remaining",
+// not leave them subtracting.
+//
+// It measures the WORST CASE, not the template. A template is never what gets
+// billed: `{name}` is six characters here and up to fifteen on the wire, so a
+// template that measures 158 can still send two segments to a third of the book.
+// See lib/sms/segments.ts for why the naive length/160 is wrong three ways over.
+function SegmentMeter({ body }: { body: string }) {
+  const cost = templateWorstCase(body);
+  const tone = smsCostTone(cost);
+  const ink = tone === "over" ? "#b45309" : tone === "close" ? "#a16207" : "#71717a";
+  const fill = tone === "over" ? "#f59e0b" : tone === "close" ? "#eab308" : "var(--brand)";
+  const pct = Math.min((cost.units / (cost.segments * cost.perSegment)) * 100, 100);
+
+  return (
+    <div className="mt-1.5">
+      <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-900/[0.07]">
+        <div className="h-full rounded-full transition-[width] duration-200" style={{ width: `${pct}%`, backgroundColor: fill }} />
+      </div>
+      <p className="mt-1 text-[10px] leading-tight" style={{ color: ink }}>
+        <span className="font-semibold">{smsCostLabel(cost)}</span>
+        <span className="text-zinc-400">
+          {" · "}{cost.units} of {cost.segments * cost.perSegment} used, with placeholders at their longest
+        </span>
+        {cost.segments > 1 && (
+          <span className="text-amber-700">
+            {" · "}every recipient is billed {cost.segments}×
+          </span>
+        )}
+        {/* The invisible killer: one curly apostrophe pasted from Word drops the
+            limit from 160 to 70. Naming the character is the only way a person
+            can act on it. */}
+        {cost.offenders.length > 0 && (
+          <span className="text-amber-700">
+            {" · "}“{cost.offenders.slice(0, 3).join(" ")}” forced Unicode — replacing {cost.offenders.length > 1 ? "them" : "it"} restores 160 characters
+          </span>
+        )}
+      </p>
     </div>
   );
 }
@@ -283,6 +330,7 @@ function TemplatesTab({ setNotice, setError }: { setNotice: (s: string | null) =
                 <div className="mt-2">
                   <textarea value={draft} onChange={(e) => setDraft(e.target.value.slice(0, 480))} rows={3}
                     className="w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2 text-sm outline-none" />
+                  <SegmentMeter body={draft} />
                   <div className="mt-1.5 flex items-center gap-2">
                     <button onClick={() => save(t.key, draft)} disabled={busy || draft.trim().length < 10}
                       className="rounded-lg px-3.5 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50" style={{ backgroundColor: "var(--brand)" }}>

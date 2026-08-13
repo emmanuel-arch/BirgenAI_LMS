@@ -1,40 +1,68 @@
-// Root redirect — Next 16 Proxy (the renamed `middleware` convention; edge is not
-// used, so `proxy` on the nodejs runtime is exactly right here).
+// ─────────────────────────────────────────────────────────────────────────────
+// HOST ROUTING — analytics.birgenai.com serves the analytics studio.
 //
-// This platform is lender-first: the apex lms.birgenai.com is a door for lenders
-// and prospects, not borrowers. So the apex "/" lands on /platform/login (sign in
-// to the platform, then pick a console — or create an organization).
+// NOTE THE FILENAME. This is `proxy.ts`, not `middleware.ts`. The middleware file
+// convention is deprecated in this version of Next and renamed to `proxy` — and a
+// `middleware.ts` written from memory is not an error, it is SILENTLY IGNORED.
+// Nothing logs, nothing throws, the subdomain simply never routes. See
+// node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md
 //
-// Borrower portals live on lender SUBDOMAINS (micromart.birgenai.com,
-// mular.birgenai.com …) whose "/" must keep serving the borrower funnel. The
-// host check below is the whole point: only the apex is redirected; every lender
-// subdomain passes straight through, so the portal code is never touched.
+// WHAT THIS DOES, AND DELIBERATELY NOTHING MORE. Analytics is its own product on
+// its own host, but it is the SAME Next application: it inherits auth, the daily
+// OTP, tenancy resolution, the vault and RBAC rather than duplicating the two
+// surfaces — auth and tenancy — where a multi-tenant bug becomes a cross-lender
+// data leak. So the subdomain is a rewrite, not a second deployment.
+//
+// This runs before every request in the product. Anything that is not the
+// analytics host returns untouched, on the first line, before any allocation.
+// ─────────────────────────────────────────────────────────────────────────────
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-// ONE reserved list, shared with org signup (api/orgs) — see lib/suite/hosts.ts.
-// This file and that route used to keep separate lists which had already drifted
-// apart, and the suite subdomains (people/books/desk/my) would have been read here
-// as lender slugs: a request to desk.birgenai.com would have been served the
-// borrower funnel for a lender named "desk".
-import { isReservedLabel } from "@/lib/suite/hosts";
 
-/** True when the request is on a real lender subdomain (mular.birgenai.com). */
-function isLenderSubdomain(host: string): boolean {
-  const label = host.split(".")[0] ?? "";
-  if (!label || isReservedLabel(label) || /^\d+$/.test(label)) return false;
-  if (host.endsWith(".localhost")) return true;              // mular.localhost (dev)
-  if (host.endsWith(".vercel.app")) return false;            // preview builds = apex
-  return host.split(".").length >= 3;                        // mular.birgenai.com
+/** Where the studio actually lives inside the app. */
+const STUDIO = "/console/intelligence/analytics";
+
+/**
+ * The leading label of the host, lowercased, port stripped.
+ * "analytics.birgenai.com:3000" → "analytics"; "localhost" → "localhost".
+ */
+function subdomain(host: string): string {
+  return host.split(":")[0].trim().toLowerCase().split(".")[0];
 }
 
 export function proxy(request: NextRequest) {
-  const host = (request.headers.get("host") ?? "").split(":")[0].toLowerCase();
-  if (isLenderSubdomain(host)) return NextResponse.next();   // borrower portal — untouched
-  return NextResponse.redirect(new URL("/platform/login", request.url));
+  const host = request.headers.get("host") ?? "";
+  if (subdomain(host) !== "analytics") return NextResponse.next();
+
+  const { pathname } = request.nextUrl;
+
+  // Everything the app needs to function must pass through untouched. Rewriting
+  // an asset or an auth callback to the studio would break sign-in on the very
+  // host that needs it most.
+  if (
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/_next/") ||
+    pathname.startsWith("/brand/") ||
+    pathname.startsWith("/images/") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/onboard") ||
+    pathname === "/favicon.ico"
+  ) {
+    return NextResponse.next();
+  }
+
+  // The bare host IS the studio. A person who types analytics.birgenai.com has
+  // already said what they want; making them then click "Analytics" in a console
+  // sidebar is the subdomain doing nothing for them.
+  if (pathname === "/" || pathname === "") {
+    return NextResponse.rewrite(new URL(STUDIO, request.url));
+  }
+
+  return NextResponse.next();
 }
 
-// Only the site root. /console, /platform, /micromart, /mular, /login etc. never
-// reach here, so nothing else in the app is affected.
 export const config = {
-  matcher: "/",
+  // Skip the static tree entirely. The host check above is cheap, but not running
+  // at all is cheaper, and this keeps the proxy off every image request.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

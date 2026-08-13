@@ -31,6 +31,17 @@ import AccessSeal, { type SealState } from "@/components/auth/AccessSeal";
 // the words it is a padlock ON the words, which is the whole point of it.
 type Mode = "signin" | "otp" | "forgot" | "reset";
 
+// MICRO EAZY'S PALETTE, sampled from the mark rather than eyeballed.
+//
+// Counting only saturated, opaque pixels inside the artwork's real bounding box:
+// #003060 (46k px) and #003078 (15k px) carry the wordmark, #48a800 (18k px) and
+// #60c000 (13k px) carry the M. These two constants sit between each pair, so the
+// chrome is the logo's own colour and a future re-export cannot leave the page
+// wearing last season's paint. Used ONLY for the un-branded door; a lender's own
+// door at /<slug> passes `brand` and is untouched.
+const ME_NAVY = "#00306b";
+const ME_GREEN = "#4aa900";
+
 export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
@@ -123,18 +134,48 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
 
   const wrap = "flex items-center gap-2.5 rounded-xl border border-zinc-900/12 bg-white/80 px-3.5 transition-colors focus-within:border-[color:var(--brand)] focus-within:bg-white";
   const input = "flex-1 bg-transparent outline-none text-[15px] py-3.5 placeholder:text-zinc-400";
-  // The branded accent drives the primary button; the un-branded default keeps
-  // the original near-black so the generic /login is pixel-stable.
-  const accentVars = (brand
-    ? { "--brand": brand.accent, "--brand-soft": brand.accentSoft }
-    : {}) as CSSProperties;
+  // The branded accent drives the primary button; the un-branded default now wears
+  // MICRO EAZY'S OWN COLOURS rather than the old near-black. Sampled from the mark
+  // itself so the paint and the logo cannot drift apart: the wordmark is navy
+  // (#003060–#003078 across ~46k px) and the M is apple green (#48a800–#60c000).
+  // A black crown seam and a black button over a green-and-navy logo is what made
+  // the door read as a generic form with someone's picture on it.
+  const accentVars = {
+    "--brand": brand?.accent ?? ME_NAVY,
+    "--brand-soft": brand?.accentSoft ?? "rgba(0,48,107,0.12)",
+  } as CSSProperties;
   const primaryBtn = "mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-zinc-900/10 transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:hover:brightness-100";
-  const accent = brand?.accent ?? "#18181b";
-  const accent2 = brand?.accent2 ?? accent;
+  const accent = brand?.accent ?? ME_NAVY;
+  const accent2 = brand?.accent2 ?? (brand ? accent : ME_GREEN);
   const primaryStyle: CSSProperties = { background: `linear-gradient(120deg, ${accent}, ${accent2})` };
 
-  const logoSrc = brand?.logo ?? "/images/logo.png";
-  const logoFallback = brand?.fallbackLogo ?? "/images/BirgenAI-logo.png";
+  // THE UN-BRANDED DOOR WEARS MICRO EAZY.
+  //
+  // /login is the generic staff entrance; a lender's own door is /<org-slug> and
+  // passes `brand`, so nothing here touches a lender's branding. Micro Eazy is the
+  // consumer-facing name of the ecosystem, and it is what a Micromart officer should
+  // recognise on the way in — "Powered by BirgenAI" stays in the footer, which is
+  // the honest split (BirgenAI never lends; see the ecosystem blueprint's D2).
+  //
+  // logo-auth.png is the 655x304 build of the founder's export, produced by
+  // scripts/prep-brand-asset.ts (1536x1024 / 433 KB in, 40.8 KB out).
+  //
+  // AND IT HAD TO BE REBUILT, because the first build was the bug in src/lib/lms/logo.ts
+  // happening again in a new file. The export carries a faint alpha wash out to every
+  // corner — 0.6% of its pixels sit at alpha 1–31 — so `trim({threshold: 1})` found
+  // nothing to crop and reported a 0% gutter, while the artwork actually occupies just
+  // 35% of the canvas. The mark therefore rendered 165x73 inside a 228x152 box: two
+  // thirds of the logo on the product's front door was air, which is exactly what it
+  // looked like. The script now computes the bounding box from the alpha channel at a
+  // threshold that means something, and the same mark renders 342x152 — 4.3x the
+  // visible area, with no change to the artwork itself.
+  const logoSrc = brand?.logo ?? "/brand/micro-eazy/logo-auth.png";
+  const logoFallback = brand?.fallbackLogo ?? "/brand/micro-eazy/logo-transparent.png";
+  // NOTE ON THE SLOGAN, deliberately NOT re-typeset here. "Quick Loans. Better
+  // Living." is part of the Micro Eazy mark, and at the corrected size it renders
+  // ~10px tall and reads cleanly. Setting it again as HTML under the image would
+  // print the same words twice, which is worse than small — so the fix for an
+  // illegible slogan was the crop, not a caption.
   // Both dimensions capped, neither pinned — see src/lib/lms/logo.ts. The old
   // fixed-height box could letterbox, and the file's own transparent gutter was
   // what actually made the heading look shoved down the card.
@@ -177,17 +218,27 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
           className="glass w-full max-w-md overflow-hidden rounded-3xl bg-white/75 shadow-2xl shadow-zinc-900/10"
         >
-          {/* Brand-lit crown — a thin gradient seam so every door feels bespoke */}
+          {/* Brand-lit crown — a thin gradient seam so every door feels bespoke.
+              On the un-branded door this is now navy→green rather than the old
+              black-on-black, which is what turned the top of the card into a bar. */}
           <div aria-hidden className="h-1.5 w-full" style={{ background: `linear-gradient(90deg, ${accent}, ${accent2})` }} />
 
-          <div className="px-6 pt-6 pb-7 sm:px-8 sm:pt-7 sm:pb-8">
+          <div className="px-6 pt-7 pb-7 sm:px-8 sm:pt-8 sm:pb-8">
+            {/* THE LOCKUP. The mark, then a hairline in its own colours — structure
+                that costs one element and makes the mark read as a masthead instead
+                of an image that happens to be at the top of a form. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={logoSrc}
-              alt={brand?.name ?? "BirgenAI"}
+              alt={brand?.name ?? "Micro Eazy"}
               style={{ maxWidth: logo.maxWidth, maxHeight: logo.maxHeight, width: "auto", height: "auto", marginBottom: logo.marginBottom }}
               className="mx-auto block"
               onError={(e) => (((e.target as HTMLImageElement).src = logoFallback))}
+            />
+            <div
+              aria-hidden
+              className="mx-auto mt-5 h-px w-full max-w-[15rem]"
+              style={{ background: `linear-gradient(90deg, transparent, ${accent2}66 30%, ${accent}66 70%, transparent)` }}
             />
 
             {/* Heading lockup: label, then seal. On the sign-in and second-factor
@@ -202,7 +253,10 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
                 lower and set larger. Above a real heading it shrinks back to a true
                 eyebrow, because two things competing to be the heading is worse than
                 either of them being it. */}
-            <div className={soloEyebrow ? "mt-8" : "mt-5"}>
+            {/* The hairline above already carries 20px, so the label sits closer to
+                it than it used to sit to the bare logo — the rule is what separates
+                the masthead from the form now, not empty space. */}
+            <div className={soloEyebrow ? "mt-6" : "mt-4"}>
               {/* The seal rides WITH the label, not opposite it — so it stays in the
                   lockup at every step, and the heading (when a step has one) flows
                   underneath the pair rather than beside a floating glyph. */}

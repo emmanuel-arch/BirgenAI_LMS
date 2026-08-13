@@ -19,7 +19,7 @@ import {
 } from "recharts";
 import { Banknote, Landmark, Gauge, ArrowUpRight, ArrowDownRight, Activity } from "lucide-react";
 import {
-  simulate, applyLive, KES, KESc, compact, pct,
+  simulate, applyLive, KES, KESc, compact, pct, type DashboardProvenance,
   type Scope, type SeriesPoint, type LiveSnapshot,
 } from "@/lib/dashboard/model";
 import {
@@ -44,8 +44,28 @@ function effectiveScope(capability: FilterCapability, sel: FilterSelection): Sco
   return base;
 }
 
+/**
+ * "Modelled" — worn by the panels a live overlay does not reach.
+ *
+ * applyLive() fills the KPIs and leaves the time series, aging buckets, product mix
+ * and branch table simulated. Labelling the whole screen "Live" because the headline
+ * numbers are real would be the single most damaging thing this dashboard could do
+ * in front of a lender: they would read their own book's history off a curve we
+ * invented. So the seam is drawn where it actually falls.
+ */
+function Modelled({ note }: { note?: string }) {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 rounded-md bg-zinc-900/[0.06] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500"
+      title={note ?? "Illustrative shape — this panel is not yet fed by the lender's own history"}
+    >
+      Modelled
+    </span>
+  );
+}
+
 export default function CinematicDashboard({
-  orgName, orgSlug, accent, accent2, capability, live,
+  orgName, orgSlug, accent, accent2, capability, live, provenance,
 }: {
   orgName: string;
   orgSlug: string;
@@ -53,6 +73,7 @@ export default function CinematicDashboard({
   accent2: string;
   capability: FilterCapability;
   live?: LiveSnapshot | null;
+  provenance?: DashboardProvenance | null;
 }) {
   const [filters, setFilters] = useState<FilterSelection>(EMPTY_SELECTION);
   const [chart, setChart] = useState<ChartType>("area");
@@ -102,6 +123,20 @@ export default function CinematicDashboard({
           <p className="mt-0.5 text-sm text-zinc-500">
             {orgName} · {narrowed ? "Filtered view" : capability.scopeLabel} · updated moments ago
           </p>
+          {/* Name the source. "Live" on its own invites the reader to assume every
+              pixel is their data; this says which book answered, and whose scope. */}
+          {provenance?.source === "servicesuite" && !narrowed && (
+            <p className="mt-0.5 text-[11px] text-zinc-400">
+              Read live from the lender&apos;s own system
+              {provenance.entityId != null ? ` · entity ${provenance.entityId}` : ""}
+              {provenance.liveMetrics.length ? ` · ${provenance.liveMetrics.length} metrics` : ""}
+            </p>
+          )}
+          {provenance?.source === "servicesuite" && narrowed && (
+            <p className="mt-0.5 text-[11px] text-amber-600">
+              Filters are applied to modelled figures — the live read is whole-book only.
+            </p>
+          )}
         </div>
         <FilterSurface capability={capability} value={filters} onChange={setFilters} accent={accent} />
       </div>
@@ -123,6 +158,7 @@ export default function CinematicDashboard({
         <Panel className="lg:col-span-2" title="Production & collections" subtitle="Money out vs money in"
           right={
             <div className="flex items-center gap-2">
+              {live && <Modelled note="Daily production history is not exposed by the lender's dashboard proc — this curve is illustrative" />}
               <button onClick={() => setFilters((f) => ({ ...f, compare: !f.compare }))}
                 className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ring-1 transition-colors ${compare ? "text-white" : "text-zinc-500 ring-zinc-900/10 hover:bg-zinc-900/5"}`}
                 style={compare ? { backgroundColor: accent, borderColor: accent } : undefined}>
@@ -204,7 +240,8 @@ export default function CinematicDashboard({
 
       {/* ── Risk aging + gauges + pipeline ──────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <Panel className="lg:col-span-2" title="Arrears aging" subtitle="Where the risk sits, by days overdue">
+        <Panel className="lg:col-span-2" title="Arrears aging" subtitle="Where the risk sits, by days overdue"
+          right={live ? <Modelled note="Total arrears is live; the split across day-buckets is illustrative" /> : undefined}>
           <div className="h-56 w-full">
             {mounted ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -250,7 +287,8 @@ export default function CinematicDashboard({
           </div>
         </Panel>
 
-        <Panel title="Product mix" subtitle="Book split by product">
+        <Panel title="Product mix" subtitle="Book split by product"
+          right={live ? <Modelled note="Per-product balances are not in the dashboard proc — read the products screen for the real shelf" /> : undefined}>
           <div className="space-y-2">
             {data.productMix.map((p, i) => {
               const share = (p.olb / data.kpis.olb) * 100;
@@ -286,7 +324,12 @@ export default function CinematicDashboard({
 
       {/* ── Branch league table ─────────────────────────────────────── */}
       <Panel title="Branch performance" subtitle="Book and risk by branch"
-        right={<span className="text-[11px] text-zinc-400">{data.branches.length} branches</span>}>
+        right={
+          <div className="flex items-center gap-2">
+            {live && <Modelled note="Branch-level splits need the org-unit scoped proc (FilterServiceSuiteDashboard), not yet wired" />}
+            <span className="text-[11px] text-zinc-400">{data.branches.length} branches</span>
+          </div>
+        }>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-sm">
             <thead>

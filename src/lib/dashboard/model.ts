@@ -84,6 +84,34 @@ export type LiveSnapshot = Partial<{
   declinedLoans: number;
 }>;
 
+/**
+ * WHERE THE NUMBERS ON SCREEN CAME FROM.
+ *
+ * `applyLive` overlays real KPIs onto a MODELLED dataset and then sets
+ * `simulated: false`, which is true of the headline figures and false of the time
+ * series, the aging buckets, the product mix and the branch table — those stay
+ * modelled until a live history backend exists. A single "Live" badge over the
+ * whole screen therefore overclaims exactly where a lender would care most.
+ *
+ * So the dashboard is handed this, and labels each region for what it actually is.
+ * `liveMetrics` is the authoritative list: a KPI whose key is absent is modelled,
+ * no matter what the badge says.
+ */
+export type DashboardProvenance = {
+  /** servicesuite = the lender's own book, read through; postgres = our records. */
+  source: "servicesuite" | "postgres";
+  entityId?: number | null;
+  /** The ServiceSuite user whose scope answered (MainDashboard is user-scoped). */
+  readAs?: number | null;
+  /** LiveSnapshot keys the source actually answered. */
+  liveMetrics: string[];
+  /** The lender's own currency symbol, e.g. "Ksh". */
+  currencyLabel?: string | null;
+};
+
+/** Panels that remain modelled even with a live overlay — see DashboardProvenance. */
+export const MODELLED_PANELS = ["series", "aging", "productMix", "branches"] as const;
+
 const numOr = (v: number | undefined, fallback: number): number => (typeof v === "number" && isFinite(v) ? v : fallback);
 
 /** Overlay whatever real figures the server has onto the modeled dataset. Derived

@@ -1,12 +1,24 @@
 // GET /api/console/borrowers — the org's borrower book (staff).
 // ?q= filters by phone / national ID / name. Includes loan + application
 // aggregates (the native Customer-360 list view).
+//
+// A BRIDGED lender's book is READ THROUGH, not mirrored. Their customers live in
+// their own ServiceSuite and are resolved live, so the console can never show a
+// stale copy: Micromart's Fintech entity carries 17,017 borrowers and ~59.8k
+// approved loans, and a nightly copy of that would be wrong by morning. Rows come
+// back with a namespaced `ss:<id>` ref rather than an LMS uuid, and `source` says
+// which book answered.
+//
+// Paging is done IN the lender's database (`take`/`skip`) — 17k rows is not a list
+// to load and filter on the client.
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { originStamp, resolveScope, borrowerScopeWhere } from "@/lib/rbac/scope";
 import { portraitsFor } from "@/lib/kyc/avatars";
+import { resolveOrg } from "@/lib/tenancy";
+import { listBorrowersLive, getBorrowerBookStats } from "@/lib/lms/servicesuite";
 
 export const runtime = "nodejs";
 
@@ -18,6 +30,73 @@ export async function GET(req: NextRequest) {
   const orgId = session.user.orgId;
 
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim();
+  const takeParam = Number(req.nextUrl.searchParams.get("take") ?? 100);
+  const skipParam = Number(req.nextUrl.searchParams.get("skip") ?? 0);
+  const take = Number.isFinite(takeParam) ? Math.min(Math.max(takeParam, 1), 200) : 100;
+  const skip = Number.isFinite(skipParam) ? Math.max(skipParam, 0) : 0;
+
+  // BRIDGED + connected ⇒ the lender's own book answers this.
+  if (session.user.orgSlug) {
+    const org = await resolveOrg(session.user.orgSlug);
+    if (org?.mode === "BRIDGED" && org.bridgedReady && org.registry && org.entityId) {
+      try {
+        // Book-wide stats only on the first page of an unfiltered view: they
+        // describe the whole book, so recomputing them per page would cost a
+        // 17k-row scan to say the same thing.
+        const wantStats = skip === 0 && q === "";
+        const [live, stats] = await Promise.all([
+          listBorrowersLive(org.registry, org.entityId, { q, take, skip }),
+          wantStats ? getBorrowerBookStats(org.registry, org.entityId) : Promise.resolve(null),
+        ]);
+        return NextResponse.json({
+          success: true,
+          source: "servicesuite",
+          entityId: org.entityId,
+          total: live.total,
+          stats,
+          borrowers: live.borrowers.map((b) => ({
+            id: b.ref,
+            serviceSuiteId: b.serviceSuiteId,
+            portraitUrl: b.portraitUrl,
+            name: b.name,
+            phone: b.phone ?? "",
+            nationalId: b.nationalId,
+            // Their book records a verification flag, not our KYC state machine.
+            kycStatus: b.kycVerified ? "VERIFIED" : "NONE",
+            creditScore: b.creditScore,
+            riskBand: b.riskCategory,
+            // No location data comes across: this entity is 0% pinned, which is
+            // exactly why every one of them lands on the field-ops worklist.
+            locationType: null,
+            locationAddress: null,
+            hasGeo: b.hasGeo,
+            createdAt: b.createdAt,
+            loansCount: b.loansCount,
+            activeLoans: b.activeLoans,
+            clearedLoans: b.clearedLoans,
+            olb: b.olb,
+            totalBorrowed: b.totalBorrowed,
+            loanLimit: b.loanLimit,
+            graduationCount: b.graduationCount,
+            accountStatus: b.accountStatus,
+            // Applications and consents are OURS — a customer the lender has never
+            // sent through our funnel has none, and saying 0 is honest.
+            applications: 0,
+            lastConsent: null,
+            graduated: b.graduated,
+          })),
+        });
+      } catch (err) {
+        // A bridged read failing is worth saying out loud rather than silently
+        // showing an empty book that looks like "this lender has no customers".
+        return NextResponse.json(
+          { success: false, source: "servicesuite", message: `Could not read the lender's book: ${err instanceof Error ? err.message : "unknown error"}` },
+          { status: 502 },
+        );
+      }
+    }
+  }
+
   // Phones are stored as 2547XXXXXXXX; searches arrive as 07XX…, +2547…, etc —
   // match on the last 9 digits so every format finds the same borrower.
   const digits = q.replace(/\D/g, "");

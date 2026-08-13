@@ -18,6 +18,9 @@ import { prisma } from "@/lib/prisma";
 import { portfolioTrend } from "@/lib/intelligence/portfolio";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { AnalysisStudioCharts } from "@/components/dashboard/AnalysisStudioCharts";
+import { resolveOrg } from "@/lib/tenancy";
+import { getGroupBook, getGroupTrend } from "@/lib/analytics/group";
+import { GroupBoard } from "@/components/analytics/GroupBoard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +40,54 @@ export default async function AnalyticsPage() {
   if (!session?.user?.orgId) redirect("/login");
   if (!(await hasReportAccess(session, "reports.analytics"))) redirect("/console");
   const orgId = session.user.orgId;
+
+  // ── A BRIDGED LENDER'S ANALYTICS ARE THEIR OWN BOOK, NOT OURS ─────────────
+  //
+  // Everything below this branch aggregates OUR Postgres, which is right for a
+  // native lender who originates through us and meaningless for a bridged one:
+  // it would show Micromart the 162 applications we happen to have handled
+  // instead of the 160,044 customers and Ksh 549m they actually run.
+  //
+  // So a connected bridged lender gets the group board — every entity on their
+  // server, in the metric definitions their own dashboard uses. A bridged lender
+  // whose connection is down falls through to the native view rather than to an
+  // error: a studio that shows nothing teaches nothing.
+  // The READ is wrapped, never the render: JSX inside a try/catch looks guarded
+  // and is not, because React renders after this function returns and the catch
+  // is long gone. So the group data is fetched here and the markup is built
+  // outside — the same reason redirect() sits outside the try in the borrower
+  // resolver.
+  const tenant = await resolveOrg(session.user.orgSlug ?? "");
+  let group: { book: Awaited<ReturnType<typeof getGroupBook>>; trend: Awaited<ReturnType<typeof getGroupTrend>>; name: string } | null = null;
+  if (tenant?.mode === "BRIDGED" && tenant.bridgedReady && tenant.registry) {
+    try {
+      const [book, groupTrend, org] = await Promise.all([
+        getGroupBook(tenant.registry),
+        getGroupTrend(tenant.registry, 12),
+        prisma.org.findUnique({ where: { id: orgId }, select: { name: true } }),
+      ]);
+      group = { book, trend: groupTrend, name: org?.name ?? "Group" };
+    } catch {
+      // Their database being unreachable falls through to the native view below,
+      // which is empty for a bridged lender but is at least not an error page.
+      group = null;
+    }
+  }
+
+  if (group) {
+    return (
+      <main className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-8">
+        <PageHeader
+          icon={LineChart}
+          title="Portfolio analytics"
+          subtitle="Every entity this lender runs, read live from their own system and reported in their own definitions — the same OLB, PQS and NPL their managers see on the ServiceSuite dashboard."
+        />
+        <div className="mt-5">
+          <GroupBoard book={group.book} trend={group.trend} orgName={group.name} />
+        </div>
+      </main>
+    );
+  }
 
   const since = new Date(Date.now() - WEEKS * 7 * 86_400_000);
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
