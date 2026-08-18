@@ -71,7 +71,10 @@
     "db:seed:micro-eazy": "tsx scripts/seed-micro-eazy.ts",
     "db:seed:micromart-policy": "tsx scripts/seed-micromart-policy.ts",
     "crb:set-micromart": "tsx scripts/set-micromart-crb.ts",
-    "org:activate": "tsx scripts/activate-org.ts"
+    "org:activate": "tsx scripts/activate-org.ts",
+    "test:collectbox": "tsx scripts/verify-collectbox.ts",
+    "test:desk": "tsx scripts/verify-desk.ts",
+    "db:desk-schema": "tsx scripts/apply-desk-schema.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

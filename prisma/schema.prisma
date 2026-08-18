@@ -156,6 +156,8 @@ model Org {
   poolMembership      SharingPoolMember?
   standingOrders      StandingOrder[]
   configs             OrgConfig[]
+  deskInteractions    DeskInteraction[]
+  deskShifts          DeskShift[]
 }
 
 // ── Cross-entity data sharing ─────────────────────────────────────────────────
@@ -2492,4 +2494,132 @@ model OrgConfigRevision {
 
   @@unique([configId, version])
   @@index([orgId, namespace])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONNECTDESK — the call-centre's own record of what its agents did.
+//
+// ── WHY THESE ROWS EXIST AT ALL ──────────────────────────────────────────────
+// ConnectDesk works a book that lives in Micromart's CollectBox, on their SQL
+// Server, which is a LIVE PRODUCTION DATABASE for a business that is running
+// right now. Writing into it is a decision with consequences, not a default.
+//
+// So every desk action is written HERE first, immediately and authoritatively,
+// and is mirrored into CollectBox only when `COLLECTBOX_POSTING_ENABLED=true`.
+// In shadow mode (the default) the exact statement that WOULD have run is
+// recorded in `shadowSql`, so arming the mirror later is a verification against
+// real intent rather than a leap of faith.
+//
+// ── WHY THE FOREIGN KEYS ARE INTEGERS AND NOT RELATIONS ──────────────────────
+// `liveLoanId` and `liveBorrowerId` are ServiceSuite's own integer ids, not our
+// UUIDs, and they deliberately carry no Prisma relation. The subject of the
+// interaction lives in a different database on a different server; pretending
+// otherwise with a foreign key would either fail or force us to shadow-copy
+// Micromart's entire book into Postgres, which is the migration this whole
+// architecture exists to avoid. `entityId` is stored alongside because in this
+// group an id is only unique WITHIN an entity — 3002 and 3005 are separate
+// identity spaces that share phone numbers belonging to different people.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum DeskInteractionKind {
+  CALL // a disposition was recorded against a case
+  PTP // a promise to pay was taken
+  NOTE // free-text added to the case file
+  TASK // a callback or field visit was scheduled
+  SMS // a message was sent to the customer
+  ASSIGN // the case was moved between agents
+  ESCALATE // handed to field, legal or a supervisor
+  PIPELINE // a Fintech (3005) case was pulled onto the floor
+}
+
+enum DeskMirrorState {
+  SHADOW // recorded here; the CollectBox statement was composed but not run
+  MIRRORED // written to CollectBox successfully
+  FAILED // the mirror was attempted and rejected — see mirrorError
+  SKIPPED // nothing to mirror (notes and internal-only actions)
+}
+
+/// One thing an agent did, on one case, at one moment.
+model DeskInteraction {
+  id     String @id @default(uuid())
+  orgId  String
+
+  /// ServiceSuite's entity — 3002 (main book) or 3005 (Fintech). An identity
+  /// boundary, not a label: the same loan id in each is a different loan.
+  entityId       Int
+  liveLoanId     Int
+  liveBorrowerId Int?
+  /// Denormalised so a timeline renders without reaching across to SQL Server.
+  subjectName    String?
+  subjectPhone   String?
+
+  kind        DeskInteractionKind
+  /// CollectBox.dbo.PaymentResponse.ID for CALL rows — their vocabulary, not ours.
+  dispositionId Int?
+  /// CollectBox.dbo.LoanCategories.ID — which queue the case was in when worked.
+  categoryId    Int?
+
+  headline String
+  detail   String?
+
+  /// Money committed (PTP) or referenced. Never money received — receipts are
+  /// CollectBox's `PayedAmount` and are read, never written.
+  amount   Decimal?  @db.Decimal(18, 2)
+  dueDate  DateTime?
+
+  /// Who did it, in both vocabularies — our staff row, and the CollectBox agent
+  /// id every collections fact on their side is keyed by.
+  actorStaffId String?
+  actorAgentId Int?
+  actorName    String
+
+  /// Which of the six systems this came from. The timeline is merged across all
+  /// of them and the badge on each row is not decoration — it is how a lender
+  /// tells "my officer said" from "the call centre said".
+  source String @default("desk")
+
+  mirrorState DeskMirrorState @default(SHADOW)
+  /// The exact statement composed for CollectBox, parameters inlined for reading.
+  shadowSql   String?
+  /// The row id CollectBox assigned, once mirrored.
+  mirrorRowId Int?
+  mirrorError String?
+  mirroredAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, entityId, liveLoanId, createdAt])
+  @@index([orgId, createdAt])
+  @@index([orgId, actorAgentId, createdAt])
+  @@index([orgId, mirrorState])
+}
+
+/// An agent's shift on the ConnectDesk floor — when they signed on, what they
+/// worked, what it produced. Their CollectBox activity is the source of truth for
+/// money and calls; this records PRESENCE, which CollectBox does not model at all
+/// (`UserMaster.LastLogin` is null for every agent on the live floor).
+model DeskShift {
+  id      String @id @default(uuid())
+  orgId   String
+  agentId Int
+  agentName String
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  /// Queues this agent signed on to work, as category ids.
+  queues    Json      @default("[]")
+  extension String?
+
+  /// Snapshotted on sign-off so a shift stays readable after the live window moves.
+  casesWorked   Int     @default(0)
+  callsLogged   Int     @default(0)
+  promisesTaken Int     @default(0)
+  recovered     Decimal @default(0) @db.Decimal(18, 2)
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, agentId, startedAt])
+  @@index([orgId, endedAt])
 }
