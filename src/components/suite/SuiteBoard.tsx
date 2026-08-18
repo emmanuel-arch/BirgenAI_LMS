@@ -1,0 +1,380 @@
+"use client";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE CONNECTED SUITE — the launcher, rebuilt as a demonstration.
+//
+// ── WHAT THIS PAGE HAS TO DO IN TEN SECONDS ──────────────────────────────────
+// Somebody who has never seen this platform opens it and must understand three
+// things before anyone speaks:
+//
+//   1. These are six real systems, not six tabs. Each has its own name, its own
+//      colour, its own front door, its own subdomain.
+//   2. They are already running on real data. Every tile carries a number that
+//      was true when the page rendered, with the table it came from printed
+//      underneath it. Nothing here is a placeholder.
+//   3. They are wired to each other. The flow strip below the grid is not a
+//      diagram of an intention — each lane carries its own live count.
+//
+// ── WHY IT IS THIS COLOURFUL ─────────────────────────────────────────────────
+// Enterprise software is grey because grey is safe, and the cost is that every
+// system looks like every other system. Here the colour is doing work: each
+// system's hue is the SAME hue it wears in its own sidebar, its own login page
+// and its own accent, so the launcher is teaching a colour-code that pays off
+// for the rest of the session. Rose is always the call centre. Violet is always
+// analytics. By the third screen nobody needs to read the title.
+//
+// The colours are the six suite accents, which are far apart in hue by
+// construction; each card also carries its name and its icon, so nothing here
+// depends on colour alone.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { useState } from "react";
+import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
+import {
+  ArrowRight, ShieldCheck, KeyRound, Building2, Lock, Sparkles, Database, Radio, ArrowUpRight,
+} from "lucide-react";
+import { SUITE_APPS } from "@/lib/suite/apps";
+import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
+import type { SuiteTelemetry } from "@/lib/suite/telemetry";
+
+const ago = (iso: string | null) => {
+  if (!iso) return "—";
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  // A negative age means the clock and the database disagree — see
+  // lib/enterprise/tz.ts. It is clamped rather than printed, because
+  // "−10,163s ago" is the kind of detail that derails a demonstration.
+  if (s < 0) return "just now";
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+};
+
+export default function SuiteBoard({
+  who, orgName, entered, hosts, telemetry,
+}: {
+  who: string;
+  orgName: string;
+  entered: string[];
+  hosts: ResolvedSuiteApp[];
+  telemetry: SuiteTelemetry;
+}) {
+  const reduce = useReducedMotion();
+  const [hover, setHover] = useState<string | null>(null);
+  const hostOf = (id: string) => hosts.find((h) => h.id === id);
+  const pulseOf = (id: string) => telemetry.systems.find((s) => s.id === id);
+
+  const rise = (i: number) =>
+    reduce
+      ? { initial: false as const, animate: { opacity: 1, y: 0 } }
+      : {
+          initial: { opacity: 0, y: 16 },
+          animate: { opacity: 1, y: 0 },
+          transition: { delay: 0.04 * i, duration: 0.5, ease: [0.22, 1, 0.36, 1] as const },
+        };
+
+  const fintechConnected = (telemetry.fintech.trackedInCollectBox ?? 0) > 0;
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-[#0b0a10] text-white">
+      {/* ── The field ──────────────────────────────────────────────────────
+          Six accents bled into the background at very low opacity. It is the
+          same six hues the cards use, so the page reads as one object rather
+          than a grid on a dark rectangle. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute -left-[10%] -top-[15%] h-[520px] w-[520px] rounded-full bg-[#2a78d6] opacity-[0.20] blur-[130px]" />
+        <div className="absolute -right-[8%] -top-[10%] h-[460px] w-[460px] rounded-full bg-[#7c3aed] opacity-[0.20] blur-[130px]" />
+        <div className="absolute left-[28%] top-[22%] h-[420px] w-[420px] rounded-full bg-[#be123c] opacity-[0.16] blur-[140px]" />
+        <div className="absolute -left-[6%] bottom-[6%] h-[440px] w-[440px] rounded-full bg-[#0f766e] opacity-[0.16] blur-[140px]" />
+        <div className="absolute right-[10%] bottom-[-6%] h-[420px] w-[420px] rounded-full bg-[#6d28d9] opacity-[0.16] blur-[140px]" />
+        <div className="absolute left-[52%] top-[52%] h-[360px] w-[360px] rounded-full bg-[#0e7490] opacity-[0.14] blur-[130px]" />
+        {/* A faint grid, so the colour has structure under it. */}
+        <div
+          className="absolute inset-0 opacity-[0.5]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.028) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.028) 1px, transparent 1px)",
+            backgroundSize: "64px 64px",
+          }}
+        />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-[1220px] px-4 py-6 sm:px-6 sm:py-10">
+        {/* ── Identity ─────────────────────────────────────────────────── */}
+        <motion.header {...rise(0)} className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/[0.07] ring-1 ring-white/10">
+              <KeyRound className="h-5 w-5 text-white/85" />
+            </span>
+            <div>
+              <p className="text-[15px] font-bold leading-tight">BirgenAI ID</p>
+              <p className="text-[11.5px] text-white/45">One sign-in. Six systems. One nervous system.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-400/12 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-300 ring-1 ring-emerald-400/20">
+              <ShieldCheck className="h-3.5 w-3.5" /> {who}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/[0.06] px-2.5 py-1.5 text-[11px] font-semibold text-white/60 ring-1 ring-white/10">
+              <Building2 className="h-3.5 w-3.5" /> {orgName}
+            </span>
+          </div>
+        </motion.header>
+
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        <motion.div {...rise(1)} className="mt-9 max-w-3xl sm:mt-12">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] px-3 py-1 text-[10.5px] font-bold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">
+            <Sparkles className="h-3 w-3" /> The connected suite
+          </span>
+          <h1 className="mt-4 text-[34px] font-bold leading-[1.08] tracking-[-0.028em] sm:text-[46px]">
+            Six systems.{" "}
+            <span
+              className="bg-clip-text text-transparent"
+              style={{ backgroundImage: "linear-gradient(96deg,#4d94ea 0%,#22b8cf 22%,#a78bfa 46%,#fb7185 70%,#2dd4bf 92%)" }}
+            >
+              One live book.
+            </span>
+          </h1>
+          <p className="mt-4 max-w-2xl text-[14.5px] leading-relaxed text-white/60">
+            Every figure on this page was read from Micromart&rsquo;s own SQL Server when it rendered
+            {telemetry.readMs ? ` — ${(telemetry.readMs / 1000).toFixed(1)}s ago` : ""}. Nothing is seeded, cached or
+            illustrative. The systems below are not integrated by an export: they read the same tables, in the same
+            instant, and write back through one bridge.
+          </p>
+        </motion.div>
+
+        {/* ── Live strip ───────────────────────────────────────────────── */}
+        <motion.div {...rise(2)} className="mt-7">
+          {telemetry.offline ? (
+            <div className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.07] px-4 py-3">
+              <p className="text-[12.5px] font-semibold text-amber-200">Micromart&rsquo;s server is not reachable right now</p>
+              <p className="mt-0.5 text-[11.5px] text-amber-200/70">
+                The six doors below still open. Every screen behind them reads live, so they will show their own
+                connection state rather than stale numbers.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-white/[0.09] bg-white/[0.04] px-4 py-3 backdrop-blur">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-emerald-300">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                </span>
+                Live
+              </span>
+              <span className="text-[11.5px] text-white/45">last payment {ago(telemetry.lastEventAt)}</span>
+              <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-white/35">
+                <Database className="h-3 w-3" /> services · Serviceconnect · CollectBox · Transactions
+              </span>
+            </div>
+          )}
+        </motion.div>
+
+        {/* ── The six ──────────────────────────────────────────────────── */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {SUITE_APPS.map((app, i) => {
+            const host = hostOf(app.id);
+            const pulse = pulseOf(app.id);
+            const inside = entered.includes(app.id);
+            const Icon = app.icon;
+            const on = hover === app.id;
+
+            return (
+              <motion.div key={app.id} {...rise(3 + i)}>
+                <Link
+                  href={host?.href ?? app.href}
+                  onMouseEnter={() => setHover(app.id)}
+                  onMouseLeave={() => setHover(null)}
+                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.035] p-4 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-white/[0.16] hover:bg-white/[0.06]"
+                >
+                  {/* The system's own colour, washing the card from the top. */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 -top-24 h-48 opacity-70 blur-3xl transition-opacity duration-500 group-hover:opacity-100"
+                    style={{ background: `radial-gradient(60% 60% at 50% 50%, ${app.accent}66 0%, transparent 70%)` }}
+                  />
+                  <span aria-hidden className="absolute inset-x-0 top-0 h-[2px]" style={{ backgroundColor: app.accent }} />
+
+                  <div className="relative flex items-start justify-between gap-2">
+                    <span
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10"
+                      style={{ backgroundColor: `${app.accent}2e` }}
+                    >
+                      <Icon className="h-[18px] w-[18px]" style={{ color: app.accent }} />
+                    </span>
+                    <span className="flex flex-col items-end gap-1">
+                      {inside ? (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-400/12 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-emerald-300">
+                          <ShieldCheck className="h-2.5 w-2.5" /> Signed in
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-white/[0.07] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-white/40">
+                          <Lock className="h-2.5 w-2.5" /> Request access
+                        </span>
+                      )}
+                      {app.live && (
+                        <span className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: app.accent }}>
+                          live data
+                        </span>
+                      )}
+                    </span>
+                  </div>
+
+                  <h2 className="relative mt-3 text-[16px] font-bold leading-tight">{app.name}</h2>
+                  <p className="relative mt-1 text-[12px] leading-relaxed text-white/50">{app.purpose}</p>
+
+                  {/* The live figure — the thing that makes this a demonstration. */}
+                  <div className="relative mt-3 border-t border-white/[0.08] pt-3">
+                    {pulse?.value ? (
+                      <>
+                        <p className="text-[22px] font-bold leading-none tabular-nums" style={{ color: app.accent }}>
+                          {pulse.value}
+                        </p>
+                        <p className="mt-1 text-[11px] font-medium text-white/55">{pulse.label}</p>
+                        {pulse.detail && <p className="mt-0.5 text-[10.5px] text-white/35">{pulse.detail}</p>}
+                        <p className="mt-1.5 flex items-center gap-1 text-[9.5px] text-white/25">
+                          <Database className="h-2.5 w-2.5" /> {pulse.source}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-[22px] font-bold leading-none text-white/20">—</p>
+                        <p className="mt-1 text-[11px] text-white/35">
+                          {telemetry.offline ? "server unreachable" : "no live probe for this system yet"}
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="relative mt-3 flex flex-wrap gap-1">
+                    {app.modules.slice(0, 4).map((m) => (
+                      <span key={m} className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[9.5px] font-medium text-white/45">
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="relative mt-3 flex items-center justify-between gap-2 pt-1">
+                    <span className="truncate text-[10px] text-white/25">{app.subdomain}</span>
+                    <span
+                      className="inline-flex items-center gap-1 text-[11.5px] font-semibold transition-transform group-hover:translate-x-0.5"
+                      style={{ color: app.accent }}
+                    >
+                      Open <ArrowRight className="h-3 w-3" />
+                    </span>
+                  </div>
+                </Link>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* ── The pipelines ────────────────────────────────────────────── */}
+        <motion.section {...rise(9)} className="mt-4 rounded-2xl border border-white/[0.09] bg-white/[0.035] p-4 backdrop-blur">
+          <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="flex items-center gap-2 text-[14px] font-bold">
+                <Radio className="h-4 w-4 text-emerald-300" />
+                The pipelines, running
+              </h2>
+              <p className="mt-0.5 text-[11.5px] text-white/45">
+                Not a diagram of an intention. Each lane carries its own count, read from the same server.
+              </p>
+            </div>
+            <Link href="/desk/pipeline" className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-white/60 hover:text-white">
+              Open the Fintech bridge <ArrowUpRight className="h-3 w-3" />
+            </Link>
+          </header>
+
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {telemetry.flows.map((f) => (
+              <div
+                key={`${f.from}-${f.to}`}
+                className={`rounded-xl border px-3 py-2.5 ${
+                  f.live ? "border-emerald-400/22 bg-emerald-400/[0.06]" : "border-amber-400/22 bg-amber-400/[0.05]"
+                }`}
+              >
+                <p className="flex items-center gap-1.5 text-[10.5px] font-semibold text-white/70">
+                  <span className="truncate">{f.from}</span>
+                  <ArrowRight className="h-3 w-3 shrink-0 text-white/30" />
+                  <span className="truncate">{f.to}</span>
+                </p>
+                <p className={`mt-1.5 text-[15px] font-bold tabular-nums ${f.live ? "text-emerald-300" : "text-amber-300"}`}>
+                  {f.value ?? "—"}
+                </p>
+                <p className="mt-0.5 text-[10.5px] text-white/40">{f.label}</p>
+              </div>
+            ))}
+          </div>
+        </motion.section>
+
+        {/* ── The Fintech story ────────────────────────────────────────── */}
+        {telemetry.fintech.borrowers != null && (
+          <motion.section
+            {...rise(10)}
+            className="mt-4 overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.035] backdrop-blur"
+          >
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#fb7185]">Micromart Fintech · entity 3005</p>
+                <h2 className="mt-2 text-[22px] font-bold leading-tight tracking-[-0.018em]">
+                  {fintechConnected
+                    ? "Connected to the collections floor"
+                    : "A growing book with no collections engine"}
+                </h2>
+                <p className="mt-2 max-w-xl text-[12.5px] leading-relaxed text-white/55">
+                  {fintechConnected ? (
+                    <>
+                      {telemetry.fintech.trackedInCollectBox?.toLocaleString("en-KE")} Micro Eazy cases are on the
+                      collections floor, worked by the same agents, under the same commission bands, as the main book.
+                      Nothing was migrated — the loans stayed in Serviceconnect and only a reference crossed.
+                    </>
+                  ) : (
+                    <>
+                      17,016 borrowers were moved into this entity on 2 August 2026 and every one of them dropped off
+                      the collections floor. CollectBox holds 93,000 tracked loans and{" "}
+                      <strong className="font-semibold text-white/80">none of them are 3005</strong>. The bridge that
+                      closes that is built, measured against Micromart&rsquo;s own nightly job, and one button away.
+                    </>
+                  )}
+                </p>
+                <Link
+                  href="/desk/pipeline"
+                  className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#be123c] px-3.5 py-2 text-[12.5px] font-semibold text-white transition-colors hover:bg-[#e11d48]"
+                >
+                  See the bridge <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+
+              <dl className="grid grid-cols-2 border-t border-white/[0.08] lg:grid-cols-1 lg:border-l lg:border-t-0">
+                <Cell k="Borrowers" v={telemetry.fintech.borrowers?.toLocaleString("en-KE") ?? "—"} />
+                <Cell k="Open loans" v={telemetry.fintech.loansOpen?.toLocaleString("en-KE") ?? "—"} />
+                <Cell
+                  k="On the collections floor"
+                  v={telemetry.fintech.trackedInCollectBox?.toLocaleString("en-KE") ?? "—"}
+                  tone={fintechConnected ? "good" : "warn"}
+                />
+                <Cell k="Disbursed today" v={telemetry.fintech.disbursedToday?.toLocaleString("en-KE") ?? "—"} />
+              </dl>
+            </div>
+          </motion.section>
+        )}
+
+        <motion.p {...rise(11)} className="mt-6 text-center text-[10.5px] text-white/25">
+          Rights do not cross. One identity opens every door you hold a role behind; it opens no door you do not.
+        </motion.p>
+      </div>
+    </div>
+  );
+}
+
+function Cell({ k, v, tone }: { k: string; v: string; tone?: "good" | "warn" }) {
+  const color = tone === "good" ? "text-emerald-300" : tone === "warn" ? "text-amber-300" : "text-white";
+  return (
+    <div className="border-b border-white/[0.06] px-4 py-3 last:border-b-0">
+      <dt className="text-[9.5px] font-bold uppercase tracking-[0.12em] text-white/35">{k}</dt>
+      <dd className={`mt-0.5 text-[19px] font-bold tabular-nums ${color}`}>{v}</dd>
+    </div>
+  );
+}

@@ -235,6 +235,25 @@ export function parseDotNetConnString(connStr: string): MssqlConfig {
       encrypt: kv["encrypt"] != null ? truthy(kv["encrypt"]) : false,
       trustServerCertificate: kv["trustservercertificate"] != null ? truthy(kv["trustservercertificate"]) : true,
       enableArithAbort: true,
+
+      // ── WHY useUTC IS FALSE ────────────────────────────────────────────────
+      // SQL Server's `datetime` carries NO timezone. ServiceSuite writes wall-
+      // clock Nairobi time into it — `GETDATE()` on a server whose clock is
+      // EAT — so the value 23:18 means 23:18 in Nairobi and nothing else.
+      //
+      // node-mssql's default is `useUTC: true`, which tags that naked value as
+      // UTC. A payment taken at 23:18 EAT then arrives in JavaScript as
+      // 23:18Z = 02:18 EAT the next morning: THREE HOURS IN THE FUTURE. It
+      // surfaced as "last payment −10,163s ago" on the suite launcher, and it
+      // would have quietly corrupted every "today", every ageing calculation
+      // and every promise-due comparison in the platform.
+      //
+      // With this false, node-mssql builds the Date using the PROCESS timezone,
+      // so the process must run as Africa/Nairobi. `TZ=Africa/Nairobi` is set in
+      // .env and must be set on any host this deploys to — Vercel and most
+      // containers default to UTC. src/lib/enterprise/tz.ts asserts it at boot
+      // rather than letting it fail silently three hours out.
+      useUTC: false,
     },
   } as MssqlConfig;
 }

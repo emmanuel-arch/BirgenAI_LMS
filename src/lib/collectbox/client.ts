@@ -31,6 +31,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { getOrg, isOrgConfigured, type OrgDef } from "@/lib/enterprise/connections";
+import { warnIfTzWrong } from "@/lib/enterprise/tz";
 import { runReadOnlyQuery, mssql, type QueryParam } from "@/lib/enterprise/mssql";
 
 /** The database CollectBox actually lives in, on the shared instance. */
@@ -55,6 +56,8 @@ export class CollectBoxUnavailable extends Error {
  * is a named error rather than an empty floor.
  */
 export function collectBoxOrg(slug = "micromart"): OrgDef {
+  // Says so in the logs the first time, if this host is not on Nairobi time.
+  warnIfTzWrong();
   const org = getOrg(slug);
   if (!org) throw new CollectBoxUnavailable(slug, `Unknown organisation "${slug}".`);
   if (!isOrgConfigured(org)) {
