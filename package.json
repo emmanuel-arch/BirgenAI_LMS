@@ -74,7 +74,11 @@
     "org:activate": "tsx scripts/activate-org.ts",
     "test:collectbox": "tsx scripts/verify-collectbox.ts",
     "test:desk": "tsx scripts/verify-desk.ts",
-    "db:desk-schema": "tsx scripts/apply-desk-schema.ts"
+    "db:desk-schema": "tsx scripts/apply-desk-schema.ts",
+    "art:prompts": "tsx scripts/art-prompts.ts",
+    "db:index-advisor": "tsx scripts/index-advisor.ts",
+    "bench": "tsx scripts/bench-collectbox.ts",
+    "setup:desk-demo": "tsx scripts/setup-desk-demo.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
