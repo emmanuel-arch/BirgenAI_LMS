@@ -1,10 +1,17 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // THE CONNECTED SUITE — "BirgenAI ID".
 //
-// Five systems, five front doors, one identity. The lending console is the anchor;
-// the customer portal, HR, accounting and the call-centre sit beside it as their
-// OWN products with their OWN login pages — yet a user signs in ONCE and every
-// system knows them, their org and their branch.
+// Six systems, six front doors, one identity. The lending console is the anchor;
+// the customer portal, the analytics studio, HR, accounting and the call-centre
+// sit beside it as their OWN products with their OWN login pages — yet a user
+// signs in ONCE and every system knows them, their org and their branch.
+//
+// ORDER IS LAYOUT. The launcher renders this array into a three-across grid, so
+// the first three entries ARE the top row. That row is the three systems a
+// lender actually lives in every day — the console they work the book in, the
+// portal their customers see, and the studio their managers read. The bottom row
+// is the back office. Reordering this array reorders the launcher; there is no
+// second place where the arrangement is decided.
 //
 // In this build the satellites live in the same deployment, so the session
 // genuinely carries across (real SSO, not a mock). In production each moves to its
@@ -19,7 +26,7 @@
 // door that opens onto a 403.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { ComponentType, CSSProperties } from "react";
-import { Landmark, Users2, Calculator, Headphones, Smartphone } from "lucide-react";
+import { Landmark, Users2, Calculator, Headphones, Smartphone, ChartNoAxesCombined } from "lucide-react";
 
 export type SuiteIcon = ComponentType<{ className?: string; style?: CSSProperties }>;
 
@@ -80,6 +87,37 @@ export const SUITE_APPS: SuiteApp[] = [
     live: true,
     modules: ["Apply", "My loans", "Repay", "Statements"],
     handoff: "A portal application lands in the console queue already scored.",
+  },
+  {
+    // ── ANALYTICS STUDIO ─────────────────────────────────────────────────────
+    //
+    // Promoted out of the console's Intelligence menu and onto the top row of the
+    // suite, because it stopped being a screen and became a system. The reason is
+    // not vanity: the people who need it most — a GM, a board member, a regional
+    // manager — do not have a reason to open a lending console, and burying the
+    // only view of the whole book four levels inside a loan-officer tool is why
+    // nobody senior ever saw it.
+    //
+    // It is `live: true` and has no `demo` block on purpose: unlike HR, Ledgerly
+    // and ConnectDesk, this is a REAL surface reading the real book, so it must
+    // not fall through to /suite/[app]'s demo renderer.
+    id: "analytics",
+    name: "Analytics Studio",
+    short: "Analytics",
+    tagline: "Every question you can ask of the book — answered while you ask it.",
+    purpose: "The whole business, drawn.",
+    accent: "#7c3aed",
+    icon: ChartNoAxesCombined,
+    href: "/analytics",
+    subdomain: "analytics.birgenai.com",
+    system: false,
+    live: true,
+    // The right that admits you. Analytics is a read of the ENTIRE book, so it
+    // gates on the reporting right rather than being open to any signed-in user
+    // the way the preview satellites are.
+    right: "reports.view",
+    modules: ["Portfolio", "Agents", "Branches", "Borrowers", "Collections", "Explorer"],
+    handoff: "Every figure here is the same aggregate the console's tiles read — one arithmetic, two surfaces.",
   },
   {
     id: "hr",

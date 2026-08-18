@@ -7,7 +7,13 @@ import {
   SlidersHorizontal, ScanLine, FileBarChart, MapPin, MessageSquare, Building2, Package,
   GitBranch, Palette, Settings2, KeyRound, Crown, Bot, Ticket, Mail, Ruler, LifeBuoy,
   Calculator, Target, LineChart, Navigation, Send, Map, FileLock2, Coins, MapPinOff, Circle,
-  ScrollText, Handshake, Waypoints, Infinity as InfinityIcon, type LucideIcon,
+  ScrollText, Handshake, Waypoints, Infinity as InfinityIcon,
+  // Named by the Analytics Studio's own nav registry (src/lib/analytics/studio-nav.ts).
+  // It is a separate system with its own menu, but it resolves icon names through
+  // this same map — one fallback, one place to add a name.
+  UserCheck, Building, Layers3, Filter, Radio, Compass, Table2, Bookmark,
+  TriangleAlert, ArrowLeftRight, Cog, ChartNoAxesCombined, Wrench,
+  type LucideIcon,
 } from "lucide-react";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -17,6 +23,8 @@ const ICONS: Record<string, LucideIcon> = {
   GitBranch, Palette, Settings2, KeyRound, Crown, Bot, Ticket, Mail, Ruler, LifeBuoy,
   Calculator, Target, LineChart, Navigation, Send, Map, FileLock2, Coins, MapPinOff,
   ScrollText, Handshake, Waypoints,
+  UserCheck, Building, Layers3, Filter, Radio, Compass, Table2, Bookmark,
+  TriangleAlert, ArrowLeftRight, Cog, ChartNoAxesCombined, Wrench,
   // `Infinity` is a global in TS, so the import is aliased; the registry still
   // names it "Infinity" like every other lucide icon.
   Infinity: InfinityIcon,

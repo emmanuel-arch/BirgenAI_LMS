@@ -119,7 +119,15 @@ export const NAV_REGISTRY: NavModule[] = [
       { key: "closed-loop", label: "Closed ML Loop", href: "/console/intelligence/loop", icon: "Infinity", right: "intelligence.view" },
       { key: "early-warning", label: "Early Warning", href: "/console/intelligence", icon: "Gauge", right: "intelligence.view", feature: "portfolio-scan", exact: true },
       { key: "scoring", label: "Credit Scoring", href: "/console/intelligence/scoring", icon: "Target", right: "intelligence.view", feature: "portfolio-scan" },
-      { key: "analytics", label: "Analytics Studio", href: "/console/intelligence/analytics", icon: "LineChart", anyRight: ["reports.view", "reports.analytics"] },
+      // ANALYTICS STUDIO IS NO LONGER HERE. It was promoted out of this menu and
+      // into the connected suite as its own system (/analytics, and
+      // analytics.birgenai.com in production) — see src/lib/suite/apps.ts. The
+      // entry that remains is a DOOR, not the screen: the people who need the
+      // studio most are a GM or a board member, and burying the only view of the
+      // whole book four levels inside a loan-officer tool is why nobody senior
+      // ever opened it. The old route still resolves and redirects, so existing
+      // links and bookmarks keep working.
+      { key: "analytics", label: "Analytics Studio ↗", href: "/analytics", icon: "ChartNoAxesCombined", anyRight: ["reports.view", "reports.analytics"] },
       { key: "model-tuning", label: "Model Tuning", href: "/console/intelligence/tuning", icon: "SlidersHorizontal", right: "intelligence.tune", feature: "model-tuning" },
       { key: "metrics", label: "Metric Catalogue", href: "/console/intelligence/metrics", icon: "Ruler", right: "metrics.view", feature: "riri" },
       { key: "documents", label: "Document Parser", href: "/console/documents", icon: "ScanLine", right: "documents.view", feature: "document-parser" },
@@ -168,6 +176,11 @@ export const NAV_REGISTRY: NavModule[] = [
       { key: "workflows", label: "Workflows", href: "/console/workflows", icon: "GitBranch", right: "workflows.view" },
       { key: "branding", label: "Branding", href: "/console/settings/branding", icon: "Palette", right: "branding.manage" },
       { key: "settings", label: "Settings & Vault", href: "/console/settings", icon: "Settings2", right: "settings.view", exact: true },
+      // Which of Metropol's fourteen reports this lender buys, and what that
+      // costs. Its own entry rather than a tab inside the vault because it is a
+      // COMMERCIAL decision — the person who signs off bureau spend is rarely the
+      // person who pastes in an API key.
+      { key: "crb-scrutiny", label: "Bureau Scrutiny", href: "/console/settings/crb", icon: "ShieldCheck", right: "settings.view", feature: "crb" },
       // Every plan. A lender on the smallest package still answers to the ODPC, and
       // a data-protection duty is not a feature we may sell them back.
       { key: "compliance", label: "Compliance & Data", href: "/console/compliance", icon: "FileLock2", right: "compliance.view" },

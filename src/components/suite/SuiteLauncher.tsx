@@ -4,8 +4,8 @@
 // THE SUITE LAUNCHER — the room's first impression of BirgenAI as a platform
 // rather than an LMS.
 //
-// It answers one question visually before a word is read: *these are five real
-// systems, not five tabs.* Each keeps its own name, its own colour, its own front
+// It answers one question visually before a word is read: *these are six real
+// systems, not six tabs.* Each keeps its own name, its own colour, its own front
 // door and its own subdomain — and the identity rail running underneath them all
 // is the thing being sold.
 //
@@ -82,9 +82,9 @@ export default function SuiteLauncher({ who, orgName, entered, hosts }: Props) {
             One login.<br className="sm:hidden" /> Every system.
           </h1>
           <p className="t-body mt-3 text-[15px]">
-            Your lending platform, customer portal, HR, accounting and call-centre each keep their own
-            front door — but your BirgenAI ID carries across all of them. No second password, no
-            divergent user lists. Click any system below and you are already in.
+            Your lending platform, customer portal, analytics studio, HR, accounting and call-centre
+            each keep their own front door — but your BirgenAI ID carries across all of them. No second
+            password, no divergent user lists. Click any system below and you are already in.
           </p>
         </motion.div>
 
@@ -118,8 +118,8 @@ export default function SuiteLauncher({ who, orgName, entered, hosts }: Props) {
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
             <Explainer
               icon={KeyRound}
-              title="One identity, five doors"
-              body="Each system has its own login page and its own brand. All five honour the same BirgenAI ID, issued once and carried on a session scoped to your whole suite."
+              title="One identity, six doors"
+              body="Each system has its own login page and its own brand. All six honour the same BirgenAI ID, issued once and carried on a session scoped to your whole suite."
             />
             <Explainer
               icon={Lock}
@@ -149,7 +149,7 @@ export default function SuiteLauncher({ who, orgName, entered, hosts }: Props) {
 }
 
 // ── The rail ──────────────────────────────────────────────────────────────────
-// Five systems on one spine. Hovering a card lights its node, which is the whole
+// Six systems on one spine. Hovering a card lights its node, which is the whole
 // idea rendered literally: they are separate, and they are joined.
 function IdentityRail({ hovered, reduce }: { hovered: string | null; reduce: boolean }) {
   return (
@@ -157,7 +157,7 @@ function IdentityRail({ hovered, reduce }: { hovered: string | null; reduce: boo
       <div className="flex items-center justify-between gap-2">
         <p className="t-label">The identity spine</p>
         <p className="t-meta hidden text-[11px] sm:block">
-          <span className="font-mono text-[10px]">*.birgenai.com</span> · one session, five systems
+          <span className="font-mono text-[10px]">*.birgenai.com</span> · one session, six systems
         </p>
       </div>
 
@@ -173,7 +173,7 @@ function IdentityRail({ hovered, reduce }: { hovered: string | null; reduce: boo
           transition={{ duration: 1.1, ease: "easeOut", delay: 0.25 }}
         />
 
-        <div className="relative grid grid-cols-5 gap-1">
+        <div className="relative grid grid-cols-3 gap-1 sm:grid-cols-6">
           {SUITE_APPS.map((app) => {
             const on = hovered === app.id || hovered === null;
             return (

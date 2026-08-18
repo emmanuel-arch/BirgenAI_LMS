@@ -20,6 +20,11 @@ import {
   pullMetropol, MetropolError, REPORT_REASON, sandboxTestIdFor,
   type MetropolReport, type ReportReason, type MetropolAccount,
 } from "@/lib/crb/metropol";
+import {
+  resolvePlan, tierForAmount,
+  DEFAULT_LADDER, LEGACY_DEPTH_TIER,
+  type CrbPlan, type ScrutinyTierKey, type LadderRung,
+} from "@/lib/crb/catalogue";
 
 export type CrbMode = "simulation" | "live";
 export { MetropolError };
@@ -68,6 +73,39 @@ export type CrbMetropolDetail = {
   ppi: { ppi: number | null; rank: string | null } | null;
   guarantors: number;
   stakeholders: number;
+  /** Report 6 — non-account intelligence. Null when the plan did not buy it. */
+  scrub: MetropolReport["scrub"];
+  /** Report 16 — the borrower's existing monthly repayment load. */
+  loanLoad: MetropolReport["loanLoad"];
+  /** Report 22 — 12 months of per-account behaviour. */
+  accountHistory: MetropolReport["accountHistory"];
+  scoreRange: MetropolReport["scoreRange"];
+};
+
+/**
+ * What this pull cost and why — attached to every live report.
+ *
+ * A lender who cannot see the price of a decision cannot govern it. This block
+ * is what the Customer-360 panel, the monthly bureau-spend report and the budget
+ * guard all read; it is stamped onto the stored KycCheck so a re-price tomorrow
+ * cannot rewrite what a pull cost yesterday (the same rule the invoice lines
+ * already follow).
+ */
+export type CrbCostLine = {
+  tier: string;
+  tierName: string;
+  /** Report codes requested. */
+  reports: number[];
+  /** Per-report cost as charged at pull time. */
+  lines: Array<{ code: number; name: string; cost: number; answered: boolean }>;
+  /** Total KES for this pull. Zero when it was served from cache. */
+  cost: number;
+  /** "metropol" once the real tariff sheet is loaded; "indicative" until then. */
+  tariffSource: string;
+  /** 0..100 — how deep into the file this plan reached. */
+  scrutiny: number;
+  /** Reports that were requested but returned nothing (thin file / not entitled). */
+  unanswered: Array<{ code: number; name: string; apiCode: string | null }>;
 };
 
 export type CrbReport = {
@@ -94,6 +132,8 @@ export type CrbReport = {
   sandbox?: boolean;
   /** Present only on a LIVE Metropol pull — the full bureau detail. */
   metropol?: CrbMetropolDetail;
+  /** Present only on a LIVE pull — what the lender's chosen scrutiny cost. */
+  cost?: CrbCostLine;
 };
 
 function bandFor(score: number): CrbReport["band"] {
@@ -124,7 +164,46 @@ export type CrbOptions = {
   loanAmount?: number;
   /** Why the file is being pulled (Metropol §5.2). Defaults to New Application. */
   reason?: ReportReason;
+  /**
+   * Force a scrutiny tier for this one pull, overriding the lender's ladder.
+   * A credit committee re-examining a flagged file buys the forensic report even
+   * though the amount would ordinarily only justify a screen.
+   */
+  tier?: ScrutinyTierKey;
+  /** The lender's application reference, passed to reports 10 and 22. */
+  applicationRef?: string;
 };
+
+/**
+ * The report set THIS pull will buy for THIS lender at THIS loan amount.
+ *
+ * Precedence, widest to narrowest:
+ *   1. an explicit tier on the call (a credit committee's override)
+ *   2. the lender's amount ladder, when the pull carries a loan amount
+ *   3. the lender's default tier
+ *   4. the legacy three-depth setting, mapped onto a tier
+ *   5. "standard"
+ *
+ * Exported because the settings screen, the cost projection and the pull itself
+ * must all agree on what a given configuration means. One resolver, one answer.
+ */
+export function planFor(cfg: CrbConfig | null, opts: { loanAmount?: number; tier?: ScrutinyTierKey } = {}): CrbPlan {
+  const ladder = (cfg?.ladder as LadderRung[] | undefined)?.length ? (cfg!.ladder as LadderRung[]) : null;
+  const fromLadder =
+    ladder && opts.loanAmount != null && opts.loanAmount > 0 ? tierForAmount(opts.loanAmount, ladder) : null;
+
+  const tier: ScrutinyTierKey =
+    opts.tier ??
+    fromLadder ??
+    (cfg?.scrutinyTier as ScrutinyTierKey | undefined) ??
+    LEGACY_DEPTH_TIER[cfg?.reportDepth ?? ""] ??
+    "standard";
+
+  return resolvePlan({ tier, reports: cfg?.reports ?? null, tariff: cfg?.tariff ?? null });
+}
+
+/** The default amount ladder, re-exported so the settings screen can seed from it. */
+export { DEFAULT_LADDER };
 
 /**
  * Run a bureau check for a person. Live (Metropol) when configured; otherwise a
@@ -150,10 +229,23 @@ export async function runCrbCheck(orgId: string, subject: CrbSubject, opts: CrbO
 // ── Live: Metropol → CrbReport ───────────────────────────────────────────────
 async function liveMetropol(cfg: CrbConfig, subject: CrbSubject, opts: CrbOptions): Promise<CrbReport> {
   const identityNumber = (subject.nationalId || "").trim();
-  const pullOpts = { loanAmount: opts.loanAmount ?? 10_000, reportReason: opts.reason ?? REPORT_REASON.NEW_APPLICATION };
+
+  // WHAT WE ARE ABOUT TO BUY, decided before a single byte goes over the wire.
+  // Resolving the plan here rather than inside pullMetropol is deliberate: the
+  // cost line has to be stamped onto the report whether the pull succeeds, comes
+  // back thin, or partially fails — and it has to be the SAME plan the pull ran.
+  const plan = planFor(cfg, { loanAmount: opts.loanAmount, tier: opts.tier });
+
+  const pullOpts = {
+    loanAmount: opts.loanAmount ?? 10_000,
+    reportReason: opts.reason ?? REPORT_REASON.NEW_APPLICATION,
+    reports: plan.reports as number[],
+    tariff: cfg.tariff ?? null,
+    applicationRef: opts.applicationRef,
+  };
 
   let sandbox = false;
-  let m: MetropolReport;
+  let m: Awaited<ReturnType<typeof pullMetropol>>;
   try {
     m = await pullMetropol(cfg, { identityNumber, identityType: subject.identityType || "001" }, pullOpts);
   } catch (err) {
@@ -201,6 +293,34 @@ async function liveMetropol(cfg: CrbConfig, subject: CrbSubject, opts: CrbOption
         ? `${m.delinquencyText}. Metro Score ${score}. ${m.thinFile ? "Thin file — little bureau history to lean on." : `${npl} adverse account${npl === 1 ? "" : "s"}, worst arrears ${m.accountsSummary.worstArrearsDays} days.`}`
         : `${m.delinquencyText}. Metro Score ${score}, ${npl} non-performing account${npl === 1 ? "" : "s"}, worst arrears ${m.accountsSummary.worstArrearsDays} days. High bureau risk — refer for a human decision or require security.`;
 
+  // ── THE COST LINE ─────────────────────────────────────────────────────────
+  // Priced from the plan that ran, marked per report with whether it actually
+  // answered. A report the bureau declined (E029 "unauthorized report") is not
+  // billed here — it is surfaced as unanswered, which is how a lender discovers
+  // an entitlement gap on their Metropol account instead of quietly paying for
+  // silence. The tariff itself is whatever the vault holds; until Metropol's
+  // sheet lands that is the catalogue's indicative figure, and `tariffSource`
+  // says so on every single report rather than once in a footnote.
+  const answeredCodes = new Set(m.reportCodes);
+  const costLines = plan.lines.map((l) => ({
+    code: l.code as number,
+    name: l.name,
+    cost: answeredCodes.has(l.code) ? l.cost : 0,
+    answered: answeredCodes.has(l.code),
+  }));
+  const cost: CrbCostLine = {
+    tier: plan.tier,
+    tierName: plan.tierName,
+    reports: plan.reports as number[],
+    lines: costLines,
+    cost: costLines.reduce((s, l) => s + l.cost, 0),
+    tariffSource: plan.tariffSource,
+    scrutiny: plan.scrutiny,
+    unanswered: m.calls
+      .filter((c) => !c.ok)
+      .map((c) => ({ code: c.code, name: c.name, apiCode: c.apiCode })),
+  };
+
   return {
     bureau: "Metropol CRB",
     reference: m.trxIds[0] ?? `MC-${identityNumber.slice(-6)}`,
@@ -245,7 +365,12 @@ async function liveMetropol(cfg: CrbConfig, subject: CrbSubject, opts: CrbOption
       ppi: m.ppi,
       guarantors: m.guarantors,
       stakeholders: m.stakeholders,
+      scrub: m.scrub,
+      loanLoad: m.loanLoad,
+      accountHistory: m.accountHistory,
+      scoreRange: m.scoreRange,
     },
+    cost,
   };
 }
 

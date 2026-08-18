@@ -1060,9 +1060,21 @@ export async function ensureBorrower(
 
 export type PostResult = { ok: boolean; loanId?: string; code?: string; message: string };
 
-// sp_InsertLoan signatures differ per server: Micromart's REQUIRES @Entity and has
-// no @TransactionRef; the shared server takes @TransactionRef and no @Entity.
-// Probe the proc's parameter list once per org (cached) and send only what it takes.
+// sp_InsertLoan signatures differ per server, which is why this is probed rather
+// than assumed. Probe the proc's parameter list once per org (cached) and send
+// only what it takes.
+//
+// Micromart's live server (100.72.35.56,4230 / Serviceconnect), read 18 Aug 2026:
+//   @BorrowerId @Principal @ProductId @Entity @GurantorId @CreatedBy
+//   @ActualAssetPrice @BorrowDate @ApplicationType @TransactionRef
+//   @SelectedPeriod @SelectedOptionalFeeIds
+//
+// It takes BOTH @Entity and @TransactionRef. An earlier note here said Micromart
+// had no @TransactionRef — that was true of the retired Techcrast test box, not
+// of this deployment, and it matters: @TransactionRef is the join key that ties a
+// booked loan back to the application that produced it. Without it the outcome
+// backfill has to guess by borrower + BorrowDate. Verify with
+// `npx tsx scripts/rehearse-micro-eazy.ts`, which prints this list.
 const spParamsCache = new Map<string, Promise<Set<string>>>();
 function spInsertLoanParams(org: OrgDef): Promise<Set<string>> {
   let cached = spParamsCache.get(org.slug);

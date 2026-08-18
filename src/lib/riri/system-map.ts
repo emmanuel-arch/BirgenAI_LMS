@@ -581,16 +581,26 @@ export const SYSTEM_SCREENS: SystemScreen[] = [
   },
   {
     id: "analytics-studio",
-    href: "/console/intelligence/analytics",
+    // Its own system now, at its own address — not a console screen. The old
+    // console route still resolves and redirects here.
+    href: "/analytics",
     title: "Analytics Studio",
     module: "intelligence",
-    purpose: "The book, drawn — age, gender, risk bands, regions, repayment trends and retention, each with the numbers underneath.",
-    does: ["Read six live charts of the book", "Open the table beneath any chart to check it"],
+    purpose: "A system of its own: the whole book by branch, officer, product, region, cohort and channel — any measure, any dimension, any chart, plus a builder for the questions we did not anticipate.",
+    does: [
+      "Read the board view — the business on one screen",
+      "Rank officers or branches by any definition of \"best\"",
+      "Follow each month's lending forward as a cohort",
+      "Build a chart from the columns of the book",
+      "Open the table beneath any chart to check it",
+    ],
     asks: [
       "analytics", "charts", "graphs", "analysis studio", "demographics",
       "repayment trends", "retention", "customers by region", "takwimu", "chati",
+      "best agent", "best officer", "branch comparison", "cohort", "vintage",
+      "build a chart", "pivot", "explore the data", "par by branch",
     ],
-    concepts: ["distribution", "retention", "repayment trend"],
+    concepts: ["distribution", "retention", "repayment trend", "cohort", "portfolio at risk"],
     anyRight: ["reports.view", "reports.analytics"],
     related: ["report-builder", "portfolio-report", "income-statement"],
   },

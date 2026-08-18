@@ -98,8 +98,47 @@ export type CrbConfig = {
   port?: string;
   /** URL version segment Metropol assigns (e.g. v2_1). Required to go live. */
   apiVersion?: string;
-  /** How much of Metropol to pull per check: "score" | "standard" | "full". */
+  /** @deprecated Superseded by `scrutinyTier`. Still read, so saved configs keep working. */
   reportDepth?: "score" | "standard" | "full";
+
+  // ── SCRUTINY & COST (src/lib/crb/catalogue.ts) ───────────────────────────
+  //
+  // A bureau pull is fourteen separately-priced products, not one. Which of them
+  // a lender buys is a commercial decision that differs per lender and per loan
+  // size, so it lives here — in the same encrypted per-org record as the keys —
+  // rather than in code.
+
+  /** Named report set: "gate" | "screen" | "standard" | "deep" | "forensic" | "custom". */
+  scrutinyTier?: string;
+  /** Explicit Metropol report codes. Only consulted when scrutinyTier === "custom". */
+  reports?: number[];
+  /**
+   * Scrutiny proportional to exposure: [{ upTo: 20000, tier: "screen" }, …].
+   * When set, the tier is chosen from the LOAN AMOUNT and `scrutinyTier` becomes
+   * the fallback for pulls with no amount attached (an ad-hoc Customer-360 check).
+   */
+  ladder?: Array<{ upTo: number | null; tier: string }>;
+  /** Per-report price in KES from Metropol's tariff sheet, keyed by report code. */
+  tariff?: Record<string, number>;
+  /** How long a stored pull stays fresh before we pay for another. Default 6h. */
+  reuseHours?: number;
+  /** Expected checks per month — the projection's volume input. */
+  monthlyChecks?: number;
+  /** A ceiling on monthly bureau spend. Null/0 = uncapped. */
+  monthlyBudget?: number;
+  /**
+   * What happens when the budget is exhausted mid-month:
+   *   "warn"     — keep pulling, flag it (default; never block a live decision on cost)
+   *   "downgrade"— fall back to the cheapest tier that still fits
+   *   "block"    — refuse further live pulls and serve simulation
+   */
+  budgetAction?: "warn" | "downgrade" | "block";
+  /**
+   * Which key set is loaded. Metropol's TEST pair only answers for the five
+   * sandbox IDs and returns E018 for anything else — labelling it here is what
+   * lets the UI say "sandbox" honestly instead of inferring it from an error.
+   */
+  environment?: "test" | "production";
 };
 
 type ConfigFor = {

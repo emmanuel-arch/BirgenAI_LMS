@@ -56,33 +56,31 @@ export const IDENTITY_TYPE: Record<string, string> = {
   "004": "Alien Registration", "005": "Company/Business Registration",
 };
 
-// Report reason (Developer Guide §5.2) — every credit pull must state WHY.
-export const REPORT_REASON = {
-  NEW_APPLICATION: 1,
-  REVIEW_EXISTING: 2,
-  VERIFY_DETAILS: 3,
-  CUSTOMER_REQUEST: 4,
-} as const;
-export type ReportReason = (typeof REPORT_REASON)[keyof typeof REPORT_REASON];
+// Report reasons (§5.2), report-type codes (§5.1) and the full report CATALOGUE
+// now live in src/lib/crb/catalogue.ts. They moved because they stopped being
+// constants a client hardcodes and became CONFIGURATION a lender chooses from:
+// which reports to buy, at what depth, at what cost. Re-exported here so every
+// existing call site keeps working unchanged.
+export {
+  REPORT_REASON,
+  REPORT_TYPE,
+  REPORT_REASON_LABEL,
+  CRB_REPORTS,
+  SCRUTINY_TIERS,
+  resolvePlan,
+  reportByCode,
+} from "@/lib/crb/catalogue";
+export type { ReportReason, ReportCode, CrbPlan, ScrutinyTierKey } from "@/lib/crb/catalogue";
 
-// Every report type the API exposes (Developer Guide §5.1). Kept complete so the
-// full surface is reachable; the orchestrator uses the high-value subset.
-export const REPORT_TYPE = {
-  IDENTITY_VERIFY: 1,
-  DELINQUENCY: 2,
-  METRO_SCORE: 3,
-  PDF_REPORT: 4,
-  JSON_REPORT: 5,
-  IDENTITY_SCRUB: 6,
-  CREDIT_INFO: 8,
-  ENHANCED_CREDIT_INFO: 10,
-  ENHANCED_CREDIT_INFO_MOBILE: 11,
-  FULL_ENHANCED_CREDIT_INFO: 12,
-  MINIFIED_CREDIT_INFO: 13,
-  FULL_JSON_REPORT: 14,
-  ACCOUNTS_SUMMARY: 16,
-  ACCOUNTS_INFO: 22,
-} as const;
+import {
+  REPORT_REASON as REASON,
+  REPORT_TYPE as RT,
+  reportByCode,
+  resolvePlan,
+  type ReportCode,
+  type ReportReason,
+  type ScrutinyTierKey,
+} from "@/lib/crb/catalogue";
 
 const ENDPOINT = {
   IDENTITY_VERIFY: "/identity/verify",
@@ -230,7 +228,7 @@ export function health(cfg: CrbConfig) {
 
 export function verifyIdentity(cfg: CrbConfig, s: Subject) {
   return metropolFetch(cfg, ENDPOINT.IDENTITY_VERIFY, {
-    report_type: REPORT_TYPE.IDENTITY_VERIFY,
+    report_type: RT.IDENTITY_VERIFY,
     identity_number: s.identityNumber,
     identity_type: s.identityType || "001",
   });
@@ -238,7 +236,7 @@ export function verifyIdentity(cfg: CrbConfig, s: Subject) {
 
 export function delinquencyStatus(cfg: CrbConfig, s: Subject & { loanAmount: number }) {
   return metropolFetch(cfg, ENDPOINT.DELINQUENCY, {
-    report_type: REPORT_TYPE.DELINQUENCY,
+    report_type: RT.DELINQUENCY,
     identity_number: s.identityNumber,
     identity_type: s.identityType || "001",
     loan_amount: Math.round(s.loanAmount),
@@ -247,7 +245,7 @@ export function delinquencyStatus(cfg: CrbConfig, s: Subject & { loanAmount: num
 
 export function metroScore(cfg: CrbConfig, s: Subject & { mobileScore?: boolean }) {
   return metropolFetch(cfg, ENDPOINT.METRO_SCORE, {
-    report_type: REPORT_TYPE.METRO_SCORE,
+    report_type: RT.METRO_SCORE,
     identity_number: s.identityNumber,
     identity_type: s.identityType || "001",
     mobile_score: !!s.mobileScore,
@@ -256,45 +254,89 @@ export function metroScore(cfg: CrbConfig, s: Subject & { mobileScore?: boolean 
 
 export function identityScrub(cfg: CrbConfig, s: Subject) {
   return metropolFetch(cfg, ENDPOINT.IDENTITY_SCRUB, {
-    report_type: REPORT_TYPE.IDENTITY_SCRUB,
+    report_type: RT.IDENTITY_SCRUB,
     identity_number: s.identityNumber,
     identity_type: s.identityType || "001",
   });
 }
 
-/** Report 12 — the everything call: identity verify + scrub + full credit file. */
-export function fullEnhancedCreditInfo(cfg: CrbConfig, a: CreditArgs) {
-  return metropolFetch(cfg, ENDPOINT.CREDIT_INFO, {
-    report_type: REPORT_TYPE.FULL_ENHANCED_CREDIT_INFO,
+/**
+ * Every credit report shares one body shape (§4.3.7 – §4.3.14): the identity
+ * triple, the loan amount the pull is justified by, and the reason for asking.
+ * Only the report_type and the endpoint change — so one builder covers them all,
+ * which is what makes an arbitrary, lender-chosen report SET callable without a
+ * new function per report.
+ */
+function creditCall(cfg: CrbConfig, code: ReportCode, endpoint: string, a: CreditArgs) {
+  return metropolFetch(cfg, endpoint, {
+    report_type: code,
     identity_number: a.identityNumber,
     identity_type: a.identityType || "001",
     loan_amount: Math.round(a.loanAmount),
-    report_reason: a.reportReason ?? REPORT_REASON.NEW_APPLICATION,
-  });
-}
-
-/** Report 11 — credit info WITH income estimation (mobile). */
-export function creditInfoWithIncome(cfg: CrbConfig, a: CreditArgs) {
-  return metropolFetch(cfg, ENDPOINT.ENHANCED_CREDIT_INFO_MOBILE, {
-    report_type: REPORT_TYPE.ENHANCED_CREDIT_INFO_MOBILE,
-    identity_number: a.identityNumber,
-    identity_type: a.identityType || "001",
-    loan_amount: Math.round(a.loanAmount),
-    report_reason: a.reportReason ?? REPORT_REASON.NEW_APPLICATION,
-  });
-}
-
-/** Report 10 — enhanced credit info with guarantors + stakeholders. */
-export function enhancedCreditInfo(cfg: CrbConfig, a: CreditArgs) {
-  return metropolFetch(cfg, ENDPOINT.ENHANCED_CREDIT_INFO, {
-    report_type: REPORT_TYPE.ENHANCED_CREDIT_INFO,
-    identity_number: a.identityNumber,
-    identity_type: a.identityType || "001",
-    loan_amount: Math.round(a.loanAmount),
-    report_reason: a.reportReason ?? REPORT_REASON.NEW_APPLICATION,
+    report_reason: a.reportReason ?? REASON.NEW_APPLICATION,
     ...(a.applicationRef ? { application_ref_no: a.applicationRef } : {}),
   });
 }
+
+/** Report 8 — the credit file without guarantors. */
+export const creditInfo = (cfg: CrbConfig, a: CreditArgs) => creditCall(cfg, RT.CREDIT_INFO, ENDPOINT.CREDIT_INFO, a);
+
+/** Report 10 — enhanced credit info with guarantors + stakeholders. */
+export const enhancedCreditInfo = (cfg: CrbConfig, a: CreditArgs) =>
+  creditCall(cfg, RT.ENHANCED_CREDIT_INFO, ENDPOINT.ENHANCED_CREDIT_INFO, a);
+
+/** Report 11 — credit info WITH income estimation (mobile). */
+export const creditInfoWithIncome = (cfg: CrbConfig, a: CreditArgs) =>
+  creditCall(cfg, RT.CREDIT_INFO_MOBILE, ENDPOINT.ENHANCED_CREDIT_INFO_MOBILE, a);
+
+/** Report 12 — the everything call: identity verify + scrub + full credit file. */
+export const fullEnhancedCreditInfo = (cfg: CrbConfig, a: CreditArgs) =>
+  creditCall(cfg, RT.FULL_ENHANCED_CREDIT_INFO, ENDPOINT.CREDIT_INFO, a);
+
+/** Report 13 — the one-paragraph version, for a bulk screen. */
+export const minifiedCreditInfo = (cfg: CrbConfig, a: CreditArgs) =>
+  creditCall(cfg, RT.MINIFIED_CREDIT_INFO, ENDPOINT.CREDIT_INFO, a);
+
+/** Report 14 — the complete file as raw JSON, guarantors included. */
+export const fullJsonReport = (cfg: CrbConfig, a: CreditArgs) =>
+  creditCall(cfg, RT.FULL_JSON_REPORT, ENDPOINT.JSON_REPORT, a);
+
+/** Report 16 — mobile vs. generic account counts and the monthly instalment load. */
+export const accountsSummary = (cfg: CrbConfig, a: CreditArgs) =>
+  creditCall(cfg, RT.ACCOUNTS_SUMMARY, ENDPOINT.CREDIT_INFO, a);
+
+/** Report 22 — 12 months of per-account behaviour: status, arrears, payments. */
+export const accountsInfo = (cfg: CrbConfig, a: CreditArgs) =>
+  creditCall(cfg, RT.ACCOUNTS_INFO, ENDPOINT.CREDIT_INFO, a);
+
+/** Report 5 — the credit report as JSON (no guarantors). */
+export const jsonReport = (cfg: CrbConfig, a: CreditArgs) => creditCall(cfg, RT.JSON_REPORT, ENDPOINT.JSON_REPORT, a);
+
+/**
+ * Report 4 — the bureau's own PDF.
+ *
+ * The ONE report that does not return JSON, so it does not go through
+ * metropolFetch's parser. Kept out of the orchestrated merge for that reason and
+ * exposed on its own for the "attach the bureau's document to the file" flow.
+ */
+export const pdfReport = (cfg: CrbConfig, a: CreditArgs) => creditCall(cfg, RT.PDF_REPORT, ENDPOINT.PDF_REPORT, a);
+
+/** Dispatch table: report code → the call that fetches it. */
+const CALLERS: Partial<Record<number, (cfg: CrbConfig, a: CreditArgs) => Promise<Record<string, unknown>>>> = {
+  [RT.IDENTITY_VERIFY]: (cfg, a) => verifyIdentity(cfg, a) as Promise<Record<string, unknown>>,
+  [RT.DELINQUENCY]: (cfg, a) => delinquencyStatus(cfg, a) as Promise<Record<string, unknown>>,
+  [RT.METRO_SCORE]: (cfg, a) => metroScore(cfg, a) as Promise<Record<string, unknown>>,
+  [RT.IDENTITY_SCRUB]: (cfg, a) => identityScrub(cfg, a) as Promise<Record<string, unknown>>,
+  [RT.CREDIT_INFO]: creditInfo,
+  [RT.ENHANCED_CREDIT_INFO]: enhancedCreditInfo,
+  [RT.CREDIT_INFO_MOBILE]: creditInfoWithIncome,
+  [RT.FULL_ENHANCED_CREDIT_INFO]: fullEnhancedCreditInfo,
+  [RT.MINIFIED_CREDIT_INFO]: minifiedCreditInfo,
+  [RT.FULL_JSON_REPORT]: fullJsonReport,
+  [RT.ACCOUNTS_SUMMARY]: accountsSummary,
+  [RT.ACCOUNTS_INFO]: accountsInfo,
+  [RT.JSON_REPORT]: jsonReport,
+};
 
 // ── The mapped, LMS-shaped result ────────────────────────────────────────────
 
@@ -355,6 +397,59 @@ export type MetropolReport = {
   ppi: { ppi: number | null; rank: string | null } | null;
   guarantors: number;
   stakeholders: number;
+
+  // ── Reports the plan may or may not have bought ──────────────────────────
+  // Each is null/empty when its report was not in the lender's chosen set. That
+  // is the point of a configurable plan: the shape never changes, only how much
+  // of it is filled in, so no call site has to know what was purchased.
+
+  /** Report 6 (or report 12's nested scrub) — what the bureau knows that isn't an account. */
+  scrub: {
+    names: string[];
+    phones: string[];
+    emails: string[];
+    employers: string[];
+    towns: string[];
+  } | null;
+
+  /**
+   * Report 16 — the borrower's CURRENT repayment load, split mobile vs. generic.
+   * This is the affordability denominator: what they already owe every month
+   * before this loan is added.
+   */
+  loanLoad: {
+    mobileActive: number;
+    mobileClosed: number;
+    mobileInArrears: number;
+    mobileNpa: number;
+    genericActive: number;
+    genericClosed: number;
+    genericInArrears: number;
+    genericNpa: number;
+    /** Sum of monthly instalments on active non-mobile loans. */
+    monthlyInstalmentGeneric: number;
+    avgPrincipalMobileActive: number;
+  } | null;
+
+  /** Report 22 — 12 months of behaviour per account. Empty when not purchased. */
+  accountHistory: Array<{
+    accountNumber: string;
+    product: string;
+    points: Array<{
+      month: string;
+      status: string;
+      arrearsDays: number;
+      overdue: number;
+      lastPaymentAmount: number | null;
+      lastPaymentDate: string | null;
+    }>;
+  }>;
+
+  /** Report 22 — the score band over the observed window. */
+  scoreRange: { min: number; max: number } | null;
+
+  /** Which report codes actually answered. Drives the cost line and the audit trail. */
+  reportCodes: number[];
 };
 
 const SECTOR_LABEL: Record<string, string> = {
@@ -402,22 +497,57 @@ function isNpl(a: MetropolAccount): boolean {
  * Merge the raw report shapes into one LMS report. Pass any of report 12 (full
  * enhanced), report 3 (score), report 11 (income) — whichever were pulled.
  */
-export function mapMetropol(parts: {
+export type MetropolParts = {
+  /** Report 12 (or 10/8/14) — whichever full credit file the plan bought. */
   full?: Record<string, unknown> | null;
+  /** Report 3 — Metro Score. */
   score?: Record<string, unknown> | null;
+  /** Report 3 with mobile_score:true. */
   mobileScore?: Record<string, unknown> | null;
+  /** Report 11 — credit info with income estimation. */
   income?: Record<string, unknown> | null;
-}): MetropolReport {
-  const full = parts.full ?? {};
+  /** Report 1 — identity verification, when bought on its own. */
+  identity?: Record<string, unknown> | null;
+  /** Report 6 — identity scrub, when bought on its own. */
+  scrub?: Record<string, unknown> | null;
+  /** Report 2 — delinquency status, when bought on its own. */
+  delinquency?: Record<string, unknown> | null;
+  /** Report 10 — enhanced credit info (guarantors + stakeholders). */
+  enhanced?: Record<string, unknown> | null;
+  /** Report 16 — credit accounts summary. */
+  summary?: Record<string, unknown> | null;
+  /** Report 22 — 12-month account history. */
+  history?: Record<string, unknown> | null;
+  /** Report 13 — minified credit info. */
+  minified?: Record<string, unknown> | null;
+  /** The report codes that were actually attempted and answered. */
+  codes?: number[];
+};
+
+export function mapMetropol(parts: MetropolParts): MetropolReport {
+  // The "full file" is whichever of reports 12 / 10 / 14 / 8 the plan bought.
+  // They share a shape; report 12 simply carries the most of it.
+  const full = parts.full ?? parts.enhanced ?? {};
   const income = parts.income ?? {};
-  // Accounts: prefer the full file; fall back to the income (mobile) call.
-  const accounts = mapAccounts((full.account_info as unknown) ?? (income.account_info as unknown));
-  const delinquencyCode = String(full.delinquency_code ?? income.delinquency_code ?? "");
+  const summary = parts.summary ?? {};
+  const history = parts.history ?? {};
+  // Accounts: prefer the full file; then the 12-month history call (report 22
+  // returns the same account_info with an extra account_history array); then the
+  // income (mobile) call. Whichever the plan bought, the account list is the same
+  // shape — so a lender on a cheap tier still gets accounts if ANY report carried
+  // them, and a lender on none gets an honest empty list rather than a crash.
+  const accounts = mapAccounts(
+    (full.account_info as unknown) ?? (history.account_info as unknown) ?? (income.account_info as unknown),
+  );
+  const delinquencyCode = String(
+    full.delinquency_code ?? parts.delinquency?.delinquency_code ?? history.delinquency_code ?? income.delinquency_code ?? "",
+  );
   const nplCount = accounts.filter((a) => isNpl(a)).length +
     (accounts.length === 0 && delinquencyCode === "004" ? 1 : 0);
 
-  const iv = (full.identity_verification as Record<string, unknown>) ?? null;
-  const scrub = (full.identity_scrub as Record<string, unknown>) ?? null;
+  // Identity comes from report 12's nested block, or from report 1 bought alone.
+  const iv = (full.identity_verification as Record<string, unknown>) ?? parts.identity ?? null;
+  const scrub = (full.identity_scrub as Record<string, unknown>) ?? parts.scrub ?? null;
   const scrubName = Array.isArray(scrub?.names) && scrub!.names.length ? String((scrub!.names as unknown[])[0]) : null;
   const identity = iv
     ? {
@@ -444,16 +574,25 @@ export function mapMetropol(parts: {
     npaHistory: num(v.account_performing_npa_history),
   }));
 
-  const trend = Array.isArray(full.metro_score_trend)
-    ? (full.metro_score_trend as Array<Record<string, unknown>>)
-        .map((t) => ({
-          month: String(t.month ?? ""),
-          score: t.credit_score != null ? num(t.credit_score) : null,
-          ppi: t.ppi != null ? num(t.ppi) : null,
-          ppiRank: (t.ppi_rank as string) || null,
-        }))
-        .filter((t) => t.month)
-    : [];
+  // The 12-month score trend arrives from report 12 as `metro_score_trend` and
+  // from report 22 as `monthly_score`. A plan may buy either, both or neither —
+  // 12 wins where they overlap because it also carries the PPI alongside.
+  const trendFrom = (list: unknown, scoreKey: string) =>
+    Array.isArray(list)
+      ? (list as Array<Record<string, unknown>>)
+          .map((t) => ({
+            month: String(t.month ?? ""),
+            score: t[scoreKey] != null ? num(t[scoreKey]) : null,
+            ppi: t.ppi != null ? num(t.ppi) : null,
+            ppiRank: (t.ppi_rank as string) || null,
+          }))
+          .filter((t) => t.month)
+      : [];
+  const trend12 = trendFrom(full.metro_score_trend, "credit_score");
+  const trend22 = trendFrom(history.monthly_score, "credit_score");
+  const trendMap = new Map(trend22.map((t) => [t.month, t]));
+  for (const t of trend12) trendMap.set(t.month, t);
+  const trend = [...trendMap.values()].sort((a, b) => a.month.localeCompare(b.month));
 
   const ppiRaw = full.ppi_analysis as Record<string, unknown> | null;
 
@@ -465,13 +604,86 @@ export function mapMetropol(parts: {
     : income.credit_score != null ? num(income.credit_score)
     : null;
 
-  const trxIds = [full.trx_id, income.trx_id, parts.score?.trx_id, parts.mobileScore?.trx_id]
-    .filter((x): x is string => typeof x === "string" && !!x);
-  const reportsPulled: string[] = [];
-  if (parts.full) reportsPulled.push("Full Enhanced Credit Info (12)");
-  if (parts.score) reportsPulled.push("Metro Score (3)");
-  if (parts.mobileScore) reportsPulled.push("Mobile Score (3)");
-  if (parts.income) reportsPulled.push("Credit Info + Income (11)");
+  const trxIds = [
+    full.trx_id, income.trx_id, summary.trx_id, history.trx_id,
+    parts.score?.trx_id, parts.mobileScore?.trx_id, parts.identity?.trx_id,
+    parts.scrub?.trx_id, parts.delinquency?.trx_id, parts.minified?.trx_id,
+  ].filter((x): x is string => typeof x === "string" && !!x);
+
+  // Named from the CATALOGUE rather than a hardcoded list, so a plan that buys a
+  // report nobody anticipated still shows the lender exactly what they paid for.
+  const codes = parts.codes ?? [];
+  const reportsPulled = codes.map((c) => {
+    const def = reportByCode(c);
+    return def ? `${def.name} (${c})` : `Report ${c}`;
+  });
+
+  // ── Report 6 / report 12's scrub block — the non-account intelligence ──────
+  const strList = (v: unknown): string[] =>
+    Array.isArray(v) ? v.map((x) => String(x ?? "").trim()).filter(Boolean) : [];
+  const scrubBlock = scrub
+    ? {
+        names: strList(scrub.names),
+        phones: strList(scrub.phone),
+        emails: strList(scrub.email),
+        employers: Array.isArray(scrub.employment)
+          ? (scrub.employment as Array<Record<string, unknown>>)
+              .map((e) => String(e?.employer_name ?? "").trim())
+              .filter(Boolean)
+          : [],
+        towns: [
+          ...(Array.isArray(scrub.postal_address) ? (scrub.postal_address as Array<Record<string, unknown>>) : []),
+          ...(Array.isArray(scrub.physical_address) ? (scrub.physical_address as Array<Record<string, unknown>>) : []),
+        ]
+          .map((a) => String(a?.town ?? "").trim())
+          .filter(Boolean),
+      }
+    : null;
+
+  // ── Report 16 — the current monthly repayment load ────────────────────────
+  const ci = (summary.credit_info as Record<string, unknown>) ?? null;
+  const loanLoad = ci
+    ? {
+        mobileActive: num(ci.mobile_account_count_active),
+        mobileClosed: num(ci.mobile_account_count_closed),
+        mobileInArrears: num(ci.mobile_account_in_arrears_count),
+        mobileNpa: num(ci.mobile_account_npa_count),
+        genericActive: num(ci.generic_account_count),
+        genericClosed: num(ci.generic_account_count_closed),
+        genericInArrears: num(ci.generic_account_in_arrears_count),
+        genericNpa: num(ci.generic_account_npa_count),
+        monthlyInstalmentGeneric: num(ci.total_monthly_instalment_generic),
+        avgPrincipalMobileActive: num(ci.average_principal_mobile_loans_active),
+      }
+    : null;
+
+  // ── Report 22 — 12 months of behaviour per account ────────────────────────
+  const accountHistory = Array.isArray(history.account_info)
+    ? (history.account_info as Array<Record<string, unknown>>)
+        .map((a) => ({
+          accountNumber: String(a.account_number ?? ""),
+          product: String(a.product_type_name ?? "Loan"),
+          points: Array.isArray(a.account_history)
+            ? (a.account_history as Array<Record<string, unknown>>).map((h) => ({
+                month: String(h.month ?? "").slice(0, 10),
+                status: statusText(h.account_status),
+                arrearsDays: num(h.days_in_arrears),
+                overdue: num(h.overdue_balance),
+                lastPaymentAmount: h.last_payment_amount != null ? num(h.last_payment_amount) : null,
+                lastPaymentDate: (h.last_payment_date as string) || null,
+              }))
+            : [],
+        }))
+        // An account with no history contributes nothing to a behaviour chart;
+        // the guide says the tag comes back empty when there is under 3 months
+        // of data, and rendering an empty series reads as a bug.
+        .filter((a) => a.points.length > 0)
+    : [];
+
+  const scoreRange =
+    history.min_credit_score != null && history.max_credit_score != null
+      ? { min: num(history.min_credit_score), max: num(history.max_credit_score) }
+      : null;
 
   const totalExposure = accounts.reduce((s, a) => s + a.balance, 0);
   const totalOverdue = accounts.reduce((s, a) => s + a.overdue, 0);
@@ -511,56 +723,158 @@ export function mapMetropol(parts: {
     ppi: ppiRaw ? { ppi: ppiRaw.ppi != null ? num(ppiRaw.ppi) : null, rank: (ppiRaw.ppi_rank as string) || null } : null,
     guarantors: Array.isArray(full.guarantors) ? full.guarantors.length : 0,
     stakeholders: Array.isArray(full.stakeholders) ? full.stakeholders.length : 0,
+    scrub: scrubBlock,
+    loanLoad,
+    accountHistory,
+    scoreRange,
+    reportCodes: codes,
   };
 }
 
+/** @deprecated The three fixed depths are now the tiers in the catalogue. */
 export type PullDepth = "score" | "standard" | "full";
 
+/** Where each answered report lands in the merge. */
+const PART_FOR: Record<number, keyof MetropolParts> = {
+  [RT.IDENTITY_VERIFY]: "identity",
+  [RT.DELINQUENCY]: "delinquency",
+  [RT.METRO_SCORE]: "score",
+  [RT.IDENTITY_SCRUB]: "scrub",
+  [RT.CREDIT_INFO]: "full",
+  [RT.ENHANCED_CREDIT_INFO]: "enhanced",
+  [RT.CREDIT_INFO_MOBILE]: "income",
+  [RT.FULL_ENHANCED_CREDIT_INFO]: "full",
+  [RT.MINIFIED_CREDIT_INFO]: "minified",
+  [RT.FULL_JSON_REPORT]: "full",
+  [RT.ACCOUNTS_SUMMARY]: "summary",
+  [RT.ACCOUNTS_INFO]: "history",
+  [RT.JSON_REPORT]: "full",
+};
+
+export type PullResult = MetropolReport & {
+  /** Per-report outcome — what answered, what was skipped, and why. */
+  calls: Array<{ code: number; name: string; ok: boolean; skipped: boolean; apiCode: string | null; ms: number }>;
+};
+
+export type PullOptions = {
+  loanAmount: number;
+  reportReason?: ReportReason;
+  /** The lender's scrutiny tier. Ignored when `reports` is given explicitly. */
+  tier?: ScrutinyTierKey;
+  /** Explicit report codes — overrides the tier. This is the real control. */
+  reports?: number[];
+  /** Per-report tariff overrides, for costing the pull. */
+  tariff?: Record<string, number> | null;
+  mobileScore?: boolean;
+  applicationRef?: string;
+  /** @deprecated Use `tier`. Mapped onto the tiers for saved configs. */
+  depth?: PullDepth;
+};
+
 /**
- * The orchestrated pull the LMS actually uses. Runs the high-value report set in
- * parallel (they are distinct report_types, so no E409 collision between them)
- * and merges the result. Each call is best-effort: a missing income estimate
- * never sinks the credit file, and a thin file (E017) is a valid clean result.
+ * The orchestrated pull — WHATEVER REPORT SET THE LENDER BOUGHT.
  *
- *   score     → report 3 only (cheapest — a number and a band)
- *   standard  → report 12 (the full file) + report 3 (authoritative score)
- *   full      → standard + report 11 (income estimation for affordability)
+ * The report set is no longer a property of this function; it is a property of
+ * the lender, resolved from their scrutiny tier (or an explicit list) through
+ * the catalogue. This function's only job is to run that set and merge it.
+ *
+ * Three behaviours are load-bearing:
+ *
+ *   · PARALLEL, because distinct report_types do not collide with Metropol's
+ *     E409 duplicate guard — that fires on an IDENTICAL call inside 60 seconds,
+ *     and two different report types are not identical.
+ *   · BEST-EFFORT PER REPORT. E017 ("no account information") is a valid THIN
+ *     FILE, not a failure; E029 ("unauthorized report") means the account is not
+ *     entitled to that report, which is a configuration fact worth surfacing and
+ *     not a reason to fail the whole pull. Either resolves to null and the merge
+ *     carries on with what did answer.
+ *   · A HARD failure on EVERY report still throws, because a pull where nothing
+ *     answered is not a thin file — it is an outage, and calling it "clean" is
+ *     how a lender ends up disbursing against a bureau that never replied.
  */
 export async function pullMetropol(
   cfg: CrbConfig,
   subject: Subject,
-  opts: { loanAmount: number; reportReason?: ReportReason; depth?: PullDepth; mobileScore?: boolean } = { loanAmount: 0 },
-): Promise<MetropolReport> {
-  const depth: PullDepth = opts.depth ?? (cfg.reportDepth as PullDepth) ?? "full";
-  const loanAmount = Math.max(1, Math.round(opts.loanAmount || 0)) || 10_000;
-  const args: CreditArgs = { ...subject, loanAmount, reportReason: opts.reportReason };
+  opts: PullOptions = { loanAmount: 0 },
+): Promise<PullResult> {
+  // Precedence: explicit reports → explicit tier → the org's saved tier → the
+  // legacy `reportDepth` mapped onto a tier → "standard".
+  const plan = resolvePlan({
+    tier: opts.reports?.length
+      ? "custom"
+      : (opts.tier ?? (cfg.scrutinyTier as ScrutinyTierKey | undefined) ?? LEGACY_TIER[cfg.reportDepth ?? ""] ?? "standard"),
+    reports: opts.reports ?? cfg.reports ?? null,
+    tariff: opts.tariff ?? cfg.tariff ?? null,
+  });
 
-  // A soft-fail wrapper: E017 (thin file) resolves to null here, so a person with
-  // no bureau accounts still yields a valid report built from the score alone.
-  const soft = async <T>(p: Promise<T>): Promise<T | null> => {
-    try {
-      return await p;
-    } catch (err) {
-      if (err instanceof MetropolError && (err.apiCode === "E017" || err.apiCode === "E002")) return null;
-      throw err;
-    }
+  const loanAmount = Math.max(1, Math.round(opts.loanAmount || 0)) || 10_000;
+  const args: CreditArgs = {
+    ...subject,
+    loanAmount,
+    reportReason: opts.reportReason,
+    applicationRef: opts.applicationRef,
   };
 
-  if (depth === "score") {
-    const score = await metroScore(cfg, subject);
-    return mapMetropol({ score });
+  const calls: PullResult["calls"] = [];
+  const parts: MetropolParts = {};
+  let hardError: MetropolError | null = null;
+
+  const results = await Promise.all(
+    plan.reports.map(async (code) => {
+      const def = reportByCode(code)!;
+      const caller = CALLERS[code];
+      const started = Date.now();
+      if (!caller) {
+        // Report 4 is a binary PDF and has no JSON to merge. It stays out of the
+        // orchestrated pull deliberately rather than failing inside it.
+        calls.push({ code, name: def.name, ok: false, skipped: true, apiCode: null, ms: 0 });
+        return null;
+      }
+      try {
+        const json = await caller(cfg, args);
+        calls.push({ code, name: def.name, ok: true, skipped: false, apiCode: null, ms: Date.now() - started });
+        return { code, json };
+      } catch (err) {
+        const apiCode = err instanceof MetropolError ? err.apiCode : null;
+        calls.push({ code, name: def.name, ok: false, skipped: false, apiCode, ms: Date.now() - started });
+        // E017 thin file / E002 empty key / E029 not entitled — soft.
+        if (err instanceof MetropolError && SOFT_CODES.has(err.apiCode ?? "")) return null;
+        if (err instanceof MetropolError) hardError = err;
+        else hardError = new MetropolError("Metropol request failed.", null, 0, false);
+        return null;
+      }
+    }),
+  );
+
+  type Answered = { code: ReportCode; json: Record<string, unknown> };
+  const answered = results.filter((r): r is Answered => r !== null);
+
+  // Nothing answered AND something failed hard ⇒ this is an outage, not a file.
+  if (answered.length === 0 && hardError) throw hardError;
+
+  // Merge in catalogue order so a richer report never loses to a poorer one that
+  // happened to resolve first: report 12 must win the `full` slot over report 8.
+  for (const { code, json } of answered.sort((a, b) => a.code - b.code)) {
+    const slot = PART_FOR[code];
+    if (!slot) continue;
+    if (slot === "full" && parts.full && code < RT.FULL_ENHANCED_CREDIT_INFO) continue;
+    (parts as Record<string, unknown>)[slot] = json;
   }
 
-  const jobs: Array<Promise<unknown>> = [
-    soft(fullEnhancedCreditInfo(cfg, args)),
-    soft(metroScore(cfg, subject)),
-  ];
-  if (depth === "full") jobs.push(soft(creditInfoWithIncome(cfg, args)));
+  // Report 3 with mobile_score:true is the same report type, so it can only be
+  // requested as an OPTION on the score call, never as a second entry in the set.
+  if (opts.mobileScore && parts.score) parts.mobileScore = parts.score;
 
-  const [full, score, income] = (await Promise.all(jobs)) as [
-    Record<string, unknown> | null,
-    Record<string, unknown> | null,
-    Record<string, unknown> | undefined,
-  ];
-  return mapMetropol({ full, score, income: income ?? null });
+  const report = mapMetropol({ ...parts, codes: answered.map((a) => a.code) });
+  return { ...report, calls };
 }
+
+/** API codes that mean "this report has no answer for this person", not "we failed". */
+const SOFT_CODES = new Set(["E017", "E002", "E029", "E016", "E019"]);
+
+/** Saved configs still carry the old three depths. Map them onto the tiers. */
+const LEGACY_TIER: Record<string, ScrutinyTierKey | undefined> = {
+  score: "screen",
+  standard: "standard",
+  full: "deep",
+};

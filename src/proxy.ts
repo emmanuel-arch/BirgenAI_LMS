@@ -21,7 +21,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /** Where the studio actually lives inside the app. */
-const STUDIO = "/console/intelligence/analytics";
+const STUDIO = "/analytics";
 
 /** Where the consumer app's door actually lives inside the app. */
 const MICRO_EAZY = "/microeazy";
