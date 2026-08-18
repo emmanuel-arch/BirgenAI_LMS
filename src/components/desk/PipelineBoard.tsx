@@ -51,7 +51,10 @@ export default function PipelineBoard({
   bands: Band[];
   rows: Row[];
   allocation: { agentId: number; agentName: string; loans: number; olb: number; commissionAtFull: number }[];
-  accuracy: { compared: number; within3: number; within7: number; within3Pct: number; within7Pct: number; noSchedule: number };
+  accuracy: {
+    compared: number; within3: number; within7: number; within3Pct: number; within7Pct: number;
+    noSchedule: number; sampled: number; bookTotal: number; marginPp: number;
+  };
   mainBook: { loans: number; olb: number; agents: number; recoveredToday: number };
 }) {
   const [busy, setBusy] = useState(false);
@@ -159,7 +162,7 @@ export default function PipelineBoard({
         <Stat
           label="Ageing rule agreement"
           value={PCT(accuracy.within7Pct, 1)}
-          foot={`within 7 days of their own nightly job, across ${N(accuracy.compared)} tracked loans`}
+          foot={`±${accuracy.marginPp.toFixed(2)}pp · within 7 days of their own nightly job, on ${N(accuracy.compared)} sampled loans`}
         />
       </div>
 
@@ -173,8 +176,8 @@ export default function PipelineBoard({
             Their nightly job writes its own answer into <code className="rounded bg-zinc-900/[0.06] px-1 text-[11px]">CollectionTracker.DaysInArears</code>.
             So the rule can be checked against it loan by loan, on the 3002 book, where both figures exist. Taking the days since the
             earliest unpaid row in <code className="rounded bg-zinc-900/[0.06] px-1 text-[11px]">loanSchedule</code> reproduces their figure
-            for <strong className="font-semibold text-zinc-800">{PCT(accuracy.within7Pct, 1)}</strong> of {N(accuracy.compared)} tracked
-            loans within a week, and <strong className="font-semibold text-zinc-800">{PCT(accuracy.within3Pct, 1)}</strong> within three days.
+            for <strong className="font-semibold text-zinc-800">{PCT(accuracy.within7Pct, 1)}</strong> of a random sample of {N(accuracy.compared)}
+            tracked loans within a week, and <strong className="font-semibold text-zinc-800">{PCT(accuracy.within3Pct, 1)}</strong> within three days.
             <br /><br />
             The first attempt aged off the loan&rsquo;s final maturity date instead and was wrong by up to 242% — a weekly loan on instalment
             three of ten that missed Monday is one day in arrears, not thirty days early. That failure is why this panel exists: the number
@@ -184,8 +187,9 @@ export default function PipelineBoard({
             <Meter label="Within 3 days" value={accuracy.within3} total={accuracy.compared} accent="#0d9488" />
             <Meter label="Within 7 days" value={accuracy.within7} total={accuracy.compared} accent="#059669" />
             <p className="pt-1 text-[10.5px] leading-snug text-zinc-400">
-              {N(accuracy.noSchedule)} tracked loans carry no schedule row and fall back to final maturity — correct for a single-bullet
-              loan and the only answer available for the rest.
+              Measured on a random sample of {N(accuracy.sampled)} of the {N(accuracy.bookTotal)} tracked loans — 95% interval
+              ±{accuracy.marginPp.toFixed(2)}pp. Of those, {N(accuracy.noSchedule)} carry no schedule row and fall back to final
+              maturity, which is correct for a single-bullet loan and the only answer available for the rest.
             </p>
           </div>
         </div>

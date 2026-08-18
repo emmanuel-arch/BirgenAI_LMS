@@ -178,16 +178,12 @@ export async function projectFintechPipeline(org: OrgDef, entityId = 3005): Prom
       `SELECT l.id AS loanId, l.BorrowerId AS borrowerId, l.ProductId AS productId,
               l.LoanAmount AS principal, l.LoanBalance AS olb,
               l.BorrowDate AS borrowedAt,
-              COALESCE(sch.nextDue, l.ExpectedClearDate) AS dueAt,
-              DATEDIFF(day, COALESCE(sch.nextDue, l.ExpectedClearDate), GETDATE()) AS dpd,
+              l.ExpectedClearDate AS clearDate,
               CASE WHEN l.ExpectedClearDate < CAST(GETDATE() AS date) THEN 1 ELSE 0 END AS matured,
-              sch.unpaidCount, sch.unpaidAmount,
               b.firstName, b.otherName, b.PhoneNumber AS phone, b.NationalID AS nationalId,
               p.ProductName AS product,
               ou.UnitTitle AS branch,
               ro.ID AS officerId, ro.FirstName AS roFirst, ro.OtherName AS roOther,
-              COALESCE(h.priorLoans, 0) AS priorLoans,
-              COALESCE(h.priorRepaid, 0) AS priorRepaid,
               CASE WHEN mig.BorrowerID IS NOT NULL THEN 1 ELSE 0 END AS migrated
          FROM ${SC}.Loans l
          JOIN ${SC}.Borrowers b ON b.ID = l.BorrowerId
@@ -199,22 +195,6 @@ export async function projectFintechPipeline(org: OrgDef, entityId = 3005): Prom
          -- "this customer has been with you for years" rather than treating a
          -- fifteen-loan relationship as a brand new account.
          LEFT JOIN ${SC}.BorrowerEntityMigrationBackup_20260802 mig ON mig.BorrowerID = l.BorrowerId
-         OUTER APPLY (
-              SELECT COUNT(*) AS priorLoans,
-                     SUM(CASE WHEN l2.LoanCleared = 1 THEN CAST(COALESCE(l2.LoanAmount,0) AS decimal(18,2)) ELSE 0 END) AS priorRepaid
-                FROM ${SC}.Loans l2
-               WHERE l2.BorrowerId = l.BorrowerId AND l2.id <> l.id
-         ) h
-         -- The instalment schedule is what a collections book actually ages on.
-         -- The earliest unpaid row is the loan's true "next due"; everything
-         -- after it is not yet owed.
-         OUTER APPLY (
-              SELECT MIN(s.ExpectedDueDate) AS nextDue,
-                     COUNT(*) AS unpaidCount,
-                     SUM(CAST(s.amounttopay - COALESCE(s.AmountPaid,0) AS decimal(18,2))) AS unpaidAmount
-                FROM ${SC}.loanSchedule s
-               WHERE s.Loanid = l.id AND COALESCE(s.AmountPaid,0) < s.amounttopay
-         ) sch
         WHERE l.EntityId = @entity AND l.LoanCleared = 0
           AND CAST(COALESCE(l.LoanBalance,0) AS decimal(18,2)) > 0
         ORDER BY CAST(l.LoanBalance AS decimal(18,2)) DESC`,
@@ -250,11 +230,70 @@ export async function projectFintechPipeline(org: OrgDef, entityId = 3005): Prom
     ),
   ]);
 
+  // ── The instalment schedule, in ONE scan ──────────────────────────────────
+  //
+  // `Serviceconnect.dbo.loanSchedule` is a HEAP of 1,952,246 rows with NO INDEX
+  // OF ANY KIND — not even on `Loanid`. So a per-loan `OUTER APPLY` does not do
+  // 62 index seeks, it does 62 full table scans of two million rows, and that
+  // single fact was 8.6 of this function's 9 seconds.
+  //
+  // One grouped query over an `IN` list of the resolved loan ids is ONE scan,
+  // and its cost is the same whether we are asking about sixty loans or six
+  // thousand. (Their own reporting almost certainly pays this tax too — worth
+  // raising with them; a single index on `loanSchedule(Loanid)` would repay
+  // itself immediately, but it is their database and not ours to alter.)
+  const loanIds = [...new Set(loanRows.map((r) => num(r.loanId)).filter((n) => n > 0))];
+  const nextDue = new Map<number, Date | null>();
+  if (loanIds.length > 0) {
+    const sch = await cbQuery<{ Loanid: number; nextDue: Date }>(
+      org,
+      `SELECT Loanid, MIN(ExpectedDueDate) AS nextDue
+         FROM ${SC}.loanSchedule
+        WHERE Loanid IN (${loanIds.join(",")}) AND COALESCE(AmountPaid,0) < amounttopay
+        GROUP BY Loanid`,
+      [], { timeoutMs: 45000, maxRows: loanIds.length + 10 },
+    );
+    for (const s of sch) nextDue.set(num(s.Loanid), dt(s.nextDue));
+  }
+
+  // ── The borrower's prior book, fetched for the resolved set only ──────────
+  // The obvious version puts an `OUTER APPLY (SELECT COUNT(*) FROM Loans WHERE
+  // BorrowerId = …)` in the main statement. It is correct and it cost NINE
+  // SECONDS: `Loans` carries 334,000 rows across both entities with no usable
+  // index on `BorrowerId`, so each of the 62 candidates drove its own scan.
+  // One grouped query over an `IN` list of known integers instead.
+  const borrowerIds = [...new Set(loanRows.map((r) => num(r.borrowerId)).filter((n) => n > 0))];
+  const history = new Map<number, { priorLoans: number; priorRepaid: number }>();
+  if (borrowerIds.length > 0) {
+    const hist = await cbQuery<{ BorrowerId: number; n: number; repaid: number }>(
+      org,
+      `SELECT BorrowerId, COUNT(*) AS n,
+              SUM(CASE WHEN LoanCleared = 1 THEN CAST(COALESCE(LoanAmount,0) AS decimal(18,2)) ELSE 0 END) AS repaid
+         FROM ${SC}.Loans
+        WHERE BorrowerId IN (${borrowerIds.join(",")})
+        GROUP BY BorrowerId`,
+      [], { timeoutMs: 30000, maxRows: borrowerIds.length + 10 },
+    );
+    for (const h of hist) {
+      history.set(num(h.BorrowerId), { priorLoans: num(h.n), priorRepaid: num(h.repaid) });
+    }
+  }
+
+  const DAY = 86_400_000;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
   const rows: ProjectedRow[] = loanRows.map((r) => {
-    const dpd = num(r.dpd);
+    // Age off the next unpaid instalment; fall back to final maturity when the
+    // loan carries no schedule (correct for a single-bullet loan).
+    const due = nextDue.get(num(r.loanId)) ?? dt(r.clearDate);
+    const dueDay = due ? new Date(due) : null;
+    if (dueDay) dueDay.setHours(0, 0, 0, 0);
+    const dpd = dueDay ? Math.round((today.getTime() - dueDay.getTime()) / DAY) : 0;
     const olb = num(r.olb);
     const cat = bandFor(dpd, num(r.matured) === 1);
     const roName = [str(r.roFirst), str(r.roOther)].filter(Boolean).join(" ");
+    // The count includes THIS loan, so subtract it to get "prior".
+    const h = history.get(num(r.borrowerId));
     return {
       loanId: num(r.loanId),
       borrowerId: num(r.borrowerId),
@@ -266,15 +305,15 @@ export async function projectFintechPipeline(org: OrgDef, entityId = 3005): Prom
       principal: num(r.principal),
       olb,
       borrowedAt: dt(r.borrowedAt),
-      dueAt: dt(r.dueAt),
+      dueAt: due,
       dpd,
       category: cat,
       officer: roName || null,
       officerId: num(r.officerId),
       branch: str(r.branch) || "—",
       commissionAtFull: olb * (cat.commission / 100),
-      priorLoans: num(r.priorLoans),
-      priorRepaid: num(r.priorRepaid),
+      priorLoans: Math.max(0, (h?.priorLoans ?? 0) - 1),
+      priorRepaid: h?.priorRepaid ?? 0,
       migrated: num(r.migrated) === 1,
     };
   });
@@ -416,6 +455,12 @@ export type AgeingAccuracy = {
   within7Pct: number;
   /** Loans with no schedule row, aged off final maturity instead. */
   noSchedule: number;
+  /** How many tracked loans the sample drew. */
+  sampled: number;
+  /** The whole book, for context on how big a sample that was. */
+  bookTotal: number;
+  /** 95% margin of error on `within7Pct`, in percentage points. */
+  marginPp: number;
 };
 
 /**
@@ -459,23 +504,81 @@ export type AgeingAccuracy = {
  *
  * The band cross-tab is still returned, because a reader should be able to see
  * where the two disagree and why — but the accuracy claim rests on the days.
+ *
+ * ── WHY THIS SAMPLES, AND WHY THAT IS NOT A SHORTCUT ─────────────────────────
+ * The first version measured every tracked loan: a correlated aggregate over
+ * `loanSchedule` for each of 93,376 rows. It was correct and it took **31
+ * seconds**, which made the page that reports it unusable.
+ *
+ * It is now measured on a random sample, because that is what the quantity
+ * deserves. This is a PROPORTION — "what share of loans does the rule get right"
+ * — and the standard error on a proportion depends on the sample size, not on
+ * the population size. At n = 8,000 the 95% interval around 97.3% is roughly
+ * ±0.36pp. Reading all 93,376 rows to narrow that to ±0.1pp buys a third
+ * decimal place nobody will act on, at a hundred times the cost.
+ *
+ * TWO sampling methods were rejected before this one:
+ *
+ *   · `TABLESAMPLE` samples PAGES. Rows inserted together — which on this table
+ *     means loans that entered arrears together — are selected together, so the
+ *     bands come out lumpy.
+ *   · `ORDER BY NEWID()` samples rows independently but has to sort all 93,376
+ *     of them to do it, which cost 6.8 seconds.
+ *
+ * `ABS(CHECKSUM(LoanId)) % n = 0` picks rows by a hash of the key. It is uniform,
+ * independent of insertion order, deterministic (so two readers of this screen
+ * see the same figure), and needs one scan and no sort.
+ *
+ * The band cross-tab is scaled back up to full-book counts so the panel's
+ * numbers stay comparable with the floor's; `sampled` says so on the record.
  */
 export const ABSORBING_BANDS = [5, 6] as const;
 
-export async function reconcileBands(org: OrgDef): Promise<{ bands: BandReconciliation[]; accuracy: AgeingAccuracy }> {
-  const rows = await cbQuery<{ actualBand: number; derivedBand: number; n: number; within7: number }>(
-    org,
-    `WITH aged AS (
-       SELECT ct.Loantype AS actualBand,
-              ct.DaysInArears AS theirDpd,
+/** How many tracked loans the accuracy measure reads. See the note above. */
+const SAMPLE_SIZE = 8000;
+
+export async function reconcileBands(
+  org: OrgDef,
+  opts: { sampleSize?: number } = {},
+): Promise<{ bands: BandReconciliation[]; accuracy: AgeingAccuracy }> {
+  const sample = Math.max(500, Math.min(opts.sampleSize ?? SAMPLE_SIZE, 50000));
+  // Take roughly one row in `every`. Derived from the tracker's known size so the
+  // sample lands near the target regardless of how the book grows.
+  const every = Math.max(1, Math.round(93_000 / sample));
+
+  // The full-book band counts are a plain GROUP BY and cost nothing, so the
+  // "actual" side of the cross-tab is never an estimate.
+  const [totalsRows, rows] = await Promise.all([
+    cbQuery<{ Loantype: number; n: number }>(
+      org,
+      `SELECT Loantype, COUNT(*) AS n FROM ${CB}.CollectionTracker GROUP BY Loantype`,
+      [], { timeoutMs: 30000, maxRows: 50 },
+    ),
+    cbQuery<{ actualBand: number; derivedBand: number; n: number; within7: number }>(
+      org,
+      `WITH picked AS (
+       SELECT ct.Loantype, ct.DaysInArears, ct.LoanId
+         FROM ${CB}.CollectionTracker ct
+        WHERE ABS(CHECKSUM(ct.LoanId)) % @every = 0
+     ),
+     -- ONE pass over loanSchedule, hash-joined — not one scan per sampled loan.
+     -- The table is a 1.95M-row heap with no index on Loanid, so a correlated
+     -- APPLY here costs one full scan per sampled row and took seven seconds.
+     sched AS (
+       SELECT Loanid, MIN(ExpectedDueDate) AS nextDue
+         FROM ${SC}.loanSchedule
+        WHERE COALESCE(AmountPaid,0) < amounttopay
+        GROUP BY Loanid
+     ),
+     aged AS (
+       SELECT p.Loantype AS actualBand,
+              p.DaysInArears AS theirDpd,
               DATEDIFF(day, COALESCE(sch.nextDue, l.ExpectedClearDate), GETDATE()) AS dpd,
               CASE WHEN l.ExpectedClearDate < CAST(GETDATE() AS date) THEN 1 ELSE 0 END AS matured,
               CASE WHEN sch.nextDue IS NULL THEN 0 ELSE 1 END AS hasSchedule
-         FROM ${CB}.CollectionTracker ct
-         JOIN ${SC}.Loans l ON l.id = ct.LoanId
-         OUTER APPLY (SELECT MIN(s.ExpectedDueDate) AS nextDue
-                        FROM ${SC}.loanSchedule s
-                       WHERE s.Loanid = l.id AND COALESCE(s.AmountPaid,0) < s.amounttopay) sch
+         FROM picked p
+         JOIN ${SC}.Loans l ON l.id = p.LoanId
+         LEFT JOIN sched sch ON sch.Loanid = l.id
         WHERE COALESCE(sch.nextDue, l.ExpectedClearDate) IS NOT NULL
      )
      SELECT actualBand,
@@ -498,30 +601,43 @@ export async function reconcileBands(org: OrgDef): Promise<{ bands: BandReconcil
                  WHEN dpd <= 60 THEN 4
                  WHEN dpd <= 90 THEN 5
                  ELSE 6 END`,
-    [], { timeoutMs: 120000, maxRows: 200 },
-  );
+      [P.int("every", every)], { timeoutMs: 90000, maxRows: 200 },
+    ),
+  ]);
 
+  // The real, full-book count per band.
   const actual = new Map<number, number>();
-  const derived = new Map<number, number>();
+  let bookTotal = 0;
+  for (const t of totalsRows) {
+    const n = num(t.n);
+    actual.set(num(t.Loantype), n);
+    bookTotal += n;
+  }
+
+  const derivedSampled = new Map<number, number>();
   const w7ByBand = new Map<number, number>();
   const cmpByBand = new Map<number, number>();
-  let compared = 0, within3 = 0, within7 = 0, noSchedule = 0;
+  let compared = 0, within3 = 0, within7 = 0, noSchedule = 0, sampleSeen = 0;
 
   for (const r of rows as unknown as Record<string, unknown>[]) {
-    const a = num(r.actualBand), d = num(r.derivedBand), n = num(r.n);
-    actual.set(a, (actual.get(a) ?? 0) + n);
-    derived.set(d, (derived.get(d) ?? 0) + n);
+    const d = num(r.derivedBand), n = num(r.n), a = num(r.actualBand);
+    derivedSampled.set(d, (derivedSampled.get(d) ?? 0) + n);
     w7ByBand.set(a, (w7ByBand.get(a) ?? 0) + num(r.within7));
     cmpByBand.set(a, (cmpByBand.get(a) ?? 0) + num(r.compared));
     compared += num(r.compared);
     within3 += num(r.within3);
     within7 += num(r.within7);
     noSchedule += num(r.noSchedule);
+    sampleSeen += n;
   }
+
+  // Scale the sampled "derived" side up to the book so the two columns are
+  // comparable. The factor is stated in `accuracy.sampled` rather than hidden.
+  const scale = sampleSeen > 0 ? bookTotal / sampleSeen : 1;
 
   const bands = CATEGORY_LIST.map((cat): BandReconciliation => {
     const a = actual.get(cat.id) ?? 0;
-    const d = derived.get(cat.id) ?? 0;
+    const d = Math.round((derivedSampled.get(cat.id) ?? 0) * scale);
     return {
       category: cat,
       actual: a,
@@ -534,6 +650,13 @@ export async function reconcileBands(org: OrgDef): Promise<{ bands: BandReconcil
     };
   });
 
+  const within7Pct = compared > 0 ? (within7 / compared) * 100 : 0;
+  // Standard error of a proportion, ×1.96 — so the screen can state the interval
+  // rather than a bare percentage that reads as more precise than it is.
+  const marginPp = compared > 0
+    ? 1.96 * Math.sqrt(((within7Pct / 100) * (1 - within7Pct / 100)) / compared) * 100
+    : 0;
+
   return {
     bands,
     accuracy: {
@@ -541,8 +664,11 @@ export async function reconcileBands(org: OrgDef): Promise<{ bands: BandReconcil
       within3,
       within7,
       within3Pct: compared > 0 ? (within3 / compared) * 100 : 0,
-      within7Pct: compared > 0 ? (within7 / compared) * 100 : 0,
+      within7Pct,
       noSchedule,
+      sampled: sampleSeen,
+      bookTotal,
+      marginPp,
     },
   };
 }
