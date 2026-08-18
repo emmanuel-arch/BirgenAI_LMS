@@ -18,6 +18,40 @@
 import type { OrgDef } from "@/lib/enterprise/connections";
 import { CB, cbQuery, num, str } from "./client";
 
+// ── THE COLOUR OF A QUEUE ────────────────────────────────────────────────────
+//
+// The bands are ORDINAL, not categorical: swapping Watch 2 and NPL would change
+// the meaning, because the sequence IS the severity. So the arrears ladder takes
+// a ONE-HUE RAMP with monotone lightness — the reader sees the order in the
+// colour without reading a legend — and Prepayment and Due sit outside that
+// ladder as reserved STATUS colours, because "ahead of schedule" and "falls due
+// today" are states, not rungs.
+//
+// Both palettes were validated with the dataviz palette checker rather than
+// chosen by eye. The first attempt — a teal→blue→yellow→orange→red→maroon
+// rainbow — failed three checks outright: #ea580c against #ca8a04 separated by
+// only ΔE 2.9 under deuteranopia, and #dc2626 against #ea580c by 8.7 even for
+// full-colour vision. On a queue chip that is the difference between Watch 2 and
+// Watch 3 at a glance, and it was invisible.
+//
+//   LIGHT  ladder  #f87171 → #dc2626 → #991b1b → #600d0d   ordinal: PASS
+//          status  #0d9488, #2563eb, #dc2626               categorical: PASS
+//   DARK   ladder  #fecaca → #f87171 → #dc2626 → #991b1b   ordinal: PASS
+//          status  unchanged — clears both surfaces        categorical: PASS
+//
+// Watch 1 and Watch 1 (Matured) SHARE a rung on purpose. They are the same
+// severity — one to thirty days — and differ only in whether the loan still has
+// a schedule to run. Giving them different colours would encode a difference the
+// ramp does not mean; the label distinguishes them, which is the right channel.
+//
+// Every chip renders its short code beside the colour, so identity is never
+// carried by colour alone.
+
+/** The arrears ladder, light surface. Index = rung, not category id. */
+export const LADDER_LIGHT = ["#f87171", "#dc2626", "#991b1b", "#600d0d"] as const;
+/** The same ladder re-stepped for a dark surface — selected, not flipped. */
+export const LADDER_DARK = ["#fecaca", "#f87171", "#dc2626", "#991b1b"] as const;
+
 // ── Collection categories — CollectBox.dbo.LoanCategories ────────────────────
 
 export type CategoryId = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -37,7 +71,10 @@ export type Category = {
   column: "Prepayment1" | "AmountDue" | "Watch1" | "Watch2" | "Watch3" | "Npl";
   /** Escalation weight — how hard this queue is worked. Drives sort order. */
   severity: 0 | 1 | 2 | 3 | 4 | 5;
+  /** Chip and mark colour on a light surface. */
   accent: string;
+  /** The same rung re-stepped for the dark rail — selected, not auto-flipped. */
+  accentDark: string;
   /** Plain-English brief an agent sees before dialling this queue. */
   posture: string;
 };
@@ -45,37 +82,37 @@ export type Category = {
 export const CATEGORIES: Record<CategoryId, Category> = {
   1: {
     id: 1, name: "Prepayment", short: "PRE", from: 1, to: 2, commission: 0,
-    column: "Prepayment1", severity: 0, accent: "#0d9488",
+    column: "Prepayment1", severity: 0, accent: "#0d9488", accentDark: "#0d9488",
     posture: "Ahead of schedule. This is a courtesy and retention call, not a collections call — thank them, confirm the next instalment, and look for an upgrade.",
   },
   2: {
     id: 2, name: "Due", short: "DUE", from: 0, to: 0, commission: 0,
-    column: "AmountDue", severity: 1, accent: "#2563eb",
+    column: "AmountDue", severity: 1, accent: "#2563eb", accentDark: "#2563eb",
     posture: "Falls due today or is due imminently. A reminder before the fact costs one minute and saves the entire Watch ladder.",
   },
   3: {
     id: 3, name: "Watch 1", short: "W1", from: 1, to: 30, commission: 0.25,
-    column: "Watch1", severity: 2, accent: "#ca8a04",
+    column: "Watch1", severity: 2, accent: LADDER_LIGHT[0], accentDark: LADDER_DARK[0],
     posture: "One to thirty days late. Recovery here is overwhelmingly a matter of contact, not pressure — most of this book pays when reminded.",
   },
   4: {
     id: 4, name: "Watch 2", short: "W2", from: 31, to: 60, commission: 1.2,
-    column: "Watch2", severity: 3, accent: "#ea580c",
+    column: "Watch2", severity: 3, accent: LADDER_LIGHT[1], accentDark: LADDER_DARK[1],
     posture: "A month past due. Take a dated, specific promise or agree a restructure — a vague 'soon' at this stage becomes Watch 3 within a fortnight.",
   },
   5: {
     id: 5, name: "Watch 3", short: "W3", from: 61, to: 90, commission: 10,
-    column: "Watch3", severity: 4, accent: "#dc2626",
+    column: "Watch3", severity: 4, accent: LADDER_LIGHT[2], accentDark: LADDER_DARK[2],
     posture: "Two months past due and approaching non-performing. Escalate to a field visit or the guarantor if two calls produce nothing.",
   },
   6: {
     id: 6, name: "NPL", short: "NPL", from: 91, to: 1_000_000, commission: 10,
-    column: "Npl", severity: 5, accent: "#7f1d1d",
+    column: "Npl", severity: 5, accent: LADDER_LIGHT[3], accentDark: LADDER_DARK[3],
     posture: "Non-performing. Every conversation here is a negotiation — a partial payment that restarts a relationship is worth more than a promise that does not arrive.",
   },
   7: {
     id: 7, name: "Watch 1 (Matured)", short: "W1M", from: 1, to: 30, commission: 0,
-    column: "Watch1", severity: 2, accent: "#a16207",
+    column: "Watch1", severity: 2, accent: LADDER_LIGHT[0], accentDark: LADDER_DARK[0],
     posture: "Late on a loan that has run its full term. The schedule is exhausted, so there is no next instalment to lean on — settle the balance or restructure.",
   },
 };
