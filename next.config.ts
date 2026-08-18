@@ -50,11 +50,73 @@ const pdfkitFiles = [
   "./node_modules/fontkit/**",
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// A THIRD PACKAGE THAT MUST NOT BE BUNDLED — FOR A DIFFERENT REASON.
+//
+// mssql does not read files off disk. It breaks on REFERENCE IDENTITY. Every
+// parameter we bind travels through mssql/lib/tedious/request.js:
+//
+//   switch (type) { case TYPES.Int: return tds.TYPES.Int
+//                   … default: return type }
+//
+// a `switch` on object identity, matching the type we passed against the TYPES
+// object from mssql's own lib/datatypes.js. Bundled, that module is instantiated
+// twice — the `mssql.Int` our code imports is no longer the `TYPES.Int` the
+// switch closes over, so every case misses, `default` hands the mssql type
+// straight to tedious, and tedious calls `.validate()` on an object that has
+// never had one:
+//
+//   Validation failed for parameter 'entityId'.
+//   parameter.type.validate is not a function
+//
+// Which is why the message names the FIRST parameter of whatever query ran, and
+// says nothing about SQL Server: the connection is fine, the credentials are
+// fine, the query never left Node. Read through the real package and the two
+// TYPES are one object again.
+//
+// This breaks EVERY live read at once — the borrower book, field ops, products,
+// eligibility — so it reads like "the lender's database is down" rather than a
+// build setting. Note the tell: the same queries pass from `npx tsx` scripts,
+// which never go through the bundler.
+//
+// mssql is imported statically (src/lib/enterprise/mssql.ts), so unlike the PDF
+// packages above the dependency tracer follows it and no outputFileTracingIncludes
+// entry is needed to ship it.
+// ─────────────────────────────────────────────────────────────────────────────
+
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pdfjs-dist", "pdfkit", "fontkit"],
+  serverExternalPackages: ["pdfjs-dist", "pdfkit", "fontkit", "mssql"],
   outputFileTracingIncludes: {
     ...Object.fromEntries(PDF_READERS.map((r) => [r, pdfjsFiles])),
     ...Object.fromEntries(PDF_WRITERS.map((r) => [r, pdfkitFiles])),
+  },
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // THE SERVICE WORKER'S OWN HEADERS.
+  //
+  // A worker is cached like any other script, and a stale one is not a stale
+  // asset — it is stale CODE sitting in front of every request the customer
+  // makes, for up to 24 hours, with no way for us to reach it. `no-store` plus
+  // `updateViaCache: "none"` at registration is what makes a shipped fix arrive.
+  //
+  // WHAT IS DELIBERATELY NOT HERE: `X-Frame-Options: DENY`. The Next PWA guide
+  // recommends it globally, and it would break this product — blueprint §2.4 has
+  // the Hub launching Micro Eazy with `launchMode: EMBEDDED`, inside the Hub's
+  // /app/[slug] iframe shell, which is what keeps the Home button. Denying all
+  // framing would turn the Hub tile into a blank rectangle. Framing policy for
+  // this app belongs in a CSP `frame-ancestors` that names the Hub, which is a
+  // deliberate decision and not a copied default.
+  // ───────────────────────────────────────────────────────────────────────────
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+        ],
+      },
+    ];
   },
 };
 

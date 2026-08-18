@@ -38,6 +38,13 @@ import { SUITE_APPS, type SuiteApp } from "./apps";
 const INFRA_LABELS = ["www", "api", "cdn", "static", "mail", "smtp", "ns", "localhost"] as const;
 const PLATFORM_LABELS = [
   "lms", "app", "admin", "console", "hub", "birgenai", "platform", "login", "onboard", "demo", "auth", "id", "status",
+  // The consumer app's own host (blueprint D1). Reserved for the same reason the
+  // satellites are, but the consequence is worse: a lender who took this slug
+  // would not merely shadow a platform page, they would own the address the
+  // INSTALLED Micro Eazy app launches into — start_url and scope are both "/" on
+  // this host, so every home-screen icon already in customers' hands would open
+  // onto that lender's portal. An installed base cannot be un-pointed.
+  "microeazy",
 ] as const;
 
 /** The first label of each satellite's production host: people, books, desk, my. */

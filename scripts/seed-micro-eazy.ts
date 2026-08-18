@@ -51,8 +51,26 @@ import { enterPlatform } from "../src/lib/db/context";
 const WORKFLOW_TITLE = "Micro Eazy";
 const ME = "Micro Eazy";
 const MEM = "Micro Eazy Monthly";
-/** Superseded by Micro Eazy: identical economics (8.25%/wk × 10), narrower band. */
-const RETIRED = "MIROMART FINTECH";
+/**
+ * Superseded by Micro Eazy: identical economics (8.25%/wk × 10), narrower band.
+ *
+ * TASK 0.11 — THE TYPO. This product was transcribed as "MIROMART FINTECH":
+ * missing the C, and shouted. It is deactivated, but it is NOT invisible — 31
+ * loans and 7 applications point at it, and a product's name is what their
+ * statements, schedules and reports print. A retired product still narrates
+ * history, so the typo is on customer-facing paper until it is fixed.
+ *
+ * The rename is therefore the fix, not a cosmetic pass: renaming in place carries
+ * all 38 records with it, where creating a correctly-spelled twin would strand
+ * them on the misspelling forever.
+ *
+ * Both spellings are matched wherever this product is looked up, so the script
+ * stays idempotent and `--down` still finds it after the rename has run.
+ */
+const RETIRED = "Micromart Fintech";
+const RETIRED_TYPO = "MIROMART FINTECH";
+/** Matches the product whichever spelling it currently carries. */
+const RETIRED_ANY = { in: [RETIRED, RETIRED_TYPO] };
 
 const arg = (name: string) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1];
 const intArg = (name: string): number | null => {
@@ -219,6 +237,20 @@ async function main() {
     );
   }
 
+  // ── 2b · Task 0.11 · the typo ──────────────────────────────────────────────
+  // Renamed in place so the loans and applications already pointing at it print
+  // the corrected name too. Idempotent: after the first run there is nothing
+  // spelled the old way left to match.
+  const typo = await p.product.findFirst({ where: { orgId: org.id, name: RETIRED_TYPO }, select: { id: true } });
+  if (typo) {
+    const [loans, apps] = await Promise.all([
+      p.loan.count({ where: { productId: typo.id } }),
+      p.loanApplication.count({ where: { productId: typo.id } }),
+    ]);
+    await p.product.update({ where: { id: typo.id }, data: { name: RETIRED } });
+    console.log(`\nrenamed   "${RETIRED_TYPO}" -> "${RETIRED}"  (${loans} loan(s), ${apps} application(s) carry the corrected name)`);
+  }
+
   // The shelf is these two. A bridged org's ACTIVE products are what its portal
   // sells, so anything else local goes dark — never deleted, because loans and
   // applications point at it.
@@ -316,7 +348,10 @@ async function teardown(p: ReturnType<typeof platformPrisma>, orgId: string) {
     console.log(`deactivated  ${row.name}`);
   }
 
-  const restored = await p.product.updateMany({ where: { orgId, name: RETIRED }, data: { isActive: true } });
+  // Matched on either spelling: `--down` must still find this product whether or
+  // not the rename above has run in this environment. The name itself is NOT
+  // reverted — the old one was a typo, not a state this seed introduced.
+  const restored = await p.product.updateMany({ where: { orgId, name: RETIRED_ANY }, data: { isActive: true } });
   if (restored.count) console.log(`reactivated  ${RETIRED}`);
 
   // The two fees Micro Eazy introduced. PF predates it, so PF stays.

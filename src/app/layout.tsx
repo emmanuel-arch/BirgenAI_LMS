@@ -31,7 +31,19 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* suppressHydrationWarning is here for BROWSER EXTENSIONS, not for our own
+          markup. Grammarly (and Dashlane, LastPass, dark-reader…) stamp attributes
+          like data-gr-ext-installed onto <body> before React hydrates, so the
+          server HTML and the live DOM differ through no fault of this app.
+
+          It is deliberately on <body> and nowhere else. The flag suppresses
+          mismatches ONLY for this element's own attributes and direct text — it
+          does NOT extend to descendants, so a genuine hydration bug anywhere
+          inside the tree still reports normally. Do not sprinkle it further up or
+          down to silence a warning; that hides real bugs. */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }

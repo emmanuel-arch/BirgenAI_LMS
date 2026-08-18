@@ -41,7 +41,15 @@ export const ORGS: Record<OrgSlug, OrgDef> = {
   micromart: {
     slug: "micromart",
     name: "Micromart Africa",
-    defaultEntityId: 3002,
+    // 3005, NOT 3002. Both are real Micromart books on the same ServiceSuite
+    // instance, and 3002 is the wrong one for this pilot: a live read on
+    // 18 Aug 2026 found Micro Eazy (Products.ID 30219) and Micro Eazy Monthly
+    // (30220) active under 3005, while 3002 holds 21 unrelated products and no
+    // Micro Eazy at all. Posting an approved loan against 3002 would book it
+    // into the wrong entity — and the two books share phone numbers belonging
+    // to DIFFERENT people, so the entity is an identity boundary, not a label.
+    // Override per-deployment with SERVICESUITE_ENTITYID_MICROMART.
+    defaultEntityId: 3005,
     connEnv: "SERVICESUITE_CONN_MICROMART",
     entityEnv: "SERVICESUITE_ENTITYID_MICROMART",
     isAdmin: false,

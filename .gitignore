@@ -51,3 +51,6 @@ public/*.jpeg
 public/*.jpg
 public/*.png
 *.tmp.ts
+
+# Encrypted vault payloads, preserved before a key rotation. Never commit.
+vault-backup/
