@@ -32,7 +32,7 @@ import Link from "next/link";
 import { Phone, TrendingUp, Users, Handshake, ArrowRight } from "lucide-react";
 import {
   Card, CardHead, PageHead, Stat, Chip, Tag, BarRow, Columns, LivePulse,
-  KES, N, PCT, ago, shortTime, Empty,
+  KES, N, PCT, ago, shortTime, Empty, TimeAgo,
 } from "@/components/suite/kit";
 
 type Band = {
@@ -104,7 +104,7 @@ export default function FloorBoard({
           deltaLabel="vs yesterday"
           tone="up-good"
           spark={trend.slice(-14).map((t) => t.recovered)}
-          foot={`${N(totals.paymentsToday)} payments · last ${ago(lastPaymentAt)}`}
+          foot={<>{N(totals.paymentsToday)} payments · last <TimeAgo at={lastPaymentAt} /></>}
         />
         <Stat
           label="Book under collection"

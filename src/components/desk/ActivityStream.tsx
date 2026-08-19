@@ -6,7 +6,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Card, PageHead, Tag, Stat, KES, N, ago, shortTime, Empty } from "@/components/suite/kit";
+import { Card, PageHead, Tag, Stat, KES, N, ago, shortTime, Empty, TimeAgo } from "@/components/suite/kit";
 
 type Item = {
   id: string; at: string; system: string; kind: string;
@@ -59,7 +59,7 @@ export default function ActivityStream({ items }: { items: Item[] }) {
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Events shown" value={N(items.length)} foot={`newest ${ago(newest)}`} />
+        <Stat label="Events shown" value={N(items.length)} foot={<>newest <TimeAgo at={newest} /></>} />
         <Stat label="Systems represented" value={String(systems.length)} foot={systems.map(([s]) => s).join(" · ")} />
         <Stat label="Money in this window" value={KES(money)} unit="KES" foot="payments only" />
         <Stat

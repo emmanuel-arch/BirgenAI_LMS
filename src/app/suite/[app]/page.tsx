@@ -17,10 +17,17 @@ export const dynamic = "force-dynamic";
 export default async function SatelliteApp({ params }: { params: Promise<{ app: string }> }) {
   const { app: appId } = await params;
   const app = suiteApp(appId);
-  // Only the satellites that ship a demo dataset render here. The Customer Portal
-  // is a real surface at its own route, so it has none and must not fall through
-  // to `app.demo!` — it would be a crash reachable by typing a URL.
-  if (!app || app.system || !app.demo) redirect("/suite");
+  if (!app) redirect("/suite");
+
+  // ── Every satellite is now a real system ────────────────────────────────
+  // This page was the placeholder each one rendered before it existed. HR,
+  // Ledgerly and the call centre all went live on 19 Aug 2026 and dropped their
+  // demo blocks, so any `/suite/<id>` link — a bookmark, a slide, an old email —
+  // is forwarded to the real product rather than bounced to the launcher.
+  //
+  // The file is kept rather than deleted so a SEVENTH system can be added to
+  // SUITE_APPS with a demo block and have somewhere to land while it is built.
+  if (!app.demo) redirect(app.system ? "/console" : app.href);
 
   const session = await auth();
   if (!session?.user?.orgId) redirect(`/suite/${appId}/login`);

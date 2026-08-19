@@ -260,3 +260,93 @@ leap.
 4. **Entity is an identity boundary.** 3002 and 3005 share phone numbers that
    belong to different people. Never resolve a borrower across entities by phone.
 5. **The chrome is shared.** Any change to the sidebar is a change to six systems.
+
+---
+
+## 8. What was built — final state, 19 August 2026
+
+All six systems read Micromart's live SQL Server. None is a mock.
+
+| System | Route | Reads | State |
+|---|---|---|---|
+| Lending Console | `/console` | Serviceconnect | pre-existing, live |
+| Customer Portal | `/` | Serviceconnect | pre-existing, live |
+| Analytics Studio | `/analytics` | Serviceconnect | pre-existing, live |
+| **ConnectDesk** | `/desk` | **CollectBox + Serviceconnect** | **new — 11 screens** |
+| **PeopleHub** | `/people` | UserMaster + CollectionAgents + Borrowers | **new** |
+| **Ledgerly** | `/books` | **Journals + Accounts** | **new** |
+
+### 8.1 The three databases, joined
+
+```
+Serviceconnect          CollectBox              Transactions
+  Loans      ──────────► CollectionTracker        Payments
+  Borrowers               CallLogs                Disbursments
+  loanSchedule            PayedAmount
+  Journals                PromisedToPay
+  Accounts                TaskScheduler
+  UserMaster ◄─ CollectionAgents ─► UserMaster
+```
+
+### 8.2 Findings that changed the build
+
+**Every one of these was a bug or a wrong assumption caught by measuring.**
+
+1. **`useUTC` was three hours wrong.** SQL Server `datetime` carries no timezone;
+   node-mssql tagged Nairobi wall-clock as UTC. Every timestamp arrived three
+   hours in the future. Fixed at the connection; `lib/enterprise/tz.ts` asserts
+   the process timezone at boot.
+
+2. **Ageing off `ExpectedClearDate` was wrong** by up to 242%. A collections book
+   ages on the INSTALMENT SCHEDULE, not final maturity. Switched to the earliest
+   unpaid `loanSchedule` row: 97.3% agreement with Micromart's own nightly job
+   within 7 days, 74.6% within 3.
+
+3. **The production schema is almost entirely unindexed.** `loanSchedule` (1.95M
+   rows) and `Loans` (338k) both lack an index on the column every join uses.
+   Correlated lookups became full table scans. Four queries were rewritten from
+   join-inside to page-then-enrich:
+
+   | Query | Before | After |
+   |---|---:|---:|
+   | `getQueue` | 12,500ms | 840ms |
+   | `listRecoveries` | 39,218ms | 673ms |
+   | `projectFintechPipeline` | 8,623ms | 726ms |
+   | `reconcileBands` | 6,992ms | 199ms |
+   | `getRoster` | 17,205ms | 754ms |
+   | `listTasks` | 7,579ms | 601ms |
+
+4. **`IsLocked = 1` on every agent**, including the 26 who recovered KES 2.5M
+   that day. The column does not mean what it says; presence is derived from
+   activity instead.
+
+5. **Relative timestamps caused hydration mismatches.** `ago()` is a function of
+   the current time, so server and client rendered different strings. `TimeAgo`
+   renders a stable absolute value until mounted, then ticks.
+
+### 8.3 Operational findings for Micromart
+
+Surfaced on the screens rather than hidden behind empty states:
+
+- **`PromisedToPay` last written 21 Nov 2024.** Twenty months of calls and
+  payments with nothing captured about what customers commit to.
+- **`TaskScheduler` last written Aug 2025; 30,713 tasks still open.** Nothing
+  closes them, so the list became unusable and stopped being used.
+- **`callcdr` last written Sept 2023.** The PBX integration exists but no longer
+  points at CollectBox — ring time, talk time and recordings are missing.
+- **Entity 3005 has no collections presence at all.** 17,016 borrowers and
+  61,503 loans moved there on 2 Aug 2026 and left the floor entirely.
+
+### 8.4 What is deliberately not shown
+
+Payroll, leave, contracts and appraisals. `AgentPerformanceHistory`,
+`LoanAgentMetrics` and `UserProfile` all exist and are all empty. PeopleHub names
+those tables instead of inventing figures — a demo that fabricates a salary
+cannot be trusted about the balances either.
+
+### 8.5 Write posture
+
+`COLLECTBOX_POSTING_ENABLED` is unset. Every desk action is recorded in our
+Postgres and the CollectBox statement is composed, rendered with values inlined,
+and held at `/desk/shadow` for review. Nothing has been written to Micromart's
+production database.

@@ -123,103 +123,63 @@ export const SUITE_APPS: SuiteApp[] = [
     id: "hr",
     name: "PeopleHub HR",
     short: "HR",
-    tagline: "Employees, payroll and leave for the whole lender — one directory.",
+    tagline: "The whole roster — officers, agents and branches — from the systems that already know them.",
     purpose: "The people behind the book.",
     accent: "#6d28d9",
     icon: Users2,
-    href: "/suite/hr",
+    href: "/people",
     subdomain: "people.birgenai.com",
     system: false,
-    live: false,
-    modules: ["Employees", "Payroll", "Leave", "Performance"],
-    handoff: "An officer's approved leave reassigns their collections queue in the LMS.",
-    demo: {
-      kpis: [
-        { label: "Headcount", value: "48" },
-        { label: "On leave today", value: "3" },
-        { label: "Payroll · this month", value: "KES 4.24M" },
-        { label: "Open roles", value: "2" },
-      ],
-      table: {
-        title: "Directory",
-        cols: ["Employee", "Role", "Branch", "Status"],
-        rows: [
-          ["Nancy Wekesa", "Loan Officer", "Kitale East", "Active"],
-          ["Collins Barasa", "Loan Officer", "Kitale West", "On leave"],
-          ["Mercy Nasimiyu", "Branch Manager", "Endebess", "Active"],
-          ["Dennis Simiyu", "Branch Manager", "Kiminini", "Active"],
-          ["Faith Nabwera", "Credit Manager", "Head Office", "Active"],
-        ],
-      },
-    },
+    // Live since 19 Aug 2026. It reads 1,088 staff out of Serviceconnect's own
+    // directory, 32 seats off the CollectBox floor, and the borrower book each
+    // officer carries. What it deliberately does NOT show is payroll, leave and
+    // appraisals: `AgentPerformanceHistory`, `LoanAgentMetrics` and `UserProfile`
+    // all exist and are all EMPTY, so the screen names them rather than
+    // inventing a salary. See src/lib/suite/people.ts.
+    live: true,
+    modules: ["Directory", "Officers", "Branches", "Call floor"],
+    handoff: "An officer's book, their branch and their collections seat are one record — joined from three directories that have never been read together.",
   },
   {
     id: "accounting",
     name: "Ledgerly Accounting",
     short: "Accounting",
-    tagline: "General ledger, journals and statements — the books, kept straight.",
+    tagline: "The journal Micromart already keep — read, for the first time.",
     purpose: "The truth about the money.",
     accent: "#0f766e",
     icon: Calculator,
-    href: "/suite/accounting",
+    href: "/books",
     subdomain: "books.birgenai.com",
     system: false,
-    live: false,
-    modules: ["Chart of Accounts", "Journals", "Invoices", "P&L"],
-    handoff: "Loan-book cash and payroll reconcile against the same M-Pesa float ledger.",
-    demo: {
-      kpis: [
-        { label: "Cash & bank", value: "KES 8.63M" },
-        { label: "Loans receivable", value: "KES 17.71M" },
-        { label: "Payables", value: "KES 2.10M" },
-        { label: "Net income · MTD", value: "KES 6.31M" },
-      ],
-      table: {
-        title: "Trial balance (extract)",
-        cols: ["Account", "Debit", "Credit"],
-        rows: [
-          ["1000 · Cash & bank", "8,630,400", "—"],
-          ["1200 · Loans receivable", "17,712,000", "—"],
-          ["4000 · Interest income", "—", "5,905,000"],
-          ["4100 · Fees & processing", "—", "2,400,000"],
-          ["2000 · Payables", "—", "2,101,300"],
-        ],
-      },
-    },
+    // Live since 19 Aug 2026, and the least expected of the six: Serviceconnect
+    // holds a real double-entry journal — 6.4M postings against an 18-account
+    // chart typed INCOME/EXPENSE/LIABILITY/ASSET, written to minutes ago. It has
+    // been accumulating for three years with nothing reading it.
+    //
+    // Ledgerly reports MOVEMENT rather than a balance sheet, because the journal
+    // has no opening balances or period closes and a balance derived from it
+    // would have no defensible starting point. See src/lib/suite/ledger.ts.
+    live: true,
+    modules: ["Movement", "Journal", "Chart of Accounts", "Cash flows"],
+    handoff: "Every disbursement and every fee is already a double-entry posting in Serviceconnect's journal — this is the first screen to read it.",
   },
   {
     id: "callcenter",
     name: "ConnectDesk Call-Center",
     short: "Call-Center",
-    tagline: "Queues, agents and dispositions — every customer conversation, logged.",
+    tagline: "Micromart's live collections floor — 93,000 cases, 26 agents, every conversation on the record.",
     purpose: "Every conversation, on the record.",
     accent: "#be123c",
     icon: Headphones,
-    href: "/suite/callcenter",
+    href: "/desk",
     subdomain: "desk.birgenai.com",
     system: false,
-    live: false,
-    modules: ["Live Queue", "Dispositions", "Agents", "SLA"],
-    handoff: "A missed installment opens a task here with the borrower's 360 attached.",
-    demo: {
-      kpis: [
-        { label: "In queue", value: "6" },
-        { label: "Avg wait", value: "0:42" },
-        { label: "Agents online", value: "9" },
-        { label: "SLA · today", value: "94%" },
-      ],
-      table: {
-        title: "Live floor",
-        cols: ["Agent", "Customer", "Disposition", "Duration"],
-        rows: [
-          ["Ann M.", "Peter Wafula", "Promise to pay", "3:12"],
-          ["Ian K.", "Grace Otieno", "Reached", "1:48"],
-          ["Lucy N.", "Samuel Kiptoo", "Follow-up needed", "2:31"],
-          ["Victor O.", "Esther Juma", "No answer", "0:22"],
-          ["Sharon W.", "Moses Barasa", "Inquiry", "4:05"],
-        ],
-      },
-    },
+    // Live since 19 Aug 2026 against CollectBox, the collections database that
+    // has sat on the same SQL Server as Serviceconnect for years with no
+    // application reading both. Eleven screens; writes disarmed by default.
+    live: true,
+    modules: ["Live floor", "Work queue", "Promises", "Recoveries", "Fintech bridge"],
+    handoff: "A missed instalment opens a case here with the borrower's whole history attached — merged from seven sources across two databases.",
   },
 ];
 

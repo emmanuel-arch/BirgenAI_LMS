@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Card, CardHead, PageHead, Chip, Stat, Columns, KES, N, ago, shortTime, Empty } from "@/components/suite/kit";
+import { Card, CardHead, PageHead, Chip, Stat, Columns, KES, N, ago, shortTime, Empty, TimeAgo } from "@/components/suite/kit";
 
 type Row = {
   id: number; loanId: number; name: string; phone: string; amount: number;
@@ -66,7 +66,7 @@ export default function RecoveryFeed({
           label="Average payment"
           value={rows.length ? KES(total / rows.length) : "—"}
           unit="KES"
-          foot={rows[0]?.paidAt ? `most recent ${ago(rows[0].paidAt)}` : undefined}
+          foot={rows[0]?.paidAt ? <>most recent <TimeAgo at={rows[0].paidAt} /></> : undefined}
         />
       </div>
 

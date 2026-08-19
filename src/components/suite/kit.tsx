@@ -19,7 +19,7 @@
 // man in twelve and for every printout.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 
 // ── Formatting ───────────────────────────────────────────────────────────────
@@ -39,7 +39,20 @@ export const KES = (n: number, opts: { compact?: boolean } = {}) => {
 export const N = (n: number) => (Number.isFinite(n) ? n.toLocaleString("en-KE") : "—");
 export const PCT = (n: number, dp = 1) => (Number.isFinite(n) ? `${n.toFixed(dp)}%` : "—");
 
-/** "3 minutes ago" — the freshness stamp that proves a screen is live. */
+/**
+ * "3 minutes ago" — the freshness stamp that proves a screen is live.
+ *
+ * ── THE HYDRATION TRAP ───────────────────────────────────────────────────────
+ * This is a function of the CURRENT TIME, so a server render and the client
+ * render that follows it produce different strings — "50s ago" then "52s ago" —
+ * and React reports a hydration mismatch. On a page that opens a demo, that is a
+ * red error overlay on the screen.
+ *
+ * So: use this freely in text that is computed on the server and rendered once
+ * (a `foot` on a server component, a table cell), and use `<TimeAgo>` anywhere
+ * the value is rendered by a CLIENT component — it renders a stable absolute
+ * string until it has mounted, then switches to relative and keeps ticking.
+ */
 export function ago(d: Date | string | null | undefined): string {
   if (!d) return "never";
   const t = typeof d === "string" ? new Date(d) : d;
@@ -51,6 +64,37 @@ export function ago(d: Date | string | null | undefined): string {
   const days = Math.floor(s / 86400);
   if (days < 30) return `${days}d ago`;
   return t.toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/**
+ * A relative time that is safe to render from a client component, and that keeps
+ * counting up while somebody is looking at it.
+ *
+ * First paint — server and client alike — is the absolute time, which is a pure
+ * function of the timestamp and therefore identical on both. After mount it
+ * switches to the relative form and re-renders every ten seconds. The
+ * `suppressHydrationWarning` is belt-and-braces for the swap itself.
+ *
+ * The ticking is the point on a demo: a timestamp that visibly advances while
+ * you are talking is the only proof that separates live from a screenshot.
+ */
+export function TimeAgo({ at, prefix = "" }: { at: Date | string | null | undefined; prefix?: string }) {
+  const [mounted, setMounted] = useState(false);
+  const [, tick] = useState(0);
+
+  useEffect(() => {
+    setMounted(true);
+    const t = setInterval(() => tick((n) => n + 1), 10_000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (!at) return <span>—</span>;
+  return (
+    <span suppressHydrationWarning>
+      {prefix}
+      {mounted ? ago(at) : shortTime(at)}
+    </span>
+  );
 }
 
 export const shortDate = (d: Date | string | null | undefined) =>
@@ -73,7 +117,7 @@ export function Card({ children, className = "", pad = true }: { children: React
 
 export function CardHead({
   title, sub, right, accent,
-}: { title: string; sub?: string; right?: ReactNode; accent?: string }) {
+}: { title: string; sub?: ReactNode; right?: ReactNode; accent?: string }) {
   return (
     <header className="mb-3 flex items-start justify-between gap-3">
       <div className="min-w-0">
@@ -91,7 +135,7 @@ export function CardHead({
 /** The page heading every screen in every system opens with. */
 export function PageHead({
   eyebrow, title, sub, right,
-}: { eyebrow?: string; title: string; sub?: string; right?: ReactNode }) {
+}: { eyebrow?: string; title: string; sub?: ReactNode; right?: ReactNode }) {
   return (
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
@@ -123,7 +167,7 @@ export function Stat({
   deltaLabel?: string;
   spark?: number[];
   accent?: string;
-  foot?: string;
+  foot?: ReactNode;
   /** Does UP mean good? Recovery: yes. Arrears: no. */
   tone?: "neutral" | "up-good" | "up-bad";
 }) {

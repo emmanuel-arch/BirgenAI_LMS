@@ -1,7 +1,7 @@
 "use client";
 
 import { Headphones, Mic } from "lucide-react";
-import { Card, CardHead, PageHead, Stat, Tag, N, ago, shortTime, Empty, Simulated } from "@/components/suite/kit";
+import { Card, CardHead, PageHead, Stat, Tag, N, ago, shortTime, Empty, Simulated, TimeAgo } from "@/components/suite/kit";
 
 type Ext = { id: number; extension: string; mac: string; status: number; userId: number; agentName: string | null; role: string | null };
 type Cdr = {
@@ -27,7 +27,7 @@ export default function PhoneFloor({ extensions, cdr }: { extensions: Ext[]; cdr
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Extensions" value={N(extensions.length)} foot={`${N(mapped.length)} mapped to an agent`} />
         <Stat label="Unassigned seats" value={N(extensions.length - mapped.length)} foot="no agent on the handset" />
-        <Stat label="CDR rows shown" value={N(cdr.length)} foot={newestCdr ? `newest ${ago(newestCdr)}` : "none"} />
+        <Stat label="CDR rows shown" value={N(cdr.length)} foot={newestCdr ? <>newest <TimeAgo at={newestCdr} /></> : "none"} />
         <Stat label="With a recording" value={N(cdr.filter((c) => c.hasRecording).length)} foot="audio on file" />
       </div>
 

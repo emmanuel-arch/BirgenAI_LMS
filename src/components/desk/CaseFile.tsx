@@ -30,7 +30,7 @@ import {
   UserRoundPlus, MessageSquarePlus, TriangleAlert,
 } from "lucide-react";
 import {
-  Card, CardHead, Chip, Tag, Btn, KES, N, PCT, ago, shortDate, Empty,
+  Card, CardHead, Chip, Tag, Btn, KES, N, PCT, ago, shortDate, Empty, TimeAgo,
 } from "@/components/suite/kit";
 
 type Disposition = {
@@ -230,7 +230,7 @@ export default function CaseFile({
               <Person
                 role="Collections agent"
                 name={row.agentName ?? "Unassigned"}
-                detail={row.actioned ? `Last worked ${ago(row.lastActionAt)}` : "Not yet worked"}
+                detail={row.actioned ? <>Last worked <TimeAgo at={row.lastActionAt} /></> : "Not yet worked"}
                 note={row.lastComment || undefined}
               />
             </div>
@@ -323,7 +323,7 @@ export default function CaseFile({
           <Card>
             <CardHead
               title="Log this call"
-              sub={row.callCount > 0 ? `${N(row.callCount)} calls already on file · last ${ago(row.lastCallAt)}` : "No calls logged against this loan yet."}
+              sub={row.callCount > 0 ? <>{N(row.callCount)} calls already on file · last <TimeAgo at={row.lastCallAt} /></> : "No calls logged against this loan yet."}
             />
 
             {!canWork ? (
@@ -485,7 +485,7 @@ function Line({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
   );
 }
 
-function Person({ role, name, detail, note }: { role: string; name: string; detail: string; note?: string }) {
+function Person({ role, name, detail, note }: { role: string; name: string; detail: React.ReactNode; note?: string }) {
   return (
     <div className="rounded-lg border border-zinc-900/[0.07] px-2.5 py-2">
       <p className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-zinc-400">{role}</p>
