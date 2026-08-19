@@ -24,6 +24,7 @@ import { PORTRAIT_TTL_SEC } from "@/lib/kyc/avatars";
 import { buildSchedule } from "@/lib/lending/schedule";
 import { computeApprovedLimit } from "@/lib/lending/limits";
 import { resolveDisbursementRoute } from "@/lib/lending/disbursement-route";
+import { crbGateDecision, CRB_FRESH_DAYS } from "@/lib/crb/stage-gate";
 
 export const runtime = "nodejs";
 
@@ -264,17 +265,37 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }
 
   // Per-stage CRB gate: a stage flagged crbRequired cannot be actioned until a
-  // recent bureau (Metropol) pull exists for the borrower. Runs from the
-  // borrower's Customer 360 (Run CRB check) or automatically at origination.
+  // recent bureau (Metropol) pull exists for the borrower.
+  //
+  // The 409 carries everything needed to RUN that pull from where the officer is
+  // standing, rather than sending them to Customer 360 and back. It stays a
+  // refusal rather than pulling automatically because a bureau pull spends the
+  // lender's money — the officer chooses to spend it, the gate only says it is
+  // needed.
   if (stageDef.crbRequired && app.borrowerId) {
-    const CRB_FRESH_DAYS = 30;
-    const recentCrb = await prisma.kycCheck.findFirst({
-      where: { orgId: app.orgId, borrowerId: app.borrowerId, kind: "CRB", createdAt: { gte: new Date(Date.now() - CRB_FRESH_DAYS * 24 * 60 * 60 * 1000) } },
-      orderBy: { createdAt: "desc" }, select: { id: true },
+    const lastCrb = await prisma.kycCheck.findFirst({
+      where: { orgId: app.orgId, borrowerId: app.borrowerId, kind: "CRB" },
+      orderBy: { createdAt: "desc" }, select: { id: true, createdAt: true },
     });
-    if (!recentCrb) {
+    const gate = crbGateDecision(lastCrb?.createdAt ?? null);
+    if (gate.blocked) {
       return NextResponse.json(
-        { success: false, code: "CRB_REQUIRED", message: `"${stageDef.title}" requires a CRB check — run one from the borrower's Customer 360 (Run CRB check), then action this stage.` },
+        {
+          success: false,
+          code: "CRB_REQUIRED",
+          message: gate.stale
+            ? `"${stageDef.title}" requires a CRB check no older than ${CRB_FRESH_DAYS} days — the last one is from ${gate.lastCheckedAt!.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}.`
+            : `"${stageDef.title}" requires a CRB check before it can be actioned.`,
+          crb: {
+            borrowerId: app.borrowerId,
+            // The workflow knows the exposure; Customer 360 does not. Passing it
+            // lets the lender's scrutiny ladder pick the tier this loan warrants
+            // instead of defaulting to the unpriced one.
+            loanAmount: Number(app.amountRequested),
+            force: gate.force,
+            lastCheckedAt: gate.lastCheckedAt,
+          },
+        },
         { status: 409 },
       );
     }

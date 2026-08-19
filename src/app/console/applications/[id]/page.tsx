@@ -16,7 +16,9 @@ import { useLoad } from "@/lib/hooks/useLoad";
 import {
   ArrowLeft, Loader2, AlertTriangle, CheckCircle2, XCircle, Undo2, ShieldAlert, MapPin,
   ScanFace, Gauge, TrendingUp, TrendingDown, Minus, Users, BadgeCheck, Landmark, IdCard,
+  FileSearch,
 } from "lucide-react";
+import { REPORT_REASON } from "@/lib/crb/catalogue";
 import { OfferPanel } from "../OfferPanel";
 import { SecurityPanel } from "../SecurityPanel";
 
@@ -50,6 +52,15 @@ const LIVE = ["SUBMITTED", "AI_PRESCREEN", "OFFICER_REVIEW", "REFERRED"];
 // The approval trail — every stage decision and the message the approver left,
 // as a visible thread. The incumbent buries these; here they are the record the
 // next approver reads before they act.
+/** The 409 payload from a stage flagged `crbRequired`, plus the action to resume. */
+type CrbGate = {
+  borrowerId: string;
+  loanAmount: number;
+  force: boolean;
+  lastCheckedAt: string | null;
+  resume: "approve" | "decline" | "send-back";
+};
+
 function ApprovalTrail({ trail }: { trail: Detail["trail"] }) {
   const tone = (a: string) =>
     a === "decline" ? { c: "#e11d48", Icon: XCircle } : a === "send-back" ? { c: "#d97706", Icon: Undo2 } : { c: "#059669", Icon: CheckCircle2 };
@@ -91,6 +102,11 @@ export default function ApplicationDetailPage() {
   const [acting, setActing] = useState<string | null>(null);
   const [otpFor, setOtpFor] = useState(false);
   const [otp, setOtp] = useState("");
+  // Set when a stage refuses for want of a bureau file. Holds what the pull
+  // needs (borrower, exposure, whether a stale file must be forced) plus the
+  // action to resume once it lands, so the officer never leaves this page.
+  const [crbGate, setCrbGate] = useState<CrbGate | null>(null);
+  const [crbResult, setCrbResult] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -111,9 +127,21 @@ export default function ApplicationDetailPage() {
         body: JSON.stringify({ action, ...(otpCode ? { otp: otpCode } : {}) }),
       });
       const data = await res.json();
-      if (!data.success) { setError(data.message || "Action failed."); return; }
+      if (!data.success) {
+        // A stage that wants a bureau file is not an error to read and go fix
+        // elsewhere — it is a step to take here. Surface the run instead.
+        if (data.code === "CRB_REQUIRED" && data.crb) {
+          setCrbGate({ ...data.crb, resume: action });
+          setCrbResult(null);
+          setNotice(data.message);
+          return;
+        }
+        setError(data.message || "Action failed.");
+        return;
+      }
       if (data.otpRequired) { setOtpFor(true); setOtp(""); setNotice(data.message); return; }
       setOtpFor(false); setOtp("");
+      setCrbGate(null);
       setNotice(
         data.booked ? `Loan booked: ${fmtKES(data.booked.loanAmount)} over ${data.booked.installments} installments — queued for disbursement.`
           : data.status === "DECLINED" ? "Application declined."
@@ -122,6 +150,45 @@ export default function ApplicationDetailPage() {
       );
       await load();
     } catch { setError("Action failed."); } finally { setActing(null); }
+  };
+
+  /**
+   * Run the bureau check the current stage is waiting on, then resume the action
+   * that was refused. Same endpoint Customer 360 uses — but called with this
+   * application's exposure and with reason NEW_APPLICATION, because that is what
+   * this pull actually is, and Metropol records the reason we declare.
+   */
+  const runCrb = async () => {
+    if (!crbGate) return;
+    setActing("crb"); setError(null); setCrbResult(null);
+    try {
+      const res = await fetch("/api/console/crb", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          borrowerId: crbGate.borrowerId,
+          loanAmount: crbGate.loanAmount,
+          reason: REPORT_REASON.NEW_APPLICATION,
+          force: crbGate.force,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.message || "The bureau check could not be completed."); return; }
+      const r = data.report ?? {};
+      setCrbResult(
+        [
+          r.verdict ? `Bureau verdict: ${r.verdict}` : "Bureau file returned",
+          r.score != null ? `score ${r.score}` : null,
+          r.mode === "live" ? `live · ${r.bureau ?? "Metropol"}` : "simulation",
+          data.reused ? "recent file reused — not re-billed" : null,
+        ].filter(Boolean).join(" · "),
+      );
+      const resume = crbGate.resume;
+      setCrbGate(null);
+      await load();
+      // Resume what the officer originally asked for. If that stage also wants an
+      // OTP, act() takes over and prompts for it exactly as it would have.
+      await act(resume);
+    } catch { setError("The bureau check could not be completed."); } finally { setActing(null); }
   };
 
   if (!d && !error) return <main className="mx-auto max-w-5xl px-4 py-16 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-zinc-400" /></main>;
@@ -307,6 +374,39 @@ export default function ApplicationDetailPage() {
 
           {/* Approval trail — the stage decisions and their messages, as a thread */}
           {d.trail.length > 0 && <ApprovalTrail trail={d.trail} />}
+
+          {/* The stage is waiting on a bureau file — run it here, not elsewhere */}
+          {live && crbGate && (
+            <div className="glass p-4 border border-amber-300/70 bg-amber-50/40">
+              <div className="flex items-start gap-2">
+                <FileSearch className="h-4 w-4 mt-0.5 shrink-0 text-amber-700" />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-amber-900">CRB check required for this stage</p>
+                  <p className="mt-0.5 text-xs text-amber-800">
+                    {crbGate.lastCheckedAt
+                      ? `The last bureau file for this borrower is from ${dfmt(crbGate.lastCheckedAt)} and is too old for this stage. A fresh pull will be bought.`
+                      : "No bureau file exists for this borrower yet."}
+                    {" "}Checked against an exposure of {fmtKES(crbGate.loanAmount)}.
+                  </p>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <button disabled={!!acting} onClick={runCrb}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60">
+                      {acting === "crb" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSearch className="h-4 w-4" />}
+                      Run CRB check &amp; continue
+                    </button>
+                    <button disabled={!!acting} onClick={() => { setCrbGate(null); setNotice(null); }}
+                      className="text-xs text-amber-800 underline hover:text-amber-950 disabled:opacity-60">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {crbResult && (
+            <div className="flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50/80 px-3 py-2 text-sm text-emerald-800">
+              <BadgeCheck className="h-4 w-4 mt-0.5 shrink-0" /> {crbResult}
+            </div>
+          )}
 
           {/* The three buttons */}
           {live && (
