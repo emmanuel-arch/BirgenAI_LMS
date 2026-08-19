@@ -13,6 +13,21 @@
 
 import mssql, { type ConnectionPool, type config as MssqlConfig } from "mssql";
 import { getMssqlConfig, type OrgDef } from "./connections";
+import { relayEnabled, relayQuery } from "./relay";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TWO WAYS TO REACH THE SAME SERVER, CHOSEN ONCE, HERE.
+//
+// Micromart's SQL Server has a tailnet address and no public route. On a machine
+// that is on the tailnet the direct TDS path below is correct and fastest. On
+// Vercel it cannot work at all — see lib/enterprise/relay.ts for why that is
+// topology rather than configuration.
+//
+// So each public function is a two-line dispatcher over an unchanged *Direct
+// implementation. Callers — all forty of them, across all six systems — are
+// untouched and cannot tell which path ran. With SERVICESUITE_RELAY_URL unset
+// there is no relay and nothing about this module's behaviour changes.
+// ─────────────────────────────────────────────────────────────────────────────
 
 type PoolCache = Map<string, Promise<ConnectionPool>>;
 const globalForPool = globalThis as unknown as { __ssPoolCache?: PoolCache };
@@ -63,6 +78,17 @@ export async function runReadOnlyQuery(
   params: QueryParam[] = [],
   opts: { timeoutMs?: number; maxRows?: number } = {},
 ): Promise<QueryResult> {
+  if (relayEnabled()) return relayQuery("read", org, query, params, opts);
+  return runReadOnlyQueryDirect(org, query, params, opts);
+}
+
+/** The original TDS path: used on the tailnet, and by the relay process itself. */
+export async function runReadOnlyQueryDirect(
+  org: OrgDef,
+  query: string,
+  params: QueryParam[] = [],
+  opts: { timeoutMs?: number; maxRows?: number } = {},
+): Promise<QueryResult> {
   const { timeoutMs = 15000, maxRows = 500 } = opts;
   const pool = await getPool(org);
   const request = pool.request();
@@ -91,6 +117,19 @@ export async function callStoredProc(
   params: QueryParam[] = [],
   opts: { timeoutMs?: number } = {},
 ): Promise<Record<string, unknown>[]> {
+  if (relayEnabled()) {
+    const { rows } = await relayQuery("proc", org, procName, params, { timeoutMs: opts.timeoutMs ?? 30000, maxRows: 2000 });
+    return rows;
+  }
+  return callStoredProcDirect(org, procName, params, opts);
+}
+
+export async function callStoredProcDirect(
+  org: OrgDef,
+  procName: string,
+  params: QueryParam[] = [],
+  opts: { timeoutMs?: number } = {},
+): Promise<Record<string, unknown>[]> {
   const { timeoutMs = 30000 } = opts;
   const pool = await getPool(org);
   const request = pool.request();
@@ -102,6 +141,23 @@ export async function callStoredProc(
 
 /** Execute a write statement (UPDATE/INSERT) and return rows affected. Gate callers themselves. */
 export async function execNonQuery(
+  org: OrgDef,
+  query: string,
+  params: QueryParam[] = [],
+  opts: { timeoutMs?: number } = {},
+): Promise<number> {
+  if (relayEnabled()) {
+    // On the "exec" kind the relay carries rowsAffected in rowCount — there is no
+    // recordset to return. A relay that has not been armed for writes refuses
+    // this by name rather than reporting zero rows affected, which would be
+    // indistinguishable from a statement that matched nothing.
+    const { rowCount } = await relayQuery("exec", org, query, params, { timeoutMs: opts.timeoutMs ?? 20000, maxRows: 0 });
+    return rowCount;
+  }
+  return execNonQueryDirect(org, query, params, opts);
+}
+
+export async function execNonQueryDirect(
   org: OrgDef,
   query: string,
   params: QueryParam[] = [],

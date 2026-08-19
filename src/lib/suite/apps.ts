@@ -15,7 +15,7 @@
 //
 // In this build the satellites live in the same deployment, so the session
 // genuinely carries across (real SSO, not a mock). In production each moves to its
-// own subdomain federated by the shared `.birgenai.com` session cookie — the same
+// own subdomain federated by the shared `.servicesuitecloud.com` session cookie — the same
 // mechanism already proven for hub + Movies. The experience is identical, which is
 // the point being sold: BirgenAI ID is the spine the rest plugs into.
 //
@@ -27,6 +27,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import type { ComponentType, CSSProperties } from "react";
 import { Landmark, Users2, Calculator, Headphones, Smartphone, ChartNoAxesCombined } from "lucide-react";
+import { satelliteHost } from "./labels";
 
 export type SuiteIcon = ComponentType<{ className?: string; style?: CSSProperties }>;
 
@@ -67,7 +68,7 @@ export const SUITE_APPS: SuiteApp[] = [
     accent: "#2a78d6",
     icon: Landmark,
     href: "/console",
-    subdomain: "lms.birgenai.com",
+    subdomain: satelliteHost("lms"),
     system: true,
     live: true,
     modules: ["Borrowers", "Loans", "Payments", "Collections", "Intelligence"],
@@ -82,7 +83,7 @@ export const SUITE_APPS: SuiteApp[] = [
     accent: "#0e7490",
     icon: Smartphone,
     href: "/",
-    subdomain: "my.birgenai.com",
+    subdomain: satelliteHost("portal"),
     system: false,
     live: true,
     modules: ["Apply", "My loans", "Repay", "Statements"],
@@ -109,7 +110,7 @@ export const SUITE_APPS: SuiteApp[] = [
     accent: "#7c3aed",
     icon: ChartNoAxesCombined,
     href: "/analytics",
-    subdomain: "analytics.birgenai.com",
+    subdomain: satelliteHost("analytics"),
     system: false,
     live: true,
     // The right that admits you. Analytics is a read of the ENTIRE book, so it
@@ -128,7 +129,7 @@ export const SUITE_APPS: SuiteApp[] = [
     accent: "#6d28d9",
     icon: Users2,
     href: "/people",
-    subdomain: "people.birgenai.com",
+    subdomain: satelliteHost("hr"),
     system: false,
     // Live since 19 Aug 2026. It reads 1,088 staff out of Serviceconnect's own
     // directory, 32 seats off the CollectBox floor, and the borrower book each
@@ -149,7 +150,7 @@ export const SUITE_APPS: SuiteApp[] = [
     accent: "#0f766e",
     icon: Calculator,
     href: "/books",
-    subdomain: "books.birgenai.com",
+    subdomain: satelliteHost("accounting"),
     system: false,
     // Live since 19 Aug 2026, and the least expected of the six: Serviceconnect
     // holds a real double-entry journal — 6.4M postings against an 18-account
@@ -172,7 +173,7 @@ export const SUITE_APPS: SuiteApp[] = [
     accent: "#be123c",
     icon: Headphones,
     href: "/desk",
-    subdomain: "desk.birgenai.com",
+    subdomain: satelliteHost("callcenter"),
     system: false,
     // Live since 19 Aug 2026 against CollectBox, the collections database that
     // has sat on the same SQL Server as Serviceconnect for years with no

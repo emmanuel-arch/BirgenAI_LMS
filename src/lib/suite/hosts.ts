@@ -6,24 +6,25 @@
 // origins. Two things have to be true for that, and neither was:
 //
 //   1. THE SESSION COOKIE MUST BE SCOPED TO THE PARENT DOMAIN. A cookie set on
-//      lms.birgenai.com with no `domain` attribute is HOST-ONLY — the browser will
-//      not send it to people.birgenai.com. Single sign-on across the suite worked
-//      in development purely because all five systems were the same host. See
-//      cookieDomain() and lib/auth.ts.
+//      lms.servicesuitecloud.com with no `domain` attribute is HOST-ONLY — the
+//      browser will not send it to peoplehub.servicesuitecloud.com. Single
+//      sign-on across the suite worked in development purely because all six
+//      systems were the same host. See cookieDomain() and lib/auth.ts.
 //
 //   2. THE SATELLITE LABELS MUST BE RESERVED. Lender portals already live on
-//      subdomains (mular.birgenai.com), and proxy.ts decides "is this a lender?"
-//      from the first label. Without reserving them, a lender who signs up as
-//      "desk" would take desk.birgenai.com out from under the call-centre — and
-//      the two reserved lists that existed (src/proxy.ts and api/orgs/route.ts)
-//      already disagreed with each other, so adding to one would not have been
-//      enough. There is now ONE list and both read it.
+//      subdomains, and proxy.ts decides "is this a lender?" from the first
+//      label. Without reserving them, a lender who signs up as "connectdesk"
+//      would take connectdesk.servicesuitecloud.com out from under the
+//      call-centre — and the two reserved lists that existed (src/proxy.ts and
+//      api/orgs/route.ts) already disagreed with each other, so adding to one
+//      would not have been enough. There is now ONE list and both read it.
 //
 // Origins come from the environment, with the in-app route as the fallback. That
 // is what lets the same code serve the demo (one deployment, /suite/hr) and
-// production (people.birgenai.com) without a branch anywhere in the UI.
+// production (peoplehub.servicesuitecloud.com) without a branch anywhere in the UI.
 // ─────────────────────────────────────────────────────────────────────────────
 import { SUITE_APPS, type SuiteApp } from "./apps";
+import { SATELLITE_LABELS } from "./labels";
 
 /**
  * Labels that are PLATFORM surfaces, never a lender slug.
@@ -47,8 +48,9 @@ const PLATFORM_LABELS = [
   "microeazy",
 ] as const;
 
-/** The first label of each satellite's production host: people, books, desk, my. */
-const SATELLITE_LABELS: string[] = SUITE_APPS.map((a) => a.subdomain.split(".")[0]).filter(Boolean);
+// The satellite labels come from ./labels, which is also what the edge proxy
+// reads to decide what a bare host serves. Deriving them here from SUITE_APPS
+// instead would work right up until a subdomain was renamed in one file only.
 
 export const RESERVED_LABELS: ReadonlySet<string> = new Set<string>([
   ...INFRA_LABELS,
@@ -62,7 +64,7 @@ export function isReservedLabel(label: string): boolean {
 }
 
 /**
- * The parent domain the session cookie is scoped to, e.g. ".birgenai.com".
+ * The parent domain the session cookie is scoped to, e.g. ".servicesuitecloud.com".
  *
  * Unset in development (and in preview builds) on purpose: a cookie with a
  * `domain` of ".localhost" is rejected by browsers, and one scoped to
@@ -75,7 +77,7 @@ export function cookieDomain(): string | undefined {
   if (!raw) return undefined;
   const d = raw.toLowerCase();
   // A leading dot is the classic way to say "and subdomains"; modern browsers
-  // treat `domain=birgenai.com` identically, but we normalise so the value used to
+  // treat `domain=servicesuitecloud.com` identically, but we normalise so the value used to
   // SET and the value used to CLEAR can never differ by a character.
   const normalised = d.startsWith(".") ? d : `.${d}`;
   // Refuse anything that cannot be a real parent domain — a misconfiguration here
@@ -87,7 +89,7 @@ export function cookieDomain(): string | undefined {
 /**
  * Where a system lives right now.
  *
- * `SUITE_<ID>_ORIGIN` (e.g. SUITE_HR_ORIGIN=https://people.birgenai.com) moves a
+ * `SUITE_<ID>_ORIGIN` (e.g. SUITE_HR_ORIGIN=https://peoplehub.servicesuitecloud.com) moves a
  * satellite out of this deployment. Until it is set, the app keeps its in-app
  * route, so a system can be split out one at a time with no code change and no
  * flag-day.

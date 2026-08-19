@@ -21,6 +21,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { config as MssqlConfig } from "mssql";
+import { relayEnabled } from "./relay";
 
 export type OrgSlug = "micromart" | "axe" | "buysimu" | "njb" | "atico" | "hub" | "micromart-fintech" | "techcrast";
 
@@ -186,8 +187,27 @@ export function getEntityId(org: OrgDef): number {
   return Number.isInteger(n) ? n : org.defaultEntityId;
 }
 
-/** Is this org's connection string configured? */
+/**
+ * Can this deployment reach the org's database — by any route?
+ *
+ * TWO ROUTES COUNT, and the distinction is what keeps a database password out of
+ * the cloud entirely:
+ *
+ *   · A CONNECTION STRING, on a host that can actually open a socket to the
+ *     server. True for anything on the tailnet.
+ *   · A RELAY, for a host that cannot. The relay holds the credential; the
+ *     deployment holds only a signing secret. So Vercel is configured for
+ *     Micromart WITHOUT SERVICESUITE_CONN_MICROMART ever being set there —
+ *     Micromart's SQL password never leaves the tailnet, and a compromise of the
+ *     hosting account yields a secret that can ask a read-only relay for numbers
+ *     it already puts on a screen, not credentials to their production server.
+ *
+ * Without this, a relay-only deployment would pass every network check and still
+ * render "not connected" on all six systems, because the question being asked
+ * here is the one every screen's empty state is derived from.
+ */
 export function isOrgConfigured(org: OrgDef): boolean {
+  if (relayEnabled()) return true;
   return !!process.env[org.connEnv]?.trim();
 }
 
