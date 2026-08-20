@@ -64,7 +64,7 @@ export const ARTWORK: Artwork[] = [
     id: "lms",
     name: "Lending Console",
     accent: "#2a78d6",
-    file: "/images/suite/login-lending.png",
+    file: "/images/suite/login-lending.webp",
     gradient: "radial-gradient(1200px 700px at 78% 18%, #2a78d633 0%, transparent 62%), radial-gradient(900px 600px at 20% 90%, #1e40af26 0%, transparent 60%), #0b0a10",
     mood: "Steady, institutional, load-bearing. The system the others hang off.",
     prompt:
@@ -78,7 +78,7 @@ export const ARTWORK: Artwork[] = [
     id: "portal",
     name: "Customer Portal",
     accent: "#0e7490",
-    file: "/images/suite/login-portal.png",
+    file: "/images/suite/login-portal.webp",
     gradient: "radial-gradient(1200px 700px at 78% 18%, #0e749033 0%, transparent 62%), radial-gradient(900px 600px at 20% 90%, #06b6d41f 0%, transparent 60%), #0b0a10",
     mood: "Open, welcoming, human-scale. The front door a customer sees.",
     prompt:
@@ -91,7 +91,7 @@ export const ARTWORK: Artwork[] = [
     id: "analytics",
     name: "Analytics Studio",
     accent: "#7c3aed",
-    file: "/images/suite/login-analytics.png",
+    file: "/images/suite/login-analytics.webp",
     gradient: "radial-gradient(1200px 700px at 78% 18%, #7c3aed33 0%, transparent 62%), radial-gradient(900px 600px at 20% 90%, #a855f71f 0%, transparent 60%), #0b0a10",
     mood: "Cool, high, observational. Seeing the whole thing at once.",
     prompt:
@@ -105,7 +105,7 @@ export const ARTWORK: Artwork[] = [
     id: "callcenter",
     name: "ConnectDesk Call-Center",
     accent: "#be123c",
-    file: "/images/suite/login-desk.png",
+    file: "/images/suite/login-desk.webp",
     gradient: "radial-gradient(1200px 700px at 78% 18%, #be123c33 0%, transparent 62%), radial-gradient(900px 600px at 20% 90%, #f43f5e1f 0%, transparent 60%), #0b0a10",
     mood: "Warm, alive, connected. Voices moving through the dark.",
     prompt:
@@ -118,7 +118,7 @@ export const ARTWORK: Artwork[] = [
     id: "hr",
     name: "PeopleHub HR",
     accent: "#6d28d9",
-    file: "/images/suite/login-people.png",
+    file: "/images/suite/login-people.webp",
     gradient: "radial-gradient(1200px 700px at 78% 18%, #6d28d933 0%, transparent 62%), radial-gradient(900px 600px at 20% 90%, #8b5cf61f 0%, transparent 60%), #0b0a10",
     mood: "Ordered, individual, collective. Many separate things, arranged.",
     prompt:
@@ -131,7 +131,7 @@ export const ARTWORK: Artwork[] = [
     id: "accounting",
     name: "Ledgerly Accounting",
     accent: "#0f766e",
-    file: "/images/suite/login-books.png",
+    file: "/images/suite/login-books.webp",
     gradient: "radial-gradient(1200px 700px at 78% 18%, #0f766e33 0%, transparent 62%), radial-gradient(900px 600px at 20% 90%, #14b8a61f 0%, transparent 60%), #0b0a10",
     mood: "Exact, balanced, quiet. The truth about the money.",
     prompt:

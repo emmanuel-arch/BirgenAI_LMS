@@ -68,12 +68,34 @@ write and confirming the refusal.
 ### Running it
 
 On a tailnet machine that stays on — the `lms` node (`100.92.236.116`) is the
-right one, not a laptop that closes:
+right one, not a laptop that closes.
+
+**Step 0, once per tailnet: Funnel must be switched on.** It is off by default,
+and until it is, `tailscale funnel` prints this and does nothing else:
+
+```
+Funnel is not enabled on your tailnet.
+To enable, visit:
+    https://login.tailscale.com/f/funnel?node=…
+```
+
+Open that link, approve it, and the rest works. It also needs **HTTPS
+Certificates** enabled under the tailnet's Settings → Features.
 
 ```bash
-npm run relay            # holds the pool, listens on 127.0.0.1:8787
-tailscale funnel 8787    # publishes it on https://<host>.<tailnet>.ts.net
+npm run relay              # holds the pool, listens on 127.0.0.1:8787
+tailscale funnel --bg 8787 # publishes it, and PRINTS THE REAL URL
 ```
+
+The URL it prints looks like `https://lms.tail10c441.ts.net` — that exact
+string, copied from the terminal, is what `SERVICESUITE_RELAY_URL` must be.
+
+> ⚠ **The one mistake that looks like a total outage.** Pasting the placeholder
+> `https://<host>.<tailnet>.ts.net` from this document into Vercel leaves a
+> deployment that starts, signs people in, serves every route — and cannot read
+> one number, because it is dialling a hostname that does not exist. Every screen
+> shows its honest "not reachable" state at once, which reads like the database
+> is down. `npm run test:live` names it in one line.
 
 Tailscale Funnel gives a public HTTPS URL with a real certificate, no DNS work
 and no inbound firewall rule. The URL is ugly; nobody ever sees it. Cloudflare
@@ -160,8 +182,9 @@ the word and I will switch it.
 Set these on the Vercel project (Production scope), then redeploy.
 
 ```
-# The relay — this is what removes the amber banner
-SERVICESUITE_RELAY_URL       = https://<host>.<tailnet>.ts.net
+# The relay — this is what removes the amber banner.
+# NOT the placeholder below: the actual URL `tailscale funnel` printed.
+SERVICESUITE_RELAY_URL       = https://<paste the real ts.net host here>
 SERVICESUITE_RELAY_SECRET    = <the same value as .env locally>
 
 # Public identity
@@ -189,8 +212,16 @@ there, and leaving it out is what keeps Micromart's password off the internet.
 Then, from anywhere:
 
 ```bash
-npm run test:relay      # proves the deployment can read Micromart
+npm run test:relay      # proves the relay itself answers and can read Micromart
+npm run test:live       # proves the DEPLOYED suite does — every host, every screen
 ```
+
+`test:live` is the one to run before the room fills. It signs in over the public
+internet the way a supervisor will, carries the session across all six
+subdomains, and grades each screen **live / degraded / broken** by reading the
+markup — because every screen in this suite degrades honestly, so a page whose
+database is unreachable still returns 200. It also proves single sign-on works
+across origins, which nothing else checks.
 
 ---
 
@@ -203,32 +234,54 @@ renders them. Print them in a paste-ready form with:
 npm run art:prompts
 ```
 
-**None of the six exist yet.** Until a file lands, that system's login page
-renders a gradient in the same accent — so a partly-generated set never looks
-like a partly-finished product. Drop a file in and it appears on the next render.
-No rebuild, no code change.
+**All six are delivered** (20 Aug 2026) and every one of them honours the rule
+that mattered most: the left third is near-empty and dark, so the sign-in card
+is readable on all six doors. Composition and accent are right across the set.
 
-Save into `public/images/suite/`:
+Two things were fixed on receipt, and one is left for you to decide.
 
-| File | System | Accent | Subject |
-|---|---|---|---|
-| `login-lending.png` | Lending Console | `#2a78d6` | concrete colonnade receding into dark |
-| `login-portal.png` | Customer Portal | `#0e7490` | an open doorway, light spilling across a floor |
-| `login-analytics.png` | Analytics Studio | `#7c3aed` | a city from very high up, arterial roads lit |
-| `login-desk.png` | ConnectDesk | `#be123c` | fibre-optic bundles, each strand a point of light |
-| `login-people.png` | PeopleHub HR | `#6d28d9` | a wall of pigeonholes, a few lit from within |
-| `login-books.png` | Ledgerly | `#0f766e` | a brass balance scale, both pans level |
+**Fixed — the encode.** The plates arrived as ~1.5MB PNGs and the set totalled
+**8.02MB**. PNG is the wrong container for a photograph, and these load before
+anything else on a login page. Re-encoded to WebP the set is **230kB — 97%
+smaller**, with nothing visible through the scrim the card sits on. The workflow
+is now two steps, and the second is not optional:
 
-Three rules that matter more than the wording:
+```bash
+npm run art:prompts               # generate, save the PNGs into public/images/suite/
+npm run art:optimize              # report what the encode would do
+npm run art:optimize -- --write   # encode
+```
 
-- **The left third must stay near-empty and dark.** That is where the sign-in
-  card sits. A beautiful image with its subject on the left is an unreadable
-  login page.
-- **One hue each, on near-black.** The six read as a set precisely because each
-  is monochrome in its own accent — the same accent that system wears in its
-  sidebar and on the launcher.
-- **2560×1600, PNG, under ~1.5MB.** They are full-bleed backgrounds seen on a
-  projector, and they load before anything else on the page.
+The PNGs stay on disk as masters; `artwork.ts` reads the `.webp`.
+
+**Fixed — PeopleHub had no file.** Two plates arrived for that door,
+`login-people-2.png` and `login-people.jpg`, and neither had the name the code
+reads — so HR was the one door still rendering a gradient in production. The
+clean `.jpg` is now the master for that slot; `scripts/optimize-suite-art.ts`
+holds the mapping.
+
+**Your decision — three of the six plates carry a "Made with AI" badge**, burned
+into the top-right corner:
+
+| Plate | Badge |
+|---|---|
+| `login-lending` | clean |
+| `login-analytics` | clean |
+| `login-people` (the `.jpg`) | clean |
+| `login-portal` | **"Made with AI"** |
+| `login-desk` | **"Made with AI"** |
+| `login-books` | **"Made with AI"** |
+
+It sits exactly where the eye lands after the sign-in card, and it will be on a
+projector in front of senior managers. Three of the six came back clean from the
+same tool, so **regenerating those three is the cleanest fix** — then re-run
+`art:optimize -- --write` and nothing else changes. I can crop the badge out
+instead if you would rather not regenerate; say which and it is a two-minute job.
+
+One smaller note: `login-books` reads mostly brass/gold rather than the
+green-teal `#0f766e` the brief asked for. The subject is exactly right and it is
+a good image — it just sits slightly outside the one-hue-per-system rule. Worth a
+regeneration only if you are redoing that one anyway.
 
 ---
 
