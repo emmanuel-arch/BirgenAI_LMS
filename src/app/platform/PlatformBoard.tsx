@@ -66,7 +66,7 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
       const res = await fetch("/api/platform/orgs");
       const data = await res.json();
       if (!data.success) {
-        if (res.status === 401) { router.replace("/platform/login"); return; }
+        if (res.status === 401) { router.replace("/login"); return; }
         setError(data.message || "Could not load."); return;
       }
       setOrgs(data.orgs); setPlans(data.plans ?? []);
@@ -99,13 +99,18 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
       });
       const data = await res.json();
       if (!data.success) { setError(data.message || "Could not enter the console."); return; }
-      window.location.assign("/console");
+      // The launcher, not the lending console. Stepping into an organisation
+      // means stepping into ALL SIX of its systems, and which one matters
+      // depends on why you came — a collections question is answered in
+      // ConnectDesk, not in /console. The suite is the landing that offers all
+      // six; the console is one door on it.
+      window.location.assign("/suite");
     } catch { setError("Could not enter the console."); } finally { setActing(null); }
   };
 
   const signOut = async () => {
     await fetch("/api/platform/auth/login", { method: "DELETE" });
-    router.replace("/platform/login");
+    router.replace("/login");
   };
 
   // Review queue first: activation requests, then other PENDING, then the rest.

@@ -10,6 +10,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { runAsPlatform, runWithOrg } from "@/lib/db/context";
 import { createSession } from "@/lib/auth";
+import { createPlatformSession } from "@/lib/platform-auth";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { issueDailyLoginOtp, verifyDailyLoginOtp } from "@/lib/otp";
 import { withDbRetry, isTransientDbError, wakingUpResponse } from "@/lib/db/retry";
@@ -48,6 +49,36 @@ export async function POST(req: NextRequest) {
   // and we have no tenant identity until the credentials check out. This is one
   // of the few legitimate platform-scoped reads. (orgSlug disambiguates.)
   return await runAsPlatform(async () => {
+    // ── ONE DOOR, TWO KINDS OF PERSON ────────────────────────────────────────
+    //
+    // The platform administrator is checked FIRST, and the check is the
+    // PlatformAdmin table rather than a hard-coded address — the table has
+    // exactly one row today, and "whoever is in it" is the rule that stays true
+    // when that changes. Nobody else can reach /platform however their staff
+    // rights are configured, because no staff row grants it.
+    //
+    // WHY FIRST, given this email is ALSO an Org Admin in six orgs: from the
+    // sign-in card the founder wants the estate, not one tenant's console. The
+    // way into a specific org is /platform → "Enter console", which is audited
+    // impersonation and carries a permanent banner. Landing him straight in
+    // Micromart would be the one path that touches a lender's book with no
+    // record of why.
+    //
+    // A wrong password here does NOT short-circuit: it falls through to the
+    // staff lookup and fails there with the same uniform message, so this branch
+    // reveals nothing about which accounts are platform accounts.
+    if (!body.orgSlug) {
+      const admin = await withDbRetry(() => prisma.platformAdmin.findUnique({ where: { email } }));
+      if (admin && admin.status === "ACTIVE" && (await bcrypt.compare(password, admin.passwordHash))) {
+        await prisma.platformAdmin.update({ where: { id: admin.id }, data: { lastLoginAt: new Date() } }).catch(() => {});
+        await prisma.auditLog.create({
+          data: { orgId: null, actorId: admin.id, actorType: "platform", action: "platform.login", ip: req.headers.get("x-forwarded-for") },
+        }).catch(() => {});
+        await createPlatformSession({ id: admin.id, name: admin.name, email: admin.email });
+        return NextResponse.json({ success: true, platform: true, name: admin.name, destination: "/platform" });
+      }
+    }
+
     const staff = await withDbRetry(() => prisma.staffUser.findFirst({
       where: {
         email,
@@ -118,7 +149,12 @@ export async function POST(req: NextRequest) {
       tiers: { initiator: staff.isInitiator, authorizer: staff.isAuthorizer, validator: staff.isValidator },
     });
 
-    return NextResponse.json({ success: true, orgSlug: staff.org.slug });
+    // /suite, not /console. An organisation's people are not all lending
+    // officers — the collections supervisor, the accountant and the HR manager
+    // each have their own system, and dropping every one of them into the
+    // lending console means five of the six systems are reached by knowing a URL.
+    // The launcher shows each person exactly the doors they hold rights to.
+    return NextResponse.json({ success: true, orgSlug: staff.org.slug, destination: "/suite" });
   });
   } catch (err) {
     if (isTransientDbError(err)) return wakingUpResponse();

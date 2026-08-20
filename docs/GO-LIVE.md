@@ -90,6 +90,23 @@ tailscale funnel --bg 8787 # publishes it, and PRINTS THE REAL URL
 The URL it prints looks like `https://lms.tail10c441.ts.net` — that exact
 string, copied from the terminal, is what `SERVICESUITE_RELAY_URL` must be.
 
+**Funnel is enabled per NODE, and the URL is the node's name.** Enabling it for
+the laptop does not enable it for the server, and moving the relay from one to
+the other changes the hostname — so `SERVICESUITE_RELAY_URL` on Vercel has to
+change with it. Decide which machine holds the relay *before* setting the
+variable, or you will set it twice.
+
+**Does it have to be the server?** No. The host needs three things and nothing
+else: it is on the tailnet, Funnel is enabled for it, and it stays awake. A
+laptop satisfies all three — measured warm round trip through Funnel is 80–134ms,
+which is nothing next to the queries themselves. The reason to prefer an
+always-on node is not performance, it is that a laptop which sleeps, closes or
+changes network takes **all six systems degraded at once**, and the laptop is
+usually the thing being carried into the meeting.
+
+Whichever machine holds it also needs `.env` — the connection string and the
+relay secret. That is the real cost of moving it, not the Funnel setup.
+
 > ⚠ **The one mistake that looks like a total outage.** Pasting the placeholder
 > `https://<host>.<tailnet>.ts.net` from this document into Vercel leaves a
 > deployment that starts, signs people in, serves every route — and cannot read

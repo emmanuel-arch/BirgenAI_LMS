@@ -92,12 +92,18 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
       // shackle snapping shut mid-animation is the difference between a product and
       // a prototype. Only on the OTP path; a bare password sign-in has no second
       // door to open, so it goes straight through.
+      // WHERE TO SEND THEM IS THE SERVER'S DECISION, not this card's. The same
+      // form admits the platform administrator (→ /platform, the estate) and a
+      // lender's staff (→ /suite, their own doors), and only the server knows
+      // which it just authenticated. Defaulting to /suite keeps an older backend
+      // that returns no destination working.
+      const to = typeof data.destination === "string" ? data.destination : "/suite";
       if (withOtp) {
         setSealed(true);
-        setTimeout(() => router.replace("/console"), 620);
+        setTimeout(() => router.replace(to), 620);
         return;
       }
-      router.replace("/console");
+      router.replace(to);
     } catch { setError("Couldn't reach the sign-in service. Please try again in a moment."); } finally { setLoading(false); }
   };
 

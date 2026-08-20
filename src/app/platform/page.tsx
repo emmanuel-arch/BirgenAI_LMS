@@ -10,6 +10,6 @@ export const dynamic = "force-dynamic";
 
 export default async function PlatformPage() {
   const session = await platformAuth();
-  if (!session?.admin) redirect("/platform/login");
+  if (!session?.admin) redirect("/login");
   return <PlatformBoard adminName={session.admin.name} />;
 }
