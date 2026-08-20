@@ -11,7 +11,7 @@
 // lose the conversation that asked to be taken there.
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getRights } from "@/lib/rbac/authz";
+import { getRights, getDeniedModules } from "@/lib/rbac/authz";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 import { navFor } from "@/lib/nav/registry";
 import { resolveSuite } from "@/lib/suite/hosts";
@@ -34,8 +34,8 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   // Not signed in (the child page redirects to /login): render bare, no chrome.
   if (!org || !session?.user) return <>{children}</>;
 
-  const [rights, ent] = await Promise.all([getRights(session), entitlementsFor(session.user.orgId!)]);
-  const nav = navFor(rights, ent.features as ReadonlySet<string>);
+  const [rights, denied, ent] = await Promise.all([getRights(session), getDeniedModules(session), entitlementsFor(session.user.orgId!)]);
+  const nav = navFor(rights, ent.features as ReadonlySet<string>, denied);
 
   return (
     <div style={{ ["--brand" as never]: org.accent, ["--brand-soft" as never]: org.accentSoft }}>

@@ -15,7 +15,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getRights } from "@/lib/rbac/authz";
+import { getRights, getDeniedModules } from "@/lib/rbac/authz";
 import { resolveSuite, hrefFor } from "@/lib/suite/hosts";
 import { suiteApp } from "@/lib/suite/apps";
 import { deskNavFor, DESK_IDENTITY } from "@/lib/desk/nav";
@@ -32,12 +32,13 @@ export default async function DeskLayout({ children }: { children: React.ReactNo
   const session = await auth();
   if (!session?.user?.orgId) redirect("/login?callbackUrl=/desk");
 
-  const [org, rights] = await Promise.all([
+  const [org, rights, denied] = await Promise.all([
     prisma.org.findUnique({
       where: { id: session.user.orgId },
       select: { name: true, slug: true, logoUrl: true, logoScale: true },
     }),
     getRights(session),
+    getDeniedModules(session),
   ]);
   if (!org) redirect("/login");
 
@@ -60,6 +61,7 @@ export default async function DeskLayout({ children }: { children: React.ReactNo
 
   const nav = deskNavFor(rights, {
     badges: { queue: untouched != null ? (untouched > 999 ? `${Math.round(untouched / 1000)}k` : untouched) : null },
+    denied,
   });
   const lms = suiteApp("lms");
 

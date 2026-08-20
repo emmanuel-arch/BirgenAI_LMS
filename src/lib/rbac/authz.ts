@@ -19,11 +19,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { Session } from "@/lib/auth";
 import { ALL_RIGHTS, ALL_RIGHTS_SET, LEGACY_DEFAULT_RIGHTS, WILDCARD, type Right } from "./rights";
+import { parseAccess } from "./modules";
 
 const TTL_MS = 30_000;
 
 const globalForRbac = globalThis as unknown as {
-  rightsCache?: Map<string, { at: number; rights: ReadonlySet<string> }>;
+  rightsCache?: Map<string, { at: number; rights: ReadonlySet<string>; denied: ReadonlySet<string> }>;
 };
 const cache = (globalForRbac.rightsCache ??= new Map());
 
@@ -43,35 +44,73 @@ export function rightsSetFrom(raw: unknown): ReadonlySet<string> {
  * no assigned role keep exactly what the console allowed before RBAC existed.
  */
 export async function getRights(session: Session): Promise<ReadonlySet<string>> {
+  return (await resolve(session)).rights;
+}
+
+/**
+ * Which systems and modules this person has been told not to see.
+ *
+ * Separate from rights on purpose, and the distinction is worth keeping straight:
+ * a RIGHT says what somebody may DO and is enforced on the route; a denied module
+ * says what they are SHOWN. Hiding ConnectDesk's promises module from a viewer is
+ * a tidiness decision, not a security boundary, and the route behind it still
+ * checks its own right. Anything that actually matters is gated by a right.
+ *
+ * Keys are `system` or `system:module` — see src/lib/rbac/modules.ts.
+ */
+export async function getDeniedModules(session: Session): Promise<ReadonlySet<string>> {
+  return (await resolve(session)).denied;
+}
+
+/** One read, one cache entry, both answers — they always come from the same row. */
+async function resolve(session: Session): Promise<{ rights: ReadonlySet<string>; denied: ReadonlySet<string> }> {
   const user = session?.user;
-  if (!user?.id || !user.orgId) return NOTHING;
+  if (!user?.id || !user.orgId) return { rights: NOTHING, denied: NOTHING };
   // A platform admin "acting as" the org is the founder reviewing an org's setup —
-  // total control, and the impersonation itself is what got audited.
-  if (user.impersonator) return EVERYTHING;
+  // total control, and the impersonation itself is what got audited. He is also
+  // the one person who must never be missing a door: no module is hidden from him.
+  if (user.impersonator) return { rights: EVERYTHING, denied: NOTHING };
 
   const key = `staff:${user.id}`;
   const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < TTL_MS) return hit.rights;
+  if (hit && Date.now() - hit.at < TTL_MS) return { rights: hit.rights, denied: hit.denied };
 
   // Tenant-scoped read (RLS binds via the session cookie fallback). A vanished or
   // deactivated staff row fails closed; a staff row with no role gets the legacy set.
   let rights: ReadonlySet<string> = NOTHING;
+  let denied: ReadonlySet<string> = NOTHING;
   try {
     const staff = await prisma.staffUser.findUnique({
       where: { id: user.id },
-      select: { status: true, role: { select: { rights: true } } },
+      select: { status: true, access: true, role: { select: { rights: true } } },
     });
     if (staff && staff.status === "ACTIVE") {
-      rights = staff.role ? rightsSetFrom(staff.role.rights) : LEGACY;
+      const base = staff.role ? rightsSetFrom(staff.role.rights) : LEGACY;
+      const access = parseAccess(staff.access);
+
+      // Grants are ADDITIVE ONLY and still bounded by the rights vocabulary — a
+      // per-person grant can top somebody up beyond their role, never invent a
+      // permission the system does not define.
+      if (access.grant?.length) {
+        const merged = new Set(base);
+        for (const r of access.grant) if (ALL_RIGHTS_SET.has(r)) merged.add(r);
+        rights = merged;
+      } else {
+        rights = base;
+      }
+
+      denied = access.deny?.length ? new Set(access.deny) : NOTHING;
     }
   } catch {
     // Resolver trouble must not 500 every console page. Fall back to the legacy
-    // set — the pre-RBAC behavior — rather than locking the whole org out.
+    // set — the pre-RBAC behavior — rather than locking the whole org out. Nothing
+    // is hidden on this path either: a failed read must not silently narrow a menu.
     rights = LEGACY;
+    denied = NOTHING;
   }
 
-  cache.set(key, { at: Date.now(), rights });
-  return rights;
+  cache.set(key, { at: Date.now(), rights, denied });
+  return { rights, denied };
 }
 
 export async function hasRight(session: Session, right: Right): Promise<boolean> {

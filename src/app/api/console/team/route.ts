@@ -12,6 +12,8 @@ import { issueOtp, verifyOtp } from "@/lib/otp";
 import { prisma } from "@/lib/prisma";
 import { headOfficeId } from "@/lib/rbac/scope";
 import { entitlementsFor } from "@/lib/billing/entitlements";
+import { allAccessKeys, ACCESS_CATALOG } from "@/lib/rbac/modules";
+import { Prisma } from "@prisma/client";
 import { PLANS, PLAN_ORDER } from "@/lib/billing/plans";
 import { sendTemplatedEmail } from "@/lib/email/send";
 import { emailBrandFor } from "@/lib/email/layout";
@@ -59,7 +61,7 @@ export async function GET() {
       select: {
         id: true, email: true, phone: true, firstName: true, otherName: true, status: true,
         isInitiator: true, isAuthorizer: true, isValidator: true, isFieldAgent: true,
-        title: true, lat: true, lng: true, lastLoginAt: true,
+        title: true, lat: true, lng: true, lastLoginAt: true, dob: true, access: true,
         role: { select: { id: true, title: true } }, branch: { select: { id: true, name: true } },
       },
     }),
@@ -70,7 +72,9 @@ export async function GET() {
   // `assignable` is the anti-escalation rule made visible: a role that grants more
   // than the caller holds is shown but not offered — you cannot promote above yourself.
   const roles = roleRows.map((r) => ({ id: r.id, title: r.title, assignable: canGrantRights(actorRights, r.rights) }));
-  return NextResponse.json({ success: true, staff, roles, branches });
+  // The catalogue travels with the payload so the access editor renders the same
+  // systems and modules the server enforces, rather than a copy that can drift.
+  return NextResponse.json({ success: true, staff, roles, branches, catalog: ACCESS_CATALOG });
 }
 
 export async function POST(req: NextRequest) {
@@ -170,12 +174,77 @@ export async function PUT(req: NextRequest) {
   if (!session?.user?.orgId) return NextResponse.json({ success: false, message: "Sign in." }, { status: 401 });
   const denied = await requireRight(session, "team.manage");
   if (denied) return denied;
-  let body: { id?: string; roleId?: string | null; branchId?: string | null; status?: "ACTIVE" | "LOCKED" | "DISABLED"; tiers?: { initiator?: boolean; authorizer?: boolean; validator?: boolean }; isFieldAgent?: boolean; title?: string; lat?: number; lng?: number; otp?: string };
+  let body: {
+    id?: string; roleId?: string | null; branchId?: string | null;
+    status?: "ACTIVE" | "LOCKED" | "DISABLED";
+    tiers?: { initiator?: boolean; authorizer?: boolean; validator?: boolean };
+    isFieldAgent?: boolean; title?: string; lat?: number; lng?: number; otp?: string;
+    // Identity and contact — the fields an administrator actually has to correct.
+    firstName?: string; otherName?: string | null; email?: string; phone?: string | null; dob?: string | null;
+    // Per-person system/module visibility. See src/lib/rbac/modules.ts.
+    access?: { deny?: string[]; grant?: string[] };
+  };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
   if (!body.id) return NextResponse.json({ success: false, message: "Staff id required." }, { status: 400 });
 
   const target = await prisma.staffUser.findFirst({ where: { id: body.id, orgId: session.user.orgId } });
   if (!target) return NextResponse.json({ success: false, message: "Staff member not found." }, { status: 404 });
+
+  // ── Contact details ────────────────────────────────────────────────────────
+  // Email is the sign-in identity AND the address the daily code goes to, so it
+  // is validated and uniqueness-checked within the org rather than trusted. The
+  // rest are free text an administrator is correcting from a phone call.
+  let nextEmail: string | undefined;
+  if (body.email !== undefined) {
+    const e = body.email.trim().toLowerCase();
+    if (!e.includes("@") || e.length < 5) {
+      return NextResponse.json({ success: false, message: "That doesn't look like an email address." }, { status: 400 });
+    }
+    if (e !== target.email) {
+      const clash = await prisma.staffUser.findUnique({ where: { orgId_email: { orgId: session.user.orgId, email: e } } });
+      if (clash) return NextResponse.json({ success: false, message: "Another teammate already uses that email." }, { status: 409 });
+      nextEmail = e;
+    }
+  }
+
+  let nextDob: Date | null | undefined;
+  if (body.dob !== undefined) {
+    if (body.dob === null || body.dob === "") nextDob = null;
+    else {
+      const d = new Date(body.dob);
+      if (Number.isNaN(d.getTime())) return NextResponse.json({ success: false, message: "That date of birth isn't valid." }, { status: 400 });
+      nextDob = d;
+    }
+  }
+
+  // ── Access ─────────────────────────────────────────────────────────────────
+  // Two rules, both about not letting an administrator hand out more than they
+  // hold — the same anti-escalation posture the role assignment already takes:
+  //
+  //   · Only keys the catalogue defines are stored. An unknown key would sit in
+  //     the column forever, matching nothing, and read as "configured" in the UI.
+  //   · A per-person GRANT may only give a right the actor themselves holds.
+  //     Otherwise the deny-list becomes a back door to the escalation that
+  //     canGrantRights() closes on the role.
+  let nextAccess: { deny?: string[]; grant?: string[] } | undefined;
+  if (body.access !== undefined) {
+    const valid = allAccessKeys();
+    const deny = (body.access.deny ?? []).filter((k) => valid.has(k));
+    const wantGrant = body.access.grant ?? [];
+    let grant: string[] = [];
+    if (wantGrant.length) {
+      const actorRights = await getRights(session);
+      const over = wantGrant.filter((r) => !actorRights.has(r));
+      if (over.length) {
+        return NextResponse.json(
+          { success: false, message: `You can't grant access you don't hold yourself: ${over.join(", ")}.` },
+          { status: 403 },
+        );
+      }
+      grant = wantGrant;
+    }
+    nextAccess = { ...(deny.length ? { deny } : {}), ...(grant.length ? { grant } : {}) };
+  }
   if (target.id === session.user.id && body.status && body.status !== "ACTIVE") {
     return NextResponse.json({ success: false, message: "You can't lock or disable your own account." }, { status: 400 });
   }
@@ -208,6 +277,14 @@ export async function PUT(req: NextRequest) {
       isValidator: t?.validator ?? undefined,
       isFieldAgent: body.isFieldAgent ?? undefined,
       title: body.title ?? undefined,
+      firstName: body.firstName?.trim() || undefined,
+      // otherName and phone are explicitly CLEARABLE — null means "remove this",
+      // which `?? undefined` would silently turn into "leave it alone".
+      otherName: body.otherName !== undefined ? (body.otherName?.trim() || null) : undefined,
+      phone: body.phone !== undefined ? (body.phone?.trim() || null) : undefined,
+      email: nextEmail,
+      dob: nextDob,
+      access: nextAccess as Prisma.InputJsonValue | undefined,
       lat: hasGeo ? Number(body.lat) : undefined,
       lng: hasGeo ? Number(body.lng) : undefined,
       lastLocationAt: hasGeo ? new Date() : undefined,

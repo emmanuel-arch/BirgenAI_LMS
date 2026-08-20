@@ -19,6 +19,7 @@
 // screen that opens on the right question beats a blank pivot every time.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { Right } from "@/lib/rbac/rights";
+import { isDenied } from "@/lib/rbac/modules";
 
 export type StudioItem = {
   key: string;
@@ -124,8 +125,12 @@ export const STUDIO_NAV: StudioModule[] = [
 ];
 
 /** Filter the studio menu for one caller. Mirrors navFor() in the console registry. */
-export function studioNavFor(rights: ReadonlySet<string>, opts: { bridged: boolean }): StudioModule[] {
-  return STUDIO_NAV.map((mod) => ({
+export function studioNavFor(
+  rights: ReadonlySet<string>,
+  opts: { bridged: boolean; denied?: ReadonlySet<string> },
+): StudioModule[] {
+  const denied = opts.denied ?? new Set<string>();
+  return STUDIO_NAV.filter((mod) => !isDenied(denied, "analytics", mod.key)).map((mod) => ({
     ...mod,
     items: mod.items.filter((item) => {
       if (item.bridgedOnly && !opts.bridged) return false;

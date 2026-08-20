@@ -85,7 +85,8 @@
     "relay": "tsx scripts/sql-relay.ts",
     "test:relay": "tsx scripts/verify-relay.ts",
     "test:live": "tsx scripts/verify-live.ts",
-    "art:optimize": "tsx scripts/optimize-suite-art.ts"
+    "art:optimize": "tsx scripts/optimize-suite-art.ts",
+    "test:access": "tsx scripts/verify-access.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

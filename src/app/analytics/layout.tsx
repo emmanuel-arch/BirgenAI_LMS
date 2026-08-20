@@ -15,7 +15,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getRights } from "@/lib/rbac/authz";
+import { getRights, getDeniedModules } from "@/lib/rbac/authz";
 import { studioNavFor } from "@/lib/analytics/studio-nav";
 import { resolveSuite, hrefFor } from "@/lib/suite/hosts";
 import { suiteApp } from "@/lib/suite/apps";
@@ -29,12 +29,13 @@ export default async function AnalyticsLayout({ children }: { children: React.Re
   const session = await auth();
   if (!session?.user?.orgId) redirect("/login?callbackUrl=/analytics");
 
-  const [org, rights] = await Promise.all([
+  const [org, rights, denied] = await Promise.all([
     prisma.org.findUnique({
       where: { id: session.user.orgId },
       select: { name: true, slug: true, mode: true, logoUrl: true },
     }),
     getRights(session),
+    getDeniedModules(session),
   ]);
   if (!org) redirect("/login");
 
@@ -43,7 +44,7 @@ export default async function AnalyticsLayout({ children }: { children: React.Re
   // and sending them back to the console is more useful than a 403 page.
   if (!rights.has("reports.view") && !rights.has("reports.analytics")) redirect("/console");
 
-  const nav = studioNavFor(rights, { bridged: org.mode === "BRIDGED" });
+  const nav = studioNavFor(rights, { bridged: org.mode === "BRIDGED", denied });
   const lms = suiteApp("lms");
 
   return (

@@ -21,6 +21,7 @@
 
 import type { Right } from "@/lib/rbac/rights";
 import type { SuiteNavModule } from "@/components/suite/SuiteShell";
+import { isDenied } from "@/lib/rbac/modules";
 
 export type DeskNavItem = SuiteNavModule["items"][number] & {
   right?: Right;
@@ -163,16 +164,21 @@ export const DESK_NAV: DeskNavModule[] = [
  * is the same supervisor who may work it there, and two answers to that question
  * is one answer too many.
  */
-export function deskNavFor(rights: ReadonlySet<string>, opts: { badges?: Record<string, number | string | null> } = {}): SuiteNavModule[] {
-  const { badges = {} } = opts;
-  return DESK_NAV.map((mod) => ({
-    key: mod.key,
-    label: mod.label,
-    icon: mod.icon,
-    items: mod.items
-      .filter((i) => (!i.right || rights.has(i.right)) && (!i.anyRight || i.anyRight.some((r) => rights.has(r))))
-      .map((i) => ({ ...i, badge: badges[i.key] ?? null })),
-  })).filter((m) => m.items.length > 0);
+export function deskNavFor(
+  rights: ReadonlySet<string>,
+  opts: { badges?: Record<string, number | string | null>; denied?: ReadonlySet<string> } = {},
+): SuiteNavModule[] {
+  const { badges = {}, denied = new Set<string>() } = opts;
+  return DESK_NAV.filter((mod) => !isDenied(denied, "callcenter", mod.key))
+    .map((mod) => ({
+      key: mod.key,
+      label: mod.label,
+      icon: mod.icon,
+      items: mod.items
+        .filter((i) => (!i.right || rights.has(i.right)) && (!i.anyRight || i.anyRight.some((r) => rights.has(r))))
+        .map((i) => ({ ...i, badge: badges[i.key] ?? null })),
+    }))
+    .filter((m) => m.items.length > 0);
 }
 
 /** ConnectDesk's identity in the suite — rose, its colour on the launcher. */

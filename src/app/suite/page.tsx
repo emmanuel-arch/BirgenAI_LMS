@@ -12,7 +12,8 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getRights } from "@/lib/rbac/authz";
+import { getRights, getDeniedModules } from "@/lib/rbac/authz";
+import { isDenied } from "@/lib/rbac/modules";
 import { SUITE_APPS } from "@/lib/suite/apps";
 import { resolveSuite } from "@/lib/suite/hosts";
 import { getSuiteTelemetry } from "@/lib/suite/telemetry";
@@ -25,18 +26,25 @@ export default async function SuiteLauncherPage() {
   const session = await auth();
   if (!session?.user?.orgId) redirect("/login?callbackUrl=/suite");
 
-  const [org, rights, telemetry] = await Promise.all([
+  const [org, rights, denied, telemetry] = await Promise.all([
     prisma.org.findUnique({
       where: { id: session.user.orgId },
       select: { name: true, accent: true, accentSoft: true },
     }),
     getRights(session),
+    getDeniedModules(session),
     getSuiteTelemetry(),
   ]);
 
-  // "Signed in" means holding a role in that system — not merely holding a valid
-  // identity. The satellites have no rights vocabulary of their own yet, so any
-  // session is inside them; the ones that do declare a right gate on it.
+  // TWO DIFFERENT QUESTIONS, and conflating them is what makes access control
+  // confusing to the person on the receiving end:
+  //
+  //   VISIBLE  — is this system part of your working life at all? Set per person
+  //              by their administrator. A door turned off is not on the page.
+  //   ENTERED  — do you hold the right that opens it? A visible door you cannot
+  //              yet enter reads "Request access", which is a useful thing to
+  //              see; an invisible one you could have entered is not.
+  const visible = SUITE_APPS.filter((a) => !isDenied(denied, a.id)).map((a) => a.id);
   const entered = SUITE_APPS.filter((a) => !a.right || rights.has(a.right)).map((a) => a.id);
 
   return (
@@ -44,6 +52,7 @@ export default async function SuiteLauncherPage() {
       who={session.user.name ?? session.user.email ?? "Signed in"}
       orgName={org?.name ?? "Your organisation"}
       entered={entered}
+      visible={visible}
       hosts={resolveSuite()}
       telemetry={telemetry}
     />

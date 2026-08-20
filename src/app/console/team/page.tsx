@@ -3,18 +3,18 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useLoad } from "@/lib/hooks/useLoad";
-import { Loader2, AlertTriangle, CheckCircle2, Users, Plus, ShieldCheck } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2, Users, Plus, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import StaffEditor, { type Staff, type CatalogSystem } from "@/components/console/StaffEditor";
 
-type Staff = {
-  id: string; email: string; phone: string | null; firstName: string; otherName: string | null; status: string;
-  isInitiator: boolean; isAuthorizer: boolean; isValidator: boolean; isFieldAgent: boolean;
-  title: string | null; lat: number | null; lng: number | null; lastLoginAt: string | null;
-  role: { id: string; title: string } | null; branch: { id: string; name: string } | null;
-};
 
 export default function TeamPage() {
   const [staff, setStaff] = useState<Staff[] | null>(null);
   const [roles, setRoles] = useState<{ id: string; title: string; assignable: boolean }[]>([]);
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const [catalog, setCatalog] = useState<CatalogSystem[]>([]);
+  // Which person's panel is open. One at a time: two open editors invite an
+  // administrator to fill in both and lose one.
+  const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -30,6 +30,7 @@ export default function TeamPage() {
       const data = await res.json();
       if (!data.success) { setError(data.message || "Could not load the team."); return; }
       setStaff(data.staff); setRoles(data.roles);
+      setBranches(data.branches ?? []); setCatalog(data.catalog ?? []);
     } catch { setError("Could not load the team."); }
   }, []);
   useLoad(load);
@@ -142,7 +143,8 @@ export default function TeamPage() {
         {!staff && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>}
         <div className="mt-5 space-y-2">
           {staff?.map((s) => (
-            <div key={s.id} className={`glass p-4 flex items-center justify-between gap-3 flex-wrap ${s.status !== "ACTIVE" ? "opacity-60" : ""}`}>
+            <div key={s.id} className={`glass p-4 ${s.status !== "ACTIVE" ? "opacity-60" : ""}`}>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="min-w-0">
                 <p className="text-sm font-semibold truncate">{s.firstName} {s.otherName ?? ""} <span className="text-zinc-400 font-normal">· {s.email}</span></p>
                 <p className="text-xs text-zinc-500">{s.role?.title ?? "No role"}{s.branch ? ` · ${s.branch.name}` : ""}{s.lastLoginAt ? ` · last seen ${new Date(s.lastLoginAt).toLocaleDateString("en-KE")}` : " · never signed in"}</p>
@@ -156,7 +158,22 @@ export default function TeamPage() {
                   className={`ml-1 rounded-md px-2 py-1 text-[11px] font-semibold ${s.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
                   {s.status}
                 </button>
+                <button onClick={() => setEditing(editing === s.id ? null : s.id)}
+                  className={`ml-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${editing === s.id ? "bg-zinc-900 text-white" : "bg-zinc-900/[0.06] text-zinc-600 hover:bg-zinc-900/[0.1]"}`}>
+                  <SlidersHorizontal className="h-3 w-3" /> Manage
+                </button>
               </div>
+            </div>
+            {editing === s.id && (
+              <StaffEditor
+                staff={s}
+                catalog={catalog}
+                roles={roles}
+                branches={branches}
+                onClose={() => setEditing(null)}
+                onSaved={async () => { setNotice(`Saved ${s.firstName}.`); setEditing(null); await load(); }}
+              />
+            )}
             </div>
           ))}
         </div>

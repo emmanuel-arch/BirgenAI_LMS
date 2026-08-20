@@ -328,6 +328,18 @@ model StaffUser {
   otpSecret    String?
   avatarSeed   String? // deterministic avatar for demo/console polish
   title        String? // display job title (e.g. "Relationship Officer")
+  dob          DateTime? // date of birth — HR record, never used in a credit decision
+
+  /// Per-person access adjustment, layered on top of the role.
+  ///
+  /// `{ "deny": ["callcenter:work"], "grant": ["reports.view"] }`
+  ///
+  /// EMPTY MEANS "exactly what the role says", which is why this defaults to {}
+  /// rather than to a list of grants: adding this column changes nothing for the
+  /// people who existed before it. Two staff can share a role and still see
+  /// different halves of ConnectDesk without inventing a second role for one of
+  /// them. See src/lib/rbac/modules.ts for the vocabulary and the argument.
+  access       Json      @default("{}")
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 

@@ -16,6 +16,7 @@
 import type { Feature } from "@/lib/billing/plans";
 import type { Right } from "@/lib/rbac/rights";
 import { ASSISTANT_NAME } from "@/lib/riri/brand";
+import { isDenied } from "@/lib/rbac/modules";
 
 export type NavItem = {
   key: string;
@@ -238,17 +239,26 @@ export const NAV_REGISTRY: NavModule[] = [
  * The per-caller sidebar: registry ∩ role rights ∩ plan features. Pure — the
  * offline test suite drives it with synthetic sets.
  */
-export function navFor(rights: ReadonlySet<string>, features: ReadonlySet<string>): NavModule[] {
-  return NAV_REGISTRY.map((mod) => ({
-    ...mod,
-    items: mod.items.filter(
-      (item) =>
-        (!item.right || rights.has(item.right)) &&
-        (!item.anyRight || item.anyRight.some((r) => rights.has(r))) &&
-        (!item.feature || features.has(item.feature)),
-    ),
-  })).filter((mod) => mod.items.length > 0);
+export function navFor(
+  rights: ReadonlySet<string>,
+  features: ReadonlySet<string>,
+  /** Modules this person was individually told not to see. See lib/rbac/modules. */
+  denied: ReadonlySet<string> = EMPTY,
+): NavModule[] {
+  return NAV_REGISTRY.filter((mod) => !isDenied(denied, "lms", mod.key))
+    .map((mod) => ({
+      ...mod,
+      items: mod.items.filter(
+        (item) =>
+          (!item.right || rights.has(item.right)) &&
+          (!item.anyRight || item.anyRight.some((r) => rights.has(r))) &&
+          (!item.feature || features.has(item.feature)),
+      ),
+    }))
+    .filter((mod) => mod.items.length > 0);
 }
+
+const EMPTY: ReadonlySet<string> = new Set();
 
 /** Right needed to follow a nav item, looked up by key (used by tests + role editor). */
 export function navItemByKey(key: string): NavItem | undefined {

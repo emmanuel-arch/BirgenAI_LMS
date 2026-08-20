@@ -12,6 +12,7 @@
 
 import type { Right } from "@/lib/rbac/rights";
 import type { SuiteNavModule } from "@/components/suite/SuiteShell";
+import { isDenied } from "@/lib/rbac/modules";
 
 export const PEOPLE_IDENTITY = {
   id: "hr",
@@ -64,8 +65,15 @@ export const BOOKS_NAV: Module[] = [
   },
 ];
 
-export function satelliteNavFor(nav: Module[], rights: ReadonlySet<string>): SuiteNavModule[] {
+export function satelliteNavFor(
+  nav: Module[],
+  rights: ReadonlySet<string>,
+  /** "hr" or "accounting" — which system's deny keys apply to this tree. */
+  systemId?: string,
+  denied: ReadonlySet<string> = new Set(),
+): SuiteNavModule[] {
   return nav
+    .filter((m) => !systemId || !isDenied(denied, systemId, m.key))
     .map((m) => ({
       key: m.key, label: m.label, icon: m.icon,
       items: m.items.filter((i) => !i.right || rights.has(i.right)),

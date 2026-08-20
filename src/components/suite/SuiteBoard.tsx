@@ -52,18 +52,30 @@ const ago = (iso: string | null) => {
 };
 
 export default function SuiteBoard({
-  who, orgName, entered, hosts, telemetry,
+  who, orgName, entered, hosts, telemetry, visible,
 }: {
   who: string;
   orgName: string;
   entered: string[];
   hosts: ResolvedSuiteApp[];
   telemetry: SuiteTelemetry;
+  /**
+   * System ids this person may see at all. Undefined means all six — which is
+   * what every existing caller passes, so nobody's launcher changes until an
+   * administrator deliberately turns a door off for somebody.
+   */
+  visible?: string[];
 }) {
   const reduce = useReducedMotion();
   const [hover, setHover] = useState<string | null>(null);
   const hostOf = (id: string) => hosts.find((h) => h.id === id);
   const pulseOf = (id: string) => telemetry.systems.find((s) => s.id === id);
+
+  // A door that has been turned off does not appear GREYED — it is not there.
+  // A visible-but-dead tile invites the question "why can't I open that?", which
+  // an administrator then has to answer; a launcher of five is simply this
+  // person's suite.
+  const apps = visible ? SUITE_APPS.filter((a) => visible.includes(a.id)) : SUITE_APPS;
 
   const rise = (i: number) =>
     reduce
@@ -173,7 +185,7 @@ export default function SuiteBoard({
 
         {/* ── The six ──────────────────────────────────────────────────── */}
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {SUITE_APPS.map((app, i) => {
+          {apps.map((app, i) => {
             const host = hostOf(app.id);
             const pulse = pulseOf(app.id);
             const inside = entered.includes(app.id);

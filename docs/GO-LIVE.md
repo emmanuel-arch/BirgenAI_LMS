@@ -337,6 +337,54 @@ distinction cleanly if it comes up.
 
 ---
 
+## 5b · Who sees what — the access model
+
+**One door.** `/login` takes everybody. The server decides where they land:
+
+| Credential | Session issued | Lands on |
+|---|---|---|
+| the PlatformAdmin row | platform | `/platform` — the estate, then "Enter console" into any org |
+| any staff row | staff (+ daily code) | `/suite` — their own doors |
+
+The "only my account" rule is the **PlatformAdmin table**, not a hard-coded
+address. It holds exactly one row. That email is *also* Org Admin in six orgs, so
+the platform check runs first — otherwise the founder would land inside a
+lender's console with no audit record. `/platform/login` redirects here and stays
+alive for bookmarks.
+
+### Role, then the person
+
+Rights are role-level and org-wide, which is the right default and the wrong
+ceiling: two people can share "Collections Supervisor" and still need different
+halves of ConnectDesk. Every staff member now carries an **access adjustment** on
+top of their role, edited in `/console/team` → **Manage**:
+
+- **Systems & modules** — a grid of the six systems and every module inside them.
+  A ticked box is something that person *can see*. **All** / **None** per system.
+- **Details** — name, work email, phone, date of birth, job title, role, branch.
+  Previously an administrator could change five toggles and nothing else, so
+  "she's changed her number" needed a developer.
+
+It is stored as a **deny list**, which is why nothing changed for anybody when it
+shipped: a module is visible unless it has been explicitly turned off, so a new
+screen appears for everyone automatically instead of being invisible until
+granted twenty times. A lender narrows deliberately.
+
+Two properties worth saying in the room:
+
+- **It lands without a sign-out.** Rights resolve from the database on every
+  request behind a 30-second cache — never frozen into the session cookie.
+  `npm run test:access` proves this by changing a live account and re-reading the
+  page *on the same session*.
+- **You cannot grant what you do not hold.** A per-person grant is checked
+  against the actor's own rights, the same anti-escalation rule role assignment
+  already enforces. Denying is unrestricted; granting is not.
+
+Hiding a module is a tidiness decision, not a security boundary, and is not sold
+as one — every route behind it still checks its own right server-side.
+
+---
+
 ## 6 · One screen per person in the room
 
 Seven people, seven doors. Each opens on their own department and each one is
