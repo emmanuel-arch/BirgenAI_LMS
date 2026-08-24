@@ -13,6 +13,7 @@ export default function CodeInput({
   length = 6,
   disabled = false,
   autoFocus = true,
+  tone = "light",
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -20,6 +21,17 @@ export default function CodeInput({
   length?: number;
   disabled?: boolean;
   autoFocus?: boolean;
+  /**
+   * Which canvas this sits on. The staff card at /login is a light surface; a
+   * system's own door at /suite/<id>/login is artwork under a dark scrim, and
+   * white boxes with zinc digits on it look like a form someone forgot to style.
+   *
+   * A PROP RATHER THAN A SECOND COMPONENT: the keyboard handling here — paste of
+   * a full code, backspace stepping, arrow motion, auto-advance — is the part
+   * that is easy to get subtly wrong, and it is the part a copy would silently
+   * fork. Only the class string differs.
+   */
+  tone?: "light" | "dark";
 }) {
   const refs = useRef<Array<HTMLInputElement | null>>([]);
   const digits = value.replace(/\D/g, "").slice(0, length).split("");
@@ -81,7 +93,11 @@ export default function CodeInput({
           disabled={disabled}
           autoFocus={autoFocus && i === 0}
           aria-label={`Digit ${i + 1}`}
-          className="h-14 w-full min-w-0 rounded-2xl border border-zinc-900/12 bg-white/85 text-center text-2xl font-bold text-zinc-900 outline-none transition-all duration-150 focus:border-[var(--brand)] focus:bg-white focus:shadow-[0_0_0_4px_var(--brand-soft),0_8px_24px_-8px_var(--brand-soft)] disabled:opacity-50"
+          className={
+            tone === "dark"
+              ? "h-13 w-full min-w-0 rounded-xl border border-white/12 bg-white/[0.06] text-center text-xl font-bold text-white outline-none transition-all duration-150 focus:border-[var(--brand)] focus:bg-white/[0.10] focus:shadow-[0_0_0_3px_var(--brand-soft)] disabled:opacity-50"
+              : "h-14 w-full min-w-0 rounded-2xl border border-zinc-900/12 bg-white/85 text-center text-2xl font-bold text-zinc-900 outline-none transition-all duration-150 focus:border-[var(--brand)] focus:bg-white focus:shadow-[0_0_0_4px_var(--brand-soft),0_8px_24px_-8px_var(--brand-soft)] disabled:opacity-50"
+          }
         />
       ))}
     </div>

@@ -13,26 +13,40 @@
 // regardless. So the card never sits on the image: it sits on a scrim over the
 // image, and the scrim is a known quantity. Same rule as the console canvas.
 //
-// ── SSO IS THE POINT ─────────────────────────────────────────────────────────
-// When a BirgenAI ID session already exists there is no password field at all —
-// one button and you are through. That is what makes "six front doors, one
-// identity" a demonstration rather than a claim, and it is why the signed-in
-// state is the larger and more prominent of the two.
+// ── SSO IS THE POINT, AND IT IS NOT THE ONLY DOOR ────────────────────────────
+// When a BirgenAI ID session already exists there is no password to type — one
+// button carrying the person's own first name, and they are through. That is
+// what makes "a front door per system, one identity" a demonstration rather
+// than a claim, and it is why the signed-in state is the larger of the two.
+//
+// But it is NOT the only state, and treating it as one was the flaw in the
+// first version of this page. Somebody who was simply sent
+// connectdesk.servicesuitecloud.com — the collections supervisor who has never
+// opened the lending console — arrives here with no session, and bouncing them
+// to a generic /login that has forgotten which system they asked for is how a
+// suite of products comes to feel like one product wearing several names. They
+// get the real email-and-password form, on this system's own artwork, in this
+// system's own colour. See SuiteDoorForm, which holds both states.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Link from "next/link";
-import { ArrowRight, KeyRound, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { Artwork } from "@/lib/suite/artwork";
 import type { SuiteApp } from "@/lib/suite/apps";
+import SuiteDoorForm from "./SuiteDoorForm";
 
 export default function SuiteDoor({
-  app, art, who, orgName, logoUrl, continueHref, hasArtwork,
+  app, art, who, firstName, orgName, orgSlug, logoUrl, continueHref, hasArtwork,
 }: {
   app: Pick<SuiteApp, "id" | "name" | "tagline" | "accent" | "modules"> & { icon: SuiteApp["icon"] };
   art: Artwork;
   /** Signed-in person, or null. */
   who: string | null;
+  /** Their first name — what the SSO button says. Null when nobody is signed in. */
+  firstName: string | null;
   orgName: string | null;
+  /** Pins a sign-in to one lender when the door was reached through their host. */
+  orgSlug: string | null;
   logoUrl: string | null;
   continueHref: string;
   /** Has the artwork file actually been generated yet? */
@@ -89,44 +103,28 @@ export default function SuiteDoor({
           </h1>
           <p className="mt-2 text-[13px] leading-relaxed text-white/55">{app.tagline}</p>
 
-          <div className="mt-6 rounded-2xl border border-white/[0.10] bg-white/[0.05] p-4 backdrop-blur-xl">
-            {who ? (
-              <>
-                <div className="flex items-start gap-2 rounded-xl bg-emerald-400/10 px-3 py-2.5 ring-1 ring-emerald-400/25">
-                  <ShieldCheck className="mt-px h-4 w-4 shrink-0 text-emerald-300" />
-                  <p className="text-[12.5px] leading-snug text-white/85">
-                    Signed in as <strong className="font-semibold text-white">{who}</strong> with BirgenAI ID.
-                  </p>
-                </div>
-                <Link
-                  href={continueHref}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white transition-transform hover:scale-[1.01]"
-                  style={{ backgroundColor: app.accent }}
-                >
-                  Continue to {app.name} <ArrowRight className="h-4 w-4" />
-                </Link>
-                <p className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-[11px] text-white/40">
-                  <KeyRound className="h-3 w-3" /> No password — one identity, six systems.
-                </p>
-                <Link href="/api/auth/logout" className="mt-3 block text-center text-[11px] text-white/35 hover:text-white/70">
-                  Not you? Sign out
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link
-                  href={`/login?callbackUrl=${encodeURIComponent(continueHref)}`}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white transition-transform hover:scale-[1.01]"
-                  style={{ backgroundColor: app.accent }}
-                >
-                  <KeyRound className="h-4 w-4" /> Sign in with BirgenAI ID
-                </Link>
-                <p className="mt-2.5 text-center text-[11px] leading-relaxed text-white/40">
-                  One sign-in opens every system you hold a role in. It opens no system you do not.
-                </p>
-              </>
-            )}
+          {/* The sign-in half is a client island — see SuiteDoorForm. The artwork,
+              the scrim and the lockup above stay server-rendered, so the door is
+              legible from the HTML alone before any JavaScript arrives. */}
+          <div className="mt-6">
+            <SuiteDoorForm
+              systemName={app.name}
+              accent={app.accent}
+              continueHref={continueHref}
+              who={who}
+              firstName={firstName}
+              orgSlug={orgSlug}
+            />
           </div>
+
+          {who && (
+            <Link
+              href="/api/auth/logout"
+              className="mt-3 block text-center text-[11px] text-white/35 transition-colors hover:text-white/70"
+            >
+              Sign out of BirgenAI ID entirely
+            </Link>
+          )}
 
           <div className="mt-4 flex flex-wrap gap-1.5">
             {app.modules.map((m) => (

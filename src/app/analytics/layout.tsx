@@ -18,6 +18,7 @@ import { prisma } from "@/lib/prisma";
 import { getRights, getDeniedModules } from "@/lib/rbac/authz";
 import { studioNavFor } from "@/lib/analytics/studio-nav";
 import { resolveSuite, hrefFor } from "@/lib/suite/hosts";
+import { visibleSystemIds } from "@/lib/suite/access";
 import { suiteApp } from "@/lib/suite/apps";
 import StudioShell from "@/components/analytics/StudioShell";
 import BrandHead from "@/components/BrandHead";
@@ -32,12 +33,24 @@ export default async function AnalyticsLayout({ children }: { children: React.Re
   const [org, rights, denied] = await Promise.all([
     prisma.org.findUnique({
       where: { id: session.user.orgId },
-      select: { name: true, slug: true, mode: true, logoUrl: true },
+      select: { name: true, slug: true, systems: true, mode: true, logoUrl: true },
     }),
     getRights(session),
     getDeniedModules(session),
   ]);
   if (!org) redirect("/login");
+
+  // ── THE COMMERCIAL GATE ────────────────────────────────────────────────────
+  // Hiding a tile on the launcher is a courtesy. THIS is the control: a lender
+  // whose Analytics Studio was switched off at /platform can still type /analytics, and
+  // without a refusal here they would simply be inside it. Menu filtering has
+  // never been an access boundary and is not sold as one.
+  //
+  // /suite rather than /login, because the person IS authenticated — bouncing a
+  // signed-in user to a sign-in page to tell them their company does not have a
+  // system reads as a broken session, which is the wrong support ticket.
+  const visible = visibleSystemIds(org.systems, denied);
+  if (!visible.includes("analytics")) redirect("/suite");
 
   // The studio reads the WHOLE book. That is a reporting right, not a lending
   // one — a field officer with borrowers.view has no business reading group PAR,
@@ -54,7 +67,7 @@ export default async function AnalyticsLayout({ children }: { children: React.Re
         nav={nav}
         org={{ name: org.name, slug: org.slug, mode: org.mode, logoUrl: org.logoUrl }}
         user={{ name: session.user.name ?? "Staff", email: session.user.email, role: session.user.role }}
-        suiteHosts={resolveSuite()}
+        suiteHosts={resolveSuite(visible)}
         consoleHref={lms ? hrefFor(lms) : "/console"}
       >
         {children}

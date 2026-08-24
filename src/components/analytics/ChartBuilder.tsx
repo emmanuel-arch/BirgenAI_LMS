@@ -28,7 +28,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useMemo, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { Check, Ban, Sparkles, Info, RotateCcw, Loader2, Hash, Tag, CalendarDays, ListOrdered } from "lucide-react";
+import { Check, Ban, CircleCheck, Info, RotateCcw, Loader2, Hash, Tag, CalendarDays, ListOrdered } from "lucide-react";
 import {
   FIELDS, fieldsBySource, field, isMeasure, isDimension, checkPlot, guidance,
   SOURCE_LABEL, SOURCE_BLURB, type Field,
@@ -189,7 +189,7 @@ export default function ChartBuilder({
             ["--tw-ring-color" as never]: guide.tone === "warn" ? `${STATUS.warning}44` : guide.tone === "ok" ? `${STATUS.good}33` : "rgba(15,15,25,0.07)",
           }}
         >
-          {guide.tone === "ok" ? <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
+          {guide.tone === "ok" ? <CircleCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
           <span>{guide.text}</span>
           {pending && <Loader2 className="ml-auto h-3.5 w-3.5 shrink-0 animate-spin opacity-60" />}
         </div>

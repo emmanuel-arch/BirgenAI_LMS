@@ -17,7 +17,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  KeyRound, ArrowRight, ShieldCheck, Check, Globe, Lock, Layers, Sparkle, Building2,
+  KeyRound, ArrowRight, ShieldCheck, Check, Globe, Lock, Layers, Layers3, Building2,
 } from "lucide-react";
 import { SUITE_APPS, type SuiteApp } from "@/lib/suite/apps";
 import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
@@ -76,7 +76,7 @@ export default function SuiteLauncher({ who, orgName, entered, hosts }: Props) {
         {/* ── Hero ───────────────────────────────────────────────────────── */}
         <motion.div {...rise(1)} className="mt-6 max-w-2xl sm:mt-9">
           <span className="t-label inline-flex items-center gap-1.5 rounded-full bg-[color:var(--brand-soft)] px-2.5 py-1 text-[color:var(--brand)]">
-            <Sparkle className="h-3 w-3" /> The connected suite
+            <Layers3 className="h-3 w-3" /> The connected suite
           </span>
           <h1 className="t-display mt-3 text-[1.9rem] sm:text-[2.4rem]">
             One login.<br className="sm:hidden" /> Every system.

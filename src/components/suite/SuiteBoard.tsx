@@ -32,24 +32,26 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  ArrowRight, ShieldCheck, KeyRound, Building2, Lock, Sparkles, Database, Radio, ArrowUpRight,
+  ArrowRight, ShieldCheck, KeyRound, Building2, Lock, Layers3, Database, Radio, ArrowUpRight,
 } from "lucide-react";
 import { SUITE_APPS } from "@/lib/suite/apps";
 import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 import type { SuiteTelemetry } from "@/lib/suite/telemetry";
+import { TimeAgo } from "@/components/suite/kit";
 
-const ago = (iso: string | null) => {
-  if (!iso) return "—";
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  // A negative age means the clock and the database disagree — see
-  // lib/enterprise/tz.ts. It is clamped rather than printed, because
-  // "−10,163s ago" is the kind of detail that derails a demonstration.
-  if (s < 0) return "just now";
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-};
+// ── WHY THE FRESHNESS STAMP IS <TimeAgo> AND NOT A LOCAL ago() ───────────────
+// This is a CLIENT component, and a relative time is a function of Date.now().
+// The server renders "3s ago", React hydrates a beat later and computes
+// "4s ago", the two trees disagree, and React reports that as a full hydration
+// failure and throws the tree away to re-render it. On the first screen anyone
+// sees, that is a red overlay over the demonstration.
+//
+// <TimeAgo> (components/suite/kit) paints the ABSOLUTE time on first paint —
+// identical on both sides, because it depends only on the timestamp — then
+// swaps to the relative form after mount and re-renders every ten seconds. The
+// ticking is the point: a stamp that visibly advances while you are talking is
+// what separates live from a screenshot. It also clamps negative ages, which is
+// what the old helper here was guarding against; see lib/enterprise/tz.ts.
 
 export default function SuiteBoard({
   who, orgName, entered, hosts, telemetry, visible,
@@ -76,6 +78,14 @@ export default function SuiteBoard({
   // an administrator then has to answer; a launcher of five is simply this
   // person's suite.
   const apps = visible ? SUITE_APPS.filter((a) => visible.includes(a.id)) : SUITE_APPS;
+
+  // THE COUNT IS COMPUTED, NEVER TYPED. This page used to say "Six systems." in
+  // three places, which was true right up until a lender bought four of them —
+  // and a launcher that claims six while rendering four is the single fastest
+  // way to make a real product look like a mock-up in front of a room.
+  const n = apps.length;
+  const spell = ["no", "one", "two", "three", "four", "five", "six", "seven"][n] ?? String(n);
+  const Spell = spell.charAt(0).toUpperCase() + spell.slice(1);
 
   const rise = (i: number) =>
     reduce
@@ -121,7 +131,9 @@ export default function SuiteBoard({
             </span>
             <div>
               <p className="text-[15px] font-bold leading-tight">BirgenAI ID</p>
-              <p className="text-[11.5px] text-white/45">One sign-in. Six systems. One nervous system.</p>
+              <p className="text-[11.5px] text-white/45">
+                One sign-in. {Spell} system{n === 1 ? "" : "s"}. One nervous system.
+              </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -137,10 +149,10 @@ export default function SuiteBoard({
         {/* ── Hero ─────────────────────────────────────────────────────── */}
         <motion.div {...rise(1)} className="mt-9 max-w-3xl sm:mt-12">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] px-3 py-1 text-[10.5px] font-bold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">
-            <Sparkles className="h-3 w-3" /> The connected suite
+            <Layers3 className="h-3 w-3" /> The connected suite
           </span>
           <h1 className="mt-4 text-[34px] font-bold leading-[1.08] tracking-[-0.028em] sm:text-[46px]">
-            Six systems.{" "}
+            {Spell} system{n === 1 ? "" : "s"}.{" "}
             <span
               className="bg-clip-text text-transparent"
               style={{ backgroundImage: "linear-gradient(96deg,#4d94ea 0%,#22b8cf 22%,#a78bfa 46%,#fb7185 70%,#2dd4bf 92%)" }}
@@ -162,8 +174,8 @@ export default function SuiteBoard({
             <div className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.07] px-4 py-3">
               <p className="text-[12.5px] font-semibold text-amber-200">Micromart&rsquo;s server is not reachable right now</p>
               <p className="mt-0.5 text-[11.5px] text-amber-200/70">
-                The six doors below still open. Every screen behind them reads live, so they will show their own
-                connection state rather than stale numbers.
+                The {spell} door{n === 1 ? "" : "s"} below still open. Every screen behind them reads live, so they
+                will show their own connection state rather than stale numbers.
               </p>
             </div>
           ) : (
@@ -175,7 +187,7 @@ export default function SuiteBoard({
                 </span>
                 Live
               </span>
-              <span className="text-[11.5px] text-white/45">last payment {ago(telemetry.lastEventAt)}</span>
+              <span className="text-[11.5px] text-white/45">last payment <TimeAgo at={telemetry.lastEventAt} /></span>
               <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-white/35">
                 <Database className="h-3 w-3" /> services · Serviceconnect · CollectBox · Transactions
               </span>
@@ -183,19 +195,47 @@ export default function SuiteBoard({
           )}
         </motion.div>
 
-        {/* ── The six ──────────────────────────────────────────────────── */}
+        {/* ── The systems this lender holds ─────────────────────────────── */}
+        {n === 0 && (
+          // Reachable, and worth rendering properly: an administrator can switch
+          // every system off from the platform board. A blank page here would
+          // read as an outage and generate a support call; naming the cause and
+          // who can undo it turns it into a two-minute conversation.
+          <div className="mt-4 rounded-2xl border border-white/[0.09] bg-white/[0.035] px-5 py-8 text-center backdrop-blur">
+            <p className="text-[15px] font-semibold text-white/80">No systems are switched on for {orgName} yet.</p>
+            <p className="mx-auto mt-2 max-w-md text-[12.5px] leading-relaxed text-white/45">
+              Your BirgenAI ID is valid and you are signed in — there is simply nothing assigned to this organisation
+              to open. A platform administrator turns systems on per lender; ask them to add the ones you have bought.
+            </p>
+          </div>
+        )}
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {apps.map((app, i) => {
             const host = hostOf(app.id);
             const pulse = pulseOf(app.id);
             const inside = entered.includes(app.id);
+            const external = host?.external ?? !!app.external;
             const Icon = app.icon;
             const on = hover === app.id;
+
+            // EVERY TILE OPENS ON THAT SYSTEM'S OWN FRONT DOOR, not straight into
+            // the system. It costs a click and it buys the thing this product is
+            // actually selling: you see ConnectDesk's name, ConnectDesk's artwork
+            // and ConnectDesk's colour before you are inside it, and the button
+            // you press says "Continue as Faith" rather than nothing at all. A
+            // silent hop into the seventh identical dark console is how six
+            // products come to look like six tabs.
+            //
+            // Systems with no door — the borrower portal, the external
+            // Interchange — fall through to their href, which is the honest
+            // behaviour rather than a door that could not authenticate you.
+            const target = host?.door ?? host?.href ?? app.href;
 
             return (
               <motion.div key={app.id} {...rise(3 + i)}>
                 <Link
-                  href={host?.href ?? app.href}
+                  href={target}
+                  {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                   onMouseEnter={() => setHover(app.id)}
                   onMouseLeave={() => setHover(null)}
                   className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.035] p-4 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-white/[0.16] hover:bg-white/[0.06]"
@@ -216,7 +256,15 @@ export default function SuiteBoard({
                       <Icon className="h-[18px] w-[18px]" style={{ color: app.accent }} />
                     </span>
                     <span className="flex flex-col items-end gap-1">
-                      {inside ? (
+                      {external ? (
+                        // A separate deployment with its own member gate. Claiming
+                        // "signed in" here would be a lie the next click exposes:
+                        // BirgenAI ID does not open the Interchange, an Ed25519
+                        // node certificate does.
+                        <span className="inline-flex items-center gap-1 rounded-md bg-white/[0.07] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-white/45">
+                          <ArrowUpRight className="h-2.5 w-2.5" /> Separate sign-in
+                        </span>
+                      ) : inside ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-emerald-400/12 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-emerald-300">
                           <ShieldCheck className="h-2.5 w-2.5" /> Signed in
                         </span>

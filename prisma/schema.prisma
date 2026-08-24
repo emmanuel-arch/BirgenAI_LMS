@@ -105,6 +105,24 @@ model Org {
   heroUrl    String?
   // First-run setup checklist ({ dismissed?: boolean, activationRequestedAt?: string })
   onboardingState Json?
+  // ── WHICH SYSTEMS THIS LENDER BOUGHT ──────────────────────────────────────
+  // A string[] of SuiteApp ids: ["lms","portal","analytics","hr","accounting",
+  // "callcenter","interchange"]. Set by the platform admin when the organisation
+  // is created, and editable from /platform thereafter.
+  //
+  // NULL MEANS EVERY SYSTEM, and that is not laziness — it is the same posture
+  // as StaffUser.access and Role.dataScope: adding this column must change
+  // NOTHING for any organisation that existed before it. An empty array is a
+  // real and distinct value meaning "no systems at all", which is exactly why
+  // this cannot simply default to [].
+  //
+  // This is a COMMERCIAL boundary — what the lender pays for — sitting ABOVE the
+  // two access questions that already exist: StaffUser.access decides what a
+  // PERSON is shown, and rights decide what they may DO. A system switched off
+  // here disappears for the whole organisation regardless of either.
+  //
+  // The only reader is src/lib/suite/entitlements.ts. Nothing else parses it.
+  systems Json?
   // Field-ops control: a borrower's business/home location SNAPSHOT must be on file
   // before money is released to them (you should know where your borrower's business
   // is before you lend against it, and a customer with no pin never appears on a

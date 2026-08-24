@@ -13,15 +13,20 @@ import { useRouter } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
 import {
   Loader2, AlertTriangle, ShieldCheck, CheckCircle2, Crown, Receipt,
-  MessageSquare, Gift, LogOut, ArrowRightCircle, Circle, BadgeCheck,
+  MessageSquare, Gift, LogOut, ArrowRightCircle, Circle, BadgeCheck, LayoutGrid,
 } from "lucide-react";
 
 type PlanOpt = { key: string; name: string; monthlyKes: number };
+type SystemOpt = { id: string; name: string; short: string; accent: string; purpose: string; external: boolean };
 type Setup = { branding: boolean; products: boolean; workflows: boolean; roles: boolean; team: boolean; vault: boolean };
 type OrgRow = {
   id: string; slug: string; name: string; mode: string; status: string; plan: string; createdAt: string;
   logoUrl: string | null; accent: string;
   activationRequestedAt: string | null;
+  /** The systems this lender holds. Always a concrete list — see systemsAll. */
+  systems: string[];
+  /** True when the column is null: "everything in the catalogue, including future systems". */
+  systemsAll: boolean;
   setup: Setup;
   subscription: { status: string; trialEndsAt: string | null; currentPeriodEnd: string } | null;
   lastInvoice: { number: string; totalKes: number; status: string } | null;
@@ -51,6 +56,7 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
   const router = useRouter();
   const [orgs, setOrgs] = useState<OrgRow[] | null>(null);
   const [plans, setPlans] = useState<PlanOpt[]>([]);
+  const [catalog, setCatalog] = useState<SystemOpt[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [acting, setActing] = useState<string | null>(null);
@@ -69,7 +75,7 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
         if (res.status === 401) { router.replace("/login"); return; }
         setError(data.message || "Could not load."); return;
       }
-      setOrgs(data.orgs); setPlans(data.plans ?? []);
+      setOrgs(data.orgs); setPlans(data.plans ?? []); setCatalog(data.catalog ?? []);
     } catch { setError("Could not load."); }
   };
   useLoad(load);
@@ -85,7 +91,9 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
       setNotice(
         data.granted
           ? `${data.slug} +${Number(data.granted).toLocaleString()} SMS${data.flushed ? ` · ${data.flushed} queued messages sent` : ""}`
-          : data.plan ? `${data.slug} → ${data.plan}` : `${data.slug} → ${data.status}`,
+          : Array.isArray(data.systems)
+            ? `${data.slug} — ${data.systems.length} system${data.systems.length === 1 ? "" : "s"}. Their staff see the change on the next page load.`
+            : data.plan ? `${data.slug} → ${data.plan}` : `${data.slug} → ${data.status}`,
       );
       await load();
     } catch { setError("Action failed."); } finally { setActing(null); }
@@ -214,6 +222,15 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
                       ))}
                     </div>
 
+                    {/* Which systems this lender holds — the widest switch on this board. */}
+                    <SystemToggles
+                      org={o}
+                      catalog={catalog}
+                      busy={acting === o.id + "systems"}
+                      disabled={!!acting}
+                      onSave={(systems) => void post({ orgId: o.id, action: "systems", systems }, o.id + "systems")}
+                    />
+
                     {/* Commercials: what they are on, whether it is paid for, what they last owed. */}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <Crown className="h-3.5 w-3.5 text-zinc-400" />
@@ -293,6 +310,154 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
           </>
         )}
       </main>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE SYSTEM TOGGLES — what this lender actually bought.
+//
+// ── WHY THE CHANGE IS STAGED RATHER THAN INSTANT ─────────────────────────────
+// Every other control on this board fires on click, and that is right for them:
+// activating an org, assigning a package and granting SMS are all single,
+// reversible decisions. This one is not. "Micromart takes Lending, ConnectDesk
+// and Ledgerly" is ONE decision expressed as several clicks, and firing on each
+// one would write four rows to the audit log, four notices to the top of the
+// page — and, in the window between the first click and the last, would take
+// systems away from people who are using them right now.
+//
+// So the checkboxes are local until Save. The Save button says how many systems
+// are about to be added and removed, because the removals are the half that
+// hurts and they should never be a surprise.
+//
+// ── WHY THE ACCENT IS ON THE PILL ────────────────────────────────────────────
+// The colours here are the SAME six accents the launcher, each sidebar and each
+// login page wear. An administrator who ticks the rose pill has ticked the thing
+// the lender will see in rose. That is the colour-code paying off in the one
+// place where a mistake is expensive and there is no preview.
+// ─────────────────────────────────────────────────────────────────────────────
+function SystemToggles({
+  org, catalog, busy, disabled, onSave,
+}: {
+  org: OrgRow;
+  catalog: SystemOpt[];
+  busy: boolean;
+  disabled: boolean;
+  onSave: (systems: string[]) => void;
+}) {
+  // Keyed on the saved value so a reload after Save resets the draft. Without the
+  // key, a second edit would start from the first edit's stale local state.
+  const saved = org.systems.join(",");
+  const [draft, setDraft] = useState<string[]>(org.systems);
+  const [key, setKey] = useState(saved);
+  if (key !== saved) { setKey(saved); setDraft(org.systems); }
+
+  const has = (id: string) => draft.includes(id);
+  const toggle = (id: string) => setDraft((d) => (d.includes(id) ? d.filter((x) => x !== id) : [...d, id]));
+
+  const added = draft.filter((id) => !org.systems.includes(id));
+  const removed = org.systems.filter((id) => !draft.includes(id));
+  const dirty = added.length > 0 || removed.length > 0;
+
+  return (
+    <div className="mt-2 border-t border-zinc-900/5 pt-3">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+          <LayoutGrid className="h-3 w-3" /> Systems {draft.length}/{catalog.length}
+        </span>
+        {org.systemsAll && !dirty && (
+          // Worth naming rather than rendering as "all seven ticked": a null
+          // column FOLLOWS the catalogue, so an eighth system would appear for
+          // this lender automatically. An explicit list of seven would not.
+          <span className="rounded-md bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+            unrestricted — inherits new systems
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => setDraft(catalog.map((c) => c.id))}
+          className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-800"
+        >
+          All
+        </button>
+        <button
+          type="button"
+          onClick={() => setDraft([])}
+          className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-800"
+        >
+          None
+        </button>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {catalog.map((s) => {
+          const on = has(s.id);
+          return (
+            <button
+              key={s.id}
+              type="button"
+              disabled={disabled}
+              onClick={() => toggle(s.id)}
+              title={`${s.name} — ${s.purpose}`}
+              aria-pressed={on}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-semibold transition-all disabled:opacity-60 ${
+                on ? "text-white shadow-sm" : "border-zinc-900/12 bg-white/60 text-zinc-500 hover:bg-white"
+              }`}
+              style={on ? { backgroundColor: s.accent, borderColor: s.accent } : undefined}
+            >
+              {on ? <CheckCircle2 className="h-3 w-3" /> : <Circle className="h-3 w-3" />}
+              {s.short}
+              {s.external && (
+                <span
+                  title="A separate deployment with its own sign-in. Switching it on adds the tile; provisioning the lender as a member happens in the Interchange."
+                  className={`rounded px-1 text-[9px] font-bold uppercase ${on ? "bg-white/25" : "bg-zinc-900/8"}`}
+                >
+                  ext
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {dirty && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onSave(draft)}
+            className="rounded-lg bg-zinc-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
+          >
+            {busy ? <Loader2 className="inline h-3 w-3 animate-spin" /> : "Save systems"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setDraft(org.systems)}
+            className="rounded-lg border border-zinc-900/12 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-zinc-600 hover:bg-white"
+          >
+            Cancel
+          </button>
+          {/* The removals are the half that hurts. Name them, and name them first. */}
+          {removed.length > 0 && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600">
+              <AlertTriangle className="h-3 w-3" />
+              removing {removed.map((id) => catalog.find((c) => c.id === id)?.short ?? id).join(", ")} — disappears for
+              every user at this lender
+            </span>
+          )}
+          {added.length > 0 && (
+            <span className="text-[11px] font-medium text-emerald-600">
+              adding {added.map((id) => catalog.find((c) => c.id === id)?.short ?? id).join(", ")}
+            </span>
+          )}
+        </div>
+      )}
+
+      {draft.length === 0 && !dirty && (
+        <p className="mt-1.5 text-[11px] text-amber-700">
+          No systems. Staff can sign in, and the launcher tells them there is nothing assigned to open.
+        </p>
+      )}
     </div>
   );
 }

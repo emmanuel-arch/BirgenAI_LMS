@@ -121,11 +121,28 @@ export const ARTWORK: Artwork[] = [
     file: "/images/suite/login-people.webp",
     gradient: "radial-gradient(1200px 700px at 78% 18%, #6d28d933 0%, transparent 62%), radial-gradient(900px 600px at 20% 90%, #8b5cf61f 0%, transparent 60%), #0b0a10",
     mood: "Ordered, individual, collective. Many separate things, arranged.",
+    // ── REGENERATE THIS ONE ──────────────────────────────────────────────────
+    // The plate on disk is the weakest of the six and measurably so: 1.1%
+    // saturated pixels against 17–28% for the good ones, at 1344x768 — the
+    // lowest resolution in the set. It renders as a black rectangle with four
+    // flat purple bars pasted on, which is what "most dark, some glowing"
+    // produced when the generator took "most dark" literally.
+    //
+    // The prompt below is rewritten for that failure specifically: the wall is
+    // now shot straight-on-ish with real falloff, MANY compartments are lit
+    // rather than four, and the light is described as spilling OUT of them onto
+    // the surrounding wood — which is what gives a grid its depth. `npm run
+    // art:check` scores the result.
     prompt:
-      `${HOUSE_STYLE} Subject: a wall of identical dark wooden pigeonhole compartments receding into shadow, `
-      + `a scattered few of them lit from within by warm purple light (#6d28d9) — most dark, some glowing. `
-      + `Slight angle so the grid has perspective. The feeling is a roster: many individuals, the same shape, `
-      + `each its own space. Purple as the only chroma. No papers or objects legible inside the compartments.`,
+      `${HOUSE_STYLE} Subject: a tall wall of identical dark oak pigeonhole compartments filling the right two `
+      + `thirds of the frame and receding into shadow toward the left. Roughly a third of the compartments glow `
+      + `from within with warm violet light (#6d28d9), the light spilling out over the wood lip of each one and `
+      + `pooling on the floor below, so the grid reads as depth rather than as flat squares. The lit ones are `
+      + `scattered irregularly, never in a row or a pattern. Rich violet chroma throughout the lit region — this `
+      + `must NOT be a near-black image with a few bright rectangles. Shallow depth of field, sharp at the centre `
+      + `of the wall and dissolving at both edges. The feeling is a roster: many individuals, the same shape, each `
+      + `its own space, most of them occupied. Violet as the only chroma. No papers, labels or objects legible `
+      + `inside the compartments.`,
   },
   {
     id: "accounting",
@@ -134,11 +151,29 @@ export const ARTWORK: Artwork[] = [
     file: "/images/suite/login-books.webp",
     gradient: "radial-gradient(1200px 700px at 78% 18%, #0f766e33 0%, transparent 62%), radial-gradient(900px 600px at 20% 90%, #14b8a61f 0%, transparent 60%), #0b0a10",
     mood: "Exact, balanced, quiet. The truth about the money.",
+    // ── REGENERATE THIS ONE ──────────────────────────────────────────────────
+    // The plate on disk is a beautiful photograph of the WRONG COLOUR. Its
+    // dominant hue measures 35° — gold — against Ledgerly's 175° green-teal, a
+    // miss of 140°, the largest in the set by an order of magnitude.
+    //
+    // The cause is one word. "Antique brass" is a colour instruction as much as
+    // a material one, and every generator weights it far above a rim-light
+    // qualifier that arrives eleven words later. So the material is now dark
+    // blackened steel, the brass is named as something to AVOID, and the teal is
+    // stated first and repeated.
+    //
+    // This matters beyond taste: the accent is a colour CODE. It is the same
+    // teal Ledgerly wears in its sidebar, its launcher tile and its header rule,
+    // and a gold front door teaches the wrong one at the exact moment somebody
+    // is learning the suite. `npm run art:check` scores the result.
     prompt:
-      `${HOUSE_STYLE} Subject: an antique brass balance scale in near-darkness, both pans empty and perfectly `
-      + `level, rim-lit along one edge in deep green-teal (#0f766e). The background falls away entirely to `
-      + `black. Macro-sharp on the pivot, soft everywhere else. The feeling is exactness and equilibrium — `
-      + `two sides that agree. Green-teal as the only chroma. The scale sits in the right third.`,
+      `${HOUSE_STYLE} Subject: a balance scale of dark blackened steel standing in near-darkness, both pans `
+      + `empty and perfectly level. Deep green-teal light (#0f766e) rims the beam, the chains and the upper edge `
+      + `of both pans, and a soft teal pool of the same colour spreads on the surface beneath it. The metal is `
+      + `MATTE DARK GREY-BLACK, not brass, not gold, not bronze, not copper — there must be no warm yellow or `
+      + `amber anywhere in the frame. Background falls away entirely to black. Macro-sharp on the pivot, soft `
+      + `everywhere else. The feeling is exactness and equilibrium — two sides that agree. Green-teal as the `
+      + `only chroma in the image. The scale sits in the right third.`,
   },
 ];
 

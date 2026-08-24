@@ -32,15 +32,26 @@ export default function IdentityMenu({
   role,
   orgName,
   currentId = "lms",
-  hosts = [],
+  hosts,
 }: {
   name: string;
   email?: string | null;
   role?: string | null;
   orgName?: string | null;
   currentId?: string;
-  /** Resolved server-side: each system's live href once it has its own origin. */
-  hosts?: ResolvedSuiteApp[];
+  /**
+   * The systems to offer, resolved server-side — each one's live href once it
+   * has its own origin, and its branded door.
+   *
+   * REQUIRED, and it used to default to []. That default was the bug this prop
+   * now prevents: the list rendered from SUITE_APPS and used `hosts` only to
+   * look up an href, so a caller that forgot to pass it still showed all seven
+   * systems — including the ones the lender had not bought. The switcher is on
+   * every screen in every system, so it was the widest possible place for that
+   * to leak. Now the list IS this array, and a caller that forgets does not
+   * compile.
+   */
+  hosts: ResolvedSuiteApp[];
 }) {
   const [open, setOpen] = useState(false);
   const [pw, setPw] = useState(false);
@@ -131,17 +142,23 @@ export default function IdentityMenu({
                   too, honestly labelled — a switcher that hides what exists is a
                   switcher nobody learns the shape of. */}
               <div className="max-h-[46vh] overflow-y-auto p-1.5">
-                {SUITE_APPS.map((app) => {
+                {hosts.map((host) => {
+                  const app = SUITE_APPS.find((a) => a.id === host.id);
+                  if (!app) return null;
                   const here = app.id === currentId;
-                  const host = hosts.find((h) => h.id === app.id);
                   // Cross-origin destinations get a plain anchor — the client router
                   // cannot soft-navigate off this origin, and Link would only add a
                   // failed prefetch before the full page load happens regardless.
-                  const Nav = (host?.federated ? "a" : Link) as typeof Link;
+                  const Nav = (host.federated || host.external ? "a" : Link) as typeof Link;
+                  // Every hop goes through the destination system's own door, so
+                  // switching from Ledgerly to ConnectDesk shows you ConnectDesk's
+                  // name and colour on the way in rather than dropping you into an
+                  // identically-shaped console and leaving you to read the header.
                   return (
                     <Nav
                       key={app.id}
-                      href={host?.href ?? app.href}
+                      href={here ? host.href : (host.door ?? host.href)}
+                      {...(host.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                       onClick={() => setOpen(false)}
                       className={`group flex items-start gap-3 rounded-xl px-2.5 py-2 transition-colors ${
                         here ? "bg-[color:var(--ink)]/[0.04]" : "hover:bg-[color:var(--ink)]/[0.04]"

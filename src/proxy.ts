@@ -31,7 +31,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { pathForLabel } from "@/lib/suite/labels";
+import { doorForLabel } from "@/lib/suite/labels";
 
 /**
  * Paths that must reach the framework untouched on ANY branded host: assets, the
@@ -64,7 +64,7 @@ export function proxy(request: NextRequest) {
 
   // Not one of the six, or a path that must reach the framework untouched.
   // Either way this returns before allocating anything.
-  const target = pathForLabel(subdomain(host));
+  const target = doorForLabel(subdomain(host));
   if (!target) return NextResponse.next();
   if (isPassThrough(pathname)) return NextResponse.next();
 

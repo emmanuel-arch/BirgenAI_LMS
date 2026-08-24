@@ -1,0 +1,1031 @@
+<title>The Interchange</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+:root{
+  --ink:#121A18;
+  --paper:#FFFFFF;
+  --surface:#F4F7F5;
+  --surface-2:#EAF0EC;
+  --rule:#DCE4DF;
+  --rule-strong:#B9C6BE;
+  --muted:#5C6B64;
+  --accent:#0B5D4E;
+  --accent-soft:#E6F0EB;
+  --signal:#B4531A;
+  --signal-soft:#FAEEE4;
+  --critical:#A32020;
+  --critical-soft:#FBEBEB;
+
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --mono:"JetBrains Mono","SFMono-Regular",Consolas,monospace;
+}
+
+@page{ size:A4; margin:14mm 13mm 15mm; }
+
+*{ box-sizing:border-box; }
+
+html{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:9.6pt;
+  line-height:1.58;
+  font-variant-numeric:oldstyle-nums;
+}
+
+.sheet{ max-width:172mm; margin:0 auto; }
+
+/* ─── Rail layout ─────────────────────────────────────────────── */
+section{ margin:0 0 9mm; }
+.sec{
+  display:grid;
+  grid-template-columns:13mm 1fr;
+  gap:0 5mm;
+  align-items:start;
+}
+.sec > .num{
+  font-family:var(--display);
+  font-size:8pt;
+  font-weight:700;
+  letter-spacing:.06em;
+  color:var(--accent);
+  padding-top:1.2mm;
+  font-variant-numeric:tabular-nums;
+}
+.sec > .bodycol{ min-width:0; }
+
+/* ─── Type ────────────────────────────────────────────────────── */
+h1,h2,h3,h4{ font-family:var(--display); text-wrap:balance; margin:0; font-variant-numeric:lining-nums; }
+
+h2{
+  font-size:16pt; font-weight:700; letter-spacing:-.015em; line-height:1.15;
+  padding-bottom:2.4mm; margin-bottom:4mm;
+  border-bottom:1.6pt solid var(--ink);
+}
+h3{
+  font-size:10.5pt; font-weight:600; letter-spacing:-.005em;
+  margin:6mm 0 2mm; color:var(--ink);
+}
+h3:first-child{ margin-top:0; }
+h4{
+  font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:.1em;
+  color:var(--muted); margin:5mm 0 1.6mm;
+}
+p{ margin:0 0 2.6mm; max-width:66ch; }
+.lede{ font-size:11pt; line-height:1.5; color:var(--ink); max-width:60ch; }
+strong{ font-weight:600; }
+em{ font-style:italic; }
+a{ color:var(--accent); text-decoration:none; }
+
+ul,ol{ margin:0 0 2.8mm; padding-left:5mm; max-width:66ch; }
+li{ margin-bottom:1.2mm; }
+li::marker{ color:var(--accent); }
+
+code,.m{ font-family:var(--mono); font-size:8.1pt; font-variant-numeric:tabular-nums; }
+code{ background:var(--surface-2); padding:.3mm 1mm; border-radius:1.4pt; }
+
+/* ─── Masthead ────────────────────────────────────────────────── */
+.mast{ border-bottom:3pt solid var(--ink); padding-bottom:6mm; margin-bottom:7mm; }
+.eyebrow{
+  font-family:var(--display); font-size:7.6pt; font-weight:600;
+  text-transform:uppercase; letter-spacing:.22em; color:var(--accent);
+  margin-bottom:4mm;
+}
+.mast h1{
+  font-size:44pt; font-weight:700; letter-spacing:-.035em; line-height:.92;
+  margin-bottom:3.5mm;
+}
+.mast .sub{
+  font-family:var(--body); font-size:12pt; line-height:1.42;
+  color:var(--muted); max-width:52ch; margin-bottom:6mm;
+}
+.metagrid{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:4mm;
+  border-top:.6pt solid var(--rule); padding-top:3.5mm;
+}
+.metagrid div span{
+  display:block; font-family:var(--display); font-size:6.8pt; font-weight:700;
+  text-transform:uppercase; letter-spacing:.13em; color:var(--muted); margin-bottom:1mm;
+}
+.metagrid div b{ font-family:var(--display); font-size:8.6pt; font-weight:500; color:var(--ink); }
+
+/* ─── Callouts ────────────────────────────────────────────────── */
+.callout{
+  border-left:2.4pt solid var(--accent); background:var(--accent-soft);
+  padding:3.4mm 4mm; margin:3.5mm 0; break-inside:avoid-page;
+}
+.callout.warn{ border-left-color:var(--signal); background:var(--signal-soft); }
+.callout.crit{ border-left-color:var(--critical); background:var(--critical-soft); }
+.callout p:last-child{ margin-bottom:0; }
+.callout .tag{
+  font-family:var(--display); font-size:7pt; font-weight:700;
+  text-transform:uppercase; letter-spacing:.13em; color:var(--accent);
+  display:block; margin-bottom:1.4mm;
+}
+.callout.warn .tag{ color:var(--signal); }
+.callout.crit .tag{ color:var(--critical); }
+
+/* ─── Tables ──────────────────────────────────────────────────── */
+.tw{ overflow-x:auto; margin:3mm 0 4mm; }
+table{ width:100%; border-collapse:collapse; font-size:7.9pt; font-family:var(--display); }
+caption{
+  caption-side:top; text-align:left;
+  font-family:var(--display); font-size:7pt; font-weight:700;
+  text-transform:uppercase; letter-spacing:.12em; color:var(--muted);
+  padding-bottom:1.8mm;
+}
+th{
+  text-align:left; font-weight:700; font-size:6.9pt; text-transform:uppercase;
+  letter-spacing:.09em; color:var(--muted);
+  border-bottom:1pt solid var(--ink); padding:1.6mm 2mm 1.6mm 0; vertical-align:bottom;
+}
+td{
+  padding:1.7mm 2mm 1.7mm 0; border-bottom:.5pt solid var(--rule);
+  vertical-align:top; font-weight:400;
+}
+tbody tr:nth-child(even){ background:var(--surface); }
+td.n,th.n{ text-align:right; font-variant-numeric:tabular-nums; padding-right:3mm; }
+.host{ font-family:var(--mono); font-size:7.4pt; }
+
+.pill{
+  display:inline-block; font-family:var(--display); font-size:6.6pt; font-weight:700;
+  text-transform:uppercase; letter-spacing:.07em;
+  padding:.5mm 1.6mm; border-radius:1.6pt; white-space:nowrap;
+}
+.pill.ok{ background:var(--accent); color:#fff; }
+.pill.no{ background:var(--surface-2); color:var(--muted); }
+.pill.risk{ background:var(--critical); color:#fff; }
+.pill.warn{ background:var(--signal); color:#fff; }
+
+/* ─── Figures ─────────────────────────────────────────────────── */
+figure{ margin:4mm 0 5mm; break-inside:avoid-page; }
+figure svg{ width:100%; height:auto; display:block; }
+figcaption{
+  font-family:var(--display); font-size:7pt; color:var(--muted);
+  margin-top:2mm; padding-top:1.6mm; border-top:.5pt solid var(--rule);
+  letter-spacing:.02em;
+}
+
+/* ─── Stat strip ──────────────────────────────────────────────── */
+.stats{
+  display:grid; grid-template-columns:repeat(4,1fr);
+  border-top:1.2pt solid var(--ink); border-bottom:1.2pt solid var(--ink);
+  margin:4mm 0 5mm; break-inside:avoid-page;
+}
+.stats > div{ padding:3mm 3mm 3.4mm; border-right:.5pt solid var(--rule); }
+.stats > div:last-child{ border-right:none; }
+.stats b{
+  display:block; font-family:var(--display); font-size:21pt; font-weight:700;
+  letter-spacing:-.03em; line-height:1; color:var(--accent);
+  font-variant-numeric:lining-nums tabular-nums; margin-bottom:1.6mm;
+}
+.stats span{
+  font-family:var(--display); font-size:6.9pt; font-weight:600; line-height:1.3;
+  text-transform:uppercase; letter-spacing:.08em; color:var(--muted); display:block;
+}
+
+/* ─── Steps ───────────────────────────────────────────────────── */
+.steps{ counter-reset:s; list-style:none; padding:0; margin:3mm 0 4mm; max-width:66ch; }
+.steps li{
+  counter-increment:s; position:relative; padding-left:8mm; margin-bottom:2.4mm;
+  break-inside:avoid-page;
+}
+.steps li::before{
+  content:counter(s); position:absolute; left:0; top:.2mm;
+  font-family:var(--display); font-size:7pt; font-weight:700; color:#fff;
+  background:var(--accent); width:4.6mm; height:4.6mm; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* ─── Spec block ──────────────────────────────────────────────── */
+.spec{
+  font-family:var(--mono); font-size:7.5pt; line-height:1.5;
+  background:var(--surface); border:.5pt solid var(--rule);
+  border-left:2.4pt solid var(--rule-strong);
+  padding:3mm 3.5mm; margin:3mm 0 4mm; white-space:pre; overflow-x:auto;
+  break-inside:avoid-page;
+}
+
+/* ─── Two-col ─────────────────────────────────────────────────── */
+.cols2{ display:grid; grid-template-columns:1fr 1fr; gap:0 6mm; }
+.cols2 p,.cols2 ul{ max-width:none; }
+
+/* ─── Page control ────────────────────────────────────────────── */
+.pb{ break-before:page; }
+h2,h3,h4{ break-after:avoid-page; }
+table{ break-inside:auto; }
+tr{ break-inside:avoid-page; }
+.callout,.stats,figure,.spec{ break-inside:avoid-page; }
+
+footer{
+  margin-top:10mm; padding-top:3mm; border-top:1.2pt solid var(--ink);
+  font-family:var(--display); font-size:7pt; color:var(--muted);
+  display:flex; justify-content:space-between;
+}
+</style>
+
+<div class="sheet">
+
+<!-- ══════════════════ MASTHEAD ══════════════════ -->
+<div class="mast">
+  <div class="eyebrow">Micro-Eazy Ecosystem &nbsp;·&nbsp; Architecture Blueprint &nbsp;·&nbsp; For approval</div>
+  <h1>The Interchange</h1>
+  <p class="sub">A federated data exchange for Kenyan lenders. Unified, secure exchange between
+  organisations that remain competitors — brokered, never pooled; tokenised at the edge, never
+  in the middle.</p>
+  <div class="metagrid">
+    <div><span>Prepared by</span><b>Faith Birgen</b></div>
+    <div><span>Date</span><b>21 August 2026</b></div>
+    <div><span>Status</span><b>Draft for decision</b></div>
+    <div><span>Supersedes</span><b>—</b></div>
+  </div>
+</div>
+
+<!-- ══════════════════ 1 ══════════════════ -->
+<section class="sec">
+  <div class="num">01</div>
+  <div class="bodycol">
+    <h2>The argument in one page</h2>
+
+    <p class="lede">Six systems are live. The next thing to build is not a seventh system — it is
+    the road between companies.</p>
+
+    <p>The Micro-Eazy suite works because of one discipline: <em>nothing was migrated.</em> The
+    connected-suite architecture computed the joins rather than copying the data, and it held —
+    93,376 rows of <code>CollectionTracker</code> joined to <code>Loans</code> with zero orphans,
+    across two databases nobody had ever put in the same query. That is the entire thesis of this
+    document, widened from two databases inside one company to ten companies inside one ecosystem.</p>
+
+    <p><strong>The Interchange</strong> is the data layer that widens it. Ten lenders already
+    running on infrastructure you administer, each holding a book the others cannot see, all of
+    them lending to overlapping populations in the same city. None of them knows when a borrower
+    who is current with them took a fourth loan somewhere else last Tuesday. The Interchange makes
+    that one fact knowable — in under half a second, without any lender surrendering a borrower
+    record to anyone.</p>
+
+    <div class="stats">
+      <div><b>13</b><span>Hosts in the estate</span></div>
+      <div><b>10</b><span>Database servers</span></div>
+      <div><b>3</b><span>On the tailnet today</span></div>
+      <div><b>6</b><span>Answering SQL on the open internet</span></div>
+    </div>
+
+    <h4>What is being proposed</h4>
+    <p>A two-plane architecture, following the X-Road model for the transactional plane and a
+    modern lakehouse for the analytical one. Real-time member-to-member queries are brokered,
+    signed and logged, and never pooled. Analytical data is tokenised inside each member's own
+    perimeter before it moves, so the shared lake holds no identity that can be reversed. The
+    launch product is <strong>Interchange Exposure</strong> — an instant multi-lender exposure
+    check, offered on reciprocity: you may query only what you contribute to.</p>
+
+    <h4>What it costs</h4>
+    <p>Roughly <strong>USD 60–90 per month</strong> in infrastructure for the entire ecosystem,
+    because the design leans on Cloudflare R2's zero egress fees, a single-binary Kafka-compatible
+    broker, and query engines that are processes rather than clusters. The expensive parts of this
+    project are governance and law, not compute.</p>
+
+    <div class="callout crit">
+      <span class="tag">Read this before anything else</span>
+      <p>Six production SQL Servers in this estate accept connections from the public internet
+      today, and nine production credentials sit in cleartext in a git-tracked
+      <code>appsettings.json</code>. Both must be closed before a single outside company is
+      invited in. Section 3 sets out the order of work. This is not a footnote to the plan — it
+      <em>is</em> Phase 0, and it is also the most persuasive thing you can offer a prospective
+      member: <em>we will take your database off the public internet, and give you a network
+      score in return.</em></p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 2 ══════════════════ -->
+<section class="sec pb">
+  <div class="num">02</div>
+  <div class="bodycol">
+    <h2>The estate as it stands</h2>
+
+    <p>Every host below was found by sweeping all eleven projects in <code>c:\GIT</code> for
+    connection endpoints, then probed for reachability on 21 August 2026. Reachability was tested
+    from this workstation; "open" means the TCP port completed a handshake from the public
+    internet without a VPN.</p>
+
+    <div class="tw">
+      <table>
+        <caption>Table 1 · Database and application hosts across all eleven projects</caption>
+        <thead>
+          <tr>
+            <th style="width:5%">#</th>
+            <th style="width:26%">Host</th>
+            <th style="width:31%">Tenant / role</th>
+            <th style="width:19%">Tailnet</th>
+            <th style="width:19%">Public port</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="n">1</td>
+            <td class="host">102.210.148.124:4230<br>→ 100.72.35.56</td>
+            <td>Micromart — Serviceconnect, CollectBox, Transactions</td>
+            <td><span class="pill ok">Yes · services</span></td>
+            <td><span class="pill no">n/a</span></td>
+          </tr>
+          <tr>
+            <td class="n">2</td>
+            <td class="host">213.148.17.54:4420</td>
+            <td>ServiceSuite / Axe — Serviceconnect, Notifications</td>
+            <td><span class="pill ok">Yes</span></td>
+            <td><span class="pill no">Closed</span></td>
+          </tr>
+          <tr>
+            <td class="n">3</td>
+            <td class="host">213.148.17.198:4420</td>
+            <td>“alaf” — Serviceconnect</td>
+            <td><span class="pill no">No</span></td>
+            <td><span class="pill risk">Open</span></td>
+          </tr>
+          <tr>
+            <td class="n">4</td>
+            <td class="host">213.148.17.228:4420<br>213.148.17.228:420</td>
+            <td>ConnectBox; FastDial call-centre</td>
+            <td><span class="pill no">No</span></td>
+            <td><span class="pill risk">Open</span></td>
+          </tr>
+          <tr>
+            <td class="n">5</td>
+            <td class="host">45.150.188.26:4420</td>
+            <td>Serviceconnect + TenderHub</td>
+            <td><span class="pill no">No</span></td>
+            <td><span class="pill risk">Open</span></td>
+          </tr>
+          <tr>
+            <td class="n">6</td>
+            <td class="host">102.214.69.233:4410<br>102.214.69.233:420</td>
+            <td>CollectBox_v3 + the IIS box behind <code>servicesuitecloud.com</code></td>
+            <td><span class="pill no">No</span></td>
+            <td><span class="pill risk">Open</span></td>
+          </tr>
+          <tr>
+            <td class="n">7</td>
+            <td class="host">102.220.22.84:50004</td>
+            <td>“cemes” — Serviceconnect</td>
+            <td><span class="pill no">No</span></td>
+            <td><span class="pill risk">Open</span></td>
+          </tr>
+          <tr>
+            <td class="n">8</td>
+            <td class="host">172.174.241.59:1433</td>
+            <td>SERVICESUITE (Azure)</td>
+            <td><span class="pill no">No</span></td>
+            <td><span class="pill no">Dormant</span></td>
+          </tr>
+          <tr>
+            <td class="n">9</td>
+            <td class="host">130.49.168.109:1433</td>
+            <td>ServiceSuiteV3 — test</td>
+            <td><span class="pill no">No</span></td>
+            <td><span class="pill risk">Open</span></td>
+          </tr>
+          <tr>
+            <td class="n">10</td>
+            <td class="host">34.70.119.63:4420</td>
+            <td>Legacy GCP, referenced in <code>web.config</code></td>
+            <td><span class="pill no">No</span></td>
+            <td><span class="pill no">Dead</span></td>
+          </tr>
+          <tr>
+            <td class="n">11</td>
+            <td class="host">Supabase · eu-west-1</td>
+            <td>BirgenAI LMS Postgres</td>
+            <td><span class="pill no">Managed</span></td>
+            <td><span class="pill no">n/a</span></td>
+          </tr>
+          <tr>
+            <td class="n">12</td>
+            <td class="host">Vercel</td>
+            <td>The six front doors</td>
+            <td><span class="pill no">Managed</span></td>
+            <td><span class="pill no">n/a</span></td>
+          </tr>
+          <tr>
+            <td class="n">13</td>
+            <td class="host">arch-bishop</td>
+            <td>Your workstation — currently the relay for all six live systems</td>
+            <td><span class="pill ok">Yes · self</span></td>
+            <td><span class="pill warn">Funnel :443</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The tailnet today</h3>
+    <p>Seven machines, of which three carry databases the ecosystem depends on.</p>
+
+    <div class="tw">
+      <table>
+        <caption>Table 2 · Tailscale nodes, <span class="m">tail10c441.ts.net</span></caption>
+        <thead>
+          <tr><th style="width:24%">Node</th><th style="width:22%">Address</th><th style="width:22%">State</th><th style="width:32%">Role</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="host">services</td><td class="host">100.72.35.56</td><td>Online · direct</td><td>Micromart SQL — <span class="m">:4230</span> confirmed reachable</td></tr>
+          <tr><td class="host">axemicro</td><td class="host">100.103.154.73</td><td>Online</td><td>SQL — <span class="m">:4420</span> reachable</td></tr>
+          <tr><td class="host">servicesuite-in</td><td class="host">100.115.241.36</td><td>Online</td><td>SQL — <span class="m">:4420</span> reachable</td></tr>
+          <tr><td class="host">vmi3298281</td><td class="host">100.125.245.79</td><td>Online</td><td>Web/RDP only — <span class="m">:80 :443 :3389</span>. <strong>Free capacity.</strong></td></tr>
+          <tr><td class="host">lms</td><td class="host">100.92.236.116</td><td>Online</td><td>No service ports open</td></tr>
+          <tr><td class="host">arch-bishop</td><td class="host">100.79.242.78</td><td>Online · self</td><td>Workstation; Funnel ingress for all six systems</td></tr>
+          <tr><td class="host">DESKTOP-F0A546R</td><td class="host">100.117.191.0</td><td>Offline 7 days</td><td>Unattributed — audit or remove</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Three findings</h3>
+
+    <div class="callout crit">
+      <span class="tag">Finding 1 · Exposed surface</span>
+      <p>Six SQL Servers complete a TCP handshake from the open internet:
+      <span class="m">213.148.17.198</span>, <span class="m">213.148.17.228</span>,
+      <span class="m">45.150.188.26</span>, <span class="m">102.214.69.233</span>,
+      <span class="m">102.220.22.84</span> and <span class="m">130.49.168.109</span>. Notably
+      <span class="m">213.148.17.54</span> — the busiest connection string in the codebase — is
+      <em>already</em> closed and reached over the tailnet. That is the pattern to replicate
+      across the other six.</p>
+    </div>
+
+    <div class="callout crit">
+      <span class="tag">Finding 2 · Credentials in version control</span>
+      <p><code>ServiceSuite-Portal/ServiceSuite/appsettings.json</code> lines 10–31 hold nine
+      production connection strings in cleartext, commented in and out by hand to switch tenants.
+      Every one of those passwords must be treated as compromised and rotated. Tenant selection
+      belongs in the existing encrypted <code>OrgIntegration.configEnc</code> vault, which the LMS
+      already implements — the pattern exists, it simply has not reached this file.</p>
+    </div>
+
+    <div class="callout warn">
+      <span class="tag">Finding 3 · The laptop is a single point of failure</span>
+      <p>All six live systems relay through <code>arch-bishop</code> via Tailscale Funnel. Ten
+      member organisations cannot depend on your workstation being awake. <code>vmi3298281</code>
+      is already on the tailnet, already serving <span class="m">:80/:443</span>, and carries no
+      database — it is the obvious permanent home for the relay and for the Interchange Registry.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 3 ══════════════════ -->
+<section class="sec pb">
+  <div class="num">03</div>
+  <div class="bodycol">
+    <h2>Phase 0 — securing the estate</h2>
+
+    <p>Nothing in this blueprint may begin until the estate is defensible. This work is
+    unglamorous, takes about two weeks, and is a precondition for every conversation with a
+    prospective member.</p>
+
+    <p>Each server follows the same four steps, in this order, so that connectivity is proven
+    before exposure is removed:</p>
+
+    <ol class="steps">
+      <li><strong>Join the tailnet.</strong> Install Tailscale, tag the node
+      <code>tag:interchange-db</code>, and confirm it appears in <code>tailscale status</code>.</li>
+      <li><strong>Prove the private path.</strong> Repoint one non-critical application to the
+      <span class="m">100.x</span> address and confirm a successful query. The Micromart cutover
+      from <span class="m">102.210.148.124</span> to <span class="m">100.72.35.56</span> is the
+      worked example — follow it exactly.</li>
+      <li><strong>Close the public port</strong> at the host firewall and at the provider's edge.
+      Re-run the reachability probe from off-network to confirm the handshake now fails.</li>
+      <li><strong>Rotate the credential</strong> that was previously exposed, and move it into the
+      encrypted vault.</li>
+    </ol>
+
+    <div class="tw">
+      <table>
+        <caption>Table 3 · Order of work, highest risk first</caption>
+        <thead>
+          <tr><th style="width:6%">Ord</th><th style="width:24%">Host</th><th style="width:46%">Why this position</th><th style="width:24%">Owner</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="n">1</td><td class="host">102.214.69.233</td><td>Two open SQL ports <em>and</em> it is the public web host for <code>servicesuitecloud.com</code>. Largest blast radius.</td><td>You</td></tr>
+          <tr><td class="n">2</td><td class="host">213.148.17.198</td><td>Live tenant book, open to the internet, no compensating control.</td><td>You + tenant IT</td></tr>
+          <tr><td class="n">3</td><td class="host">213.148.17.228</td><td>ConnectBox and FastDial both depend on it; two ports open.</td><td>You</td></tr>
+          <tr><td class="n">4</td><td class="host">45.150.188.26</td><td>Carries Serviceconnect <em>and</em> TenderHub — two products, one exposure.</td><td>You</td></tr>
+          <tr><td class="n">5</td><td class="host">102.220.22.84</td><td>Live tenant, non-standard port offers no protection.</td><td>You + tenant IT</td></tr>
+          <tr><td class="n">6</td><td class="host">130.49.168.109</td><td>Test data, but a real credential and a real foothold.</td><td>You</td></tr>
+          <tr><td class="n">7</td><td class="host">34.70.119.63</td><td>Dead. Remove the reference from <code>web.config</code> and decommission.</td><td>You</td></tr>
+          <tr><td class="n">8</td><td class="host">172.174.241.59</td><td>Dormant. Confirm ownership, then decommission or enrol.</td><td>You</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Two further Phase 0 tasks run in parallel: migrate the Funnel relay from
+    <code>arch-bishop</code> to <code>vmi3298281</code>, and audit or remove
+    <code>DESKTOP-F0A546R</code>, which has been offline for a week and belongs to no documented
+    role.</p>
+  </div>
+</section>
+
+<!-- ══════════════════ 4 ══════════════════ -->
+<section class="sec pb">
+  <div class="num">04</div>
+  <div class="bodycol">
+    <h2>Architecture — the two planes</h2>
+
+    <p class="lede">X-Road is a transaction broker, not a data platform. Understanding what it does
+    <em>not</em> do is what makes this design correct.</p>
+
+    <p>X-Road routes signed, timestamped, access-controlled request/response messages between
+    organisations. It has no opinion about analytics, no bulk transfer, no streaming, no storage.
+    Most teams that adopt it try to make it carry their data warehouse and fail. The Interchange
+    therefore separates two planes that must never be conflated:</p>
+
+    <ul>
+      <li><strong>Plane A — the road.</strong> Real-time, member-to-member, brokered queries.
+      Follows the X-Road model. Nothing is pooled; each answer is computed live by the member who
+      owns the data.</li>
+      <li><strong>Plane B — the lakehouse.</strong> Asynchronous, tokenised, analytical. Feeds
+      scoring, benchmarking and early warning. Holds no reversible identity.</li>
+    </ul>
+
+    <figure>
+      <svg viewBox="0 0 900 520" role="img" aria-label="Two-plane architecture of the Interchange" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#5C6B64"/>
+          </marker>
+          <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#0B5D4E"/>
+          </marker>
+        </defs>
+        <style>
+          .bx{fill:#FFFFFF;stroke:#121A18;stroke-width:1.4}
+          .bxa{fill:#E6F0EB;stroke:#0B5D4E;stroke-width:1.4}
+          .bxs{fill:#F4F7F5;stroke:#B9C6BE;stroke-width:1.1}
+          .t{font-family:Archivo,sans-serif;font-size:12px;font-weight:600;fill:#121A18}
+          .ts{font-family:Archivo,sans-serif;font-size:10px;font-weight:400;fill:#5C6B64}
+          .tl{font-family:Archivo,sans-serif;font-size:9.5px;font-weight:700;fill:#0B5D4E;letter-spacing:.9px}
+          .halo{font-family:Archivo,sans-serif;font-size:10px;fill:#5C6B64;
+                paint-order:stroke fill;stroke:#FFFFFF;stroke-width:3.5;stroke-linejoin:round}
+          .ln{stroke:#5C6B64;stroke-width:1.2;fill:none}
+          .lng{stroke:#0B5D4E;stroke-width:1.6;fill:none}
+          .dash{stroke-dasharray:5 4}
+        </style>
+
+        <!-- Registry -->
+        <rect class="bxa" x="330" y="14" width="240" height="62" rx="3"/>
+        <text class="t" x="450" y="36" text-anchor="middle">Interchange Registry</text>
+        <text class="ts" x="450" y="52" text-anchor="middle">members · global config · service catalogue</text>
+        <text class="ts" x="450" y="66" text-anchor="middle">consent registry · OPRF · PKI</text>
+
+        <!-- plane A label -->
+        <text class="tl" x="16" y="150">PLANE A — THE ROAD</text>
+        <line class="ln dash" x1="16" y1="158" x2="884" y2="158"/>
+
+        <!-- three nodes -->
+        <g>
+          <rect class="bx" x="40" y="178" width="220" height="104" rx="3"/>
+          <text class="t" x="150" y="200" text-anchor="middle">Interchange Node</text>
+          <text class="ts" x="150" y="215" text-anchor="middle">Micromart</text>
+          <rect class="bxs" x="58" y="226" width="184" height="24" rx="2"/>
+          <text class="ts" x="150" y="242" text-anchor="middle">tokeniser · policy · msg log</text>
+          <rect class="bxs" x="58" y="252" width="184" height="22" rx="2"/>
+          <text class="ts" x="150" y="267" text-anchor="middle">Serviceconnect · CollectBox</text>
+        </g>
+        <g>
+          <rect class="bx" x="340" y="178" width="220" height="104" rx="3"/>
+          <text class="t" x="450" y="200" text-anchor="middle">Interchange Node</text>
+          <text class="ts" x="450" y="215" text-anchor="middle">Axe Capital</text>
+          <rect class="bxs" x="358" y="226" width="184" height="24" rx="2"/>
+          <text class="ts" x="450" y="242" text-anchor="middle">tokeniser · policy · msg log</text>
+          <rect class="bxs" x="358" y="252" width="184" height="22" rx="2"/>
+          <text class="ts" x="450" y="267" text-anchor="middle">Serviceconnect</text>
+        </g>
+        <g>
+          <rect class="bx" x="640" y="178" width="220" height="104" rx="3"/>
+          <text class="t" x="750" y="200" text-anchor="middle">Interchange Node</text>
+          <text class="ts" x="750" y="215" text-anchor="middle">Member n</text>
+          <rect class="bxs" x="658" y="226" width="184" height="24" rx="2"/>
+          <text class="ts" x="750" y="242" text-anchor="middle">tokeniser · policy · msg log</text>
+          <rect class="bxs" x="658" y="252" width="184" height="22" rx="2"/>
+          <text class="ts" x="750" y="267" text-anchor="middle">their own core system</text>
+        </g>
+
+        <!-- registry to nodes -->
+        <path class="lng dash" d="M400,76 L150,178" marker-end="url(#arg)"/>
+        <path class="lng dash" d="M450,76 L450,178" marker-end="url(#arg)"/>
+        <path class="lng dash" d="M500,76 L750,178" marker-end="url(#arg)"/>
+        <text class="halo" x="236" y="126" text-anchor="middle">signed global config</text>
+
+        <!-- node to node mTLS -->
+        <path class="ln" d="M260,214 L340,214" marker-end="url(#ar)" marker-start="url(#ar)"/>
+        <path class="ln" d="M560,214 L640,214" marker-end="url(#ar)" marker-start="url(#ar)"/>
+        <text class="halo" x="300" y="206" text-anchor="middle">mTLS</text>
+        <text class="halo" x="600" y="206" text-anchor="middle">mTLS</text>
+
+        <!-- plane B -->
+        <text class="tl" x="16" y="322">PLANE B — THE LAKEHOUSE</text>
+        <line class="ln dash" x1="16" y1="330" x2="884" y2="330"/>
+
+        <path class="ln" d="M150,282 L150,352" marker-end="url(#ar)"/>
+        <path class="ln" d="M450,282 L450,352" marker-end="url(#ar)"/>
+        <path class="ln" d="M750,282 L750,352" marker-end="url(#ar)"/>
+        <text class="halo" x="180" y="302">CDC — tokens only, no PII</text>
+
+        <rect class="bx" x="330" y="352" width="240" height="34" rx="3"/>
+        <text class="t" x="450" y="374" text-anchor="middle">Redpanda &nbsp;·&nbsp; Kafka wire</text>
+        <path class="ln" d="M150,352 L330,369" marker-end="url(#ar)"/>
+        <path class="ln" d="M750,352 L570,369" marker-end="url(#ar)"/>
+
+        <path class="ln" d="M450,386 L450,410" marker-end="url(#ar)"/>
+        <rect class="bxa" x="330" y="410" width="240" height="38" rx="3"/>
+        <text class="t" x="450" y="428" text-anchor="middle">Cloudflare R2 · Apache Iceberg</text>
+        <text class="ts" x="450" y="442" text-anchor="middle">bronze → silver → gold · zero egress</text>
+
+        <path class="ln" d="M450,448 L450,470" marker-end="url(#ar)"/>
+        <rect class="bx" x="180" y="470" width="170" height="34" rx="3"/>
+        <text class="t" x="265" y="492" text-anchor="middle">DuckDB · ClickHouse</text>
+        <rect class="bx" x="365" y="470" width="170" height="34" rx="3"/>
+        <text class="t" x="450" y="492" text-anchor="middle">dbt transforms</text>
+        <rect class="bx" x="550" y="470" width="170" height="34" rx="3"/>
+        <text class="t" x="635" y="492" text-anchor="middle">Dagster orchestration</text>
+        <path class="ln" d="M450,458 L265,470"/>
+        <path class="ln" d="M450,458 L635,470"/>
+      </svg>
+      <figcaption>Figure 1 · Plane A brokers live queries between members; Plane B carries only
+      tokenised feeds. The tokeniser sits inside each member's node, so identity is destroyed
+      before anything crosses a boundary.</figcaption>
+    </figure>
+
+    <h3>4.1 &nbsp;The tokenisation boundary</h3>
+
+    <p>This is the decision the whole design rests on, and it is where most shared-data projects
+    quietly fail. If each member tokenises with its own secret, tokens never match and exposure is
+    impossible. If all members share one common secret, then a single compromised member can take
+    the secret offline and enumerate every national ID in Kenya — the identifier space is small
+    enough to brute-force in hours. Both of the obvious answers are wrong.</p>
+
+    <p>The Interchange uses an <strong>oblivious pseudo-random function</strong> (OPRF, RFC 9497
+    over ristretto255). The member blinds the identifier locally and sends the blinded point to
+    the Registry; the Registry applies the ecosystem secret and returns the result; the member
+    unblinds it to obtain the token. The Registry never learns the identifier, and the member
+    never learns the secret — so no participant can compute tokens offline, and the Registry
+    rate-limits every member's token issuance.</p>
+
+    <div class="spec">member                                    registry
+──────                                    ────────
+id = "12345678"
+r  = random scalar
+P  = H(id) * r          ──── blinded ───►
+                                          Q = P * k      (k = ecosystem secret)
+                        ◄─── evaluated ──
+token = Q * r⁻¹
+      = H(id) * k
+
+registry learns nothing about id · member never sees k
+offline enumeration impossible · issuance is rate-limited and logged</div>
+
+    <div class="callout">
+      <span class="tag">Why this matters commercially</span>
+      <p>This is the difference between a product and a liability. Under the Data Protection Act
+      2019 a tokenised identifier that no participant can reverse is materially easier to defend
+      than a pooled register of borrower identities — and it is the argument that will persuade a
+      competitor to join a network operated by a company that also builds lending software.</p>
+    </div>
+
+    <h3>4.2 &nbsp;What runs on a member's node</h3>
+
+    <div class="tw">
+      <table>
+        <caption>Table 4 · Interchange Node components</caption>
+        <thead><tr><th style="width:24%">Component</th><th style="width:76%">Responsibility</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Ingress / egress proxy</strong></td><td>Mutual TLS in both directions. Member identity expressed as <code>KE/LENDER/3005/exposure-v1</code>, following X-Road's member/subsystem/service convention so the envelope stays compatible if you later adopt the reference implementation.</td></tr>
+          <tr><td><strong>Tokeniser</strong></td><td>Runs the OPRF exchange. Never emits a raw identifier past this boundary — for Plane A queries or Plane B feeds.</td></tr>
+          <tr><td><strong>Policy engine</strong></td><td>Access rights per service, per counterparty. Enforces reciprocity: a member that stopped contributing stops being able to query.</td></tr>
+          <tr><td><strong>Message log</strong></td><td>Append-only, hash-chained, batch-timestamped against a public RFC 3161 authority. Gives every member the ability to prove what they did and did not send.</td></tr>
+          <tr><td><strong>Query broker</strong></td><td>Fans out exposure queries, applies per-member timeouts, aggregates, degrades to <code>partial: true</code> rather than failing.</td></tr>
+          <tr><td><strong>CDC agent</strong></td><td>Debezium against SQL Server change data capture, publishing tokenised rows to Plane B. <code>services</code> already runs SQL Server 2022 Enterprise, so CDC is available today.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 5 ══════════════════ -->
+<section class="sec pb">
+  <div class="num">05</div>
+  <div class="bodycol">
+    <h2>Interchange Exposure — the launch product</h2>
+
+    <p class="lede">“Is this borrower, who looks clean to me, currently servicing four other loans
+    across this ecosystem?”</p>
+
+    <p>Kenyan credit reference bureau data is expensive per query and lags by weeks. The
+    Interchange answers the same question from live books in under half a second, and answers it
+    free at the point of use to any member who contributes. That asymmetry — instant and live
+    versus slow and paid — is what makes lenders join.</p>
+
+    <h3>5.1 &nbsp;How a query travels</h3>
+
+    <ol class="steps">
+      <li>The lender's origination system calls its <em>own</em> node:
+      <code>POST /exposure</code> with national ID, MSISDN and a consent reference.</li>
+      <li>The node obtains <code>subject_token</code> via the OPRF exchange with the Registry.</li>
+      <li>The node checks the <strong>Bloom filter digests</strong> — every member publishes a
+      filter of its active-borrower tokens to R2 every fifteen minutes. Typically this narrows a
+      ten-member fan-out to one or three real calls.</li>
+      <li>Signed queries go only to members with a probable hit, over mTLS, with a 250 ms timeout
+      each and full parallelism.</li>
+      <li>Each responding member returns <strong>aggregates only</strong> — count of active loans,
+      outstanding band, worst arrears bucket, most recent disbursement date. Never a borrower
+      record. Never the lender's identity, unless both parties have enabled mutual disclosure.</li>
+      <li>The requesting node aggregates, timestamps, writes to its message log, and returns.
+      Every queried member receives an audit entry.</li>
+    </ol>
+
+    <div class="spec">POST /exposure          →   { national_id, msisdn, consent_ref }
+
+{
+  "subject_token": "a4f1…",           // never reversible
+  "as_of":         "2026-08-21T09:14:22Z",
+  "active_loans":   4,
+  "lenders":        3,
+  "outstanding_band": "50k–100k",     // banded, not exact
+  "worst_bucket":  "watch_2",
+  "newest_disbursement": "2026-08-19",
+  "velocity_14d":   2,                // ← the signal that matters
+  "partial":        false,
+  "responded":      3,
+  "queried":        3
+}</div>
+
+    <div class="callout">
+      <span class="tag">The design detail worth defending</span>
+      <p>Bloom filter pre-screening is not only a latency optimisation. Without it, every exposure
+      query broadcasts to all ten members that a named token is being evaluated — which leaks a
+      member's origination pipeline to its competitors. Filtering locally means most members never
+      learn the query happened at all.</p>
+    </div>
+
+    <h3>5.2 &nbsp;What follows Exposure</h3>
+
+    <div class="tw">
+      <table>
+        <caption>Table 5 · The product ladder</caption>
+        <thead><tr><th style="width:22%">Product</th><th style="width:52%">What it is</th><th style="width:26%">Depends on</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Exposure</strong></td><td>Live multi-lender exposure and stacking velocity.</td><td>Plane A only — ships first</td></tr>
+          <tr><td><strong>Signals</strong></td><td>Push alert when an existing borrower takes credit elsewhere. Converts collections from reactive to pre-emptive.</td><td>Plane A + subscriptions</td></tr>
+          <tr><td><strong>Bench</strong></td><td>Anonymised portfolio benchmarking — your PAR-30 against the ecosystem median and top quartile.</td><td>Plane B, ~1 month of data</td></tr>
+          <tr><td><strong>Score</strong></td><td>Network credit score fusing ecosystem repayment history with the existing M-Pesa thin-file cruncher.</td><td>Plane B, 3–6 months of data</td></tr>
+          <tr><td><strong>Recover</strong></td><td>Collections intelligence — best contact hour, promise-to-pay propensity, alternate numbers seen elsewhere. Built on the 1.34 M call dispositions and 150 K PTPs already in CollectBox.</td><td>Plane B + consent extension</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <span class="tag">Reciprocity is the business model</span>
+      <p>Contribution and consumption are bound in the policy engine, not in a contract clause. A
+      member who stops publishing stops being able to query, automatically, within one
+      configuration cycle. This is the mechanism that has made every successful contributory
+      bureau work, and it is the reason a network of competitors can be stable.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 6 ══════════════════ -->
+<section class="sec pb">
+  <div class="num">06</div>
+  <div class="bodycol">
+    <h2>Tooling and cost</h2>
+
+    <p>Every choice below is open source or has a free tier that covers the first ten members. The
+    selection is driven by one constraint that dominates all others at this scale:
+    <strong>egress fees</strong>. Ten members pulling analytics daily out of S3 would cost more
+    than the rest of the stack combined; R2 charges nothing for it.</p>
+
+    <div class="tw">
+      <table>
+        <caption>Table 6 · Stack selection</caption>
+        <thead><tr><th style="width:16%">Layer</th><th style="width:20%">Choice</th><th style="width:44%">Why this and not the obvious alternative</th><th style="width:20%">Monthly</th></tr></thead>
+        <tbody>
+          <tr><td>Object storage</td><td><strong>Cloudflare R2</strong></td><td>Zero egress. S3 <code>af-south-1</code> is closer to Nairobi but charges per gigabyte out, which is exactly the access pattern this ecosystem has.</td><td class="host">~$12</td></tr>
+          <tr><td>Table format</td><td><strong>Apache Iceberg</strong></td><td>Schema evolution and time travel matter when ten members change their schemas without telling you. R2 Data Catalog removes the need to run Nessie or Polaris.</td><td class="host">included</td></tr>
+          <tr><td>Streaming</td><td><strong>Redpanda</strong></td><td>Kafka wire-compatible in a single binary — no JVM, no ZooKeeper, no cluster. At fifty members, swap in Kafka proper without changing a producer.</td><td class="host">~€8 VPS</td></tr>
+          <tr><td>Capture</td><td><strong>Debezium</strong></td><td>SQL Server CDC is already available on <code>services</code> (2022 Enterprise). Log-based capture means no triggers and no load on the lending book.</td><td class="host">included</td></tr>
+          <tr><td>Transform</td><td><strong>dbt + DuckDB</strong></td><td>Transforms run as a process against Iceberg on R2. No warehouse to keep warm, no idle spend.</td><td class="host">—</td></tr>
+          <tr><td>Orchestration</td><td><strong>Dagster</strong></td><td>Asset-based lineage answers “where did this number come from”, which is the first question every member auditor asks. Airflow models tasks; you need to model data.</td><td class="host">~€8 VPS</td></tr>
+          <tr><td>Serving</td><td><strong>ClickHouse</strong></td><td>Only when query concurrency outgrows DuckDB. Defer until it does.</td><td class="host">~€15 when needed</td></tr>
+          <tr><td>Transport</td><td><strong>Tailscale</strong></td><td>Already proven on the Micromart cutover. Removes the six exposed SQL ports without touching any application.</td><td class="host">~$6/user</td></tr>
+          <tr><td>Node runtime</td><td><strong>Go</strong></td><td>Single static binary a member's IT team can run without installing a runtime. That matters more than language preference when you are asking ten companies to host something.</td><td class="host">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="stats">
+      <div><b>$60–90</b><span>Total monthly infra, ten members</span></div>
+      <div><b>&lt;400ms</b><span>p95 exposure query target</span></div>
+      <div><b>0</b><span>Raw identifiers crossing a boundary</span></div>
+      <div><b>15min</b><span>Bloom filter refresh</span></div>
+    </div>
+
+    <h3>6.1 &nbsp;On Kafka</h3>
+    <p>Kafka is the correct long-term answer and the reason the wire protocol is non-negotiable —
+    but running a Kafka cluster for ten members' change feeds is operational cost with no return
+    at this stage. Redpanda speaks the same protocol from one binary. When throughput or
+    membership justifies the cluster, the migration is a broker swap, not a rewrite. Choosing the
+    protocol now and deferring the cluster is the discipline; adopting the cluster now would be
+    the mistake.</p>
+
+    <h3>6.2 &nbsp;On X-Road</h3>
+    <p>The decision taken is to implement X-Road's <em>model</em> — member and subsystem identity,
+    mutually authenticated transport, signed messages, timestamped append-only logs, a central
+    registry distributing signed global configuration — as a lightweight Go node, rather than
+    deploying the reference implementation. The reference implementation requires a Central
+    Server, a Security Server per member, and a trust-services estate (CA, OCSP responder,
+    time-stamping authority) that is disproportionate for ten lenders.</p>
+    <p>The constraint that makes this reversible is the envelope: keep the message format and
+    identity scheme X-Road-compatible from the first commit. Any member who later demands the
+    certified implementation can then run a real Security Server against the same ecosystem, and
+    the migration is a deployment question rather than a redesign.</p>
+  </div>
+</section>
+
+<!-- ══════════════════ 7 ══════════════════ -->
+<section class="sec pb">
+  <div class="num">07</div>
+  <div class="bodycol">
+    <h2>Onboarding a member</h2>
+
+    <p>Ten companies will not all have the same capability. The node supports four ingestion
+    tiers, and a member can start at the bottom and climb.</p>
+
+    <div class="tw">
+      <table>
+        <caption>Table 7 · Ingestion tiers</caption>
+        <thead><tr><th style="width:12%">Tier</th><th style="width:26%">Mechanism</th><th style="width:38%">Suits</th><th style="width:24%">Latency</th></tr></thead>
+        <tbody>
+          <tr><td><strong>T0</strong></td><td>Tailnet + read-only SQL user</td><td>Members already on your infrastructure — Micromart and Axe today</td><td>Real time</td></tr>
+          <tr><td><strong>T1</strong></td><td>Node with Debezium CDC</td><td>The target state for every member</td><td>Seconds</td></tr>
+          <tr><td><strong>T2</strong></td><td>Node polling a view or stored procedure</td><td>Members who will not enable CDC</td><td>Minutes</td></tr>
+          <tr><td><strong>T3</strong></td><td>Signed batch upload to R2</td><td>Members with no database access to give</td><td>Daily</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>A member joining follows the same sequence regardless of tier: certificate issuance and
+    registration in the Registry; deployment of the node inside their perimeter; mapping their
+    schema to the canonical model through a versioned data contract held in git; a shadow period
+    where they contribute but cannot query; then activation.</p>
+
+    <div class="callout warn">
+      <span class="tag">The shadow period is not optional</span>
+      <p>Two to four weeks of contribution before query rights are granted does two things: it
+      proves the member's feed is accurate before anyone relies on it, and it establishes
+      reciprocity as a lived norm rather than a clause. Members who query from day one never
+      build the contribution habit.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 8 ══════════════════ -->
+<section class="sec">
+  <div class="num">08</div>
+  <div class="bodycol">
+    <h2>Law, governance, and the risk that could stop this</h2>
+
+    <div class="callout crit">
+      <span class="tag">Unresolved — obtain counsel before Phase 2</span>
+      <p>Kenya regulates the sharing of credit information between institutions. The Credit
+      Reference Bureau Regulations made under the Banking Act govern bureau activity, and a
+      service that tells one lender about another lender's exposure may be construed as falling
+      within that regime. <strong>This is the single largest risk to the plan</strong>, and it is
+      a question for a Kenyan financial services lawyer, not for an architecture document.</p>
+      <p>Three paths are worth putting to counsel: operating strictly as a data processor acting
+      on documented borrower consent on behalf of each member; licensing through or partnering
+      with an already-licensed bureau; or seeking written guidance from the regulator before
+      launch. Resolve this before building Plane A, not after.</p>
+    </div>
+
+    <h4>Data protection</h4>
+    <p>Registration with the Office of the Data Protection Commissioner is required, and the
+    controller/processor determination must be made deliberately — the tokenisation boundary in
+    §4.1 is what makes the processor argument credible. Borrower consent must be captured at
+    origination, referenced by every query, and revocable; the consent registry in the Registry
+    component exists for this.</p>
+
+    <h4>Who operates it</h4>
+    <p>BirgenAI operating the Interchange while also supplying lending software to some members is
+    a conflict a competitor will name in the first meeting. Consider a separate legal entity with
+    member representation on its governing body. It costs little now and is very hard to retrofit
+    once ten companies have joined something you own outright.</p>
+
+    <h4>Residency</h4>
+    <p>R2 offers no Nairobi region. If any member or the regulator requires in-country residency
+    for tokenised data, the fallback is a self-hosted MinIO cluster on Kenyan infrastructure
+    behind the same Iceberg interface — a swap the architecture already permits, at meaningfully
+    higher cost. Establish this requirement before committing to R2, not after loading a terabyte.</p>
+  </div>
+</section>
+
+<!-- ══════════════════ 9 ══════════════════ -->
+<section class="sec pb">
+  <div class="num">09</div>
+  <div class="bodycol">
+    <h2>Phasing</h2>
+
+    <div class="tw">
+      <table>
+        <caption>Table 8 · Delivery plan</caption>
+        <thead><tr><th style="width:10%">Phase</th><th style="width:15%">Window</th><th style="width:45%">Deliverable</th><th style="width:30%">Done when</th></tr></thead>
+        <tbody>
+          <tr><td><strong>0</strong></td><td>Weeks 1–2</td><td>Secure the estate. Six servers onto the tailnet, public SQL ports closed, credentials rotated out of git, relay moved to <code>vmi3298281</code>.</td><td>External probe finds zero open SQL ports</td></tr>
+          <tr><td><strong>1</strong></td><td>Weeks 3–6</td><td>Registry and the first node. OPRF service, PKI, message log, policy engine. Micromart and Axe enrolled.</td><td>Two nodes exchange a signed, logged message</td></tr>
+          <tr><td><strong>2</strong></td><td>Weeks 7–10</td><td>Exposure v1 live between two members. Bloom filter distribution, audit trail, member console.</td><td>p95 under 400 ms on real books</td></tr>
+          <tr><td><strong>3</strong></td><td>Weeks 11–16</td><td>Plane B. CDC from Micromart, R2 + Iceberg, dbt and Dagster, Bench shipped.</td><td>A member sees their PAR against the median</td></tr>
+          <tr><td><strong>4</strong></td><td>Months 5–6</td><td>Members three through ten. Signals and Score.</td><td>Ten contributing members</td></tr>
+          <tr><td><strong>5</strong></td><td>Months 7–12</td><td>Governance body stood up, Recover shipped, optional X-Road reference cutover.</td><td>Interchange operates independently of any one member</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Phases 0 and 1 are sequential and non-negotiable. Phase 3 can begin in parallel with Phase 2
+    because the planes share only the tokeniser.</p>
+  </div>
+</section>
+
+<!-- ══════════════════ 10 ══════════════════ -->
+<section class="sec">
+  <div class="num">10</div>
+  <div class="bodycol">
+    <h2>Naming and domains</h2>
+
+    <p>The system is <strong>The Interchange</strong>; a participating organisation is a
+    <em>member</em>; the software it runs is an <strong>Interchange Node</strong>; the central
+    component is the <strong>Interchange Registry</strong>; the published services form the
+    <strong>Interchange Directory</strong>.</p>
+
+    <div class="tw">
+      <table>
+        <caption>Table 9 · Domains</caption>
+        <thead><tr><th style="width:34%">Host</th><th style="width:22%">Phase</th><th style="width:44%">Serves</th></tr></thead>
+        <tbody>
+          <tr><td class="host">interchange.servicesuitecloud.com</td><td>Launch</td><td>Member console and Directory. Inherits the trust of the six live systems.</td></tr>
+          <tr><td class="host">registry.interchange.africa</td><td>Phase 1</td><td>Registry API, global configuration, OPRF endpoint.</td></tr>
+          <tr><td class="host">interchange.africa</td><td>Month 6</td><td>The permanent, vendor-neutral home.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <span class="tag">Move off the ServiceSuite domain early</span>
+      <p>Launching on <code>servicesuitecloud.com</code> is right — it borrows credibility you
+      have already earned. But a lender is being asked to join a network that appears, by its
+      domain, to belong to a company that sells to its competitors. Neutral branding is not
+      cosmetic here; it is part of the trust architecture, and it should follow the same timeline
+      as the governance entity in §8.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 11 ══════════════════ -->
+<section class="sec">
+  <div class="num">11</div>
+  <div class="bodycol">
+    <h2>Decisions still open</h2>
+
+    <ol class="steps">
+      <li><strong>Regulatory position.</strong> Counsel on the CRB Regulations question in §8.
+      Blocking for Phase 2.</li>
+      <li><strong>Operating entity.</strong> BirgenAI subsidiary, or a member-governed
+      association? Affects every membership conversation, so decide before member three.</li>
+      <li><strong>Data residency.</strong> Is in-country storage a hard requirement for any
+      member or regulator? Determines R2 versus self-hosted MinIO. Blocking for Phase 3.</li>
+      <li><strong>Founding cohort.</strong> Which three of the ten interested companies go first?
+      Recommend the two already on the tailnet plus one genuine outsider — an ecosystem that only
+      works for your own clients proves nothing.</li>
+      <li><strong>Commercial model.</strong> Reciprocity governs access, but something must fund
+      operations. Flat membership fee, per-query above a contribution-linked free tier, or bundled
+      into ServiceSuite licensing?</li>
+      <li><strong>Node ownership.</strong> Does the member run the node on their hardware, or do
+      you host it for them? Materially changes the trust story and the support burden.</li>
+    </ol>
+
+    <div class="callout">
+      <span class="tag">Recommended next step</span>
+      <p>Begin Phase 0 immediately — it needs none of the decisions above, it removes the
+      estate's worst risk, and every hour of it is work you would have to do regardless of whether
+      the Interchange is ever built. Put the regulatory question to counsel in the same week.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>The Interchange · Architecture Blueprint · Draft for decision</span>
+  <span>21 August 2026</span>
+</footer>
+
+</div>

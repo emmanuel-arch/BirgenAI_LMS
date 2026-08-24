@@ -26,8 +26,8 @@
 // door that opens onto a 403.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { ComponentType, CSSProperties } from "react";
-import { Landmark, Users2, Calculator, Headphones, Smartphone, ChartNoAxesCombined } from "lucide-react";
-import { satelliteHost } from "./labels";
+import { Landmark, Users2, Calculator, Headphones, Smartphone, ChartNoAxesCombined, Waypoints } from "lucide-react";
+import { satelliteHost, INTERCHANGE_HOST } from "./labels";
 
 export type SuiteIcon = ComponentType<{ className?: string; style?: CSSProperties }>;
 
@@ -45,6 +45,25 @@ export type SuiteApp = {
   subdomain: string;
   /** true = this LMS itself (the anchor of the suite). */
   system: boolean;
+  /**
+   * true = a separate deployment with its own database and its own auth, not a
+   * route in this application.
+   *
+   * The launcher links straight out to it and the branded-door machinery skips
+   * it entirely, because there is no BirgenAI ID session to carry: the
+   * Interchange authenticates members by Ed25519 node certificate. Pretending
+   * otherwise would put a "Continue as Faith" button in front of a door that
+   * cannot honour it.
+   */
+  external?: boolean;
+  /**
+   * false = this system has no staff sign-in door of its own.
+   *
+   * True for five of the seven. The Customer Portal is excluded because it
+   * belongs to borrowers, and the Interchange because it is external. Both are
+   * reachable from the launcher; neither renders /suite/<id>/login.
+   */
+  door?: boolean;
   /** The right that admits you here. Undefined = every signed-in staff member. */
   right?: string;
   /** Live today vs. shipping — honest labelling on the launcher. */
@@ -85,6 +104,11 @@ export const SUITE_APPS: SuiteApp[] = [
     href: "/",
     subdomain: satelliteHost("portal"),
     system: false,
+    // No staff door. This system belongs to BORROWERS: its host is what the
+    // installed Micro Eazy app launches into, and a staff sign-in card in front
+    // of that would break every home-screen icon already in customers' hands.
+    // Staff who need to see what a customer sees open it from the launcher.
+    door: false,
     live: true,
     modules: ["Apply", "My loans", "Repay", "Statements"],
     handoff: "A portal application lands in the console queue already scored.",
@@ -181,6 +205,39 @@ export const SUITE_APPS: SuiteApp[] = [
     live: true,
     modules: ["Live floor", "Work queue", "Promises", "Recoveries", "Fintech bridge"],
     handoff: "A missed instalment opens a case here with the borrower's whole history attached — merged from seven sources across two databases.",
+  },
+  {
+    // ── THE INTERCHANGE ───────────────────────────────────────────────────────
+    //
+    // The seventh system, and the only one that is not this deployment. It is a
+    // separate repository, a separate Vercel project and a separate database,
+    // and it is here because a lender BUYS it the same way they buy PeopleHub —
+    // it belongs in the launcher and in the platform's per-lender toggles even
+    // though no request for it ever reaches this application.
+    //
+    // `external: true` is what keeps that honest. The launcher links straight
+    // out; hrefFor() returns the configured origin rather than an in-app route;
+    // and there is no /suite/interchange/login, because the Interchange's own
+    // member gate IS the door and a BirgenAI ID session means nothing to it.
+    //
+    // Set SUITE_INTERCHANGE_ORIGIN to point at it. Until that is set the tile
+    // renders with its subdomain and no working link, which is the correct
+    // reading of "bought, not yet provisioned".
+    id: "interchange",
+    name: "The Interchange",
+    short: "Interchange",
+    tagline: "Query every other lender's exposure in real time — without anybody pooling a book.",
+    purpose: "What the rest of the market already knows.",
+    accent: "#0891b2",
+    icon: Waypoints,
+    href: "/",
+    subdomain: INTERCHANGE_HOST,
+    system: false,
+    external: true,
+    door: false,
+    live: true,
+    modules: ["Directory", "Exposure", "Consent", "Score", "Audit"],
+    handoff: "An affordability check in the lending console asks the Interchange what this borrower owes elsewhere — and gets an answer without either lender ever seeing the other's book.",
   },
 ];
 

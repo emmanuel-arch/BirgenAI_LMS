@@ -15,6 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { getRights, getDeniedModules } from "@/lib/rbac/authz";
 import { isDenied } from "@/lib/rbac/modules";
 import { SUITE_APPS } from "@/lib/suite/apps";
+import { entitledSystems } from "@/lib/suite/entitlements";
 import { resolveSuite } from "@/lib/suite/hosts";
 import { getSuiteTelemetry } from "@/lib/suite/telemetry";
 import SuiteBoard from "@/components/suite/SuiteBoard";
@@ -29,22 +30,30 @@ export default async function SuiteLauncherPage() {
   const [org, rights, denied, telemetry] = await Promise.all([
     prisma.org.findUnique({
       where: { id: session.user.orgId },
-      select: { name: true, accent: true, accentSoft: true },
+      select: { name: true, accent: true, accentSoft: true, systems: true },
     }),
     getRights(session),
     getDeniedModules(session),
     getSuiteTelemetry(),
   ]);
 
-  // TWO DIFFERENT QUESTIONS, and conflating them is what makes access control
-  // confusing to the person on the receiving end:
+  // THREE DIFFERENT QUESTIONS, and conflating any two of them is what makes
+  // access control impossible to explain to the person on the receiving end:
   //
-  //   VISIBLE  — is this system part of your working life at all? Set per person
+  //   ENTITLED — did this ORGANISATION buy this system? Set by the platform
+  //              admin at /platform. Commercial, and org-wide: switching one off
+  //              takes the door away from everybody at this lender at once.
+  //   VISIBLE  — is this system part of YOUR working life at all? Set per person
   //              by their administrator. A door turned off is not on the page.
   //   ENTERED  — do you hold the right that opens it? A visible door you cannot
   //              yet enter reads "Request access", which is a useful thing to
   //              see; an invisible one you could have entered is not.
-  const visible = SUITE_APPS.filter((a) => !isDenied(denied, a.id)).map((a) => a.id);
+  //
+  // They compose by AND, in that order.
+  const entitled = entitledSystems(org?.systems);
+  const visible = SUITE_APPS
+    .filter((a) => entitled.has(a.id) && !isDenied(denied, a.id))
+    .map((a) => a.id);
   const entered = SUITE_APPS.filter((a) => !a.right || rights.has(a.right)).map((a) => a.id);
 
   return (
@@ -53,7 +62,7 @@ export default async function SuiteLauncherPage() {
       orgName={org?.name ?? "Your organisation"}
       entered={entered}
       visible={visible}
-      hosts={resolveSuite()}
+      hosts={resolveSuite(visible)}
       telemetry={telemetry}
     />
   );

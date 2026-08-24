@@ -116,6 +116,19 @@ export const ACCESS_CATALOG: CatalogSystem[] = [
     blurb: "The customer-facing door. Staff do not sign in here.",
     modules: [],
   },
+  {
+    // No modules, and that is correct rather than unfinished: the Interchange is
+    // a separate deployment with its own rights catalogue
+    // (interchange/apps/interchange-console/lib/rights.ts). What an administrator
+    // can express HERE is the one thing this side owns — whether the tile appears
+    // on a given person's launcher at all. Everything past the link is governed
+    // over there, by the member's own operator record.
+    id: "interchange",
+    name: "The Interchange",
+    accent: "#0891b2",
+    blurb: "The federated exposure exchange. Its own deployment, its own member gate.",
+    modules: [],
+  },
 ];
 
 // ── The shape stored on StaffUser.access ─────────────────────────────────────

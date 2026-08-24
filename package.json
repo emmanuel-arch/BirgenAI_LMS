@@ -86,6 +86,7 @@
     "test:relay": "tsx scripts/verify-relay.ts",
     "test:live": "tsx scripts/verify-live.ts",
     "art:optimize": "tsx scripts/optimize-suite-art.ts",
+    "art:check": "tsx scripts/check-suite-art.ts",
     "test:access": "tsx scripts/verify-access.ts"
   },
   "dependencies": {

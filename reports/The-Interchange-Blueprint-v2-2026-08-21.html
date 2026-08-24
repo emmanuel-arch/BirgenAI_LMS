@@ -1,0 +1,825 @@
+<title>The Interchange v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+:root{
+  --ink:#121A18;
+  --paper:#FFFFFF;
+  --surface:#F4F7F5;
+  --surface-2:#EAF0EC;
+  --rule:#DCE4DF;
+  --rule-strong:#B9C6BE;
+  --muted:#5C6B64;
+  --accent:#0B5D4E;
+  --accent-soft:#E6F0EB;
+  --signal:#B4531A;
+  --signal-soft:#FAEEE4;
+  --critical:#A32020;
+  --critical-soft:#FBEBEB;
+
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --mono:"JetBrains Mono","SFMono-Regular",Consolas,monospace;
+}
+
+@page{ size:A4; margin:14mm 13mm 15mm; }
+
+*{ box-sizing:border-box; }
+
+html{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:9.6pt;
+  line-height:1.58;
+  font-variant-numeric:oldstyle-nums;
+}
+
+.sheet{ max-width:172mm; margin:0 auto; }
+
+/* ─── Rail layout ─────────────────────────────────────────────── */
+section{ margin:0 0 9mm; }
+.sec{
+  display:grid;
+  grid-template-columns:13mm 1fr;
+  gap:0 5mm;
+  align-items:start;
+}
+.sec > .num{
+  font-family:var(--display);
+  font-size:8pt;
+  font-weight:700;
+  letter-spacing:.06em;
+  color:var(--accent);
+  padding-top:1.2mm;
+  font-variant-numeric:tabular-nums;
+}
+.sec > .bodycol{ min-width:0; }
+
+/* ─── Type ────────────────────────────────────────────────────── */
+h1,h2,h3,h4{ font-family:var(--display); text-wrap:balance; margin:0; font-variant-numeric:lining-nums; }
+
+h2{
+  font-size:16pt; font-weight:700; letter-spacing:-.015em; line-height:1.15;
+  padding-bottom:2.4mm; margin-bottom:4mm;
+  border-bottom:1.6pt solid var(--ink);
+}
+h3{
+  font-size:10.5pt; font-weight:600; letter-spacing:-.005em;
+  margin:6mm 0 2mm; color:var(--ink);
+}
+h3:first-child{ margin-top:0; }
+h4{
+  font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:.1em;
+  color:var(--muted); margin:5mm 0 1.6mm;
+}
+p{ margin:0 0 2.6mm; max-width:66ch; }
+.lede{ font-size:11pt; line-height:1.5; color:var(--ink); max-width:60ch; }
+strong{ font-weight:600; }
+em{ font-style:italic; }
+a{ color:var(--accent); text-decoration:none; }
+
+ul,ol{ margin:0 0 2.8mm; padding-left:5mm; max-width:66ch; }
+li{ margin-bottom:1.2mm; }
+li::marker{ color:var(--accent); }
+
+code,.m{ font-family:var(--mono); font-size:8.1pt; font-variant-numeric:tabular-nums; }
+code{ background:var(--surface-2); padding:.3mm 1mm; border-radius:1.4pt; }
+
+/* ─── Masthead ────────────────────────────────────────────────── */
+.mast{ border-bottom:3pt solid var(--ink); padding-bottom:6mm; margin-bottom:7mm; }
+.eyebrow{
+  font-family:var(--display); font-size:7.6pt; font-weight:600;
+  text-transform:uppercase; letter-spacing:.22em; color:var(--accent);
+  margin-bottom:4mm;
+}
+.mast h1{
+  font-size:44pt; font-weight:700; letter-spacing:-.035em; line-height:.92;
+  margin-bottom:3.5mm;
+}
+.mast .sub{
+  font-family:var(--body); font-size:12pt; line-height:1.42;
+  color:var(--muted); max-width:52ch; margin-bottom:6mm;
+}
+.metagrid{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:4mm;
+  border-top:.6pt solid var(--rule); padding-top:3.5mm;
+}
+.metagrid div span{
+  display:block; font-family:var(--display); font-size:6.8pt; font-weight:700;
+  text-transform:uppercase; letter-spacing:.13em; color:var(--muted); margin-bottom:1mm;
+}
+.metagrid div b{ font-family:var(--display); font-size:8.6pt; font-weight:500; color:var(--ink); }
+
+/* ─── Callouts ────────────────────────────────────────────────── */
+.callout{
+  border-left:2.4pt solid var(--accent); background:var(--accent-soft);
+  padding:3.4mm 4mm; margin:3.5mm 0; break-inside:avoid-page;
+}
+.callout.warn{ border-left-color:var(--signal); background:var(--signal-soft); }
+.callout.crit{ border-left-color:var(--critical); background:var(--critical-soft); }
+.callout p:last-child{ margin-bottom:0; }
+.callout .tag{
+  font-family:var(--display); font-size:7pt; font-weight:700;
+  text-transform:uppercase; letter-spacing:.13em; color:var(--accent);
+  display:block; margin-bottom:1.4mm;
+}
+.callout.warn .tag{ color:var(--signal); }
+.callout.crit .tag{ color:var(--critical); }
+
+/* ─── Tables ──────────────────────────────────────────────────── */
+.tw{ overflow-x:auto; margin:3mm 0 4mm; }
+table{ width:100%; border-collapse:collapse; font-size:7.9pt; font-family:var(--display); }
+caption{
+  caption-side:top; text-align:left;
+  font-family:var(--display); font-size:7pt; font-weight:700;
+  text-transform:uppercase; letter-spacing:.12em; color:var(--muted);
+  padding-bottom:1.8mm;
+}
+th{
+  text-align:left; font-weight:700; font-size:6.9pt; text-transform:uppercase;
+  letter-spacing:.09em; color:var(--muted);
+  border-bottom:1pt solid var(--ink); padding:1.6mm 2mm 1.6mm 0; vertical-align:bottom;
+}
+td{
+  padding:1.7mm 2mm 1.7mm 0; border-bottom:.5pt solid var(--rule);
+  vertical-align:top; font-weight:400;
+}
+tbody tr:nth-child(even){ background:var(--surface); }
+td.n,th.n{ text-align:right; font-variant-numeric:tabular-nums; padding-right:3mm; }
+.host{ font-family:var(--mono); font-size:7.4pt; }
+
+.pill{
+  display:inline-block; font-family:var(--display); font-size:6.6pt; font-weight:700;
+  text-transform:uppercase; letter-spacing:.07em;
+  padding:.5mm 1.6mm; border-radius:1.6pt; white-space:nowrap;
+}
+.pill.ok{ background:var(--accent); color:#fff; }
+.pill.no{ background:var(--surface-2); color:var(--muted); }
+.pill.risk{ background:var(--critical); color:#fff; }
+.pill.warn{ background:var(--signal); color:#fff; }
+
+/* ─── Figures ─────────────────────────────────────────────────── */
+figure{ margin:4mm 0 5mm; break-inside:avoid-page; }
+figure svg{ width:100%; height:auto; display:block; }
+figcaption{
+  font-family:var(--display); font-size:7pt; color:var(--muted);
+  margin-top:2mm; padding-top:1.6mm; border-top:.5pt solid var(--rule);
+  letter-spacing:.02em;
+}
+
+/* ─── Stat strip ──────────────────────────────────────────────── */
+.stats{
+  display:grid; grid-template-columns:repeat(4,1fr);
+  border-top:1.2pt solid var(--ink); border-bottom:1.2pt solid var(--ink);
+  margin:4mm 0 5mm; break-inside:avoid-page;
+}
+.stats > div{ padding:3mm 3mm 3.4mm; border-right:.5pt solid var(--rule); }
+.stats > div:last-child{ border-right:none; }
+.stats b{
+  display:block; font-family:var(--display); font-size:21pt; font-weight:700;
+  letter-spacing:-.03em; line-height:1; color:var(--accent);
+  font-variant-numeric:lining-nums tabular-nums; margin-bottom:1.6mm;
+}
+.stats span{
+  font-family:var(--display); font-size:6.9pt; font-weight:600; line-height:1.3;
+  text-transform:uppercase; letter-spacing:.08em; color:var(--muted); display:block;
+}
+
+/* ─── Steps ───────────────────────────────────────────────────── */
+.steps{ counter-reset:s; list-style:none; padding:0; margin:3mm 0 4mm; max-width:66ch; }
+.steps li{
+  counter-increment:s; position:relative; padding-left:8mm; margin-bottom:2.4mm;
+  break-inside:avoid-page;
+}
+.steps li::before{
+  content:counter(s); position:absolute; left:0; top:.2mm;
+  font-family:var(--display); font-size:7pt; font-weight:700; color:#fff;
+  background:var(--accent); width:4.6mm; height:4.6mm; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* ─── Spec block ──────────────────────────────────────────────── */
+.spec{
+  font-family:var(--mono); font-size:7.5pt; line-height:1.5;
+  background:var(--surface); border:.5pt solid var(--rule);
+  border-left:2.4pt solid var(--rule-strong);
+  padding:3mm 3.5mm; margin:3mm 0 4mm; white-space:pre; overflow-x:auto;
+  break-inside:avoid-page;
+}
+
+/* ─── Two-col ─────────────────────────────────────────────────── */
+.cols2{ display:grid; grid-template-columns:1fr 1fr; gap:0 6mm; }
+.cols2 p,.cols2 ul{ max-width:none; }
+
+/* ─── Page control ────────────────────────────────────────────── */
+.pb{ break-before:page; }
+h2,h3,h4{ break-after:avoid-page; }
+table{ break-inside:auto; }
+tr{ break-inside:avoid-page; }
+.callout,.stats,figure,.spec{ break-inside:avoid-page; }
+
+footer{
+  margin-top:10mm; padding-top:3mm; border-top:1.2pt solid var(--ink);
+  font-family:var(--display); font-size:7pt; color:var(--muted);
+  display:flex; justify-content:space-between;
+}
+</style>
+
+<div class="sheet">
+
+<div class="mast">
+  <div class="eyebrow">Micro-Eazy Ecosystem &nbsp;·&nbsp; Blueprint v2 &nbsp;·&nbsp; Re-compassed after legal clearance</div>
+  <h1>The Interchange</h1>
+  <p class="sub">Consent, CRB 2.0, the closed learning loop, and the model no
+  competitor can rebuild — because the advantage is the data, not the weights.</p>
+  <div class="metagrid">
+    <div><span>Prepared by</span><b>Faith Birgen</b></div>
+    <div><span>Date</span><b>21 August 2026</b></div>
+    <div><span>Status</span><b>Approved — building</b></div>
+    <div><span>Supersedes</span><b>Blueprint v1</b></div>
+  </div>
+</div>
+
+<!-- ═══════════ 01 ═══════════ -->
+<section class="sec">
+  <div class="num">01</div>
+  <div class="bodycol">
+    <h2>What changed since v1</h2>
+
+    <p class="lede">Counsel has cleared the plan. That removes the one blocking risk in
+    v1 §8 and replaces it with a condition: consent must be provable, for every borrower,
+    at every hop.</p>
+
+    <div class="tw">
+      <table>
+        <caption>Table 1 · Decisions now locked</caption>
+        <thead><tr><th style="width:26%">Question</th><th style="width:34%">Decision</th><th style="width:40%">Consequence for the build</th></tr></thead>
+        <tbody>
+          <tr><td>Regulatory position</td><td><strong>Cleared, with conditions</strong></td><td>Consent Center becomes a Phase-1 component, not a Phase-4 one</td></tr>
+          <tr><td>Operating entity</td><td><strong>BirgenAI subsidiary</strong></td><td>Neutral branding matters more, not less — see §9</td></tr>
+          <tr><td>Data residency</td><td><strong>No constraint</strong></td><td>Cloudflare R2 confirmed; MinIO fallback dropped</td></tr>
+          <tr><td>Founding cohort</td><td><strong>Micromart · Axe · BuySimu</strong>, plus qualifying entities on the shared <code>.198</code> book</td><td>Cohort assessment query pending approval</td></tr>
+          <tr><td>Commercial model</td><td><strong>Per-query above a contribution-linked free tier</strong></td><td>Metering and quota land in the Registry from day one</td></tr>
+          <tr><td>Infrastructure ownership</td><td><strong>You own all of it</strong></td><td>Nodes are hosted by you on your hardware; members get an endpoint, not a server</td></tr>
+          <tr><td>Build base</td><td><strong>LMS stack</strong> — Next 15, Tailwind 4, Prisma</td><td>Vault cinematic ports forward; one stack across seven systems</td></tr>
+          <tr><td>The AI</td><td><strong>Retrieval + tools, plus own scoring models</strong></td><td>Ships in weeks; the moat is the pool, not the weights</td></tr>
+          <tr><td>Consent enforcement</td><td><strong>Hard gate — no <code>consent_ref</code>, no answer</strong></td><td>The network physically cannot serve an unconsented query</td></tr>
+          <tr><td>First ship</td><td><strong>Vault shell · Directory · Consent Center</strong></td><td>Demoable URL in ~2 weeks</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <span class="tag">One decision deserves a second look</span>
+      <p>You own all the infrastructure, and that is right for control, cost and speed. But
+      note what it costs you rhetorically: v1 §4 argued that a lender joins because
+      <em>their data never leaves their perimeter.</em> If you host every node, that
+      sentence is no longer true, and a sophisticated competitor will notice. The
+      tokenisation boundary in §4 is what preserves the argument — identity is destroyed
+      before it reaches storage you control, so what you hold is unlinkable even by you.
+      Say it that way, and the claim survives. Say “your data never leaves you” and it
+      does not.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 02 ═══════════ -->
+<section class="sec pb">
+  <div class="num">02</div>
+  <div class="bodycol">
+    <h2>The Consent Center</h2>
+
+    <p>Counsel's condition is the architecture's spine. Every borrower entering the
+    ecosystem — through the Micro-Eazy PWA or through a member's own onboarding — agrees
+    once, comprehensively, to everything the Interchange will ever do with their data. No
+    agreement, no loan.</p>
+
+    <h3>2.1 &nbsp;What the consent must cover</h3>
+
+    <p>Consent is granted as <strong>scopes</strong>, each independently recorded and
+    independently revocable. A loan requires the mandatory set; the optional set widens
+    what the ecosystem can learn.</p>
+
+    <div class="tw">
+      <table>
+        <caption>Table 2 · Consent scopes</caption>
+        <thead><tr><th style="width:24%">Scope</th><th style="width:50%">What it authorises</th><th style="width:26%">Required for a loan</th></tr></thead>
+        <tbody>
+          <tr><td><code>mpesa.crunch</code></td><td>Parse and derive features from the uploaded M-Pesa statement</td><td><strong>Mandatory</strong></td></tr>
+          <tr><td><code>kyc.verify</code></td><td>Identity verification, liveness, document capture, IPRS where available</td><td><strong>Mandatory</strong></td></tr>
+          <tr><td><code>bureau.pull</code></td><td>Query external CRBs (Metropol) on their behalf</td><td><strong>Mandatory</strong></td></tr>
+          <tr><td><code>ecosystem.exposure</code></td><td>Ask other members whether this person has live exposure, and answer such questions about them</td><td><strong>Mandatory</strong></td></tr>
+          <tr><td><code>outcome.label</code></td><td>Record how the loan ended, and use that label to improve scoring</td><td><strong>Mandatory</strong></td></tr>
+          <tr><td><code>model.train</code></td><td>Include their de-identified features in training data for ecosystem models and agents</td><td><strong>Mandatory</strong></td></tr>
+          <tr><td><code>collections.contact</code></td><td>Contact them, and share contactability signals with the member servicing the debt</td><td>Mandatory</td></tr>
+          <tr><td><code>identity.disclose</code></td><td>Reveal the lender's identity to a counterparty rather than aggregates only</td><td>Optional</td></tr>
+          <tr><td><code>marketing.offers</code></td><td>Receive pre-qualified offers from other ecosystem members</td><td>Optional</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <span class="tag">Why bundling the mandatory set is defensible</span>
+      <p>Conditioning a loan on consent is lawful where the processing is genuinely
+      necessary to provide the product — assessing whether to lend. The mandatory scopes
+      above all serve that assessment, which is why they can be bundled. <code>model.train</code>
+      is the one worth a second conversation with counsel: it is arguably necessary
+      (the score that approves the next borrower is built from it) but it is also the one
+      a regulator would probe hardest. Keeping the two marketing-adjacent scopes strictly
+      optional is what demonstrates that the bundle is about lending, not about
+      collecting everything you can.</p>
+    </div>
+
+    <h3>2.2 &nbsp;The lifecycle</h3>
+
+    <div class="spec">CAPTURE     PWA or member onboarding presents scopes, records affirmative act
+            → device, IP, timestamp, wording version, signature/OTP evidence
+
+ISSUE       POST /consent  →  { consent_ref, subject_token, scopes[], expires_at }
+            consent_ref is an opaque handle; the ledger row is the evidence
+
+VALIDATE    every Interchange call carries consent_ref
+            Registry checks: exists · not expired · not revoked · scope covers
+            this operation  → else 403 CONSENT_SCOPE_MISSING, logged both sides
+
+REVOKE      borrower withdraws via PWA or by request to any member
+            → propagates ecosystem-wide within one config cycle (≤15 min)
+            → prospective only; existing labels retained under legitimate interest
+
+PROVE       any member, any borrower, any regulator can be shown the exact
+            wording agreed to, when, and every query it subsequently authorised</div>
+
+    <h3>2.3 &nbsp;Two onboarding paths</h3>
+
+    <p><strong>Native</strong> — a borrower using the Micro-Eazy PWA uploads their M-Pesa
+    statement as a mandatory step, then meets the consent screen before the application
+    form. The <code>consent_ref</code> is minted inline and travels with every downstream
+    call.</p>
+
+    <p><strong>Bridged</strong> — a member onboarding on their own system must present
+    equivalent wording and <code>POST /consent</code> to the Consent Center before their
+    first query about that borrower. The Interchange supplies the canonical wording, a
+    drop-in web component, and a REST endpoint. This is the integration burden of joining,
+    and it is deliberately the <em>first</em> thing a new member builds — it establishes
+    from day one that the network's currency is provable consent.</p>
+  </div>
+</section>
+
+<!-- ═══════════ 03 ═══════════ -->
+<section class="sec pb">
+  <div class="num">03</div>
+  <div class="bodycol">
+    <h2>CRB 2.0</h2>
+
+    <p class="lede">Metropol sees what regulated lenders chose to report, in monthly
+    batches, about accounts that already exist. CRB 2.0 sees the ecosystem live, plus
+    everything a bureau structurally cannot hold.</p>
+
+    <h3>3.1 &nbsp;Where the advantage actually comes from</h3>
+
+    <div class="tw">
+      <table>
+        <caption>Table 3 · Structural comparison</caption>
+        <thead><tr><th style="width:30%">Dimension</th><th style="width:35%">Metropol / traditional CRB</th><th style="width:35%">CRB 2.0</th></tr></thead>
+        <tbody>
+          <tr><td>Freshness</td><td>Monthly submission cycle; weeks of lag</td><td><strong>Live</strong> — queries hit the member's book</td></tr>
+          <tr><td>Coverage</td><td>Only regulated institutions that report</td><td>Every ecosystem member, reporting continuously</td></tr>
+          <tr><td>Cashflow</td><td>None — bureaus never see the bank rail</td><td><strong>M-Pesa statement features</strong>, mandatory at application</td></tr>
+          <tr><td>Thin-file borrowers</td><td>“No record found” — the majority of first-time borrowers</td><td>Scored from cashflow behaviour alone</td></tr>
+          <tr><td>Rejected applicants</td><td>Invisible</td><td><strong>Observable</strong> via ecosystem outcomes — see §5.2</td></tr>
+          <tr><td>Collections signal</td><td>None</td><td>1.34 M dispositions, 150 K PTPs, contactability</td></tr>
+          <tr><td>Intent</td><td>None</td><td>Application velocity across members — who is shopping right now</td></tr>
+          <tr><td>Cost per query</td><td>Per-report tariff</td><td>Free above a contribution-linked tier</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <span class="tag">What CRB 2.0 is not</span>
+      <p>It is not a replacement for Metropol and should never be sold as one. A regulated
+      lender still has statutory reporting obligations to a licensed bureau, and Metropol
+      sees banks and SACCOs that will never join this ecosystem. CRB 2.0 is a
+      <em>complement</em> with a different shape: shallower on formal credit, far deeper on
+      cashflow, intent and behaviour. The LMS default becomes CRB 2.0 because it is
+      instant and free; Metropol remains available as an escalation for larger tickets.</p>
+    </div>
+
+    <h3>3.2 &nbsp;Metropol-compatible by construction</h3>
+
+    <p>The endpoint shape deliberately mirrors Metropol's — same request envelope, same
+    <code>api_code</code> semantics, same report-type integers where an equivalent exists.
+    A member already integrated with Metropol changes a base URL and a key pair, and
+    keeps their parsing code. That is the cheapest possible migration path, and it is
+    worth the constraint it imposes on our response design.</p>
+
+    <div class="tw">
+      <table>
+        <caption>Table 4 · Report catalogue</caption>
+        <thead><tr><th style="width:8%">Type</th><th style="width:28%">Report</th><th style="width:40%">Contents</th><th style="width:24%">Metropol parallel</th></tr></thead>
+        <tbody>
+          <tr><td class="n">1</td><td>Identity Verification</td><td>KYC status, liveness result, name/ID match confidence</td><td>Report 1</td></tr>
+          <tr><td class="n">2</td><td>Delinquency Status</td><td>Worst bucket across the ecosystem, days past due</td><td>Report 2</td></tr>
+          <tr><td class="n">3</td><td>Interchange Score</td><td>0–1000 network score with reason codes</td><td>Report 3 (Metro Score)</td></tr>
+          <tr><td class="n">11</td><td>Cashflow &amp; Affordability</td><td>M-Pesa derived income, volatility, obligations, disposable estimate</td><td>Report 11, but from the rail</td></tr>
+          <tr><td class="n">12</td><td>Full Enhanced</td><td>Everything below, assembled</td><td>Report 12</td></tr>
+          <tr><td class="n">20</td><td><strong>Ecosystem Exposure</strong></td><td>Live multi-lender exposure, stacking velocity, 14-day new-credit count</td><td><em>none</em></td></tr>
+          <tr><td class="n">21</td><td><strong>Intent Signal</strong></td><td>Applications across members in the last 30 days, approved and declined</td><td><em>none</em></td></tr>
+          <tr><td class="n">22</td><td><strong>Contactability</strong></td><td>Best contact hour, PTP-keep rate, alternate numbers seen elsewhere</td><td><em>none</em></td></tr>
+          <tr><td class="n">23</td><td><strong>Cohort Benchmark</strong></td><td>This borrower against their cohort across the ecosystem</td><td><em>none</em></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>3.3 &nbsp;Dynamic assembly and the PDF artefact</h3>
+
+    <p>A report is not a fixed document — it is assembled from whichever
+    <strong>evidence blocks</strong> exist for that borrower and whichever the requesting
+    member has subscribed to. A borrower who has been KYC-verified, M-Pesa crunched, CRB
+    pulled and scored yields a full report; a fresh applicant yields the blocks that
+    exist, with the rest marked <code>unavailable</code> rather than fabricated.</p>
+
+    <div class="spec">EVIDENCE BLOCKS                     ASSEMBLY
+─────────────────                    ────────
+identity.kyc          ┐              subscription tier
+mpesa.cashflow        │              + consent scopes
+bureau.metropol       ├──────────►   + blocks present
+scoring.pipelines[6]  │              ─────────────────
+repayment.behaviour   │              = this member's report
+ecosystem.exposure    │                   │
+collections.signal    ┘                   ├─► JSON  (API)
+                                          └─► PDF   (console + storage)</div>
+
+    <p>Every generated report is written to Supabase Storage under
+    <code>reports/{orgId}/{subject_token}/{report_type}/{iso}.pdf</code>, with the JSON
+    payload retained beside it. Because <code>subject_token</code> is the key, a report
+    stored by Micromart is retrievable by Axe under the same token when consent and
+    subscription permit — which is what makes “request a customer's report from another
+    member's LMS” work without either party exchanging a name.</p>
+  </div>
+</section>
+
+<!-- ═══════════ 04 ═══════════ -->
+<section class="sec pb">
+  <div class="num">04</div>
+  <div class="bodycol">
+    <h2>The feature taxonomy</h2>
+
+    <p>Everything the ecosystem knows about a borrower, organised into the families a
+    model consumes. Roughly 120 features at launch, all computed on the member's side of
+    the tokenisation boundary and published against <code>subject_token</code>.</p>
+
+    <div class="tw">
+      <table>
+        <caption>Table 5 · Feature families</caption>
+        <thead><tr><th style="width:22%">Family</th><th style="width:8%">Count</th><th style="width:46%">Representative features</th><th style="width:24%">Source</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Identity &amp; KYC</strong></td><td class="n">12</td><td>ID-name match confidence, liveness score, document quality, age, tenure since first seen, duplicate-device flag</td><td>PWA / LMS onboarding</td></tr>
+          <tr><td><strong>M-Pesa cashflow</strong></td><td class="n">38</td><td>Median monthly inflow, inflow volatility, salary regularity, till/paybill ratio, night-transaction share, balance troughs, overdraft (Fuliza) reliance, betting share, airtime cadence</td><td>Statement cruncher</td></tr>
+          <tr><td><strong>Application</strong></td><td class="n">10</td><td>Requested amount vs income, tenor, product, channel, time-of-day, form-completion time, edit count</td><td>Origination funnel</td></tr>
+          <tr><td><strong>Bureau</strong></td><td class="n">14</td><td>Metropol score, account count by status, sector exposure, enquiry count, worst historical bucket</td><td>Metropol (when open)</td></tr>
+          <tr><td><strong>Ecosystem exposure</strong></td><td class="n">16</td><td>Active loans, distinct lenders, outstanding band, stacking velocity 7/14/30d, time since newest disbursement, cross-member arrears</td><td><strong>Interchange only</strong></td></tr>
+          <tr><td><strong>Repayment behaviour</strong></td><td class="n">18</td><td>On-time ratio, mean days late, worst bucket, early-settlement count, rollover count, instalment-to-inflow ratio, recovery-after-arrears rate</td><td>Serviceconnect</td></tr>
+          <tr><td><strong>Collections</strong></td><td class="n">12</td><td>Contact attempts to resolution, PTP made vs kept, best contact hour, disposition mix, RO changes</td><td>CollectBox</td></tr>
+          <tr><td><strong>Ecosystem intent</strong></td><td class="n">8</td><td>Applications across members 30d, decline count, approval-to-application ratio, shopping breadth</td><td><strong>Interchange only</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <span class="tag">Point-in-time correctness is not optional</span>
+      <p>Every feature must be computable <em>as it stood at decision time</em>. A model
+      trained on “worst bucket ever” will look extraordinary in backtest and collapse in
+      production, because at scoring time that value does not yet exist. This is the most
+      common way a lending model dies, and the reason Plane B is built on Iceberg: its
+      snapshot and time-travel semantics let the feature store reconstruct any borrower's
+      vector as of any timestamp, cheaply and provably.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 05 ═══════════ -->
+<section class="sec pb">
+  <div class="num">05</div>
+  <div class="bodycol">
+    <h2>The closed learning loop</h2>
+
+    <h3>5.1 &nbsp;Why it has never actually closed</h3>
+
+    <p>The nightly job in <code>emmanuel-arch/BirgenAI</code> that was supposed to label
+    outcomes has failed every run since it was added. It is not a code defect — the
+    workflow guards on two repository secrets, <code>APP_BASE_URL</code> and
+    <code>CRON_SECRET</code>, and neither was ever set, so it exits 1 before making a
+    request. <strong>No loan outcome has ever been written back.</strong> Every scoring
+    record produced so far is unlabelled.</p>
+
+    <p>Setting the two secrets fixes the run. It does not fix the design. A GitHub Action
+    firing an HTTP call at a Vercel app is a fragile place for the mechanism that decides
+    what your models learn: it has no lineage, no retry semantics, no backfill window, no
+    idempotency, and it fails silently in a repository nobody watches. In the target
+    architecture, labelling is a <strong>Dagster asset</strong> owned by the Interchange,
+    with the loan book as its upstream dependency and the label store as its output.</p>
+
+    <h3>5.2 &nbsp;The reject-inference advantage</h3>
+
+    <p class="lede">This is the strongest data-science argument for the entire ecosystem,
+    and it should be the centrepiece of every member conversation.</p>
+
+    <p>A lender can only observe outcomes for loans it approved. Everyone it declined is
+    an unlabelled hole in the training set. Train on approvals alone and the model learns
+    to reproduce the existing credit policy rather than to predict repayment — the
+    classic selection bias, and the reason in-house scorecards plateau. The standard
+    remedies (reject inference by parcelling, augmentation, bureau-based performance
+    proxies) are all attempts to <em>guess</em> what would have happened.</p>
+
+    <p>The Interchange does not have to guess. A borrower Micromart declined who was
+    approved by Axe generates a real, observed outcome against the same
+    <code>subject_token</code>. The rejected population becomes partially labelled with
+    ground truth rather than inference.</p>
+
+    <figure>
+      <svg viewBox="0 0 900 300" role="img" aria-label="Reject inference solved by the ecosystem" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          .bx2{fill:#FFFFFF;stroke:#121A18;stroke-width:1.4}
+          .bxa2{fill:#E6F0EB;stroke:#0B5D4E;stroke-width:1.4}
+          .bxg{fill:#F4F7F5;stroke:#B9C6BE;stroke-width:1.1}
+          .bxr{fill:#FBEBEB;stroke:#A32020;stroke-width:1.2}
+          .t2{font-family:Archivo,sans-serif;font-size:14px;font-weight:600;fill:#121A18}
+          .s2{font-family:Archivo,sans-serif;font-size:11.5px;fill:#5C6B64}
+          .l2{stroke:#5C6B64;stroke-width:1.2;fill:none}
+          .lg2{stroke:#0B5D4E;stroke-width:1.8;fill:none}
+        </style>
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#5C6B64"/></marker>
+          <marker id="a2g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="#0B5D4E"/></marker>
+        </defs>
+
+        <text class="s2" x="10" y="16">TODAY — ONE LENDER ALONE</text>
+        <rect class="bx2" x="10" y="28" width="150" height="40" rx="3"/>
+        <text class="t2" x="85" y="52" text-anchor="middle">Applicants</text>
+        <path class="l2" d="M160,40 L215,40" marker-end="url(#a2)"/>
+        <path class="l2" d="M160,56 L215,88" marker-end="url(#a2)"/>
+        <rect class="bxg" x="215" y="24" width="130" height="34" rx="3"/>
+        <text class="t2" x="280" y="45" text-anchor="middle">Approved</text>
+        <rect class="bxr" x="215" y="72" width="130" height="34" rx="3"/>
+        <text class="t2" x="280" y="93" text-anchor="middle">Declined</text>
+        <path class="l2" d="M345,41 L400,41" marker-end="url(#a2)"/>
+        <rect class="bxg" x="400" y="24" width="150" height="34" rx="3"/>
+        <text class="t2" x="475" y="45" text-anchor="middle">Outcome observed</text>
+        <text class="s2" x="355" y="94">✗ never observed — the hole</text>
+
+        <line x1="10" y1="130" x2="890" y2="130" stroke="#DCE4DF" stroke-width="1"/>
+
+        <text class="s2" x="10" y="158">WITH THE INTERCHANGE</text>
+        <rect class="bx2" x="10" y="170" width="150" height="40" rx="3"/>
+        <text class="t2" x="85" y="194" text-anchor="middle">Applicants</text>
+        <path class="l2" d="M160,182 L215,182" marker-end="url(#a2)"/>
+        <path class="l2" d="M160,198 L215,230" marker-end="url(#a2)"/>
+        <rect class="bxg" x="215" y="166" width="130" height="34" rx="3"/>
+        <text class="t2" x="280" y="187" text-anchor="middle">Approved</text>
+        <rect class="bxa2" x="215" y="214" width="130" height="34" rx="3"/>
+        <text class="t2" x="280" y="235" text-anchor="middle">Declined</text>
+        <path class="l2" d="M345,183 L400,183" marker-end="url(#a2)"/>
+        <rect class="bxg" x="400" y="166" width="150" height="34" rx="3"/>
+        <text class="t2" x="475" y="187" text-anchor="middle">Outcome observed</text>
+
+        <path class="lg2" d="M345,231 L400,231" marker-end="url(#a2g)"/>
+        <rect class="bxa2" x="400" y="214" width="180" height="34" rx="3"/>
+        <text class="t2" x="490" y="235" text-anchor="middle">Borrowed elsewhere</text>
+        <path class="lg2" d="M580,231 L635,231" marker-end="url(#a2g)"/>
+        <rect class="bxa2" x="635" y="214" width="180" height="34" rx="3"/>
+        <text class="t2" x="725" y="235" text-anchor="middle">Outcome observed</text>
+        <text class="s2" x="635" y="266">ground truth, not inference</text>
+      </svg>
+      <figcaption>Figure 1 · The declined population is unlabelled for a lender operating
+      alone, and partially labelled with observed ground truth inside the ecosystem. No
+      bureau can sell this, and no single lender can build it.</figcaption>
+    </figure>
+
+    <h3>5.3 &nbsp;The loop, as it should be built</h3>
+
+    <ol class="steps">
+      <li><strong>Decision snapshot.</strong> At every credit decision, persist the exact
+      feature vector, model version, score and outcome. This is the training row; it must
+      be written synchronously, not reconstructed later.</li>
+      <li><strong>Outcome labelling.</strong> A Dagster asset joins decisions to the loan
+      book nightly and applies the label policy — <code>REPAID</code>,
+      <code>DEFAULTED</code> at 90+ DPD, <code>IMMATURE</code> until the performance
+      window closes. Idempotent, backfillable, with lineage.</li>
+      <li><strong>Ecosystem labelling.</strong> Declined applications are matched by
+      <code>subject_token</code> against outcomes reported by other members, producing
+      the reject-inference rows from §5.2.</li>
+      <li><strong>Feature store.</strong> Point-in-time vectors materialised into Iceberg
+      gold tables, serving both training and inference from the same definition — the
+      only reliable defence against training/serving skew.</li>
+      <li><strong>Training.</strong> Gradient-boosted models (LightGBM) on the ~120
+      features, with monotonic constraints on features where direction is known, and
+      reason codes derived from SHAP for regulatory explainability.</li>
+      <li><strong>Champion / challenger.</strong> New models shadow-score live traffic
+      without deciding, until they beat the champion on a held-out window. Promotion is
+      a config change, and reversible.</li>
+      <li><strong>Drift monitoring.</strong> Population stability on every feature family,
+      alerting when an input distribution moves — which is how you find out that a member
+      changed their onboarding form before it silently corrupts the score.</li>
+    </ol>
+
+    <div class="callout crit">
+      <span class="tag">Do this before anything else in the loop</span>
+      <p>Set <code>APP_BASE_URL</code> and <code>CRON_SECRET</code> in the BirgenAI
+      repository today, so labelling starts accumulating while the Dagster version is
+      built. Every night it stays broken is a night of decisions that can never be
+      labelled — the feature vectors were never snapshotted, so that data is not delayed,
+      it is <em>gone</em>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 06 ═══════════ -->
+<section class="sec pb">
+  <div class="num">06</div>
+  <div class="bodycol">
+    <h2>ServiceSuite AI &amp; the Interchange model</h2>
+
+    <p class="lede">The advantage is the data and the tools, not the weights. Said
+    plainly: a competitor with the same model gets nothing, and a competitor with the
+    same data gets everything.</p>
+
+    <p>The instinct to “train a model no Kenyan can replicate” is right about the goal and
+    worth redirecting on the method. Fine-tuning a language model on ecosystem data
+    produces something proprietary but weaker at reasoning than a frontier model, needs
+    GPU spend and retraining discipline, and — critically — <em>the fine-tune is not the
+    moat.</em> The moat is that only you can answer “how many other lenders is this
+    person servicing right now”, because only you have the network. Put a frontier model
+    on top of tools that reach that data and no competitor can match the answers, whatever
+    model they run.</p>
+
+    <h3>6.1 &nbsp;Two layers</h3>
+
+    <div class="tw">
+      <table>
+        <caption>Table 6 · The AI stack</caption>
+        <thead><tr><th style="width:20%">Layer</th><th style="width:24%">Technology</th><th style="width:56%">Job</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Conversational</strong></td><td>Claude + tool calling</td><td>“Ask ServiceSuite AI” in every system. Answers questions about a borrower, a branch, a cohort or the ecosystem by calling Interchange tools — never by recalling training data.</td></tr>
+          <tr><td><strong>Predictive</strong></td><td>LightGBM ensembles</td><td>Score, probability of default, PTP propensity, best contact hour. Trained on the ~120 features, retrained by the closed loop, explained with SHAP reason codes.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>6.2 &nbsp;The tools the model is given</h3>
+
+    <div class="spec">interchange.exposure(subject_token)        live multi-lender exposure
+interchange.report(subject_token, type)   any CRB 2.0 report
+interchange.features(subject_token)       the ~120-feature vector
+interchange.score(subject_token)          score + SHAP reason codes
+interchange.cohort(filter)                anonymised peer comparison
+interchange.benchmark(org_id, metric)     this member vs ecosystem median
+lms.customer360(customer_id)              the member's own book
+collectbox.history(loan_id)               dispositions, PTPs, contact log
+
+EVERY tool call carries the caller's org_id and the borrower's consent_ref.
+The tool layer — not the prompt — enforces scope. A model cannot be
+talked into returning data the consent does not cover.</div>
+
+    <div class="callout warn">
+      <span class="tag">Guardrail that must not be skipped</span>
+      <p>Consent and access control belong in the tool implementations, never in the
+      system prompt. A prompt instruction is a suggestion to a language model; a check in
+      the tool is a wall. This distinction is what makes “Ask ServiceSuite AI” safe to put
+      in front of a competitor's staff, and it is the first thing a security reviewer will
+      test.</p>
+    </div>
+
+    <p>Deployment mirrors the existing pattern: the assistant already lives bottom-right
+    in the LMS console. The same component ships in all seven systems, with the
+    <code>interchange</code> model selectable wherever the caller's consent and
+    subscription permit. From Customer 360 a loan officer summons it and asks questions no
+    other assistant in Kenya can answer — because no other assistant is wired to this
+    pool.</p>
+  </div>
+</section>
+
+<!-- ═══════════ 07 ═══════════ -->
+<section class="sec pb">
+  <div class="num">07</div>
+  <div class="bodycol">
+    <h2>Metropol — current status</h2>
+
+    <div class="callout crit">
+      <span class="tag">Blocked on Metropol, not on us</span>
+      <p>The production key pair is genuine and the integration is complete. Two faults
+      were stacked: our config defaulted to the <em>test</em> port 5555 because
+      <code>METROPOL_PORT</code> is absent from <code>.env</code>, which produced E003 on
+      every service; and the correct production port <strong>22225 is firewalled</strong>
+      from our network. Probe of 21 Aug 2026 — <code>5555</code> reachable,
+      <code>22225</code> and <code>443</code> no route. That is source-IP allow-listing,
+      the one question Metropol has not answered.</p>
+      <p><strong>Action:</strong> ask Ambale to allow-list <code>41.90.172.22</code> now,
+      and the Vercel production egress ranges before go-live. Set
+      <code>METROPOL_PORT=22225</code> in <code>.env</code> in the same change.</p>
+    </div>
+
+    <p>Note for whoever runs the first live pull: Report 1 keys on <strong>national
+    ID</strong>. The mobile-keyed report is <strong>Report 11</strong>
+    (<code>/report/creditinfo/mobile</code>). An MSISDN sent to Report 1 will fail
+    regardless of entitlement.</p>
+
+    <p>This does not block the build. CRB 2.0's <code>bureau.metropol</code> evidence
+    block is simply marked <code>unavailable</code> until the port opens, and every other
+    block — KYC, cashflow, scoring, repayment, exposure — is computed from data you
+    already hold.</p>
+  </div>
+</section>
+
+<!-- ═══════════ 08 ═══════════ -->
+<section class="sec pb">
+  <div class="num">08</div>
+  <div class="bodycol">
+    <h2>Build plan</h2>
+
+    <div class="tw">
+      <table>
+        <caption>Table 7 · Sprints</caption>
+        <thead><tr><th style="width:10%">Sprint</th><th style="width:14%">Window</th><th style="width:44%">Deliverable</th><th style="width:32%">Done when</th></tr></thead>
+        <tbody>
+          <tr><td><strong>0</strong></td><td>Now</td><td>Set the two BirgenAI repo secrets. Set <code>METROPOL_PORT</code>. Email Ambale re allow-listing. Run the <code>.198</code> cohort assessment.</td><td>Labelling accumulates; cohort shortlisted</td></tr>
+          <tr><td><strong>1</strong></td><td>Weeks 1–2</td><td>Interchange scaffold on the LMS stack. Vault shell ported. Member Directory. <strong>Consent Center</strong> with ledger, scopes, revocation.</td><td><code>interchange.servicesuitecloud.com</code> live and demoable</td></tr>
+          <tr><td><strong>2</strong></td><td>Weeks 3–5</td><td>Registry: member registry, OPRF token service, policy engine, metering. Message log with hash chain.</td><td>Two members exchange a signed, consented, logged call</td></tr>
+          <tr><td><strong>3</strong></td><td>Weeks 6–8</td><td>Exposure engine — fan-out, Bloom filters, aggregation. CRB 2.0 report types 1, 2, 20.</td><td>p95 under 400 ms on the real Micromart book</td></tr>
+          <tr><td><strong>4</strong></td><td>Weeks 9–12</td><td>Plane B: CDC from Micromart, Iceberg on R2, feature store, decision snapshots, Dagster labelling incl. reject inference.</td><td>A model trains on point-in-time vectors</td></tr>
+          <tr><td><strong>5</strong></td><td>Months 4–5</td><td>Interchange Score, full CRB 2.0 catalogue, PDF artefacts, ServiceSuite AI with the <code>interchange</code> model.</td><td>A loan officer asks a question only this network can answer</td></tr>
+          <tr><td><strong>6</strong></td><td>Months 6+</td><td>Members beyond the founding cohort. Governance entity. Neutral domain.</td><td>Ten contributing members</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>8.1 &nbsp;Repository layout</h3>
+
+    <div class="spec">github.com/emmanuel-arch/Interchange
+
+  apps/
+    console/          Next 15 · the member console (vault shell, directory,
+                      consent, audit, CRB 2.0 reports)
+    registry/         member registry · OPRF · policy · metering · message log
+  packages/
+    envelope/         X-Road-compatible message envelope + signing
+    consent/          consent SDK: web component + REST client for members
+    features/         the ~120-feature definitions, shared by training & serving
+    ui/               ported vault cinematic, shared with the six systems
+  data/
+    dagster/          labelling, reject inference, feature materialisation
+    dbt/              bronze → silver → gold on Iceberg
+  docs/               this blueprint, the data contracts, the consent wording</div>
+
+    <p>From the GoldStrike import: <code>my-app/app/auth/login</code>,
+    <code>components/screensaver</code> and <code>components/network</code> port forward
+    into <code>packages/ui</code>. The Python trading engine, and every trading route —
+    trades, backtest, engine, investors, telegram, payments — are deleted rather than
+    adapted; nothing in them maps onto this domain.</p>
+  </div>
+</section>
+
+<!-- ═══════════ 09 ═══════════ -->
+<section class="sec">
+  <div class="num">09</div>
+  <div class="bodycol">
+    <h2>What still needs a decision</h2>
+
+    <ol class="steps">
+      <li><strong>The <code>model.train</code> scope.</strong> Put the exact wording to
+      counsel. It is the scope most likely to be challenged, and the one the entire ML
+      programme depends on.</li>
+      <li><strong>Cohort qualification threshold.</strong> Pending the <code>.198</code>
+      assessment — my recommendation is a minimum live book and a recent disbursement,
+      not raw history, since a dormant book contributes nothing to exposure.</li>
+      <li><strong>Free-tier boundary.</strong> How many queries does contribution buy?
+      Suggest indexing it to contribution volume so it self-balances rather than
+      needing renegotiation per member.</li>
+      <li><strong>Neutral domain timing.</strong> Owning the infrastructure makes the
+      hosting neutral in fact but not in appearance. Decide when
+      <code>interchange.africa</code> becomes primary.</li>
+    </ol>
+
+    <div class="callout">
+      <span class="tag">Immediate next step</span>
+      <p>Sprint 0 is four small tasks and none of them need a decision. The two repository
+      secrets in particular should be set today — every night they stay unset is a night
+      of credit decisions whose feature vectors are never captured, and that loss is
+      permanent.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span>The Interchange · Blueprint v2 · Approved — building</span>
+  <span>21 August 2026</span>
+</footer>
+
+</div>

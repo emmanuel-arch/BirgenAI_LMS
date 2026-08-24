@@ -9,12 +9,14 @@
 // modules. That matters more than it used to: Autopilot navigates the console
 // underneath the device, and a device that remounted on every route change would
 // lose the conversation that asked to be taken there.
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRights, getDeniedModules } from "@/lib/rbac/authz";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 import { navFor } from "@/lib/nav/registry";
 import { resolveSuite } from "@/lib/suite/hosts";
+import { visibleSystemIds } from "@/lib/suite/access";
 import Shell from "@/components/shell/Shell";
 import ServiceSuiteOS from "@/components/os/ServiceSuiteOS";
 import BrandHead from "@/components/BrandHead";
@@ -27,7 +29,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   const org = session?.user?.orgId
     ? await prisma.org.findUnique({
         where: { id: session.user.orgId },
-        select: { name: true, slug: true, mode: true, status: true, accent: true, accentSoft: true, logoUrl: true, logoScale: true },
+        select: { name: true, slug: true, mode: true, status: true, systems: true, accent: true, accentSoft: true, logoUrl: true, logoScale: true },
       })
     : null;
 
@@ -37,6 +39,14 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   const [rights, denied, ent] = await Promise.all([getRights(session), getDeniedModules(session), entitlementsFor(session.user.orgId!)]);
   const nav = navFor(rights, ent.features as ReadonlySet<string>, denied);
 
+  // ── THE COMMERCIAL GATE ────────────────────────────────────────────────────
+  // The lending console is the anchor of the suite and switching it off is
+  // unusual — but it is a real, reachable state (a lender who bought only
+  // PeopleHub and Ledgerly), and "unusual" is not "impossible". Hiding the tile
+  // on the launcher is a courtesy; this refusal is the control.
+  const visible = visibleSystemIds(org.systems, denied);
+  if (!visible.includes("lms")) redirect("/suite");
+
   return (
     <div style={{ ["--brand" as never]: org.accent, ["--brand-soft" as never]: org.accentSoft }}>
       <BrandHead logoUrl={org.logoUrl} title={`${org.name} — Console`} />
@@ -45,7 +55,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
         org={{ name: org.name, slug: org.slug, mode: org.mode, status: org.status, logoUrl: org.logoUrl, logoScale: org.logoScale }}
         user={{ name: session.user.name ?? "Staff", email: session.user.email, role: session.user.role }}
         impersonator={session.user.impersonator ? { name: session.user.impersonator.name } : null}
-        suiteHosts={resolveSuite()}
+        suiteHosts={resolveSuite(visible)}
       >
         {children}
       </Shell>

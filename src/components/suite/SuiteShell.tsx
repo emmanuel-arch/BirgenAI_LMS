@@ -118,10 +118,40 @@ export default function SuiteShell({
 
   return (
     <div
-      className="min-h-screen bg-[#f6f6f4] text-zinc-800"
+      className="relative min-h-screen text-zinc-800"
       style={{ ["--accent" as never]: identity.accent, ["--accent2" as never]: identity.accent2 ?? identity.accent }}
     >
-      <div className="flex min-h-screen">
+      {/* ── THE CANVAS ─────────────────────────────────────────────────────────
+          The lending console has always sat on artwork (see components/shell/Shell)
+          while the five satellites sat on flat #f6f6f4 — which is precisely why
+          the console looked like a product and PeopleHub looked like an admin
+          panel. Same suite, same rail, same type, and one of them had a floor.
+
+          ── WHY A WASH RATHER THAN SIX MORE IMAGES ────────────────────────────
+          The obvious fix is six tinted plates, one per system. It is the wrong
+          one: six files to regenerate whenever the artwork changes, six chances
+          for a tint to drift from the accent it is supposed to match, and ~600kB
+          of images to say something CSS already knows. The accent is right here
+          in `identity` — every system already declares it — so one shared plate
+          plus a radial wash in that accent gives six distinctly-coloured canvases
+          that cannot go out of sync with the colour code by construction.
+
+          Opacity is deliberately low. This is a FLOOR, not a feature: the tint
+          should be the thing you notice on walking into a room, not the thing you
+          read. Every surface above it is a .panel or .canvas with its own opaque
+          background, so no text ever sits on the wash directly. */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-[#f6f6f4]">
+        <div className="absolute inset-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
+        <div
+          className="absolute inset-0 opacity-[0.20]"
+          style={{
+            background: `radial-gradient(1100px 720px at 88% -6%, ${identity.accent} 0%, transparent 62%),
+                         radial-gradient(880px 620px at 4% 104%, ${identity.accent2 ?? identity.accent} 0%, transparent 58%)`,
+          }}
+        />
+      </div>
+
+      <div className="relative z-10 flex min-h-screen">
         <aside
           className={`sticky top-0 hidden h-screen shrink-0 flex-col bg-[#15141b] transition-[width] duration-200 lg:flex ${
             collapsed ? "w-[68px]" : "w-64"
@@ -133,7 +163,17 @@ export default function SuiteShell({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-zinc-900/[0.07] bg-[#f6f6f4]/85 px-4 backdrop-blur sm:px-6">
+          {/* The header sits ON the canvas now, so it is translucent rather than
+              the old opaque #f6f6f4 — a solid bar would have cut a grey stripe
+              across the artwork it is supposed to be floating over. The accent
+              hairline underneath is what tells you which system you are in from
+              the corner of your eye. */}
+          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-zinc-900/[0.07] bg-white/55 px-4 backdrop-blur-xl sm:px-6">
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-px"
+              style={{ background: `linear-gradient(90deg, ${identity.accent} 0%, transparent 55%)` }}
+            />
             <button
               type="button"
               onClick={() => setDrawer(true)}

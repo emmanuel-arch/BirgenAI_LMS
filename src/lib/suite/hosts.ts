@@ -110,15 +110,62 @@ export function originFor(app: SuiteApp): string | null {
 /** The href the launcher and the switcher should link to for this system. */
 export function hrefFor(app: SuiteApp): string {
   const origin = originFor(app);
-  return origin ? `${origin}${app.href.startsWith("/") && app.href !== "/" ? app.href : ""}` : app.href;
+  if (origin) return `${origin}${app.href.startsWith("/") && app.href !== "/" ? app.href : ""}`;
+  // An EXTERNAL system has no in-app route to fall back to. `app.href` is "/" for
+  // the Interchange, and returning that would link the launcher tile at this
+  // deployment's own root — a door that silently opens onto the wrong building.
+  // Its declared production subdomain is the honest answer: it is where the
+  // system lives, whether or not SUITE_INTERCHANGE_ORIGIN has been set yet.
+  if (app.external) return `https://${app.subdomain}`;
+  return app.href;
+}
+
+/**
+ * The system's own branded sign-in door.
+ *
+ * Where a system has been split onto its own origin the door lives over there
+ * too — analytics.servicesuitecloud.com serves /suite/analytics/login from its
+ * own deployment — so this composes with originFor() rather than always
+ * returning a local path.
+ *
+ * Null for systems that have no staff door: the Customer Portal (borrowers) and
+ * the Interchange (external, its own member gate).
+ */
+export function doorHrefFor(app: SuiteApp): string | null {
+  if (app.external || app.door === false) return null;
+  const path = `/suite/${app.id}/login`;
+  const origin = originFor(app);
+  return origin ? `${origin}${path}` : path;
 }
 
 /** True once a system has been split onto its own origin. */
 export const isFederated = (app: SuiteApp): boolean => originFor(app) !== null;
 
 /** The launcher's resolved view of the suite — computed server-side, per request. */
-export type ResolvedSuiteApp = { id: string; href: string; federated: boolean };
+export type ResolvedSuiteApp = {
+  id: string;
+  href: string;
+  federated: boolean;
+  /** This system's branded sign-in page, or null where it has none. */
+  door: string | null;
+  /** A separate deployment — the launcher leaves the building to reach it. */
+  external: boolean;
+};
 
-export function resolveSuite(): ResolvedSuiteApp[] {
-  return SUITE_APPS.map((a) => ({ id: a.id, href: hrefFor(a), federated: isFederated(a) }));
+/**
+ * @param only  System ids to include — the caller's already-composed answer to
+ *              "entitled AND visible" (see lib/suite/access.ts). Omit for every
+ *              system, which is what an unauthenticated or platform surface
+ *              wants. An EMPTY array is honoured as empty, not treated as "all":
+ *              a lender with no systems must not get a full switcher.
+ */
+export function resolveSuite(only?: readonly string[]): ResolvedSuiteApp[] {
+  const apps = only ? SUITE_APPS.filter((a) => only.includes(a.id)) : SUITE_APPS;
+  return apps.map((a) => ({
+    id: a.id,
+    href: hrefFor(a),
+    federated: isFederated(a),
+    door: doorHrefFor(a),
+    external: !!a.external,
+  }));
 }
