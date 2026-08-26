@@ -82,7 +82,10 @@ async function main() {
       "read",
       org,
       `SELECT COUNT(*) AS tracked,
-              (SELECT MAX(DatePaid) FROM CollectBox.dbo.PayedAmount) AS lastPayment,
+              -- TOP 1 … DESC, matching the app. MAX() has no index to use here
+              -- and scans 1.16M rows; this check should measure the relay, not
+              -- a query shape the suite no longer issues.
+              (SELECT TOP 1 DatePaid FROM CollectBox.dbo.PayedAmount ORDER BY DatePaid DESC) AS lastPayment,
               (SELECT COUNT(*) FROM Serviceconnect.dbo.Loans WHERE EntityId = @entityId AND LoanCleared = 0) AS openFintech
          FROM CollectBox.dbo.CollectionTracker`,
       [P.int("entityId", 3005)],

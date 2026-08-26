@@ -224,10 +224,47 @@ function log(r: RelayRequest, rows: number, ms: number) {
   console.log(`  → ${r.orgSlug} ${r.kind} · ${rows} rows · ${ms}ms`);
 }
 
-server.listen(PORT, HOST, () => {
+/**
+ * Open the connection pool before anyone asks.
+ *
+ * ── WHY THIS IS NOT A MICRO-OPTIMISATION ─────────────────────────────────────
+ * node-mssql connects lazily, so without this the FIRST request after the relay
+ * starts pays the full TDS handshake to Micromart's server. Measured from the
+ * tailnet, a cold connect to 100.72.35.56,4230 takes eight to twenty seconds and
+ * has been seen to time out outright at twenty.
+ *
+ * The first request after a restart is, reliably, the first screen somebody
+ * opens — the suite launcher. So the cost lands exactly where it does the most
+ * damage: on the page that is meant to prove all six systems are live, in front
+ * of whoever is being shown it. Warming here moves that wait to boot, where
+ * nobody is watching.
+ *
+ * A failure is logged and swallowed: the relay must still come up, because a
+ * database that is down now may be up in a minute and refusing to listen would
+ * turn a recoverable outage into a manual restart.
+ */
+async function warmPools() {
+  for (const slug of ["micromart", "axe"]) {
+    const org = getOrg(slug);
+    if (!org || !isOrgConfigured(org)) continue;
+    const started = Date.now();
+    try {
+      await runReadOnlyQueryDirect(org, "SELECT 1 AS ok", [], { timeoutMs: 30_000 });
+      console.log(`  \x1b[32m✓\x1b[0m ${org.name} pool open \x1b[2m(${Date.now() - started}ms)\x1b[0m`);
+    } catch (e) {
+      console.log(
+        `  \x1b[33m~\x1b[0m ${org.name} did not answer in ${Date.now() - started}ms — ` +
+          `\x1b[2m${(e as Error).message.split("\n")[0]}\x1b[0m`,
+      );
+    }
+  }
+}
+
+server.listen(PORT, HOST, async () => {
   console.log(`\n\x1b[1mSQL relay\x1b[0m listening on http://${HOST}:${PORT}`);
   console.log(`  writes:   ${ALLOW_WRITES ? "\x1b[33mARMED\x1b[0m" : "\x1b[32mrefused (read-only)\x1b[0m"}`);
-  console.log(`  orgs:     ${Object.keys({ micromart: 1 }).join(", ")} (resolved from this host's .env)`);
+  console.log(`\n  \x1b[2mwarming connection pools…\x1b[0m`);
+  await warmPools();
   console.log(`\n  Publish it:   \x1b[1mtailscale funnel ${PORT}\x1b[0m`);
   console.log(`  Then set on Vercel:`);
   console.log(`    SERVICESUITE_RELAY_URL     = the https://… URL funnel prints`);
