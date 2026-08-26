@@ -130,6 +130,11 @@ export const EN = {
       mpesaAnalysis: { label: "Analyse my M-PESA statement", detail: "To assess affordability from my cashflow." },
       automatedScoring: { label: "Use automated credit scoring", detail: "An AI model helps decide; a human reviews adverse outcomes." },
       crbCheck: { label: "Check my credit reference (CRB)", detail: "Via the lender's licensed bureau." },
+      ecosystemExposure: {
+        label: "Check what I owe other lenders in this network",
+        detail:
+          "They are told ranges and repayment status — never my name, ID number or phone number. They may ask the same about me.",
+      },
       modelImprovement: { label: "Use my de-identified data to improve models", detail: "Aggregated, never sold." },
       crossBorder: { label: "Process data with secure overseas AI services", detail: "Minimised & masked per the Data Protection Act." },
     },
@@ -539,6 +544,11 @@ export const SW: PortalDict = {
       mpesaAnalysis: { label: "Chambua taarifa yangu ya M-PESA", detail: "Ili kupima uwezo wangu wa kulipa kutokana na mtiririko wa pesa zangu." },
       automatedScoring: { label: "Tumia upimaji wa mikopo wa kiotomatiki", detail: "Mfumo wa AI husaidia kuamua; maamuzi ya kukataa hupitiwa na binadamu." },
       crbCheck: { label: "Angalia rekodi yangu ya mikopo (CRB)", detail: "Kupitia shirika la marejeleo ya mikopo lenye leseni." },
+      ecosystemExposure: {
+        label: "Angalia ninachodaiwa na wakopeshaji wengine katika mtandao huu",
+        detail:
+          "Wanaambiwa viwango na hali ya ulipaji — kamwe si jina langu, nambari yangu ya kitambulisho au simu. Wanaweza kuuliza vivyo hivyo kunihusu.",
+      },
       modelImprovement: { label: "Tumia data yangu isiyo na utambulisho kuboresha mifumo", detail: "Hujumuishwa pamoja, kamwe haiuzwi." },
       crossBorder: { label: "Chakata data yangu kwa huduma salama za AI za ng'ambo", detail: "Hupunguzwa na kufichwa kwa mujibu wa Sheria ya Ulinzi wa Data." },
     },

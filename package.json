@@ -87,10 +87,16 @@
     "test:live": "tsx scripts/verify-live.ts",
     "art:optimize": "tsx scripts/optimize-suite-art.ts",
     "art:check": "tsx scripts/check-suite-art.ts",
-    "test:access": "tsx scripts/verify-access.ts"
+    "test:access": "tsx scripts/verify-access.ts",
+    "demo:room": "tsx scripts/setup-demo-room.ts",
+    "interchange:keygen": "tsx scripts/interchange-keygen.ts",
+    "interchange:publish": "tsx scripts/interchange-publish.ts",
+    "interchange:members": "tsx scripts/probe-interchange-members.ts",
+    "interchange:verify": "tsx scripts/interchange-verify.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@noble/curves": "^2.3.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "bcryptjs": "^3.0.3",

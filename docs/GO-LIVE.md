@@ -205,7 +205,7 @@ SERVICESUITE_RELAY_URL       = https://<paste the real ts.net host here>
 SERVICESUITE_RELAY_SECRET    = <the same value as .env locally>
 
 # Public identity
-PUBLIC_BASE_URL              = https://lms.servicesuitecloud.com
+PUBLIC_BASE_URL              = https://microeazy.servicesuitecloud.com
 NEXTAUTH_URL                 = https://lms.servicesuitecloud.com
 SUITE_COOKIE_DOMAIN          = servicesuitecloud.com
 
@@ -310,12 +310,12 @@ You were right that this was the remaining gap. Daraja refuses a callback that i
 not a public HTTPS address, and it was falling back to `NEXTAUTH_URL`
 (`http://localhost:3000`).
 
-Setting `PUBLIC_BASE_URL=https://lms.servicesuitecloud.com` on Vercel closes it.
+Setting `PUBLIC_BASE_URL=https://microeazy.servicesuitecloud.com` on Vercel closes it.
 The URLs then derive as:
 
 ```
-https://lms.servicesuitecloud.com/api/mpesa/stk-callback/micromart?key=…
-https://lms.servicesuitecloud.com/api/mpesa/ratiba-callback/micromart?key=…
+https://microeazy.servicesuitecloud.com/api/mpesa/stk-callback/micromart?key=…
+https://microeazy.servicesuitecloud.com/api/mpesa/ratiba-callback/micromart?key=…
 ```
 
 Two things to check on the day, because they are outside our control:
