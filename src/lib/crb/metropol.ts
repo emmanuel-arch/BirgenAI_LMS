@@ -11,8 +11,17 @@
 //   • The body must be COMPACT JSON (no spaces) and the SAME bytes we hash and
 //     send — so we serialize once and reuse the string.
 //   • Base URL is https://<host>:<port>/<version> — host/port/version are all
-//     per-subscription values Metropol assigns (Micromart: api.metropol.co.ke,
-//     port 5555, version v2_1). They live in the org vault, never in code.
+//     per-subscription values Metropol assigns. They live in the org vault,
+//     never in code. THE PORT DIFFERS BETWEEN SUBSCRIPTIONS AND THIS MATTERS:
+//     Micromart's TEST subscription is port 5555, PRODUCTION is 22225, and the
+//     host and version (api.metropol.co.ke, v2_1) are the same for both. The
+//     production key pair on port 5555 authenticates and then answers E003 "Not
+//     Authorized" on every report — which reads exactly like a provisioning
+//     failure and is really just the wrong port.
+//   • Metropol answers only WHITELISTED SOURCE IPs, and port 22225 is not even
+//     open to anyone else — a request from elsewhere hangs and dies with no
+//     response, no api_code and nothing in a log. Callers that cannot hold a
+//     fixed address (Vercel, the office DHCP link) egress through ./relay.
 //
 // LIVE-VERIFIED against the testbed (dummy IDs 55…/66…/77…/88…/99…) — every
 // report type here returned 200 with the shapes this file maps. Two behaviours
@@ -25,6 +34,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { createHash } from "crypto";
 import type { CrbConfig } from "@/lib/vault/integrations";
+import { crbRelayEnabled, crbRelayFetch, CrbRelayError } from "@/lib/crb/relay";
 
 // ── Appendix maps (Developer Guide §5) ───────────────────────────────────────
 export const PRODUCT_TYPE: Record<number, string> = {
@@ -161,6 +171,38 @@ function codeOf(j: Record<string, unknown>): string | null {
   return String(c);
 }
 
+/**
+ * PRODUCTION AND TEST DO NOT RETURN THE SAME SHAPE, and this is where that is
+ * absorbed.
+ *
+ * The testbed answers flat — first_name, dob and the rest sit at the top level
+ * beside api_code — and every mapping in this file was written against that.
+ * The PRODUCTION subscription wraps the payload instead:
+ *
+ *   { api_code: 1010, api_code_description: "Identity found", has_error: false,
+ *     success: true, trx_id: "…", data: { first_name: "…", dob: "…", … } }
+ *
+ * Nothing here read `data`, so on production every mapped field came back null
+ * while has_error was false and success was true. That is the worst possible
+ * failure: the console would report the check as VERIFIED and show a borrower
+ * with no name and no date of birth, which reads as "the bureau has no details
+ * for this person" rather than as a parsing bug on our side.
+ *
+ * Found on 2026-08-27 by the first real production pull (report 1, a live ID),
+ * which returned a full record that this file then mapped to nothing.
+ *
+ * Fields are hoisted rather than replaced: the envelope still wins on a name
+ * collision, so api_code/has_error/trx_id keep meaning what they meant, `data`
+ * is left in place for anything that wants it, and a flat testbed response
+ * passes through completely untouched. Only a plain object is hoisted — a
+ * `data` that is an array belongs to a report whose mapper already walks it.
+ */
+export function hoistData(j: Record<string, unknown>): Record<string, unknown> {
+  const d = j.data;
+  if (!d || typeof d !== "object" || Array.isArray(d)) return j;
+  return { ...(d as Record<string, unknown>), ...j };
+}
+
 /** A single signed call. `data===undefined` ⇒ GET (health). */
 async function metropolFetch<T = Record<string, unknown>>(
   cfg: CrbConfig,
@@ -184,8 +226,24 @@ async function metropolFetch<T = Record<string, unknown>>(
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   let res: Response;
   try {
-    res = await fetch(url, { method, headers, body: data === undefined ? undefined : body, signal: ctrl.signal });
+    // THE ONE PLACE THE EGRESS PATH IS CHOSEN. Metropol answers only whitelisted
+    // source IPs, and neither Vercel (rotating pool) nor the office link (DHCP)
+    // can be one — so when a relay is configured the call is made FROM a
+    // whitelisted host instead of from here. The relay hands back a real
+    // Response, so everything below this block is identical either way.
+    // Unset CRB_RELAY_URL and the direct path runs exactly as before, which is
+    // what keeps the whitelisted hosts themselves on a straight connection.
+    res = crbRelayEnabled()
+      ? await crbRelayFetch(
+          { url, method, headers, body: data === undefined ? undefined : body, timeoutMs },
+          ctrl.signal,
+        )
+      : await fetch(url, { method, headers, body: data === undefined ? undefined : body, signal: ctrl.signal });
   } catch (err) {
+    // "The relay is down" and "Metropol refused us" are different call-outs to
+    // different people. Both stay MetropolError so every caller's typed handling
+    // still works, but the message never lets the two be confused.
+    if (err instanceof CrbRelayError) throw new MetropolError(`CRB relay: ${err.message}`, null, 0, true);
     throw new MetropolError(
       err instanceof Error && err.name === "AbortError" ? "Metropol timed out." : "Could not reach Metropol.",
       null, 0, true,
@@ -214,7 +272,7 @@ async function metropolFetch<T = Record<string, unknown>>(
     const retryable = apiCode === "E409" || apiCode === "E025" || apiCode === "E024" || res.status >= 500;
     throw new MetropolError(`${desc}${apiCode ? ` (${apiCode})` : ""}`, apiCode, res.status, retryable);
   }
-  return j as T;
+  return hoistData(j) as T;
 }
 
 // ── Typed report calls ───────────────────────────────────────────────────────
@@ -551,10 +609,18 @@ export function mapMetropol(parts: MetropolParts): MetropolReport {
   const scrubName = Array.isArray(scrub?.names) && scrub!.names.length ? String((scrub!.names as unknown[])[0]) : null;
   const identity = iv
     ? {
-        verified: iv.success === true || !!(iv.first_name || iv.last_name),
+        // Production names the family field `surname`; the testbed (and report
+        // 12's nested identity block) call it `last_name`. Both are read — the
+        // live 2026-08-27 pull returned surname:"KIPLETING" with no last_name
+        // at all, which mapped to a verified borrower with a blank name.
+        verified: iv.success === true || !!(iv.first_name || iv.last_name || iv.surname),
         firstName: (iv.first_name as string) || null,
-        lastName: (iv.last_name as string) || null,
-        name: [iv.first_name, iv.other_name, iv.last_name].filter(Boolean).join(" ").trim() || scrubName || null,
+        lastName: (iv.last_name as string) || (iv.surname as string) || null,
+        name:
+          [iv.first_name, iv.other_name, iv.last_name ?? iv.surname]
+            .filter(Boolean)
+            .join(" ")
+            .trim() || scrubName || null,
         dob: (iv.date_of_birth as string) || (iv.dob as string) || null,
         gender: (iv.gender as string) || null,
         serialNumber: (iv.serial_number as string) || null,

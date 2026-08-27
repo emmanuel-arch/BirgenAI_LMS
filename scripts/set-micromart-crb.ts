@@ -15,13 +15,28 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import "dotenv/config";
 import { prisma } from "@/lib/prisma";
+import { runAsPlatform } from "@/lib/db/context";
 import { setIntegration, setIntegrationStatus, type CrbConfig } from "@/lib/vault/integrations";
 
 const SLUG = process.env.MICROMART_SLUG || "micromart";
 
+// .env carries these as Metropol_Public_Key / Metropol_Private_Key. On Windows
+// process.env is case-insensitive so METROPOL_PUBLIC_KEY resolves anyway — but
+// that is a platform accident, not a contract, and relying on it means this
+// script silently needs the keys re-typed on the command line on Linux (where
+// they would then sit in the shell history). Read every spelling instead, the
+// same way verify-metropol-prod.ts does.
+const pick = (...names: string[]) => {
+  for (const n of names) {
+    const v = process.env[n];
+    if (v && v.trim()) return v.trim().replace(/^["']|["']$/g, "");
+  }
+  return "";
+};
+
 async function main() {
-  const publicKey = process.env.METROPOL_PUBLIC_KEY;
-  const privateKey = process.env.METROPOL_PRIVATE_KEY;
+  const publicKey = pick("METROPOL_PUBLIC_KEY", "Metropol_Public_Key", "METROPOL_PUB_KEY");
+  const privateKey = pick("METROPOL_PRIVATE_KEY", "Metropol_Private_Key", "Private_Key");
   if (!publicKey || !privateKey) {
     console.error("Set METROPOL_PUBLIC_KEY and METROPOL_PRIVATE_KEY in the environment first.");
     process.exit(1);
@@ -37,10 +52,15 @@ async function main() {
     bureau: "metropol",
     publicKey,
     privateKey,
-    host: process.env.METROPOL_HOST || "api.metropol.co.ke",
-    port: process.env.METROPOL_PORT || "5555",
-    apiVersion: process.env.METROPOL_VERSION || "v2_1",
-    reportDepth: (process.env.METROPOL_DEPTH as CrbConfig["reportDepth"]) || "full",
+    host: pick("METROPOL_HOST") || "api.metropol.co.ke",
+    // 22225 is PRODUCTION; the test subscription is 5555. Host and version are
+    // shared between the two, only the port moves — and production keys on 5555
+    // authenticate and then answer E003 on every report, which reads as an
+    // unprovisioned subscription rather than as the wrong port. Defaulting to
+    // production here matches the keys this repo now carries.
+    port: pick("METROPOL_PORT") || "22225",
+    apiVersion: pick("METROPOL_VERSION") || "v2_1",
+    reportDepth: (pick("METROPOL_DEPTH") as CrbConfig["reportDepth"]) || "full",
   };
 
   await setIntegration(org.id, "CRB", cfg);
@@ -50,4 +70,7 @@ async function main() {
   await prisma.$disconnect();
 }
 
-main().catch(async (e) => { console.error(e); await prisma.$disconnect(); process.exit(1); });
+// Row-level security refuses any query without a tenant scope, and a
+// provisioning script has no session cookie to resolve one from. runAsPlatform
+// is the same wrapper scripts/seed-micromart-vault.ts uses for exactly this.
+runAsPlatform(main).catch(async (e) => { console.error(e); await prisma.$disconnect(); process.exit(1); });

@@ -28,6 +28,7 @@
 import "dotenv/config";
 import type { CrbConfig } from "@/lib/vault/integrations";
 import { health, MetropolError, REPORT_TYPE } from "@/lib/crb/metropol";
+import { crbRelayEnabled, crbRelayFetch, crbRelayUrl } from "@/lib/crb/relay";
 import { createHash } from "crypto";
 
 // .env carries these as Metropol_Public_Key / Metropol_Private_Key. On Windows
@@ -53,12 +54,18 @@ const privateKey = TESTBED
   ? "tKuiFSoUrMUvFBocuKBSkXnEXRNTMR"
   : pick("METROPOL_PRIVATE_KEY", "Metropol_Private_Key", "Private_Key");
 
+// THE PORT IS PART OF THE SUBSCRIPTION, NOT THE HOST. Test is 5555, production
+// is 22225; host and version are shared. Reading METROPOL_PORT for BOTH modes
+// was fine while .env still said 5555, and became a trap the moment it said
+// 22225: --testbed would then put the test keys on the production port and
+// report a dead subscription that is actually healthy. Each mode carries its own
+// default and its own override.
 const cfg: CrbConfig = {
   bureau: "metropol",
   publicKey,
   privateKey,
   host: pick("METROPOL_HOST") || "api.metropol.co.ke",
-  port: pick("METROPOL_PORT") || "5555",
+  port: TESTBED ? pick("METROPOL_TEST_PORT") || "5555" : pick("METROPOL_PORT") || "22225",
   apiVersion: pick("METROPOL_VERSION") || "v2_1",
   reportDepth: "full",
 };
@@ -101,18 +108,20 @@ async function probe(
     `${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}` +
     `${p(d.getUTCMilliseconds(), 3)}${p(Math.floor(Math.random() * 1000), 3)}`;
   const hash = createHash("sha256").update(privateKey + json + publicKey + ts, "utf8").digest("hex");
+  const headers = {
+    "Content-Type": "application/json",
+    "X-METROPOL-REST-API-KEY": publicKey,
+    "X-METROPOL-REST-API-HASH": hash,
+    "X-METROPOL-REST-API-TIMESTAMP": ts,
+  };
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-METROPOL-REST-API-KEY": publicKey,
-        "X-METROPOL-REST-API-HASH": hash,
-        "X-METROPOL-REST-API-TIMESTAMP": ts,
-      },
-      body: json,
-      signal: AbortSignal.timeout(30_000),
-    });
+    // Same egress choice metropolFetch makes. Without this the sweep would be
+    // the one thing in the repo that still dials Metropol directly, so it would
+    // fail from the office link (not whitelisted) while the console — going
+    // through the relay — worked, and the script would blame the subscription.
+    const res = crbRelayEnabled()
+      ? await crbRelayFetch({ url, method: "POST", headers, body: json, timeoutMs: 30_000 })
+      : await fetch(url, { method: "POST", headers, body: json, signal: AbortSignal.timeout(30_000) });
     const text = await res.text();
     let j: Record<string, unknown>;
     try {
@@ -136,7 +145,10 @@ const MARK: Record<Verdict, string> = {
 async function main() {
   console.log(`\nMetropol ${TESTBED ? "TESTBED" : "PRODUCTION"} probe → https://${cfg.host}:${cfg.port}/${cfg.apiVersion}`);
   console.log(`  public  : ${fp(publicKey)}`);
-  console.log(`  private : ${fp(privateKey)}\n`);
+  console.log(`  private : ${fp(privateKey)}`);
+  // Which address Metropol sees is the difference between a real verdict and a
+  // wall of timeouts, so it is stated up front rather than inferred afterwards.
+  console.log(`  egress  : ${crbRelayEnabled() ? `via CRB relay ${crbRelayUrl()}` : "direct from this host"}\n`);
 
   if (!publicKey || !privateKey) {
     console.error("✗ Keys not found in env. Expected Metropol_Public_Key / Metropol_Private_Key in .env\n");
@@ -193,6 +205,21 @@ async function main() {
   // 4. Verdict. An un-entitled production subscription is a RED run: the keys
   //    are real but the LMS cannot pull a single report with them.
   console.log("");
+  // The loudest failure has the quietest symptom. An un-whitelisted source IP is
+  // dropped at Metropol's edge — no response, no api_code — so it arrives here as
+  // a clean sweep of UNKNOWN/timeout and reads like "the bureau is down". Name it
+  // before anyone starts re-checking keys that are fine.
+  if (tally.UNKNOWN === sweep.length && !healthy) {
+    console.log(
+      "  ✗ UNREACHABLE — every probe failed at the transport, not at the API. Metropol\n" +
+        `    never answered, which is what an UN-WHITELISTED SOURCE IP looks like (port\n` +
+        `    ${cfg.port} is not open to unregistered addresses at all). Registered as of\n` +
+        "    2026-08-27: 102.214.69.233 (IIS) and 102.210.148.110 (the MicroMart site).\n" +
+        "    Run this from a host that reaches the port, or set CRB_RELAY_URL/\n" +
+        "    CRB_RELAY_SECRET to egress through one. Confirm any host ON that host with:\n" +
+        "        Test-NetConnection api.metropol.co.ke -Port 22225",
+    );
+  }
   if (tally.SIGNING) console.log("  ✗ SIGNING — hash rejected. That is a bug in this repo, not a Metropol issue.");
   if (tally.CREDENTIAL) console.log("  ✗ CREDENTIAL — the public key is unknown or expired at the bureau.");
   if (tally.CLOCK) console.log("  ✗ CLOCK — this host is more than 45s from Metropol's time. Fix NTP.");

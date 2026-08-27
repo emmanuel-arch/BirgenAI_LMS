@@ -46,6 +46,21 @@ const PLATFORM_LABELS = [
   // this host, so every home-screen icon already in customers' hands would open
   // onto that lender's portal. An installed base cannot be un-pointed.
   "microeazy",
+  // The BORROWER PWA's host — portal.servicesuitecloud.com, a separate Vercel
+  // project from this one (see ecosystem/registry.json → pwa.deploy).
+  //
+  // It is reserved here even though this deployment never serves it, and that is
+  // the point: reservation is decided when a lender picks a slug, which happens
+  // in THIS app. Without the entry a lender signing up as "portal" would be
+  // handed a subdomain that DNS already points at the borrower app — the two
+  // would fight for the host, and the winner would be whichever project last
+  // claimed the domain in Vercel. Exactly the collision that took
+  // microeazy.servicesuitecloud.com off the air.
+  //
+  // "app" is already on this list above and stays there: it was the PWA's
+  // previous label, it still resolves to the legacy IIS box, and it must not be
+  // handed out either.
+  "portal",
 ] as const;
 
 // The satellite labels come from ./labels, which is also what the edge proxy
