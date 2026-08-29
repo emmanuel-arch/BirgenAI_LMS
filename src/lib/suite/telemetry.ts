@@ -10,7 +10,7 @@
 //
 //   Lending Console   the live book — borrowers and OLB from Serviceconnect
 //   Customer Portal   loans disbursed today, the customer-facing surface
-//   Analytics Studio  the whole group's outstanding balance
+//   Analytics & Reporting  the whole group's outstanding balance
 //   ConnectDesk       cash recovered today and agents on the floor, CollectBox
 //   PeopleHub         the staff directory, from UserMaster + CollectionAgents
 //   Ledgerly          money that moved today, from the payments ledger

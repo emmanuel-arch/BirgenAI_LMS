@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// The Analytics Studio moved out of the console.
+// The Analytics & Reporting moved out of the console.
 //
 // It is its own system now — /analytics inside this deployment, and
 // analytics.birgenai.com in production (src/lib/suite/apps.ts, src/proxy.ts).

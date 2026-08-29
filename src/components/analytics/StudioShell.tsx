@@ -84,8 +84,29 @@ export default function StudioShell({
           </Suspense>
         </aside>
 
-        {/* ── The canvas ───────────────────────────────────────────────── */}
-        <div className="flex min-w-0 flex-1 flex-col">
+        {/* ── The canvas ───────────────────────────────────────────────────
+            The artwork is a photograph of a dense black web on pale grey. It is
+            the system's signature and it is also, laid bare, unreadable: every
+            figure on this page would land on whichever black filament happened
+            to be under it.
+
+            So it runs UNDER A SCRIM. The image sits fixed behind the content
+            column (never behind the dark rail, which would fight it), and a
+            near-opaque wash lifts it back to texture. Cards on top are solid
+            white and unchanged — the same rule the console settled on: type
+            never touches the artwork, so contrast is a property of the system
+            rather than of where a sentence happens to fall.
+
+            `fixed` rather than `absolute`: the web stays still while the page
+            scrolls, which is what makes it read as the surface the product is
+            printed on instead of a very tall picture. */}
+        <div className="relative flex min-w-0 flex-1 flex-col">
+          <div
+            aria-hidden
+            className="pointer-events-none fixed inset-0 z-0 bg-[url('/images/suite/analytics.jpg')] bg-cover bg-center opacity-[0.30]"
+          />
+          <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-[#f6f6f4]/72" />
+
           <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-zinc-900/[0.07] bg-[#f6f6f4]/85 px-4 backdrop-blur sm:px-6">
             <button
               type="button"
@@ -111,7 +132,7 @@ export default function StudioShell({
             </div>
           </header>
 
-          <main className="min-w-0 flex-1">{children}</main>
+          <main className="relative z-10 min-w-0 flex-1">{children}</main>
         </div>
       </div>
 
@@ -171,7 +192,7 @@ function StudioNav({
         </span>
         {!collapsed && (
           <div className="min-w-0">
-            <p className="truncate text-[13px] font-bold leading-tight text-white">Analytics Studio</p>
+            <p className="truncate text-[13px] font-bold leading-tight text-white">Analytics & Reporting</p>
             <p className="truncate text-[10px] leading-tight text-white/40">{org.name}</p>
           </div>
         )}

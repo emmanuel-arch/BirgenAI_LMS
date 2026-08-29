@@ -101,6 +101,20 @@ export const STUDIO_NAV: StudioModule[] = [
     ],
   },
   {
+    key: "reporting",
+    label: "Reporting",
+    icon: "FileText",
+    items: [
+      {
+        key: "reports",
+        label: "Reports",
+        href: "/analytics/reports",
+        icon: "FileText",
+        blurb: "The reports your team already runs — read on screen, then exported.",
+      },
+    ],
+  },
+  {
     key: "explore",
     label: "Explore",
     icon: "Compass",

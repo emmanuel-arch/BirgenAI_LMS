@@ -42,7 +42,7 @@ export default async function AnalyticsLayout({ children }: { children: React.Re
 
   // ── THE COMMERCIAL GATE ────────────────────────────────────────────────────
   // Hiding a tile on the launcher is a courtesy. THIS is the control: a lender
-  // whose Analytics Studio was switched off at /platform can still type /analytics, and
+  // whose Analytics & Reporting was switched off at /platform can still type /analytics, and
   // without a refusal here they would simply be inside it. Menu filtering has
   // never been an access boundary and is not sold as one.
   //
@@ -62,7 +62,7 @@ export default async function AnalyticsLayout({ children }: { children: React.Re
 
   return (
     <>
-      <BrandHead logoUrl={org.logoUrl} title={`${org.name} — Analytics Studio`} />
+      <BrandHead logoUrl={org.logoUrl} title={`${org.name} — Analytics & Reporting`} />
       <StudioShell
         nav={nav}
         org={{ name: org.name, slug: org.slug, mode: org.mode, logoUrl: org.logoUrl }}

@@ -128,13 +128,22 @@ export const NAV_REGISTRY: NavModule[] = [
       // whole book four levels inside a loan-officer tool is why nobody senior
       // ever opened it. The old route still resolves and redirects, so existing
       // links and bookmarks keep working.
-      { key: "analytics", label: "Analytics Studio ↗", href: "/analytics", icon: "ChartNoAxesCombined", anyRight: ["reports.view", "reports.analytics"] },
+      { key: "analytics", label: "Analytics & Reporting ↗", href: "/analytics", icon: "ChartNoAxesCombined", anyRight: ["reports.view", "reports.analytics"] },
       { key: "model-tuning", label: "Model Tuning", href: "/console/intelligence/tuning", icon: "SlidersHorizontal", right: "intelligence.tune", feature: "model-tuning" },
       { key: "metrics", label: "Metric Catalogue", href: "/console/intelligence/metrics", icon: "Ruler", right: "metrics.view", feature: "riri" },
       { key: "documents", label: "Document Parser", href: "/console/documents", icon: "ScanLine", right: "documents.view", feature: "document-parser" },
+      // ── REPORTING MOVED OUT OF THE CONSOLE ─────────────────────────────────
+      // There used to be three entries here — Report Builder, Reports and Income
+      // Statement — and between them they were the whole reporting story, told
+      // three times in three shapes. Worse, two of them read POSTGRES, which for
+      // a bridged lender is a 199-loan shadow of a 275,605-loan book.
+      //
+      // They are one system now, at /analytics/reports, where a report is
+      // scoped to the book you are standing in, read on screen before it is
+      // downloaded, and exported with its provenance attached. The old routes
+      // redirect, so bookmarks and old links still land somewhere true.
+      { key: "reports", label: "Reports ↗", href: "/analytics/reports", icon: "FileBarChart", anyRight: ["reports.view", "reports.portfolio"] },
       { key: "report-builder", label: "Report Builder", href: "/console/intelligence/reports", icon: "FilePlus2", anyRight: ["reports.view", "reports.builder"], feature: "riri" },
-      { key: "reports", label: "Reports", href: "/console/report", icon: "FileBarChart", anyRight: ["reports.view", "reports.portfolio"], exact: true },
-      { key: "income-statement", label: "Income Statement", href: "/console/report/income", icon: "Coins", anyRight: ["reports.view", "reports.income"] },
     ],
   },
   {

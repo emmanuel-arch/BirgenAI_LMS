@@ -3,7 +3,7 @@
 //
 //     lms.servicesuitecloud.com          → /console    Lending Console
 //     microeazy.servicesuitecloud.com    → /microeazy  the consumer app (D1, 0.6)
-//     analytics.servicesuitecloud.com    → /analytics  Analytics Studio
+//     analytics.servicesuitecloud.com    → /analytics  Analytics & Reporting
 //     peoplehub.servicesuitecloud.com    → /people     PeopleHub HR
 //     ledgerly.servicesuitecloud.com     → /books      Ledgerly Accounting
 //     connectdesk.servicesuitecloud.com  → /desk       ConnectDesk Call-Center

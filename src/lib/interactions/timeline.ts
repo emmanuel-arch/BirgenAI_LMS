@@ -20,7 +20,7 @@
 //   Postgres.DeskInteraction → everything ConnectDesk itself has recorded
 //
 // One function. Six consumers: the Lending Console's Customer 360, the Customer
-// Portal's activity feed, ConnectDesk's case file, the Analytics Studio's agent
+// Portal's activity feed, ConnectDesk's case file, the Analytics & Reporting's agent
 // screen, PeopleHub's staff activity, and Ledgerly's audit trail. They do not
 // each reimplement "what happened to this customer" — they call this, and so
 // they cannot disagree about it.

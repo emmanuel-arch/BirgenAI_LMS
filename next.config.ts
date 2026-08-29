@@ -38,7 +38,7 @@ const PDF_READERS = [
 ];
 
 /** Every route that builds a PDF. */
-const PDF_WRITERS = ["/api/console/riri/export"];
+const PDF_WRITERS = ["/api/console/riri/export", "/api/analytics/reports/[id]"];
 
 const pdfjsFiles = [
   "./node_modules/pdfjs-dist/legacy/build/**",

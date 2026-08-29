@@ -584,7 +584,7 @@ export const SYSTEM_SCREENS: SystemScreen[] = [
     // Its own system now, at its own address — not a console screen. The old
     // console route still resolves and redirects here.
     href: "/analytics",
-    title: "Analytics Studio",
+    title: "Analytics & Reporting",
     module: "intelligence",
     purpose: "A system of its own: the whole book by branch, officer, product, region, cohort and channel — any measure, any dimension, any chart, plus a builder for the questions we did not anticipate.",
     does: [

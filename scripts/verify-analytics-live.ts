@@ -61,9 +61,10 @@ async function main() {
   ok("a foreign entity id is refused", scopeFor([9999]).live?.lenses.map((l) => l.id).join() === "3005", "falls back to the realm");
 
   console.log("\n2. Arrears basis is declared, not guessed");
-  ok("3002 uses the CollectBox tracker", arrearsBasis(3002) === "tracker");
-  ok("3005 is derived — the tracker does not cover it", arrearsBasis(3005) === "derived");
-  ok("3003 is derived", arrearsBasis(3003) === "derived");
+  // The earlier split (CollectBox tracker for 3002, derived for everything else)
+  // put two differently-computed PARs in the same comparison chart.
+  // Transactions.LoansInArrears covers every book on both servers.
+  for (const e of [3002, 3005, 3003, 3004]) ok(`entity ${e} uses the arrears ledger`, arrearsBasis(e) === "ledger");
 
   console.log("\n3. Headline, per book — the live numbers");
   const [hSme, hFin, hBoth] = await Promise.all([headline(sme, f), headline(fin, f), headline(both, f)]);

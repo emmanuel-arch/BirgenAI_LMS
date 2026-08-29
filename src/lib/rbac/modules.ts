@@ -90,7 +90,7 @@ export const ACCESS_CATALOG: CatalogSystem[] = [
   },
   {
     id: "analytics",
-    name: "Analytics Studio",
+    name: "Analytics & Reporting",
     accent: "#7c3aed",
     blurb: "The whole book, drawn.",
     modules: toModules(STUDIO_NAV),

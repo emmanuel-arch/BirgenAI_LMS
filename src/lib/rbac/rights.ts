@@ -231,7 +231,7 @@ export const RIGHT_LABELS: Record<Right, string> = {
   "reports.view": "Can open every report — the umbrella grant that covers all report screens",
   "reports.portfolio": "Can open the portfolio report",
   "reports.income": "Can open the income statement",
-  "reports.analytics": "Can open the Analytics Studio",
+  "reports.analytics": "Can open the Analytics & Reporting",
   "reports.builder": "Can build and run custom reports",
   "field.view": "Can see field visits, routes and the agent roster",
   "field.manage": "Can create visits and dispatch field agents",

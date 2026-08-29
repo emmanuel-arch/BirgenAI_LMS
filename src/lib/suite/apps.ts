@@ -127,7 +127,7 @@ export const SUITE_APPS: SuiteApp[] = [
     // and ConnectDesk, this is a REAL surface reading the real book, so it must
     // not fall through to /suite/[app]'s demo renderer.
     id: "analytics",
-    name: "Analytics Studio",
+    name: "Analytics & Reporting",
     short: "Analytics",
     tagline: "Every question you can ask of the book — answered while you ask it.",
     purpose: "The whole business, drawn.",

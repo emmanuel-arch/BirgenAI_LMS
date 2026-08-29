@@ -4,7 +4,7 @@
 // THE SUITE CHROME — one shell, six systems.
 //
 // ── WHY THIS EXISTS ──────────────────────────────────────────────────────────
-// The Analytics Studio grew its own shell because it needed one; ConnectDesk,
+// The Analytics & Reporting grew its own shell because it needed one; ConnectDesk,
 // PeopleHub and Ledgerly would each have grown a fourth, fifth and sixth. Four
 // near-identical navigation rails is not six systems that feel like one product,
 // it is four maintenance liabilities that drift apart over a quarter until a

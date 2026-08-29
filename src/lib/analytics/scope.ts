@@ -47,20 +47,33 @@ import { realmsFor, type Realm } from "@/lib/suite/realms";
  * tracker says 60,924 loans / KES 232.4M over 30 days while the derived rule
  * says 51,590 / KES 273.6M. Both are defensible; they measure different things.
  */
-export type ArrearsBasis = "tracker" | "derived";
+export type ArrearsBasis = "ledger" | "derived";
 
 /**
- * Which entities the CollectBox tracker actually covers.
+ * ── HOW THIS WAS GOT WRONG, AND THEN RIGHT ───────────────────────────────────
+ * The first cut of this file read arrears from CollectBox.CollectionTracker,
+ * because that is where the collections floor reads them. The tracker covers
+ * EntityId 3002 and nothing else — 95,799 rows, all 3002 — so every other book
+ * had to fall back to deriving days-past-due from ExpectedClearDate, and a
+ * comparison chart ended up with two differently-computed PARs side by side.
  *
- * A declared list rather than a runtime probe: probing would add a round trip to
- * every page load to re-learn a fact that changes when somebody deploys a
- * collections floor, not when a user clicks. When Micromart's floor is extended
- * to the fintech book, add 3005 here.
+ * `Transactions.dbo.LoansInArrears` is the better source and it was there all
+ * along. It carries DaysInArears and AmountInArrears per loan and it covers
+ * EVERY book on BOTH deployments — verified 29 Aug 2026:
+ *
+ *   Micromart  3002 264,079 loans   3005 59,850      (Axe's 3003 decoy: 3,668)
+ *   Axe        3003  86,708 loans   3004    411
+ *
+ * That single change also corrected a real number: the fintech book showed 0%
+ * PAR under the derived rule and in fact carries **657 loans over 30 days** —
+ * small amounts (KES 10,379 in total), but not zero, and "zero" is the kind of
+ * figure a general manager repeats out loud.
+ *
+ * "derived" survives only as the fallback for a loan the arrears ledger has no
+ * row for, so a missing row reads as what it is rather than as a clean loan.
  */
-const TRACKED_ENTITIES = new Set<number>([3002]);
-
-export function arrearsBasis(entityId: number): ArrearsBasis {
-  return TRACKED_ENTITIES.has(entityId) ? "tracker" : "derived";
+export function arrearsBasis(_entityId: number): ArrearsBasis {
+  return "ledger";
 }
 
 /** One book in the cut. */

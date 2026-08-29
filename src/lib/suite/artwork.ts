@@ -89,7 +89,7 @@ export const ARTWORK: Artwork[] = [
   },
   {
     id: "analytics",
-    name: "Analytics Studio",
+    name: "Analytics & Reporting",
     accent: "#7c3aed",
     file: "/images/suite/login-analytics.webp",
     gradient: "radial-gradient(1200px 700px at 78% 18%, #7c3aed33 0%, transparent 62%), radial-gradient(900px 600px at 20% 90%, #a855f71f 0%, transparent 60%), #0b0a10",

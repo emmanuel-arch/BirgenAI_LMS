@@ -14,7 +14,7 @@
 // nine days of last month rather than all thirty-one of them.
 // ─────────────────────────────────────────────────────────────────────────────
 import Link from "next/link";
-import { ArrowRight, TriangleAlert } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { studioContext } from "@/lib/analytics/context";
 import { headline, cube, timeSeries } from "@/lib/analytics/engine";
 import { previousRange } from "@/lib/analytics/ranges";
@@ -57,17 +57,6 @@ export default async function AnalyticsOverview({ searchParams }: { searchParams
   const books = ctx.active;
   const per = (key: string) => (ctx.split ? lensFigures(now.by, books, key) : undefined);
 
-  // The book's health, in one sentence, computed rather than templated. This is
-  // the line a chair reads out; if it is wrong, everything under it is ignored.
-  const verdict =
-    now.olb === 0
-      ? "There is no open book in this cut — widen the range or clear a filter."
-      : now.par30 > 15
-        ? `${now.par30.toFixed(1)}% of the book is more than 30 days overdue. That is ${formatValue(now.par30Amount, "money")} not being repaid on schedule, and it is the first thing on this page that needs a decision.`
-        : now.par30 > 5
-          ? `The book is ${formatValue(now.olb, "money")} with ${now.par30.toFixed(1)}% past 30 days — inside tolerance, worth watching.`
-          : `The book is ${formatValue(now.olb, "money")} and ${(100 - now.par30).toFixed(1)}% of it is performing.`;
-
   return (
     <StudioPage
       title="The board view"
@@ -88,20 +77,6 @@ export default async function AnalyticsOverview({ searchParams }: { searchParams
         </Link>
       }
     >
-      {/* ── The one sentence ─────────────────────────────────────────────── */}
-      <div
-        className="mb-4 rounded-2xl border p-4 sm:p-5"
-        style={{
-          borderColor: now.par30 > 15 ? `${STATUS.critical}55` : now.par30 > 5 ? `${STATUS.warning}55` : `${STATUS.good}44`,
-          backgroundColor: now.par30 > 15 ? `${STATUS.critical}0d` : now.par30 > 5 ? `${STATUS.warning}0d` : `${STATUS.good}0a`,
-        }}
-      >
-        <div className="flex items-start gap-3">
-          {now.par30 > 5 && <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" style={{ color: now.par30 > 15 ? STATUS.critical : STATUS.warning }} />}
-          <p className="text-[15px] font-medium leading-snug text-zinc-800">{verdict}</p>
-        </div>
-      </div>
-
       {/* ── The headline numbers ─────────────────────────────────────────── */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile

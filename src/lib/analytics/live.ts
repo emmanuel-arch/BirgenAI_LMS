@@ -131,19 +131,19 @@ function inClause(col: string, prefix: string, values: string[], params: QueryPa
 }
 
 /**
- * Days in arrears, across books that measure it differently.
+ * Days in arrears — ONE source, every book, both deployments.
  *
- * CollectBox.CollectionTracker covers EntityId 3002 and nothing else — 95,799
- * tracked loans, all of them 3002, verified live. So a cut spanning both books
- * needs one expression that uses the tracker where it exists and the loan's own
- * dates where it does not. See scope.ts for why the two are not interchangeable.
+ * Transactions.dbo.LoansInArrears carries DaysInArears per loan and covers every
+ * entity on both servers. It replaced a split where 3002 used the CollectBox
+ * tracker and everything else derived DPD from the clear date, which put two
+ * differently-computed PARs beside each other in the same comparison chart.
+ *
+ * The COALESCE fallback is not decoration: a loan with no arrears row is a loan
+ * nothing has gone wrong with, and reading it as zero days is correct. See
+ * scope.ts for the coverage numbers.
  */
-function dpdExpr(scope: LiveScope): string {
-  const tracked = scope.lenses.filter((l) => l.basis === "tracker").map((l) => l.id);
-  const derived = `CASE WHEN l.LoanCleared = 0 AND ${MONEY("l.LoanBalance")} > 0 AND l.ExpectedClearDate IS NOT NULL
-                        THEN DATEDIFF(day, l.ExpectedClearDate, GETDATE()) ELSE 0 END`;
-  if (!tracked.length) return derived;
-  return `CASE WHEN l.EntityId IN (${entityList(tracked)}) THEN COALESCE(ct.DaysInArears, 0) ELSE ${derived} END`;
+function dpdExpr(_scope: LiveScope): string {
+  return `COALESCE(ia.DaysInArears, 0)`;
 }
 
 /**
@@ -164,11 +164,9 @@ function paidSource(caps: Caps) {
     : { from: `${SC}.RepaymentTransactions pa`, amount: "pa.Amount", at: "pa.Datetransacted", loanId: "pa.loanid" };
 }
 
-/** The tracker join is only paid for when some book in the cut actually uses it. */
-function trackerJoin(scope: LiveScope): string {
-  return scope.lenses.some((l) => l.basis === "tracker")
-    ? `LEFT JOIN ${CB}.CollectionTracker ct ON ct.LoanId = l.id`
-    : "";
+/** The arrears ledger. LEFT, so a loan with nothing wrong with it still counts. */
+function trackerJoin(_scope: LiveScope): string {
+  return `LEFT JOIN Transactions.dbo.LoansInArrears ia ON ia.LoanId = l.id`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

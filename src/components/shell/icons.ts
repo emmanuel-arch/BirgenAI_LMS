@@ -8,7 +8,7 @@ import {
   GitBranch, Palette, Settings2, KeyRound, Crown, Bot, Ticket, Mail, Ruler, LifeBuoy,
   Calculator, Target, LineChart, Navigation, Send, Map, FileLock2, Coins, MapPinOff, Circle,
   ScrollText, Handshake, Waypoints, Infinity as InfinityIcon,
-  // Named by the Analytics Studio's own nav registry (src/lib/analytics/studio-nav.ts).
+  // Named by the Analytics & Reporting's own nav registry (src/lib/analytics/studio-nav.ts).
   // It is a separate system with its own menu, but it resolves icon names through
   // this same map — one fallback, one place to add a name.
   UserCheck, Building, Layers3, Filter, Radio, Compass, Table2, Bookmark,

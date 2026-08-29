@@ -4,7 +4,7 @@
 // Both render the shared SuiteShell, so all that is declared here is what
 // differs: a name, an accent, a strap, and a menu. Everything else — the rail,
 // the collapse, the drawer, the identity pill, the lender's mark in the corner
-// — comes from the same component ConnectDesk and the Analytics Studio use.
+// — comes from the same component ConnectDesk and the Analytics & Reporting use.
 //
 // That is the whole point of having built SuiteShell: adding the fifth and sixth
 // systems to the suite is a nav tree and a page, not a chrome.
