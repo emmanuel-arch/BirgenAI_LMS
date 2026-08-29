@@ -67,8 +67,16 @@ write and confirming the refusal.
 
 ### Running it
 
-On a tailnet machine that stays on — the `lms` node (`100.92.236.116`) is the
-right one, not a laptop that closes.
+> **DEPLOYED 28 Aug 2026.** Both relays run as Windows services on `salesmaster`,
+> the IIS box. What follows is how it was set up and what to check — you should
+> not need to redo it. The deployment bundle, with a host-verification script and
+> a symptom-to-cause table, is `relay-host/`.
+
+On a tailnet machine that stays on, not a laptop that closes. `salesmaster` is
+the right one, and not only because it stays up: it is the only node that *also*
+egresses from a Metropol-whitelisted address (`102.214.69.233`), so it carries
+the CRB relay as well. Bureau calls leave over its OpenVPN TAP adapter; SQL goes
+over the tailnet. Two paths, one box.
 
 **Step 0, once per tailnet: Funnel must be switched on.** It is off by default,
 and until it is, `tailscale funnel` prints this and does nothing else:
@@ -83,12 +91,21 @@ Open that link, approve it, and the rest works. It also needs **HTTPS
 Certificates** enabled under the tailnet's Settings → Features.
 
 ```bash
-npm run relay              # holds the pool, listens on 127.0.0.1:8787
-tailscale funnel --bg 8787 # publishes it, and PRINTS THE REAL URL
+npm run relay                            # holds the pool, listens on 127.0.0.1:8787
+tailscale funnel --bg --https=8443 8787  # publishes it, and PRINTS THE REAL URL
 ```
 
-The URL it prints looks like `https://lms.tail10c441.ts.net` — that exact
-string, copied from the terminal, is what `SERVICESUITE_RELAY_URL` must be.
+> ⚠ **Note the `--https=8443`.** `salesmaster` runs both relays and Funnel offers
+> only 443, 8443 and 10000, so they split: **CRB holds 443, SQL holds 8443.** A
+> bare `tailscale funnel 8787` takes 443 and **silently unpublishes the CRB
+> relay** — after which bureau calls fail the quiet way, dropped at Metropol's
+> edge with no `api_code` and nothing in a log. Always finish with
+> `tailscale funnel status` and confirm BOTH mappings are listed.
+
+The URL it prints — `https://salesmaster.tail10c441.ts.net:8443`, **including the
+port** — is what `SERVICESUITE_RELAY_URL` must be. Dropping the `:8443` does not
+fail cleanly: it reaches the CRB relay, whose `/health` also answers
+`{"ok":true}`, so `test:relay` passes step 2 and then 404s on the read.
 
 **Funnel is enabled per NODE, and the URL is the node's name.** Enabling it for
 the laptop does not enable it for the server, and moving the relay from one to
@@ -199,10 +216,13 @@ the word and I will switch it.
 Set these on the Vercel project (Production scope), then redeploy.
 
 ```
-# The relay — this is what removes the amber banner.
-# NOT the placeholder below: the actual URL `tailscale funnel` printed.
-SERVICESUITE_RELAY_URL       = https://<paste the real ts.net host here>
-SERVICESUITE_RELAY_SECRET    = <the same value as .env locally>
+# The relays — this is what removes the amber banner. Live values, 28 Aug 2026.
+# NOTE THE PORT on the SQL one: both relays share salesmaster, so CRB holds 443
+# and SQL holds 8443. Dropping `:8443` reaches the CRB relay and 404s the read.
+SERVICESUITE_RELAY_URL       = https://salesmaster.tail10c441.ts.net:8443
+SERVICESUITE_RELAY_SECRET    = <the same value as the relay host's .env>
+CRB_RELAY_URL                = https://salesmaster.tail10c441.ts.net
+CRB_RELAY_SECRET             = <the same value as the relay host's .env>
 
 # Public identity
 PUBLIC_BASE_URL              = https://microeazy.servicesuitecloud.com
@@ -438,10 +458,19 @@ All four read live and were verified end to end against Micromart's server:
 
 **The night before**
 
+Both relays are services now, so the night before is a *check*, not a start.
+On `salesmaster`:
+
+```powershell
+Get-Service MicroEazySqlRelay, MicroEazyCrbRelay   # both Running
+tailscale funnel status                            # BOTH 443 and :8443 listed
+```
+
+Then from anywhere:
+
 ```bash
-npm run relay            # on the always-on tailnet host, not a laptop
-tailscale funnel 8787
 npm run test:relay       # ALL CHECKS PASSED
+npm run test:crb:prod    # USABLE — 8/8 services entitled
 ```
 
 **Thirty minutes before**

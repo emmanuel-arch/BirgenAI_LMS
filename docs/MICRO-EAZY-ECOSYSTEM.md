@@ -515,6 +515,34 @@ Then the one sentence that closes it:
 
 ## 11. Build plan
 
+### Shipped
+
+**28 Aug 2026 — the cloud reads Micromart, and the bureau answers from a registered address.**
+
+Both relays now run as Windows services on `salesmaster`, the IIS box. It is the only host that
+satisfies both constraints at once: it egresses from `102.214.69.233`, which is on Metropol's
+whitelist, *and* it reaches `100.72.35.56,4230` over Tailscale. One box, two different network
+paths — bureau calls leave via the OpenVPN TAP adapter, SQL goes over the tailnet.
+
+| Relay | Published at | Verified |
+|---|---|---|
+| SQL (`8787`) | `https://salesmaster.tail10c441.ts.net:8443` | `npm run test:relay` — **ALL CHECKS PASSED**. 95,409 tracked loans; entity 3005 open 1,762. SQL 703ms, round trip 1,411ms. `DATETIME` survived the wire as a `Date`. Writes refused at the relay. |
+| CRB (`8788`) | `https://salesmaster.tail10c441.ts.net` | `npm run test:crb:prod` — **8/8 services ENTITLED** against production `:22225`. |
+
+Sharing one node means they split Funnel's ports: 443 for CRB, 8443 for SQL. Both mappings must
+appear in `tailscale funnel status` — the second command silently displaces the first otherwise,
+and a `SERVICESUITE_RELAY_URL` missing its `:8443` reaches the *CRB* relay, whose `/health` also
+answers `{"ok":true}` and whose `/query` is a 404.
+
+**What this unblocks:** 0.10 can be rehearsed against the deployed site rather than a laptop that
+happens to be on the tailnet. Before this, `SERVICESUITE_CONN_MICROMART` could be set perfectly on
+Vercel and still connect to nothing — `100.64.0.0/10` has no internet route — so all six systems
+went unreachable together and it read like an outage on Micromart's side. Micromart's database
+password now never leaves that box; with a relay configured, `isOrgConfigured()` is satisfied by
+the relay itself.
+
+Deployment bundle, per-node evidence and the failure taxonomy: `relay-host/README.md`.
+
 ### Sprint 0 — Demo-critical (this week → board meeting)
 
 | # | Task | Where |

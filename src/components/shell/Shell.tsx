@@ -37,6 +37,7 @@ import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 import Sidebar from "./Sidebar";
 import IdentityMenu from "./IdentityMenu";
 import ImpersonationBanner from "./ImpersonationBanner";
+import RealmSwitch, { type SwitchRealm } from "./RealmSwitch";
 
 export default function Shell({
   nav,
@@ -44,6 +45,8 @@ export default function Shell({
   user,
   impersonator,
   suiteHosts,
+  realms,
+  activeRealm,
   children,
 }: {
   nav: NavModule[];
@@ -52,6 +55,14 @@ export default function Shell({
   impersonator?: { name: string } | null;
   /** Resolved server-side: where each suite system currently lives. */
   suiteHosts: ResolvedSuiteApp[];
+  /**
+   * The lender's books. EMPTY for the ordinary single-book lender, which is why
+   * there is no `hasRealms` flag beside it — the list IS the condition, and a
+   * switch with one setting cannot be rendered by accident.
+   */
+  realms: SwitchRealm[];
+  /** Which of them this request is standing in. */
+  activeRealm: string;
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -95,17 +106,26 @@ export default function Shell({
           </aside>
 
           <div className="flex min-w-0 flex-1 flex-col">
-            {/* Floating controls on the artwork — drawer button (mobile) left,
-                profile far right, nothing else. No slab, no border, no bar. */}
-            <div className="no-print mb-3 flex h-10 shrink-0 items-center justify-between gap-2 lg:justify-end">
-              <button
-                type="button"
-                onClick={() => setDrawer(true)}
-                className="panel flex items-center justify-center rounded-xl p-2 text-[color:var(--ink-muted)] transition-colors hover:text-[color:var(--ink)] lg:hidden"
-                aria-label="Open navigation"
-              >
-                <Menu className="h-4 w-4" />
-              </button>
+            {/* Floating controls on the artwork — drawer button (mobile) and the
+                book you are in on the left, profile far right. No slab, no
+                border, no bar.
+
+                WHERE you are and WHO you are sit at opposite ends of the same
+                line on purpose: they are the two facts that qualify everything
+                on the page beneath them, and a lender with one book simply has
+                nothing on the left. */}
+            <div className="no-print mb-3 flex h-10 shrink-0 items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDrawer(true)}
+                  className="panel flex items-center justify-center rounded-xl p-2 text-[color:var(--ink-muted)] transition-colors hover:text-[color:var(--ink)] lg:hidden"
+                  aria-label="Open navigation"
+                >
+                  <Menu className="h-4 w-4" />
+                </button>
+                <RealmSwitch realms={realms} active={activeRealm} />
+              </div>
               <div className="flex items-center gap-2">
                 {org.status !== "ACTIVE" && (
                   <span className="panel hidden items-center rounded-xl px-2.5 py-1.5 text-[11px] font-semibold text-amber-700 sm:inline-flex">

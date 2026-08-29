@@ -94,7 +94,8 @@
     "interchange:keygen": "tsx scripts/interchange-keygen.ts",
     "interchange:publish": "tsx scripts/interchange-publish.ts",
     "interchange:members": "tsx scripts/probe-interchange-members.ts",
-    "interchange:verify": "tsx scripts/interchange-verify.ts"
+    "interchange:verify": "tsx scripts/interchange-verify.ts",
+    "test:realms": "tsx scripts/verify-realms.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
