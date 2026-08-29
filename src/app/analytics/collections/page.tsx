@@ -24,11 +24,11 @@ export default async function CollectionsPage({ searchParams }: { searchParams: 
   const prev = previousRange(ctx.filters.range);
 
   const [now, before, series, byOfficer, byBranch] = await Promise.all([
-    headline(ctx.orgId, ctx.filters),
-    prev ? headline(ctx.orgId, { ...ctx.filters, range: prev }) : Promise.resolve(null),
-    timeSeries(ctx.orgId, ctx.filters),
-    cube(ctx.orgId, "officer", ctx.filters),
-    cube(ctx.orgId, "branch", ctx.filters),
+    headline(ctx.scope, ctx.filters),
+    prev ? headline(ctx.scope, { ...ctx.filters, range: prev }) : Promise.resolve(null),
+    timeSeries(ctx.scope, ctx.filters),
+    cube(ctx.scope, "officer", ctx.filters),
+    cube(ctx.scope, "branch", ctx.filters),
   ]);
 
   const sp = (key: Parameters<typeof measure>[0], v: number | null) => {
@@ -46,6 +46,10 @@ export default async function CollectionsPage({ searchParams }: { searchParams: 
       blurb="What fell due, what actually arrived, and who is closing the gap between them."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      unavailable={ctx.unavailable}
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile label="Collected" value={now.collected} format="money" hero {...sp("collected", now.collected)} />

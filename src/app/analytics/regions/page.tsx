@@ -30,8 +30,8 @@ export default async function RegionsPage({ searchParams }: { searchParams: Prom
   const metric = rankMetric(metricKey)!;
 
   const [rows, branches] = await Promise.all([
-    cube(ctx.orgId, "region", ctx.filters),
-    cube(ctx.orgId, "branch", ctx.filters),
+    cube(ctx.scope, "region", ctx.filters),
+    cube(ctx.scope, "branch", ctx.filters),
   ]);
   const ranked = rank(rows, metricKey, ctx.top);
 
@@ -41,6 +41,10 @@ export default async function RegionsPage({ searchParams }: { searchParams: Prom
       blurb="The office tree rolled up. Where the business is concentrated, and which regions are carrying the risk."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      unavailable={ctx.unavailable}
       showGrain={false}
     >
       <RankBoard

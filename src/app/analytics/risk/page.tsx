@@ -31,12 +31,12 @@ export default async function RiskPage({ searchParams }: { searchParams: Promise
   const prev = previousRange(ctx.filters.range);
 
   const [now, before, byRisk, byBranch, byProduct, bySize] = await Promise.all([
-    headline(ctx.orgId, ctx.filters),
-    prev ? headline(ctx.orgId, { ...ctx.filters, range: prev }) : Promise.resolve(null),
-    cube(ctx.orgId, "riskBand", ctx.filters),
-    cube(ctx.orgId, "branch", ctx.filters),
-    cube(ctx.orgId, "product", ctx.filters),
-    cube(ctx.orgId, "loanSizeBand", ctx.filters),
+    headline(ctx.scope, ctx.filters),
+    prev ? headline(ctx.scope, { ...ctx.filters, range: prev }) : Promise.resolve(null),
+    cube(ctx.scope, "riskBand", ctx.filters),
+    cube(ctx.scope, "branch", ctx.filters),
+    cube(ctx.scope, "product", ctx.filters),
+    cube(ctx.scope, "loanSizeBand", ctx.filters),
   ]);
 
   const sp = (key: Parameters<typeof measure>[0], v: number | null) => {
@@ -61,6 +61,10 @@ export default async function RiskPage({ searchParams }: { searchParams: Promise
       blurb="Where the book has gone wrong, and — more usefully — where it is about to."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      unavailable={ctx.unavailable}
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile label="PAR 30" value={now.par30} format="percent" hero hint={measure("par30")?.definition} {...sp("par30", now.par30)} />

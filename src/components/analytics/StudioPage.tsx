@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import type { ReactNode } from "react";
 import StudioFilterBar, { type FilterAxes } from "./StudioFilterBar";
+import EntityLensBar, { type LensOption } from "./EntityLensBar";
 import type { Range } from "@/lib/analytics/ranges";
 
 export function StudioPage({
@@ -14,6 +15,11 @@ export function StudioPage({
   blurb,
   range,
   axes,
+  lenses = [],
+  activeLenses = [],
+  split = false,
+  canSplit = false,
+  unavailable = null,
   showGrain = true,
   actions,
   children,
@@ -23,6 +29,19 @@ export function StudioPage({
   blurb: string;
   range: Range;
   axes: FilterAxes;
+  /**
+   * The lender's books. Empty for the ordinary single-book lender, which is
+   * why the control below renders nothing rather than a switch with one setting.
+   */
+  lenses?: LensOption[];
+  /** EntityIds currently in the cut. */
+  activeLenses?: number[];
+  /** True when every measure is broken out per book. */
+  split?: boolean;
+  /** Set on screens whose charts actually DRAW the per-book breakdown. */
+  canSplit?: boolean;
+  /** Set when the book lives elsewhere and cannot be reached — say so, loudly. */
+  unavailable?: string | null;
   showGrain?: boolean;
   actions?: ReactNode;
   children: ReactNode;
@@ -36,6 +55,11 @@ export function StudioPage({
         </div>
         {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
       </div>
+
+      {/* WHICH BOOK sits above WHICH SLICE OF IT, because that is the order the
+          questions are asked in: a branch filter means nothing until you know
+          which lender's branches. */}
+      <EntityLensBar lenses={lenses} active={activeLenses} split={split} canSplit={canSplit} unavailable={unavailable} />
 
       <StudioFilterBar
         axes={axes}

@@ -19,6 +19,7 @@ import { studioContext } from "@/lib/analytics/context";
 import { headline, cube, timeSeries } from "@/lib/analytics/engine";
 import { previousRange } from "@/lib/analytics/ranges";
 import { delta, formatValue, measure } from "@/lib/analytics/cube";
+import { splitTrend, lensFigures } from "@/lib/analytics/split";
 import { StudioPage, Band } from "@/components/analytics/StudioPage";
 import { VizPanel, StatTile, Meter } from "@/components/analytics/viz/VizPanel";
 import { STATUS } from "@/components/analytics/viz/theme";
@@ -32,12 +33,12 @@ export default async function AnalyticsOverview({ searchParams }: { searchParams
   const prev = previousRange(ctx.filters.range);
 
   const [now, before, series, byBranch, byProduct, byRisk] = await Promise.all([
-    headline(ctx.orgId, ctx.filters),
-    prev ? headline(ctx.orgId, { ...ctx.filters, range: prev }) : Promise.resolve(null),
-    timeSeries(ctx.orgId, ctx.filters),
-    cube(ctx.orgId, "branch", ctx.filters),
-    cube(ctx.orgId, "product", ctx.filters),
-    cube(ctx.orgId, "riskBand", ctx.filters),
+    headline(ctx.scope, ctx.filters),
+    prev ? headline(ctx.scope, { ...ctx.filters, range: prev }) : Promise.resolve(null),
+    timeSeries(ctx.scope, ctx.filters),
+    cube(ctx.scope, "branch", ctx.filters),
+    cube(ctx.scope, "product", ctx.filters),
+    cube(ctx.scope, "riskBand", ctx.filters),
   ]);
 
   const d = (cur: number | null, key: Parameters<typeof measure>[0]) => {
@@ -47,6 +48,14 @@ export default async function AnalyticsOverview({ searchParams }: { searchParams
   };
 
   const compare = prev ? `vs ${prev.label.replace(/^vs /, "")}` : "";
+
+  // SIDE BY SIDE. When the cut spans more than one book, every headline figure
+  // keeps its combined total and gains the per-book split underneath, and the
+  // trend panels draw one line per book in that book's own accent — the same
+  // accent the realm switch paints the console with, so the colour means the
+  // same thing on every screen in the suite.
+  const books = ctx.active;
+  const per = (key: string) => (ctx.split ? lensFigures(now.by, books, key) : undefined);
 
   // The book's health, in one sentence, computed rather than templated. This is
   // the line a chair reads out; if it is wrong, everything under it is ignored.
@@ -65,6 +74,11 @@ export default async function AnalyticsOverview({ searchParams }: { searchParams
       blurb="Everything on one screen, in the order a board asks for it: how big the book is, whether it is going bad, whether money is coming in, and who is bringing it."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      canSplit
+      unavailable={ctx.unavailable}
       actions={
         <Link
           href="/analytics/explorer"
@@ -96,16 +110,17 @@ export default async function AnalyticsOverview({ searchParams }: { searchParams
           format="money"
           hero
           hint={measure("olb")?.definition}
+          breakdown={per("olb")}
           {...spread(d(now.olb, "olb"), compare)}
         />
-        <StatTile label="Disbursed" value={now.disbursed} format="money" hint={measure("disbursed")?.definition} {...spread(d(now.disbursed, "disbursed"), compare)} />
-        <StatTile label="Collected" value={now.collected} format="money" hint={measure("collected")?.definition} {...spread(d(now.collected, "collected"), compare)} />
-        <StatTile label="PAR 30" value={now.par30} format="percent" hint={measure("par30")?.definition} {...spread(d(now.par30, "par30"), compare)} />
+        <StatTile label="Disbursed" value={now.disbursed} format="money" hint={measure("disbursed")?.definition} breakdown={per("disbursed")} {...spread(d(now.disbursed, "disbursed"), compare)} />
+        <StatTile label="Collected" value={now.collected} format="money" hint={measure("collected")?.definition} breakdown={per("collected")} {...spread(d(now.collected, "collected"), compare)} />
+        <StatTile label="PAR 30" value={now.par30} format="percent" hint={measure("par30")?.definition} breakdown={per("par30")} {...spread(d(now.par30, "par30"), compare)} />
       </div>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile label="New loans" value={now.newLoans} format="count" {...spread(d(now.newLoans, "newLoans"), compare)} />
-        <StatTile label="Borrowers" value={now.borrowers} format="count" hint="Registered customers, all time." {...spread(d(now.borrowers, "borrowers"), compare)} />
+        <StatTile label="New loans" value={now.newLoans} format="count" breakdown={per("newLoans")} {...spread(d(now.newLoans, "newLoans"), compare)} />
+        <StatTile label="Borrowers" value={now.borrowers} format="count" hint="Registered customers, all time." breakdown={per("borrowers")} {...spread(d(now.borrowers, "borrowers"), compare)} />
         <StatTile label="Applications" value={now.applications} format="count" {...spread(d(now.applications, "applications"), compare)} />
         <StatTile
           label="Approval rate"
@@ -120,18 +135,42 @@ export default async function AnalyticsOverview({ searchParams }: { searchParams
       <Band label="Money" hint="Out against in, over the period" />
       <div className="grid gap-3 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <VizPanel
-            title="Disbursed against collected"
-            subtitle="The two flows that decide whether the book grows or the cash does. When the blue line runs above the orange one, you are funding growth out of capital."
-            data={series.map((s) => ({ label: s.label, disbursed: s.disbursed, collected: s.collected }))}
-            series={[
-              { key: "disbursed", label: "Disbursed" },
-              { key: "collected", label: "Collected" },
-            ]}
-            forms={["line", "area", "column", "stackedArea"]}
-            format="money"
-            height={280}
-          />
+          {ctx.split ? (
+            // Colour already means "which book", so it cannot also mean "which
+            // flow". Split, the two flows become two panels rather than four
+            // series nobody can read.
+            <div className="grid gap-3 sm:grid-cols-2">
+              <VizPanel
+                title="Disbursed, by book"
+                subtitle="Money going out of each book over the period."
+                {...splitTrend(series, books, "disbursed")}
+                forms={["line", "area", "column", "stackedArea"]}
+                format="money"
+                height={280}
+              />
+              <VizPanel
+                title="Collected, by book"
+                subtitle="Money coming back into each book over the period."
+                {...splitTrend(series, books, "collected")}
+                forms={["line", "area", "column", "stackedArea"]}
+                format="money"
+                height={280}
+              />
+            </div>
+          ) : (
+            <VizPanel
+              title="Disbursed against collected"
+              subtitle="The two flows that decide whether the book grows or the cash does. When the blue line runs above the orange one, you are funding growth out of capital."
+              data={series.map((s) => ({ label: s.label, disbursed: s.disbursed, collected: s.collected }))}
+              series={[
+                { key: "disbursed", label: "Disbursed" },
+                { key: "collected", label: "Collected" },
+              ]}
+              forms={["line", "area", "column", "stackedArea"]}
+              format="money"
+              height={280}
+            />
+          )}
         </div>
         <div className="space-y-3">
           <Meter

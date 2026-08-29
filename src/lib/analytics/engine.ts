@@ -196,9 +196,7 @@ function joins(needs: DimSql["needs"], forceBorrower: boolean): Prisma.Sql {
 // THE RESULT SHAPE — one row per dimension value, every measure on it.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type CubeRow = {
-  key: string;
-  label: string;
+export type CubeMeasures = {
   // Volume
   newLoans: number;
   activeLoans: number;
@@ -216,6 +214,18 @@ export type CubeRow = {
   overdue: number;
   // People
   borrowers: number;
+};
+
+export type CubeRow = CubeMeasures & {
+  key: string;
+  label: string;
+  /**
+   * The same measures again, once per book, when the cut is SPLIT across more
+   * than one entity. Absent on every single-book read — which is what lets a
+   * chart decide "draw one series or two" from the data rather than from a prop
+   * that some caller has to remember to pass.
+   */
+  by?: Array<CubeMeasures & { entityId: number }>;
 };
 
 const EMPTY_ROW = (key: string, label: string): CubeRow => ({
@@ -336,7 +346,7 @@ export async function arrearsCube(orgId: string, dim: DimensionKey, f: StudioFil
 }
 
 /** The loan cube with arrears folded in and PAR computed. The normal entry point. */
-export async function cube(orgId: string, dim: DimensionKey, f: StudioFilters): Promise<CubeRow[]> {
+async function pgCube(orgId: string, dim: DimensionKey, f: StudioFilters): Promise<CubeRow[]> {
   const [rows, arrears] = await Promise.all([loanCube(orgId, dim, f), arrearsCube(orgId, dim, f)]);
   return rows.map((r) => {
     const a = arrears.get(r.key);
@@ -363,10 +373,21 @@ export async function cube(orgId: string, dim: DimensionKey, f: StudioFilters): 
  * axis is built from the range (ranges.ts) and the aggregate is joined onto it,
  * so a zero week is drawn as a zero.
  */
-export async function timeSeries(
-  orgId: string,
-  f: StudioFilters,
-): Promise<Array<{ label: string; disbursed: number; collected: number; newLoans: number; applications: number; clearedLoans: number }>> {
+export type TimePoint = {
+  label: string;
+  disbursed: number;
+  collected: number;
+  newLoans: number;
+  applications: number;
+  clearedLoans: number;
+};
+
+export type TimeRow = TimePoint & {
+  /** Per-book series, present only on a SPLIT cut. See CubeRow.by. */
+  by?: Array<TimePoint & { entityId: number }>;
+};
+
+async function pgTimeSeries(orgId: string, f: StudioFilters): Promise<TimeRow[]> {
   const unit = PG_TRUNC[f.range.bucket];
   const axis = bucketAxis(f.range);
 
@@ -463,6 +484,8 @@ async function collectionsSeries(orgId: string, f: StudioFilters): Promise<Map<s
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type Headline = {
+  /** Per-book breakdown, present only on a SPLIT cut. See CubeRow.by. */
+  by?: Array<Omit<Headline, "by"> & { entityId: number }>;
   disbursed: number;
   collected: number;
   olb: number;
@@ -486,7 +509,7 @@ export type Headline = {
   repeatRate: number;
 };
 
-export async function headline(orgId: string, f: StudioFilters): Promise<Headline> {
+async function pgHeadline(orgId: string, f: StudioFilters): Promise<Headline> {
   const riskJoin = f.riskBands.length ? Prisma.sql`LEFT JOIN "Borrower" b ON b.id = l."borrowerId"` : Prisma.empty;
   const base = loanFilters(orgId, f, { ranged: false });
   const inRange = Prisma.sql`l."borrowDate" >= ${f.range.from} AND l."borrowDate" < ${f.range.to}`;
@@ -627,7 +650,7 @@ function applyOrder(rows: CubeRow[], order?: string[]): CubeRow[] {
  * offering forty branches when only six have ever written a loan is forty rows
  * of noise, and thirty-four of them lead to an empty screen.
  */
-export async function filterOptions(orgId: string) {
+async function pgFilterOptions(orgId: string) {
   const [branches, officers, products] = await Promise.all([
     orgTx((tx) =>
       tx.$queryRaw<Array<{ id: string; name: string; parent: string | null }>>(Prisma.sql`
@@ -700,7 +723,7 @@ export type CohortRow = {
   ageMonths: number;
 };
 
-export async function cohorts(orgId: string, months = 12): Promise<CohortRow[]> {
+async function pgCohorts(orgId: string, months = 12): Promise<CohortRow[]> {
   const rows = await orgTx((tx) =>
     tx.$queryRaw<Array<Record<string, unknown>>>(Prisma.sql`
       WITH overdue AS (
@@ -765,11 +788,88 @@ export async function cohorts(orgId: string, months = 12): Promise<CohortRow[]> 
 }
 
 /** The earliest loan on the book — the true start for "since inception". */
-export async function inceptionDate(orgId: string): Promise<Date | null> {
+async function pgInception(orgId: string): Promise<Date | null> {
   const rows = await orgTx((tx) =>
     tx.$queryRaw<Array<{ first: Date | null }>>(Prisma.sql`
       SELECT MIN(l."borrowDate") AS first FROM "Loan" l WHERE l."orgId" = ${orgId}
     `),
   );
   return rows[0]?.first ?? null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE DISPATCH — which database answers.
+//
+// Everything above this line is the Postgres implementation and is unchanged.
+// Everything below decides, per request, whether a studio question is answered
+// from our Postgres (a native lender's book lives there and nowhere else) or
+// from the lender's own ServiceSuite through the relay (lib/analytics/live.ts).
+//
+// The six exported names are the same six the fifteen surfaces have always
+// called. Only their FIRST ARGUMENT changed — from an orgId to a resolved
+// StudioScope — and that change is the entire point: an orgId cannot express
+// "Micromart's fintech book" or "both books, side by side", so as long as it was
+// the argument the studio could not ask the right question.
+//
+// ── THE THIRD BRANCH IS THE IMPORTANT ONE ────────────────────────────────────
+// When a bridged lender's database is unreachable, these return EMPTY rather
+// than falling through to Postgres. Falling through is what produced the
+// original bug: Postgres answered about Micromart's 199-loan shadow row, the
+// board view said "There is no open book in this cut", and nothing anywhere
+// suggested the real book was fine and simply had not been asked. An empty
+// result paired with `scope.unavailable` lets the page say which it is.
+// ─────────────────────────────────────────────────────────────────────────────
+import type { StudioScope } from "./scope";
+import {
+  liveCube, liveTimeSeries, liveHeadline, liveCohorts, liveFilterOptions, liveInception,
+} from "./live";
+
+export const EMPTY_HEADLINE: Headline = {
+  disbursed: 0, collected: 0, olb: 0, par30: 0, par30Amount: 0, nplAmount: 0,
+  newLoans: 0, activeLoans: 0, clearedLoans: 0, borrowers: 0, newBorrowers: 0,
+  applications: 0, approvals: 0, declines: 0,
+  approvalRate: null, onTimeRate: null, collectionRate: null,
+  dueInPeriod: 0, avgLoanSize: 0, avgScore: null, repeatRate: 0,
+};
+
+/** Every measure, grouped by one dimension — and by book too, when split. */
+export async function cube(scope: StudioScope, dim: DimensionKey, f: StudioFilters): Promise<CubeRow[]> {
+  if (scope.live) return liveCube(scope.live, dim, f);
+  if (scope.unavailable) return [];
+  return pgCube(scope.orgId, dim, f);
+}
+
+/** A series over the range, with empty buckets included. */
+export async function timeSeries(scope: StudioScope, f: StudioFilters): Promise<TimeRow[]> {
+  if (scope.live) return liveTimeSeries(scope.live, f);
+  if (scope.unavailable) return [];
+  return pgTimeSeries(scope.orgId, f);
+}
+
+/** The numbers a screen leads with. */
+export async function headline(scope: StudioScope, f: StudioFilters): Promise<Headline> {
+  if (scope.live) return liveHeadline(scope.live, f);
+  if (scope.unavailable) return EMPTY_HEADLINE;
+  return pgHeadline(scope.orgId, f);
+}
+
+/** Vintages — does this quarter's business behave like last quarter's? */
+export async function cohorts(scope: StudioScope, months = 12): Promise<CohortRow[]> {
+  if (scope.live) return liveCohorts(scope.live, months);
+  if (scope.unavailable) return [];
+  return pgCohorts(scope.orgId, months);
+}
+
+/** The filter surface's option lists, from whichever book is being read. */
+export async function filterOptions(scope: StudioScope) {
+  if (scope.live) return liveFilterOptions(scope.live);
+  if (scope.unavailable) return { branches: [], officers: [], products: [] };
+  return pgFilterOptions(scope.orgId);
+}
+
+/** The earliest loan on the book — the true start for "since inception". */
+export async function inceptionDate(scope: StudioScope): Promise<Date | null> {
+  if (scope.live) return liveInception(scope.live);
+  if (scope.unavailable) return null;
+  return pgInception(scope.orgId);
 }

@@ -28,7 +28,7 @@ export default async function AgentsPage({ searchParams }: { searchParams: Promi
   const metricKey = (RANK_METRICS.some((m) => m.key === ctx.rank) ? ctx.rank : "riskAdjusted") as RankMetricKey;
   const metric = rankMetric(metricKey)!;
 
-  const rows = await cube(ctx.orgId, "officer", ctx.filters);
+  const rows = await cube(ctx.scope, "officer", ctx.filters);
   const ranked = rank(rows, metricKey, ctx.top);
 
   return (
@@ -37,6 +37,10 @@ export default async function AgentsPage({ searchParams }: { searchParams: Promi
       blurb="Who is lending, how much, and whether it comes back. The ranking rule is yours to choose — and the order changes when you do."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      unavailable={ctx.unavailable}
       showGrain={false}
     >
       <RankBoard

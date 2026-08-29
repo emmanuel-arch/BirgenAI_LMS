@@ -25,11 +25,11 @@ export default async function FunnelPage({ searchParams }: { searchParams: Promi
   const prev = previousRange(ctx.filters.range);
 
   const [now, before, series, byProduct, byChannel] = await Promise.all([
-    headline(ctx.orgId, ctx.filters),
-    prev ? headline(ctx.orgId, { ...ctx.filters, range: prev }) : Promise.resolve(null),
-    timeSeries(ctx.orgId, ctx.filters),
-    cube(ctx.orgId, "product", ctx.filters),
-    cube(ctx.orgId, "channel", ctx.filters),
+    headline(ctx.scope, ctx.filters),
+    prev ? headline(ctx.scope, { ...ctx.filters, range: prev }) : Promise.resolve(null),
+    timeSeries(ctx.scope, ctx.filters),
+    cube(ctx.scope, "product", ctx.filters),
+    cube(ctx.scope, "channel", ctx.filters),
   ]);
 
   const sp = (key: Parameters<typeof measure>[0], v: number | null) => {
@@ -57,6 +57,10 @@ export default async function FunnelPage({ searchParams }: { searchParams: Promi
       blurb="Application to disbursement, step by step — and the size of the leak at each one."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      unavailable={ctx.unavailable}
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile label="Applications" value={now.applications} format="count" hero {...sp("applications", now.applications)} />

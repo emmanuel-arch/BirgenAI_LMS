@@ -95,7 +95,8 @@
     "interchange:publish": "tsx scripts/interchange-publish.ts",
     "interchange:members": "tsx scripts/probe-interchange-members.ts",
     "interchange:verify": "tsx scripts/interchange-verify.ts",
-    "test:realms": "tsx scripts/verify-realms.ts"
+    "test:realms": "tsx scripts/verify-realms.ts",
+    "test:analytics-live": "tsx scripts/verify-analytics-live.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

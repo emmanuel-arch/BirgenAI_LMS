@@ -26,12 +26,12 @@ export default async function BorrowersPage({ searchParams }: { searchParams: Pr
   const prev = previousRange(ctx.filters.range);
 
   const [now, before, byAge, byGender, byRisk, byKyc] = await Promise.all([
-    headline(ctx.orgId, ctx.filters),
-    prev ? headline(ctx.orgId, { ...ctx.filters, range: prev }) : Promise.resolve(null),
-    cube(ctx.orgId, "ageBand", ctx.filters),
-    cube(ctx.orgId, "gender", ctx.filters),
-    cube(ctx.orgId, "riskBand", ctx.filters),
-    cube(ctx.orgId, "kycStatus", ctx.filters),
+    headline(ctx.scope, ctx.filters),
+    prev ? headline(ctx.scope, { ...ctx.filters, range: prev }) : Promise.resolve(null),
+    cube(ctx.scope, "ageBand", ctx.filters),
+    cube(ctx.scope, "gender", ctx.filters),
+    cube(ctx.scope, "riskBand", ctx.filters),
+    cube(ctx.scope, "kycStatus", ctx.filters),
   ]);
 
   const sp = (key: Parameters<typeof measure>[0], v: number | null) => {
@@ -57,6 +57,10 @@ export default async function BorrowersPage({ searchParams }: { searchParams: Pr
       blurb="Who your customers are — and, more usefully, which of them the money and the risk are actually with."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      unavailable={ctx.unavailable}
       showGrain={false}
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

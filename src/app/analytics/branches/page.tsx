@@ -25,7 +25,7 @@ export default async function BranchesPage({ searchParams }: { searchParams: Pro
   const metricKey = (RANK_METRICS.some((m) => m.key === ctx.rank) ? ctx.rank : "book") as RankMetricKey;
   const metric = rankMetric(metricKey)!;
 
-  const rows = await cube(ctx.orgId, "branch", ctx.filters);
+  const rows = await cube(ctx.scope, "branch", ctx.filters);
   const ranked = rank(rows, metricKey, ctx.top);
 
   // Concentration: the share of the whole book sitting in the largest office.
@@ -40,6 +40,10 @@ export default async function BranchesPage({ searchParams }: { searchParams: Pro
       blurb="Office against office. Size, quality and growth — and how much of the whole book depends on any one of them."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      unavailable={ctx.unavailable}
       showGrain={false}
     >
       {rows.length > 1 && concentration > 50 && (

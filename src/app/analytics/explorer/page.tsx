@@ -50,7 +50,7 @@ export default async function ExplorerPage({ searchParams }: { searchParams: Pro
       serverNote = `"${dims[0].label}" cannot be grouped by yet — it is in the catalogue but has no aggregate behind it.`;
     } else {
       try {
-        const cubeRows = await cube(ctx.orgId, dimKey, ctx.filters);
+        const cubeRows = await cube(ctx.scope, dimKey, ctx.filters);
         categoryCount = cubeRows.length;
 
         // Only the measures that map onto a cube column can be plotted. One that
@@ -93,6 +93,10 @@ export default async function ExplorerPage({ searchParams }: { searchParams: Pro
       blurb="Tick the columns you want to see. The builder works out which charts can honestly be drawn from them — and for the ones it cannot, it says why."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      unavailable={ctx.unavailable}
       showGrain={dims.some((d) => d.role === "temporal")}
     >
       <ChartBuilder rows={rows} categoryCount={categoryCount} serverNote={serverNote} />

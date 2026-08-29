@@ -40,7 +40,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import type { OrgSlug } from "@/lib/enterprise/connections";
 
-export type RealmId = "sme" | "fintech";
+export type RealmId = "sme" | "fintech" | "boresha" | "stawi";
 
 export type RealmBrand = {
   /** Drives --brand. Must carry white text: ≥4.5:1 against #fff. */
@@ -112,18 +112,54 @@ const MICROMART: Realm[] = [
 ];
 
 /**
- * Declared realms, by org slug.
+ * Axe Capital — Boresha (3003) and Stawi (3004), both supplied by the founder.
  *
- * AXE IS NOT HERE YET, and that is the point of the omission rather than an
- * oversight. Axe Capital has the same two-book shape, but only one of its
- * EntityIds has been verified against a live read (3003). Declaring the second
- * from memory would put a manager in a book that may not be theirs, and the
- * failure would be silent — the console would look right and read the wrong
- * ledger. Add the pair here the day the second id is confirmed; the switch
- * turns itself on for Axe at that moment and needs no other edit.
+ * ── A WARNING THAT MUST NOT BE DELETED ───────────────────────────────────────
+ * A live read of Micromart's server on 29 Aug 2026 found exactly three EntityIds
+ * in Loans: 3002 (275,605), 3005 (61,536) and **3003 (3,801 loans, KES 503.2M
+ * outstanding)**. There is no 3004 on that box at all.
+ *
+ * That 3003 is NOT proven to be Axe Boresha. It is an EntityId that happens to
+ * match, on a server that belongs to somebody else, and the whole reason this
+ * file exists is that an EntityId is an identity boundary rather than a label.
+ * So both Axe realms point at `connection: "axe"` — Axe's OWN database — and
+ * SERVICESUITE_CONN_AXE is currently unset. The studio will say Axe is not
+ * connected, which is true, instead of reading half a billion shillings of
+ * somebody else's book and putting Axe's name on it.
+ *
+ * Do not "fix" this by pointing Axe at the Micromart connection.
+ *
+ * Colours are sampled from public/images/AxeLogo.png: blue #0403F3 (9.08:1 on
+ * white) and green #056639 (7.08:1). The logo's orange is 2.55:1 and cannot
+ * carry white text, so it lives in Boresha's gradient where contrast is not
+ * being asked a question.
  */
+const AXE: Realm[] = [
+  {
+    id: "boresha",
+    label: "Boresha",
+    name: "Axe Boresha",
+    blurb: "Axe Capital's Boresha book.",
+    entityId: 3003,
+    connection: "axe",
+    brand: { accent: "#0403F3", accentSoft: "rgba(4,3,243,0.10)", accent2: "#F88309" },
+    isDefault: true,
+  },
+  {
+    id: "stawi",
+    label: "Stawi",
+    name: "Axe Stawi",
+    blurb: "Axe Capital's Stawi book.",
+    entityId: 3004,
+    connection: "axe",
+    brand: { accent: "#056639", accentSoft: "rgba(5,102,57,0.12)", accent2: "#0A7A45" },
+  },
+];
+
+/** Declared realms, by org slug. */
 export const REALMS: Record<string, Realm[]> = {
   micromart: MICROMART,
+  axe: AXE,
 };
 
 /**

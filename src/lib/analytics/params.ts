@@ -45,6 +45,14 @@ function date(v: string | string[] | undefined): Date | null {
 
 const BUCKETS: Bucket[] = ["hour", "day", "week", "month", "quarter", "year"];
 
+/** A comma list of ServiceSuite EntityIds. Integers only, capped — nothing else survives. */
+function entityIds(v: string | string[] | undefined): number[] {
+  const raw = one(v);
+  if (!raw) return [];
+  const out = raw.split(",").map((s) => Number(s.trim())).filter((x) => Number.isInteger(x) && x > 0);
+  return [...new Set(out)].slice(0, 8);
+}
+
 export type ParsedParams = {
   filters: StudioFilters;
   /** Present only when the reader forced a grain. Null means "follow the range". */
@@ -59,6 +67,17 @@ export type ParsedParams = {
   form: string | null;
   /** How many rows a leaderboard shows. */
   top: number;
+  /**
+   * Which of the lender's books to read, as ServiceSuite EntityIds.
+   *
+   * Empty means "the book you were already in" — the studio opens on the console
+   * realm rather than making a manager re-pick something they picked already.
+   * Validated downstream against the lender's OWN declared entities, so a
+   * hand-typed id can only ever select a book that lender actually has.
+   */
+  entityIds: number[];
+  /** Break every measure out per book rather than summing them. */
+  split: boolean;
 };
 
 export function parseParams(sp: SearchParams, opts: { inceptionFrom?: Date | null } = {}): ParsedParams {
@@ -92,6 +111,8 @@ export function parseParams(sp: SearchParams, opts: { inceptionFrom?: Date | nul
     fields: ids(sp.f, 12),
     form: one(sp.form) || null,
     top,
+    entityIds: entityIds(sp.ent),
+    split: one(sp.split) === "1",
   };
 }
 

@@ -30,7 +30,7 @@ const MATURE_MONTHS = 3;
 
 export default async function CohortsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const ctx = await studioContext(searchParams);
-  const rows = await cohorts(ctx.orgId, 18);
+  const rows = await cohorts(ctx.scope, 18);
 
   const mature = rows.filter((r) => r.ageMonths >= MATURE_MONTHS && r.openBalance > 0);
   const worstPar = Math.max(1, ...rows.map((r) => r.par30Pct));
@@ -48,6 +48,10 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
       blurb="Each month's lending, followed forward. Whether the customers you take on now behave like the ones you took on before."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      unavailable={ctx.unavailable}
       showGrain={false}
     >
       {drift != null && Math.abs(drift) > 1 && (

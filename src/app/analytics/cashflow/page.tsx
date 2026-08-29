@@ -28,9 +28,9 @@ export default async function CashflowPage({ searchParams }: { searchParams: Pro
   const prev = previousRange(ctx.filters.range);
 
   const [now, before, series] = await Promise.all([
-    headline(ctx.orgId, ctx.filters),
-    prev ? headline(ctx.orgId, { ...ctx.filters, range: prev }) : Promise.resolve(null),
-    timeSeries(ctx.orgId, ctx.filters),
+    headline(ctx.scope, ctx.filters),
+    prev ? headline(ctx.scope, { ...ctx.filters, range: prev }) : Promise.resolve(null),
+    timeSeries(ctx.scope, ctx.filters),
   ]);
 
   const net = now.collected - now.disbursed;
@@ -55,6 +55,10 @@ export default async function CashflowPage({ searchParams }: { searchParams: Pro
       blurb="Money out against money in, and what the float is actually doing underneath the growth."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      unavailable={ctx.unavailable}
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile

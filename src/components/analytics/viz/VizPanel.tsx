@@ -526,7 +526,7 @@ function renderForm(a: RenderArgs): React.ReactElement {
 // to stop reading the number.
 // ─────────────────────────────────────────────────────────────────────────────
 export function StatTile({
-  label, value, format = "count", deltaPct, deltaGood, compareLabel, spark, hint, hero,
+  label, value, format = "count", deltaPct, deltaGood, compareLabel, spark, hint, hero, breakdown,
 }: {
   label: string;
   value: number | null;
@@ -539,6 +539,13 @@ export function StatTile({
   hint?: string;
   /** The one number a view leads with. Exactly one per screen. */
   hero?: boolean;
+  /**
+   * The same measure per book, printed UNDER the combined figure when the cut is
+   * split across entities. Deliberately additive: the total stays the headline,
+   * because a general manager needs "how are we doing" before "how is each book
+   * doing", and replacing one with the other loses the question they asked.
+   */
+  breakdown?: Array<{ label: string; value: number | null; color: string }>;
 }) {
   const tone = deltaGood == null ? "text-zinc-500" : deltaGood ? "text-emerald-600" : "text-rose-600";
   return (
@@ -553,6 +560,21 @@ export function StatTile({
           {deltaPct >= 0 ? "▲" : "▼"} {Math.abs(deltaPct).toFixed(1)}%
           {compareLabel && <span className="ml-1 font-normal text-zinc-400">{compareLabel}</span>}
         </p>
+      )}
+      {breakdown && breakdown.length > 0 && (
+        <div className="mt-2.5 space-y-1 border-t border-zinc-900/[0.07] pt-2">
+          {breakdown.map((b) => (
+            <div key={b.label} className="flex items-baseline justify-between gap-2">
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: b.color }} />
+                <span className="truncate text-[11px] text-zinc-500">{b.label}</span>
+              </span>
+              <span className="shrink-0 font-mono text-[11px] font-semibold tabular-nums text-zinc-700">
+                {formatValue(b.value, format, { compact: true })}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
       {spark && spark.length > 1 && <Sparkline points={spark} />}
     </div>

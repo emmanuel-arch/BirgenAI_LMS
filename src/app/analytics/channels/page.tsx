@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ChannelsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const ctx = await studioContext(searchParams);
-  const rows = await cube(ctx.orgId, "channel", ctx.filters);
+  const rows = await cube(ctx.scope, "channel", ctx.filters);
 
   const total = rows.reduce((s, r) => s + r.disbursed, 0);
   const best = [...rows].filter((r) => r.olb > 0).sort((a, b) => a.par30 - b.par30)[0];
@@ -33,6 +33,10 @@ export default async function ChannelsPage({ searchParams }: { searchParams: Pro
       blurb="Where loans come from, and whether the cheap channels perform as well as the expensive ones."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      unavailable={ctx.unavailable}
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {rows.slice(0, 4).map((r) => (

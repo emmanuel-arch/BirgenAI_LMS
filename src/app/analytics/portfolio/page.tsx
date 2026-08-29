@@ -23,13 +23,13 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
   const prev = previousRange(ctx.filters.range);
 
   const [now, before, series, bySize, byTenure, byProduct, byStatus] = await Promise.all([
-    headline(ctx.orgId, ctx.filters),
-    prev ? headline(ctx.orgId, { ...ctx.filters, range: prev }) : Promise.resolve(null),
-    timeSeries(ctx.orgId, ctx.filters),
-    cube(ctx.orgId, "loanSizeBand", ctx.filters),
-    cube(ctx.orgId, "tenureBand", ctx.filters),
-    cube(ctx.orgId, "product", ctx.filters),
-    cube(ctx.orgId, "status", ctx.filters),
+    headline(ctx.scope, ctx.filters),
+    prev ? headline(ctx.scope, { ...ctx.filters, range: prev }) : Promise.resolve(null),
+    timeSeries(ctx.scope, ctx.filters),
+    cube(ctx.scope, "loanSizeBand", ctx.filters),
+    cube(ctx.scope, "tenureBand", ctx.filters),
+    cube(ctx.scope, "product", ctx.filters),
+    cube(ctx.scope, "status", ctx.filters),
   ]);
 
   const d = (cur: number | null, key: Parameters<typeof measure>[0]) => {
@@ -55,6 +55,10 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
       blurb="How big the book is, how it got that way, and what it is made of — by product, by size, by tenure."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      unavailable={ctx.unavailable}
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile label="Outstanding" value={now.olb} format="money" hero {...sp("olb", now.olb)} />

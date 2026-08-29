@@ -46,16 +46,29 @@ ok("each realm names a configured connection", mm.every((r) => !!r.connection));
 
 console.log("\n2. A lender with one book has no switch");
 ok("unknown slug → no realms", realmsFor("nobody").length === 0);
-ok("axe is not declared yet → no realms", realmsFor("axe").length === 0);
+ok("a single-book lender has no realms", realmsFor("buysimu").length === 0);
 ok("empty slug → no realms", realmsFor("").length === 0);
 ok("null slug → no realms", realmsFor(null).length === 0);
 ok("no org declares exactly one realm", Object.values(REALMS).every((l: Realm[]) => l.length !== 1));
+
+console.log("\n2b. Axe has two books too — Boresha 3003, Stawi 3004");
+const ax = realmsFor("axe");
+ok("two realms", ax.length === 2, String(ax.length));
+ok("Boresha is entity 3003", ax.find((r) => r.id === "boresha")?.entityId === 3003);
+ok("Stawi is entity 3004", ax.find((r) => r.id === "stawi")?.entityId === 3004);
+// The safety property. A live read found an EntityId 3003 on MICROMART's server
+// too, holding a different book entirely. Axe must never be pointed at it.
+ok("both read through Axe's OWN connection, never Micromart's", ax.every((r) => r.connection === "axe"));
+ok("Axe's two accents differ", ax[0].brand?.accent !== ax[1].brand?.accent);
+for (const r of ax) {
+  ok(`${r.label} accent carries white text (AA)`, contrastOnWhite(r.brand!.accent) >= 4.5, `${contrastOnWhite(r.brand!.accent).toFixed(2)}:1`);
+}
 
 console.log("\n3. Exactly one default, and it is the book the console already wears");
 ok("micromart has exactly one default", mm.filter((r) => r.isDefault).length === 1);
 ok("the default is fintech", defaultRealm("micromart")?.id === "fintech");
 ok("fintech inherits the org brand (nothing changes until you press it)", defaultRealm("micromart")?.brand === null);
-ok("a lender with no realms has no default", defaultRealm("axe") === null);
+ok("a lender with no realms has no default", defaultRealm("buysimu") === null);
 for (const [slug, list] of Object.entries(REALMS)) {
   ok(`${slug}: at most one default`, list.filter((r) => r.isDefault).length <= 1);
   ok(`${slug}: realm ids are unique`, new Set(list.map((r) => r.id)).size === list.length);
@@ -66,7 +79,7 @@ ok("a good id resolves to itself", findRealm("micromart", "sme")?.id === "sme");
 ok("a tampered id falls back to the default", findRealm("micromart", "../../etc/passwd")?.id === "fintech");
 ok("an empty id falls back to the default", findRealm("micromart", "")?.id === "fintech");
 ok("a null id falls back to the default", findRealm("micromart", null)?.id === "fintech");
-ok("no realm can be conjured for a single-book lender", findRealm("axe", "sme") === null);
+ok("no realm can be conjured for a single-book lender", findRealm("buysimu", "sme") === null);
 // The property that actually matters: whatever comes back is ON the list.
 for (const probe of ["sme", "fintech", "SME", "3002", "admin", "", "__proto__"]) {
   const r = findRealm("micromart", probe);

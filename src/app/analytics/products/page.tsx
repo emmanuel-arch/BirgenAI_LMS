@@ -24,7 +24,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
   const metricKey = (RANK_METRICS.some((m) => m.key === ctx.rank) ? ctx.rank : "growth") as RankMetricKey;
   const metric = rankMetric(metricKey)!;
 
-  const rows = await cube(ctx.orgId, "product", ctx.filters);
+  const rows = await cube(ctx.scope, "product", ctx.filters);
   const ranked = rank(rows, metricKey, ctx.top);
 
   // The disagreement: a product high on volume and low on quality. Naming it is
@@ -44,6 +44,10 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
       blurb="Which shelf sells, and which one comes back bad. They are rarely the same one."
       range={ctx.filters.range}
       axes={ctx.axes}
+      lenses={ctx.lenses}
+      activeLenses={ctx.active.map((l) => l.id)}
+      split={ctx.split}
+      unavailable={ctx.unavailable}
       showGrain={false}
     >
       {disagreement && (
