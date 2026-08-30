@@ -135,7 +135,7 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
         height={260}
       />
 
-      <p className="mt-6 text-[11px] leading-snug text-zinc-400">
+      <p className="mt-6 text-[11px] leading-snug text-ash-400">
         Outstanding balance is a STOCK — it is what is open today, and it deliberately does not move when you change the
         date range. Disbursement and loan counts are FLOWS and do. That distinction is why {formatValue(now.olb, "money")}
         {" "}is the same figure on every range while the growth chart above is not.

@@ -85,7 +85,7 @@ export function BorrowerActions({
             onClick={dispatch}
             disabled={busy || !hasGeo}
             title={hasGeo ? `Send the nearest agent to ${name}` : "No pin on file — drop their location first"}
-            className={`${BTN} bg-zinc-900/[0.06] text-zinc-700 hover:bg-zinc-900/10`}
+            className={`${BTN} bg-ash-900/[0.06] text-ash-700 hover:bg-ash-900/10`}
           >
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Navigation className="h-3.5 w-3.5" />}
             Dispatch agent
@@ -96,7 +96,7 @@ export function BorrowerActions({
             the officer should never have to introduce the customer to her. */}
         <button
           onClick={() => askRiriAbout(subject)}
-          className={`${BTN} border border-zinc-900/10 bg-white/70 text-zinc-700 hover:text-zinc-900`}
+          className={`${BTN} border border-ash-900/10 bg-paper/70 text-ash-700 hover:text-ash-900`}
         >
           <BotMessageSquare className="h-3.5 w-3.5" style={{ color: "var(--brand)" }} />
           Ask {ASSISTANT_NAME}

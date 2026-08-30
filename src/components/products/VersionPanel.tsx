@@ -71,7 +71,7 @@ export default function VersionPanel({
       width="lg"
       footer={
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[11px] text-zinc-500">
+          <p className="text-[11px] text-ash-500">
             {picked.length === 0 && "Pick two versions to compare."}
             {picked.length === 1 && `v${picked[0]} selected — pick one more.`}
             {picked.length === 2 && `Comparing v${lo} → v${hi}`}
@@ -95,7 +95,7 @@ export default function VersionPanel({
         </p>
       )}
 
-      {!versions && !error && <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>}
+      {!versions && !error && <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>}
 
       {versions?.length === 0 && (
         <div className="rounded-xl bg-amber-500/10 px-3 py-3 text-[12px] text-amber-900 ring-1 ring-amber-600/20">
@@ -117,33 +117,33 @@ export default function VersionPanel({
                 <button
                   type="button"
                   onClick={() => toggle(v.version)}
-                  className={`w-full rounded-xl px-3 py-2.5 text-left ring-1 transition-colors ${on ? "bg-[color:var(--brand-soft)]" : "ring-zinc-900/[0.08] hover:bg-zinc-900/[0.03]"}`}
+                  className={`w-full rounded-xl px-3 py-2.5 text-left ring-1 transition-colors ${on ? "bg-[color:var(--brand-soft)]" : "ring-ash-900/[0.08] hover:bg-ash-900/[0.03]"}`}
                   style={on ? { ["--tw-ring-color" as never]: "var(--brand)" } : undefined}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex items-center gap-2">
-                      <span className="text-[13px] font-bold text-zinc-900">v{v.version}</span>
+                      <span className="text-[13px] font-bold text-ash-900">v{v.version}</span>
                       {v.loanCount > 0 && (
-                        <span className="rounded-md bg-zinc-900/[0.06] px-1.5 py-0.5 text-[10px] font-bold text-zinc-600">
+                        <span className="rounded-md bg-ash-900/[0.06] px-1.5 py-0.5 text-[10px] font-bold text-ash-600">
                           {v.loanCount} {v.loanCount === 1 ? "loan" : "loans"} on these terms
                         </span>
                       )}
                     </span>
-                    <span className="shrink-0 text-[11px] text-zinc-400">
+                    <span className="shrink-0 text-[11px] text-ash-400">
                       {new Date(v.createdAt).toLocaleDateString("en-KE", { dateStyle: "medium" })}
                     </span>
                   </div>
                   {v.changed.length > 0 && (
                     <p className="mt-1 flex flex-wrap items-center gap-1">
-                      <Layers className="h-3 w-3 text-zinc-400" />
+                      <Layers className="h-3 w-3 text-ash-400" />
                       {v.changed.map((b) => (
-                        <span key={b} className="rounded bg-zinc-900/[0.05] px-1.5 py-px text-[10px] font-medium text-zinc-500">
+                        <span key={b} className="rounded bg-ash-900/[0.05] px-1.5 py-px text-[10px] font-medium text-ash-500">
                           {BLOCK_LABELS[b]?.label ?? b}
                         </span>
                       ))}
                     </p>
                   )}
-                  {v.note && <p className="mt-1 text-[11px] italic text-zinc-500">“{v.note}”</p>}
+                  {v.note && <p className="mt-1 text-[11px] italic text-ash-500">“{v.note}”</p>}
                 </button>
               </li>
             );
@@ -152,23 +152,23 @@ export default function VersionPanel({
       )}
 
       {diff && (
-        <div className="mt-4 border-t border-zinc-900/[0.08] pt-3">
-          <p className="text-[11px] font-bold uppercase tracking-[0.085em] text-zinc-400">
+        <div className="mt-4 border-t border-ash-900/[0.08] pt-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.085em] text-ash-400">
             v{lo} → v{hi}
           </p>
           {diff.length === 0 ? (
-            <p className="mt-2 text-[12px] text-zinc-500">Nothing differs between these two versions.</p>
+            <p className="mt-2 text-[12px] text-ash-500">Nothing differs between these two versions.</p>
           ) : (
             <ul className="mt-2 space-y-1">
               {diff.map((c) => (
-                <li key={`${c.block}.${c.path}`} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-lg px-2 py-1.5 odd:bg-zinc-900/[0.02]">
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+                <li key={`${c.block}.${c.path}`} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-lg px-2 py-1.5 odd:bg-ash-900/[0.02]">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-ash-400">
                     {c.block === "identity" ? "Product" : BLOCK_LABELS[c.block]?.label ?? c.block}
                   </span>
-                  <span className="text-[12px] font-medium text-zinc-700">{humanPath(c.path)}</span>
+                  <span className="text-[12px] font-medium text-ash-700">{humanPath(c.path)}</span>
                   <span className="flex items-center gap-1.5 text-[12px]">
                     <code className="rounded bg-red-500/10 px-1.5 py-px text-red-700">{show(c.before)}</code>
-                    <ArrowRight className="h-3 w-3 text-zinc-400" />
+                    <ArrowRight className="h-3 w-3 text-ash-400" />
                     <code className="rounded bg-emerald-500/10 px-1.5 py-px text-emerald-700">{show(c.after)}</code>
                   </span>
                 </li>

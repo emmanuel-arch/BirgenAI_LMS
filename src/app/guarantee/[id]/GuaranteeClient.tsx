@@ -63,7 +63,7 @@ export function GuaranteeClient({ id }: { id: string }) {
     if (d) await load();
   };
 
-  if (loading) return <Shell><div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-zinc-400" /></div></Shell>;
+  if (loading) return <Shell><div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-ash-400" /></div></Shell>;
 
   if (!g) {
     return (
@@ -98,7 +98,7 @@ export function GuaranteeClient({ id }: { id: string }) {
   if (g.status !== "INVITED") {
     return (
       <Shell>
-        <div className="rounded-2xl border border-zinc-900/10 bg-white/70 p-6 text-center text-sm text-zinc-600">
+        <div className="rounded-2xl border border-ash-900/10 bg-paper/70 p-6 text-center text-sm text-ash-600">
           {g.status === "DECLINED" ? "You declined this request." : "This request has expired."}
         </div>
       </Shell>
@@ -108,7 +108,7 @@ export function GuaranteeClient({ id }: { id: string }) {
   if (!g.agreement) {
     return (
       <Shell>
-        <div className="rounded-2xl border border-zinc-900/10 bg-white/70 p-6 text-center text-sm text-zinc-600">
+        <div className="rounded-2xl border border-ash-900/10 bg-paper/70 p-6 text-center text-sm text-ash-600">
           {g.borrowerFirstName} has not finished their application yet. {g.lender} will text you again when there is
           something to read.
         </div>
@@ -119,34 +119,34 @@ export function GuaranteeClient({ id }: { id: string }) {
   if (signing) {
     return (
       <Shell>
-        <div className="rounded-2xl border border-zinc-900/10 bg-white/70 p-5 text-center">
-          <p className="text-[11px] uppercase tracking-wide text-zinc-500">You are guaranteeing</p>
+        <div className="rounded-2xl border border-ash-900/10 bg-paper/70 p-5 text-center">
+          <p className="text-[11px] uppercase tracking-wide text-ash-500">You are guaranteeing</p>
           <p className="mt-1 text-2xl font-bold">{kes(g.agreement.principal)}</p>
-          <p className="text-xs text-zinc-500">for {g.borrowerFirstName}</p>
+          <p className="text-xs text-ash-500">for {g.borrowerFirstName}</p>
         </div>
         {devCode && (
           <p className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-amber-100 px-3 py-2 text-[11px] font-semibold text-amber-800">
             <FlaskConical className="h-3 w-3" /> NO SMS PROVIDER — your code is {devCode}
           </p>
         )}
-        <p className="mt-4 text-center text-sm text-zinc-600">Enter the code we sent to {g.yourPhone}.</p>
+        <p className="mt-4 text-center text-sm text-ash-600">Enter the code we sent to {g.yourPhone}.</p>
         <input
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           inputMode="numeric"
           autoComplete="one-time-code"
           placeholder="000000"
-          className="mx-auto mt-2 block w-40 rounded-xl border border-zinc-900/15 bg-white px-3 py-3 text-center text-2xl tracking-[0.4em] tabular-nums outline-none focus:border-zinc-400"
+          className="mx-auto mt-2 block w-40 rounded-xl border border-ash-900/15 bg-paper px-3 py-3 text-center text-2xl tracking-[0.4em] tabular-nums outline-none focus:border-ash-400"
         />
-        <p className="mt-3 text-center text-[11px] text-zinc-500">
+        <p className="mt-3 text-center text-[11px] text-ash-500">
           Entering this code makes you liable for this loan if {g.borrowerFirstName} does not repay it.
         </p>
         {error && <p className="mt-2 text-center text-xs text-red-600">{error}</p>}
         <button onClick={consent} disabled={busy || code.length !== 6}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 py-3.5 text-sm font-semibold text-white disabled:opacity-40">
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-invert py-3.5 text-sm font-semibold text-invert-fg disabled:opacity-40">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />} I agree to guarantee this loan
         </button>
-        <button onClick={() => setSigning(false)} className="mt-2 w-full py-2 text-xs text-zinc-500 hover:text-zinc-800">
+        <button onClick={() => setSigning(false)} className="mt-2 w-full py-2 text-xs text-ash-500 hover:text-ash-800">
           Go back
         </button>
       </Shell>
@@ -156,11 +156,11 @@ export function GuaranteeClient({ id }: { id: string }) {
   return (
     <Shell>
       <div className="text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900/5">
-          <HandCoins className="h-7 w-7 text-zinc-500" />
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-ash-900/5">
+          <HandCoins className="h-7 w-7 text-ash-500" />
         </div>
         <h1 className="mt-3 text-xl font-bold">{g.borrowerFirstName} has asked you to guarantee a loan</h1>
-        <p className="mt-1.5 text-sm text-zinc-500">
+        <p className="mt-1.5 text-sm text-ash-500">
           From {g.lender}. You were named as {g.relationship ? `their ${g.relationship}` : "a guarantor"}.
         </p>
       </div>
@@ -173,7 +173,7 @@ export function GuaranteeClient({ id }: { id: string }) {
         </p>
       </div>
 
-      <dl className="mt-4 rounded-2xl border border-zinc-900/10 bg-white/70 p-4 text-sm">
+      <dl className="mt-4 rounded-2xl border border-ash-900/10 bg-paper/70 p-4 text-sm">
         <Row label="They receive" value={kes(g.agreement.principal)} />
         <Row label="They repay" value={kes(g.agreement.totalRepayable)} />
         <Row label="Over" value={`${g.agreement.termCount} ${g.agreement.termUnit}${g.agreement.termCount > 1 ? "s" : ""}`} />
@@ -183,7 +183,7 @@ export function GuaranteeClient({ id }: { id: string }) {
       </dl>
 
       {!g.agreement.borrowerSigned && (
-        <p className="mt-3 text-center text-[11px] text-zinc-500">
+        <p className="mt-3 text-center text-[11px] text-ash-500">
           {g.borrowerFirstName} has not signed this agreement yet. You can still decide now.
         </p>
       )}
@@ -192,15 +192,15 @@ export function GuaranteeClient({ id }: { id: string }) {
 
       {/* Two buttons of equal weight. "No" is not a link buried in grey text. */}
       <button onClick={start} disabled={busy}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 py-3.5 text-sm font-semibold text-white disabled:opacity-50">
+        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-invert py-3.5 text-sm font-semibold text-invert-fg disabled:opacity-50">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />} Yes, I will guarantee it
       </button>
       <button onClick={decline} disabled={busy}
-        className="mt-2 w-full rounded-xl border border-zinc-900/15 bg-white py-3.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-50">
+        className="mt-2 w-full rounded-xl border border-ash-900/15 bg-paper py-3.5 text-sm font-semibold text-ash-700 hover:bg-ash-50 disabled:opacity-50">
         No, I will not
       </button>
 
-      <p className="mt-4 text-center text-[11px] text-zinc-400">
+      <p className="mt-4 text-center text-[11px] text-ash-400">
         This request expires on {day(g.expiresAt)}. Nobody can agree on your behalf.
       </p>
     </Shell>
@@ -209,7 +209,7 @@ export function GuaranteeClient({ id }: { id: string }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh bg-zinc-50 text-zinc-900">
+    <div className="min-h-dvh bg-ash-50 text-ash-900">
       <main className="mx-auto max-w-md px-4 py-10">{children}</main>
     </div>
   );
@@ -218,7 +218,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
-      <dt className="text-zinc-500">{label}</dt>
+      <dt className="text-ash-500">{label}</dt>
       <dd className="text-right font-medium">{value}</dd>
     </div>
   );

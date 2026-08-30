@@ -108,7 +108,7 @@ export const shortTime = (d: Date | string | null | undefined) =>
 export function Card({ children, className = "", pad = true }: { children: ReactNode; className?: string; pad?: boolean }) {
   return (
     <section
-      className={`rounded-xl border border-zinc-900/[0.07] bg-white shadow-[0_1px_2px_rgba(16,16,24,0.04)] ${pad ? "p-4" : ""} ${className}`}
+      className={`rounded-xl border border-ash-900/[0.07] bg-paper shadow-[0_1px_2px_rgba(16,16,24,0.04)] ${pad ? "p-4" : ""} ${className}`}
     >
       {children}
     </section>
@@ -121,11 +121,11 @@ export function CardHead({
   return (
     <header className="mb-3 flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="flex items-center gap-2 text-[13px] font-semibold leading-tight text-zinc-800">
+        <h2 className="flex items-center gap-2 text-[13px] font-semibold leading-tight text-ash-800">
           {accent && <span aria-hidden className="h-3 w-[3px] shrink-0 rounded-full" style={{ backgroundColor: accent }} />}
           <span className="truncate">{title}</span>
         </h2>
-        {sub && <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{sub}</p>}
+        {sub && <p className="mt-0.5 text-[11px] leading-snug text-ash-500">{sub}</p>}
       </div>
       {right && <div className="shrink-0">{right}</div>}
     </header>
@@ -142,8 +142,8 @@ export function PageHead({
         {eyebrow && (
           <p className="mb-1 text-[9.5px] font-bold uppercase tracking-[0.14em] text-[color:var(--accent)]">{eyebrow}</p>
         )}
-        <h1 className="text-[22px] font-bold leading-tight tracking-[-0.018em] text-zinc-900">{title}</h1>
-        {sub && <p className="mt-1 max-w-2xl text-[12.5px] leading-relaxed text-zinc-500">{sub}</p>}
+        <h1 className="text-[22px] font-bold leading-tight tracking-[-0.018em] text-ash-900">{title}</h1>
+        {sub && <p className="mt-1 max-w-2xl text-[12.5px] leading-relaxed text-ash-500">{sub}</p>}
       </div>
       {right && <div className="flex shrink-0 items-center gap-2">{right}</div>}
     </header>
@@ -174,25 +174,25 @@ export function Stat({
   const up = (delta ?? 0) > 0;
   const flat = delta == null || Math.abs(delta) < 0.05;
   const good = tone === "neutral" ? null : tone === "up-good" ? up : !up;
-  const deltaColor = flat ? "text-zinc-400" : good == null ? "text-zinc-500" : good ? "text-emerald-600" : "text-red-600";
+  const deltaColor = flat ? "text-ash-400" : good == null ? "text-ash-500" : good ? "text-emerald-600" : "text-red-600";
   const Arrow = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
 
   return (
     <Card className="min-w-0">
-      <p className="truncate text-[9.5px] font-bold uppercase tracking-[0.12em] text-zinc-400">{label}</p>
+      <p className="truncate text-[9.5px] font-bold uppercase tracking-[0.12em] text-ash-400">{label}</p>
       <p className="mt-1.5 flex items-baseline gap-1">
-        <span className="text-[23px] font-bold leading-none tracking-[-0.02em] tabular-nums text-zinc-900">{value}</span>
-        {unit && <span className="text-[11px] font-medium text-zinc-400">{unit}</span>}
+        <span className="text-[23px] font-bold leading-none tracking-[-0.02em] tabular-nums text-ash-900">{value}</span>
+        {unit && <span className="text-[11px] font-medium text-ash-400">{unit}</span>}
       </p>
       {(delta != null || deltaLabel) && (
         <p className={`mt-1.5 flex items-center gap-1 text-[11px] font-medium ${deltaColor}`}>
           <Arrow className="h-3 w-3 shrink-0" aria-hidden />
           <span className="tabular-nums">{delta != null ? `${Math.abs(delta).toFixed(1)}%` : ""}</span>
-          {deltaLabel && <span className="truncate font-normal text-zinc-400">{deltaLabel}</span>}
+          {deltaLabel && <span className="truncate font-normal text-ash-400">{deltaLabel}</span>}
         </p>
       )}
       {spark && spark.length > 1 && <Spark values={spark} accent={accent ?? "var(--accent)"} />}
-      {foot && <p className="mt-2 truncate text-[10.5px] leading-snug text-zinc-400">{foot}</p>}
+      {foot && <p className="mt-2 truncate text-[10.5px] leading-snug text-ash-400">{foot}</p>}
     </Card>
   );
 }
@@ -254,7 +254,7 @@ export function Chip({
 
 export function Tag({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "good" | "warn" | "bad" | "info" }) {
   const cls = {
-    neutral: "bg-zinc-900/[0.05] text-zinc-600",
+    neutral: "bg-ash-900/[0.05] text-ash-600",
     good: "bg-emerald-500/10 text-emerald-700",
     warn: "bg-amber-500/12 text-amber-700",
     bad: "bg-red-500/10 text-red-700",
@@ -301,20 +301,20 @@ export function BarRow({
     <Wrapper
       {...(onClick ? { type: "button" as const, onClick } : {})}
       className={`group flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors ${
-        onClick ? "hover:bg-zinc-900/[0.03]" : ""
-      } ${active ? "bg-zinc-900/[0.045]" : ""}`}
+        onClick ? "hover:bg-ash-900/[0.03]" : ""
+      } ${active ? "bg-ash-900/[0.045]" : ""}`}
     >
       <span className="flex w-[126px] shrink-0 items-center gap-1.5">
         {chip}
-        <span className="truncate text-[11.5px] font-medium text-zinc-600">{label}</span>
+        <span className="truncate text-[11.5px] font-medium text-ash-600">{label}</span>
       </span>
-      <span className="relative h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-zinc-900/[0.055]">
+      <span className="relative h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-ash-900/[0.055]">
         <span
           className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-500"
           style={{ width: `${pct}%`, backgroundColor: accent }}
         />
       </span>
-      <span className="w-[92px] shrink-0 text-right text-[11.5px] font-semibold tabular-nums text-zinc-700">{right}</span>
+      <span className="w-[92px] shrink-0 text-right text-[11.5px] font-semibold tabular-nums text-ash-700">{right}</span>
     </Wrapper>
   );
 }
@@ -369,14 +369,14 @@ export function Columns({
       </div>
 
       {/* Axis: first, middle and last only. A label under every column is noise. */}
-      <div className="mt-1.5 flex justify-between text-[9.5px] tabular-nums text-zinc-400">
+      <div className="mt-1.5 flex justify-between text-[9.5px] tabular-nums text-ash-400">
         <span>{data[0]?.label}</span>
         <span>{data[Math.floor(data.length / 2)]?.label}</span>
         <span>{data[data.length - 1]?.label}</span>
       </div>
 
       {hover != null && data[hover] && (
-        <div className="pointer-events-none absolute -top-1 left-1/2 z-10 -translate-x-1/2 -translate-y-full rounded-lg bg-zinc-900 px-2.5 py-1.5 text-[11px] text-white shadow-lg">
+        <div className="pointer-events-none absolute -top-1 left-1/2 z-10 -translate-x-1/2 -translate-y-full rounded-lg bg-invert px-2.5 py-1.5 text-[11px] text-invert-fg shadow-lg">
           <p className="font-semibold tabular-nums">{format(data[hover].value)}</p>
           <p className="text-[10px] text-white/60">
             {data[hover].label}
@@ -392,9 +392,9 @@ export function Columns({
 
 export function Empty({ title, detail, action }: { title: string; detail?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-900/12 bg-white/60 px-6 py-10 text-center">
-      <p className="text-[13px] font-semibold text-zinc-700">{title}</p>
-      {detail && <p className="mt-1 max-w-md text-[12px] leading-relaxed text-zinc-500">{detail}</p>}
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-ash-900/12 bg-paper/60 px-6 py-10 text-center">
+      <p className="text-[13px] font-semibold text-ash-700">{title}</p>
+      {detail && <p className="mt-1 max-w-md text-[12px] leading-relaxed text-ash-500">{detail}</p>}
       {action && <div className="mt-3">{action}</div>}
     </div>
   );
@@ -435,7 +435,7 @@ export function Skeleton({ rows = 5 }: { rows?: number }) {
   return (
     <div className="space-y-2" aria-busy>
       {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="h-9 animate-pulse rounded-lg bg-zinc-900/[0.045]" />
+        <div key={i} className="h-9 animate-pulse rounded-lg bg-ash-900/[0.045]" />
       ))}
     </div>
   );
@@ -458,8 +458,8 @@ export function Btn({
   const sz = size === "sm" ? "px-2 py-1 text-[11px]" : "px-3 py-1.5 text-[12px]";
   const look = {
     solid: "text-white hover:brightness-110",
-    ghost: "text-zinc-600 hover:bg-zinc-900/[0.055] hover:text-zinc-900",
-    outline: "border border-zinc-900/12 bg-white text-zinc-700 hover:bg-zinc-900/[0.03]",
+    ghost: "text-ash-600 hover:bg-ash-900/[0.055] hover:text-ash-900",
+    outline: "border border-ash-900/12 bg-paper text-ash-700 hover:bg-ash-900/[0.03]",
     danger: "bg-red-600 text-white hover:bg-red-700",
   }[variant];
   return (

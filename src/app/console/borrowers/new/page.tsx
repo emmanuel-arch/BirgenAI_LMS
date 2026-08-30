@@ -35,7 +35,7 @@ type IprsPrefill = {
 
 type Pin = { lat: number; lng: number; accuracy: number | null };
 
-const field = "w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400";
+const field = "w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none placeholder:text-ash-400";
 
 export default function NewBorrowerPage() {
   const router = useRouter();
@@ -145,15 +145,15 @@ export default function NewBorrowerPage() {
             <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--brand)" }}>
               <BadgeCheck className="h-3.5 w-3.5" /> Government registry match
             </p>
-            <p className="mt-1 text-xs text-zinc-500">The ID is confirmed against the national registry (IPRS).</p>
+            <p className="mt-1 text-xs text-ash-500">The ID is confirmed against the national registry (IPRS).</p>
 
-            <p className="mt-4 text-sm text-zinc-600">
-              <span className="font-semibold text-zinc-800">We hate paperwork too.</span> One ID number — the national
+            <p className="mt-4 text-sm text-ash-600">
+              <span className="font-semibold text-ash-800">We hate paperwork too.</span> One ID number — the national
               registry fills in the rest. It takes about a minute.
             </p>
 
             <input
-              className="mt-5 w-full rounded-xl border border-zinc-900/15 bg-white/80 px-4 py-3.5 text-center text-xl font-bold tracking-[0.2em] outline-none placeholder:font-normal placeholder:tracking-normal placeholder:text-zinc-400 focus:border-[var(--brand)]"
+              className="mt-5 w-full rounded-xl border border-ash-900/15 bg-paper/80 px-4 py-3.5 text-center text-xl font-bold tracking-[0.2em] outline-none placeholder:font-normal placeholder:tracking-normal placeholder:text-ash-400 focus:border-[var(--brand)]"
               inputMode="numeric"
               placeholder="National ID number"
               value={nationalId}
@@ -162,9 +162,9 @@ export default function NewBorrowerPage() {
               autoFocus
             />
 
-            <label className="mt-3 flex items-start gap-2.5 rounded-lg border border-zinc-900/10 bg-white/60 p-3 text-left cursor-pointer">
+            <label className="mt-3 flex items-start gap-2.5 rounded-lg border border-ash-900/10 bg-paper/60 p-3 text-left cursor-pointer">
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4" style={{ accentColor: "var(--brand)" }} />
-              <span className="text-xs text-zinc-600">
+              <span className="text-xs text-ash-600">
                 The customer consents to an identity check against the national registry (IPRS). Your name goes on the lookup.
               </span>
             </label>
@@ -188,10 +188,10 @@ export default function NewBorrowerPage() {
             </button>
 
             <div className="mt-3 flex items-center justify-center gap-4 text-xs">
-              <button onClick={() => setStep("manual")} className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-800">
+              <button onClick={() => setStep("manual")} className="inline-flex items-center gap-1 text-ash-500 hover:text-ash-800">
                 <PenLine className="h-3 w-3" /> Enter details manually
               </button>
-              <Link href="/console/borrowers" className="text-zinc-500 hover:text-zinc-800">Cancel</Link>
+              <Link href="/console/borrowers" className="text-ash-500 hover:text-ash-800">Cancel</Link>
             </div>
           </div>
         </div>
@@ -212,12 +212,12 @@ export default function NewBorrowerPage() {
               )}
               <div className="min-w-0">
                 <h1 className="text-lg font-bold truncate">{prefill.fullName}</h1>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-ash-500">
                   ID {idDigits}
                   {prefill.dob ? ` · born ${prefill.dob}` : ""}
                   {prefill.gender ? ` · ${prefill.gender}` : ""}
                 </p>
-                {prefill.placeOfLive && <p className="text-xs text-zinc-500 truncate"><MapPin className="inline h-3 w-3 -mt-0.5" /> {prefill.placeOfLive}</p>}
+                {prefill.placeOfLive && <p className="text-xs text-ash-500 truncate"><MapPin className="inline h-3 w-3 -mt-0.5" /> {prefill.placeOfLive}</p>}
               </div>
             </div>
             <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${prefill.mode === "live" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
@@ -242,7 +242,7 @@ export default function NewBorrowerPage() {
               className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: "var(--brand)" }}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />} Register {prefill.firstName ?? "borrower"} <ArrowRight className="h-4 w-4" />
             </button>
-            <button onClick={() => { setStep("id"); setPrefill(null); setPhoto(null); }} className="rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2.5 text-sm font-medium text-zinc-600">Back</button>
+            <button onClick={() => { setStep("id"); setPrefill(null); setPhoto(null); }} className="rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2.5 text-sm font-medium text-ash-600">Back</button>
           </div>
         </div>
       )}
@@ -250,7 +250,7 @@ export default function NewBorrowerPage() {
       {step === "manual" && (
         <div className="glass p-5 sm:p-6">
           <h1 className="text-lg font-bold">Add a borrower manually</h1>
-          <p className="mt-0.5 text-[11px] text-zinc-500">The phone number is their identity everywhere — statements, payments, sign-in codes.</p>
+          <p className="mt-0.5 text-[11px] text-ash-500">The phone number is their identity everywhere — statements, payments, sign-in codes.</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <input className={field} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
             <input className={field} inputMode="tel" placeholder="Phone (07XX XXX XXX)" value={phone} onChange={(e) => setPhone(e.target.value)} />
@@ -270,8 +270,8 @@ export default function NewBorrowerPage() {
               className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: "var(--brand)" }}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />} Register borrower
             </button>
-            <button onClick={() => setStep("id")} className="rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2.5 text-sm font-medium text-zinc-600">Use the registry instead</button>
-            <Link href="/console/borrowers" className="rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2.5 text-sm font-medium text-zinc-600">Cancel</Link>
+            <button onClick={() => setStep("id")} className="rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2.5 text-sm font-medium text-ash-600">Use the registry instead</button>
+            <Link href="/console/borrowers" className="rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2.5 text-sm font-medium text-ash-600">Cancel</Link>
           </div>
         </div>
       )}
@@ -282,7 +282,7 @@ export default function NewBorrowerPage() {
             <BadgeCheck className="h-6 w-6 text-emerald-600" />
           </div>
           <h1 className="mt-4 text-xl font-bold">{created.name} is registered</h1>
-          <p className="mt-1.5 text-sm text-zinc-500">
+          <p className="mt-1.5 text-sm text-ash-500">
             Next stop is KYC verification — no money can be disbursed until it&apos;s done.
             {(bizPin || homePin) && " Their location snapshot is on file for Field Ops."}
           </p>
@@ -292,11 +292,11 @@ export default function NewBorrowerPage() {
               <ShieldCheck className="h-4 w-4" /> Verify them now <ArrowRight className="h-4 w-4" />
             </button>
             <button onClick={() => router.push(`/console/borrowers/${created.id}`)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-900/15 bg-white/70 px-5 py-3 text-sm font-semibold text-zinc-700">
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-ash-900/15 bg-paper/70 px-5 py-3 text-sm font-semibold text-ash-700">
               Open their 360
             </button>
           </div>
-          <button onClick={reset} className="mt-3 text-xs text-zinc-500 hover:text-zinc-800">
+          <button onClick={reset} className="mt-3 text-xs text-ash-500 hover:text-ash-800">
             + Add another borrower
           </button>
         </div>
@@ -338,15 +338,15 @@ function GeoBlock({
   };
 
   const slot = (kind: "business" | "home", pin: Pin | null, setPin: (p: Pin | null) => void, address: string, setAddress: (s: string) => void, Icon: typeof Store) => (
-    <div className={`rounded-xl border p-2.5 ${pin ? "border-emerald-300 bg-emerald-50/60" : "border-zinc-900/10 bg-white/60"}`}>
+    <div className={`rounded-xl border p-2.5 ${pin ? "border-emerald-300 bg-emerald-50/60" : "border-ash-900/10 bg-paper/60"}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-xs font-semibold capitalize text-zinc-700">
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold capitalize text-ash-700">
           <Icon className="h-3.5 w-3.5" style={{ color: "var(--brand)" }} /> {kind}
         </span>
         {pin ? (
           <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700">
             <CheckCircle2 className="h-3.5 w-3.5" /> pinned{pin.accuracy ? ` ±${pin.accuracy}m` : ""}
-            <button onClick={() => setPin(null)} aria-label={`Clear ${kind} pin`} className="text-zinc-400 hover:text-zinc-700"><X className="h-3.5 w-3.5" /></button>
+            <button onClick={() => setPin(null)} aria-label={`Clear ${kind} pin`} className="text-ash-400 hover:text-ash-700"><X className="h-3.5 w-3.5" /></button>
           </span>
         ) : (
           <button onClick={() => capture(kind)} disabled={!geoConsent || locating !== null}
@@ -356,17 +356,17 @@ function GeoBlock({
           </button>
         )}
       </div>
-      <input className="mt-2 w-full rounded-lg border border-zinc-900/10 bg-white/80 px-2.5 py-1.5 text-xs outline-none placeholder:text-zinc-400"
+      <input className="mt-2 w-full rounded-lg border border-ash-900/10 bg-paper/80 px-2.5 py-1.5 text-xs outline-none placeholder:text-ash-400"
         placeholder={`${kind === "business" ? "Shop / stall" : "House"} landmark (optional)`}
         value={address} onChange={(e) => setAddress(e.target.value)} />
     </div>
   );
 
   return (
-    <div className="mt-3 border-t border-zinc-900/10 pt-3">
-      <label className="flex items-start gap-2.5 rounded-lg border border-zinc-900/10 bg-white/60 p-3 cursor-pointer">
+    <div className="mt-3 border-t border-ash-900/10 pt-3">
+      <label className="flex items-start gap-2.5 rounded-lg border border-ash-900/10 bg-paper/60 p-3 cursor-pointer">
         <input type="checkbox" checked={geoConsent} onChange={(e) => setGeoConsent(e.target.checked)} className="mt-0.5 h-4 w-4" style={{ accentColor: "var(--brand)" }} />
-        <span className="text-xs text-zinc-600">
+        <span className="text-xs text-ash-600">
           The customer consents to a <span className="font-semibold">one-time location snapshot</span> of where we are right now
           (their business and/or home). It is saved once for field visits — never tracked.
         </span>

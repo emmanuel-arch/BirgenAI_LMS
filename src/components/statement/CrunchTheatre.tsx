@@ -139,7 +139,7 @@ const fakeReceipt = () =>
 function SafaricomLoader({ size = 132 }: { size?: number }) {
   return (
     <div className="relative mx-auto flex items-center justify-center" style={{ height: size, width: size }}>
-      <span className="absolute inset-2 rounded-full bg-white/15 animate-ping" />
+      <span className="absolute inset-2 rounded-full bg-paper/15 animate-ping" />
       <span
         className="absolute inset-0 animate-spin rounded-full"
         style={{
@@ -149,7 +149,7 @@ function SafaricomLoader({ size = 132 }: { size?: number }) {
           animationDuration: "1.1s",
         }}
       />
-      <span className="relative z-10 flex items-center justify-center rounded-2xl bg-white p-2.5 shadow-2xl ring-1 ring-white/60">
+      <span className="relative z-10 flex items-center justify-center rounded-2xl bg-paper p-2.5 shadow-2xl ring-1 ring-white/60">
         <Image src="/mpesa/safaricom-25.gif" alt="Safaricom" width={900} height={406} unoptimized className="h-auto w-20 rounded-lg object-contain" />
       </span>
     </div>
@@ -157,7 +157,7 @@ function SafaricomLoader({ size = 132 }: { size?: number }) {
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md p-4 ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border border-white/15 bg-paper/10 backdrop-blur-md p-4 ${className}`}>{children}</div>;
 }
 
 // ── Stage: extract — real transactions posting into ledger columns ────────────
@@ -252,7 +252,7 @@ function ClassifyStage({ data }: { data: CrunchData }) {
               <span className="text-white/80 truncate">{c.label}</span>
               <span className="shrink-0 tabular-nums text-white/50">{c.count} · {kes(c.amount)}</span>
             </div>
-            <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div className="mt-1 h-1.5 rounded-full bg-paper/10 overflow-hidden">
               <motion.div
                 initial={{ width: 0 }} animate={{ width: `${(c.amount / max) * 100}%` }}
                 transition={{ delay: i * 0.07 + 0.1, duration: 0.6, ease: "easeOut" }}
@@ -277,7 +277,7 @@ function ReportInsight({ report }: { report: InternalReport }) {
         {report.lifestyle.tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {report.lifestyle.tags.map((t) => (
-              <span key={t} className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-medium text-white/80">{t}</span>
+              <span key={t} className="rounded-full bg-paper/10 px-2.5 py-1 text-[10px] font-medium text-white/80">{t}</span>
             ))}
           </div>
         )}
@@ -310,7 +310,7 @@ function ReportInsight({ report }: { report: InternalReport }) {
             ))}
           </div>
           <div className="mt-2 flex items-center gap-2">
-            <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/70">Repays {report.loanBehaviour.repaymentCadence}</span>
+            <span className="rounded-full bg-paper/10 px-2 py-0.5 text-[10px] text-white/70">Repays {report.loanBehaviour.repaymentCadence}</span>
             {report.loanBehaviour.fulizaReliant && <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold text-black" style={{ backgroundColor: AMBER }}>Fuliza-reliant</span>}
           </div>
         </Card>
@@ -396,7 +396,7 @@ function ScoreDial({ data }: { data: CrunchData }) {
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }}>
         <p className="text-lg font-bold" style={{ color }}>{s.band}</p>
         <div className="mt-2 flex items-center justify-center gap-2">
-          <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] text-white/70">Default risk {s.pdPercent}</span>
+          <span className="rounded-full bg-paper/10 px-2.5 py-1 text-[11px] text-white/70">Default risk {s.pdPercent}</span>
           <span className="rounded-full px-2.5 py-1 text-[11px] font-bold text-black" style={{ backgroundColor: color }}>{s.decision}</span>
         </div>
         <p className="mt-2 text-[10px] text-white/40">{s.modelVersion}</p>
@@ -439,7 +439,7 @@ function FactorsStage({ data, hasOffer, onContinue }: { data: CrunchData; hasOff
                 </span>
                 <span className="text-[12px] font-bold tabular-nums" style={{ color: up ? GREEN : RED }}>{up ? "+" : ""}{b.points}</span>
               </div>
-              <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div className="mt-1 h-1.5 rounded-full bg-paper/10 overflow-hidden">
                 <motion.div initial={{ width: 0 }} animate={{ width: `${(Math.abs(b.points) / maxAbs) * 100}%` }}
                   transition={{ delay: i * 0.08 + 0.1, duration: 0.6 }} className="h-full rounded-full" style={{ backgroundColor: up ? GREEN : RED }} />
               </div>
@@ -521,7 +521,7 @@ function OfferStage({ q, onContinue }: { q: Qualification; onContinue: () => voi
             </motion.div>
           ))}
         </div>
-        <button onClick={onContinue} className="mt-5 w-full rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white hover:bg-white/15">
+        <button onClick={onContinue} className="mt-5 w-full rounded-xl border border-white/20 bg-paper/10 px-5 py-3 text-sm font-semibold text-white hover:bg-paper/15">
           Continue
         </button>
       </div>
@@ -554,7 +554,7 @@ function OfferStage({ q, onContinue }: { q: Qualification; onContinue: () => voi
               <span className={bind ? "font-semibold text-white" : "text-white/60"}>{label} ceiling{bind ? " — binds" : ""}</span>
               <span className="tabular-nums text-white/60">{kes(val)}</span>
             </div>
-            <div className="mt-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div className="mt-1 h-1.5 rounded-full bg-paper/10 overflow-hidden">
               <div className="h-full rounded-full" style={{ width: `${(val / cMax) * 100}%`, backgroundColor: bind ? GREEN : "rgba(255,255,255,0.3)" }} />
             </div>
           </div>
@@ -733,7 +733,7 @@ export default function CrunchTheatre({
               {allowOverride && (
                 <button
                   onClick={() => { setMismatch(null); setOverridden(true); }}
-                  className="w-full rounded-xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-semibold text-white hover:bg-white/15">
+                  className="w-full rounded-xl border border-white/25 bg-paper/10 px-5 py-3 text-sm font-semibold text-white hover:bg-paper/15">
                   It IS the same person — proceed anyway
                   <span className="block text-[10px] font-normal text-white/50">e.g. M-Pesa carries a different one of their registry names · the override is recorded under your name</span>
                 </button>
@@ -761,7 +761,7 @@ export default function CrunchTheatre({
           <div className="mb-5 flex items-center gap-1">
             {RAIL.map((r, i) => (
               <div key={r.stage} className="flex-1">
-                <div className="h-1 rounded-full overflow-hidden bg-white/15">
+                <div className="h-1 rounded-full overflow-hidden bg-paper/15">
                   <motion.div className="h-full rounded-full" style={{ backgroundColor: GREEN }}
                     initial={{ width: 0 }} animate={{ width: i < activeIdx ? "100%" : i === activeIdx ? "50%" : "0%" }} transition={{ duration: 0.5 }} />
                 </div>
@@ -772,7 +772,7 @@ export default function CrunchTheatre({
 
           {/* Header */}
           <div className="text-center mb-4">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-white/70">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-paper/10 px-2.5 py-1 text-[10px] font-semibold text-white/70">
               <FileText className="h-3 w-3" /> M-PESA STATEMENT CRUNCHER
             </div>
             <AnimatePresence mode="wait">
@@ -791,7 +791,7 @@ export default function CrunchTheatre({
                   <SafaricomLoader />
                   <div className="mt-6 flex items-center justify-center gap-1.5">
                     {[0, 1, 2].map((i) => (
-                      <span key={i} className="h-2 w-2 rounded-full bg-white animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                      <span key={i} className="h-2 w-2 rounded-full bg-paper animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
                     ))}
                   </div>
                   <p className="mt-4 text-center font-mono text-[10px] text-white/40">{tick}</p>

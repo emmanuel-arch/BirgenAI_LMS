@@ -98,16 +98,16 @@ export function PinDropMap({ value, onChange, height = 300 }: {
       <div className="rounded-xl border border-amber-300 bg-amber-50/70 p-3 text-xs text-amber-800">
         <p>The map isn&apos;t connected, but you can still capture the pin.</p>
         <button type="button" onClick={locate}
-          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-amber-400 bg-white px-3 py-1.5 font-semibold text-amber-800 hover:bg-amber-50">
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-amber-400 bg-paper px-3 py-1.5 font-semibold text-amber-800 hover:bg-amber-50">
           <LocateFixed className="h-3.5 w-3.5" /> Use current location
         </button>
         <div className="mt-2 flex gap-2">
           <input inputMode="decimal" placeholder="Latitude" defaultValue={value?.lat ?? ""}
             onChange={(e) => { const lat = Number(e.target.value); if (Number.isFinite(lat) && value) onChange({ lat, lng: value.lng }); else if (Number.isFinite(lat)) onChange({ lat, lng: NAIROBI.lng }); }}
-            className="w-1/2 rounded-lg border border-amber-300 bg-white px-2 py-1.5" />
+            className="w-1/2 rounded-lg border border-amber-300 bg-paper px-2 py-1.5" />
           <input inputMode="decimal" placeholder="Longitude" defaultValue={value?.lng ?? ""}
             onChange={(e) => { const lng = Number(e.target.value); if (Number.isFinite(lng) && value) onChange({ lat: value.lat, lng }); else if (Number.isFinite(lng)) onChange({ lat: NAIROBI.lat, lng }); }}
-            className="w-1/2 rounded-lg border border-amber-300 bg-white px-2 py-1.5" />
+            className="w-1/2 rounded-lg border border-amber-300 bg-paper px-2 py-1.5" />
         </div>
         {value && <p className="mt-2 tabular-nums text-amber-700">{value.lat.toFixed(5)}, {value.lng.toFixed(5)}</p>}
         {error && <p className="mt-2 text-rose-600">{error}</p>}
@@ -117,23 +117,23 @@ export function PinDropMap({ value, onChange, height = 300 }: {
 
   return (
     <div>
-      <div className="relative overflow-hidden rounded-xl ring-1 ring-zinc-900/10" style={{ height }}>
+      <div className="relative overflow-hidden rounded-xl ring-1 ring-ash-900/10" style={{ height }}>
         <div ref={mapEl} className="h-full w-full" />
         {!ready && !error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-zinc-100 text-xs text-zinc-500">
+          <div className="absolute inset-0 flex items-center justify-center bg-ash-100 text-xs text-ash-500">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading the map…
           </div>
         )}
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-zinc-50 p-4 text-center text-xs text-rose-600">{error}</div>
+          <div className="absolute inset-0 flex items-center justify-center bg-ash-50 p-4 text-center text-xs text-rose-600">{error}</div>
         )}
       </div>
       <div className="mt-2 flex items-center justify-between gap-2">
         <button type="button" onClick={locate}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">
+          className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper px-3 py-1.5 text-xs font-semibold text-ash-700 hover:bg-ash-50">
           <LocateFixed className="h-3.5 w-3.5" /> Use current location
         </button>
-        <span className="text-[11px] tabular-nums text-zinc-400">
+        <span className="text-[11px] tabular-nums text-ash-400">
           {value ? `${value.lat.toFixed(5)}, ${value.lng.toFixed(5)}` : "Tap the map or drag the pin"}
         </span>
       </div>

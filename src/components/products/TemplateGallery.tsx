@@ -59,40 +59,40 @@ export default function TemplateGallery({
                 initial={reduce ? false : { opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.04 * i, duration: 0.3 }}
-                className="group rounded-2xl border border-zinc-900/10 bg-white/70 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-zinc-900/20 hover:bg-white"
+                className="group rounded-2xl border border-ash-900/10 bg-paper/70 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-ash-900/20 hover:bg-paper"
               >
                 <div className="flex items-start justify-between gap-2">
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: "var(--brand-soft)" }}>
                     <Icon className="h-[17px] w-[17px]" style={{ color: "var(--brand)" }} />
                   </span>
-                  <ArrowRight className="h-4 w-4 text-zinc-300 transition-all group-hover:translate-x-0.5 group-hover:text-zinc-500" />
+                  <ArrowRight className="h-4 w-4 text-ash-300 transition-all group-hover:translate-x-0.5 group-hover:text-ash-500" />
                 </div>
 
-                <p className="mt-2.5 text-sm font-bold text-zinc-900">{t.name}</p>
-                <p className="mt-0.5 text-[12px] leading-snug text-zinc-600">{t.tagline}</p>
+                <p className="mt-2.5 text-sm font-bold text-ash-900">{t.name}</p>
+                <p className="mt-0.5 text-[12px] leading-snug text-ash-600">{t.tagline}</p>
 
                 <div className="mt-2.5 flex flex-wrap gap-1">
                   {t.highlights.map((h) => (
-                    <span key={h} className="rounded-md bg-zinc-900/[0.04] px-1.5 py-0.5 text-[10px] font-medium text-zinc-500">
+                    <span key={h} className="rounded-md bg-ash-900/[0.04] px-1.5 py-0.5 text-[10px] font-medium text-ash-500">
                       {h}
                     </span>
                   ))}
                 </div>
 
-                <dl className="mt-3 space-y-0.5 border-t border-zinc-900/[0.07] pt-2.5 text-[11px] text-zinc-500">
+                <dl className="mt-3 space-y-0.5 border-t border-ash-900/[0.07] pt-2.5 text-[11px] text-ash-500">
                   <div className="flex justify-between gap-2">
                     <dt>Amount</dt>
-                    <dd className="font-semibold tabular-nums text-zinc-700">{range}</dd>
+                    <dd className="font-semibold tabular-nums text-ash-700">{range}</dd>
                   </div>
                   <div className="flex justify-between gap-2">
                     <dt>Term</dt>
-                    <dd className="font-semibold text-zinc-700">
+                    <dd className="font-semibold text-ash-700">
                       {t.definition.schedule.installments} × {t.definition.schedule.cycle}
                     </dd>
                   </div>
                   <div className="flex justify-between gap-2">
                     <dt>Interest</dt>
-                    <dd className="font-semibold text-zinc-700">
+                    <dd className="font-semibold text-ash-700">
                       {t.definition.pricing.rate}% {t.definition.pricing.method} / {t.definition.pricing.ratePeriod}
                     </dd>
                   </div>
@@ -110,11 +110,11 @@ export default function TemplateGallery({
           <button
             type="button"
             onClick={() => onPick(null)}
-            className="group flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-900/15 p-4 text-center transition-colors hover:border-zinc-900/30 hover:bg-white/60"
+            className="group flex flex-col items-center justify-center rounded-2xl border border-dashed border-ash-900/15 p-4 text-center transition-colors hover:border-ash-900/30 hover:bg-paper/60"
           >
-            <FilePlus2 className="h-6 w-6 text-zinc-300 transition-colors group-hover:text-zinc-500" />
-            <p className="mt-2 text-sm font-semibold text-zinc-700">Start from scratch</p>
-            <p className="mt-0.5 text-[12px] text-zinc-500">An empty product, all six steps.</p>
+            <FilePlus2 className="h-6 w-6 text-ash-300 transition-colors group-hover:text-ash-500" />
+            <p className="mt-2 text-sm font-semibold text-ash-700">Start from scratch</p>
+            <p className="mt-0.5 text-[12px] text-ash-500">An empty product, all six steps.</p>
           </button>
         </div>
       </div>

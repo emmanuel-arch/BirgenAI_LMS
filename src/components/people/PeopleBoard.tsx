@@ -48,15 +48,15 @@ export default function PeopleBoard({
         title="The roster"
         sub="Read from the systems that already know these people — the lending directory, the call floor, and the table that links them. Nobody is asked to re-enter anybody."
         right={
-          <div className="flex items-center gap-1.5 rounded-lg border border-zinc-900/10 bg-white px-2 py-1.5">
-            <Search className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+          <div className="flex items-center gap-1.5 rounded-lg border border-ash-900/10 bg-paper px-2 py-1.5">
+            <Search className="h-3.5 w-3.5 shrink-0 text-ash-400" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Name, email, phone or branch"
-              className="w-56 bg-transparent text-[12px] outline-none placeholder:text-zinc-400"
+              className="w-56 bg-transparent text-[12px] outline-none placeholder:text-ash-400"
             />
-            {q && <button type="button" onClick={() => setQ("")} aria-label="Clear"><X className="h-3.5 w-3.5 text-zinc-400 hover:text-zinc-700" /></button>}
+            {q && <button type="button" onClick={() => setQ("")} aria-label="Clear"><X className="h-3.5 w-3.5 text-ash-400 hover:text-ash-700" /></button>}
           </div>
         }
       />
@@ -79,7 +79,7 @@ export default function PeopleBoard({
                   type="button"
                   onClick={() => setDeskOnly((v) => !v)}
                   className={`rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors ${
-                    deskOnly ? "border-transparent bg-zinc-900 text-white" : "border-zinc-900/10 bg-white text-zinc-600 hover:bg-zinc-900/[0.03]"
+                    deskOnly ? "border-transparent bg-invert text-invert-fg" : "border-ash-900/10 bg-paper text-ash-600 hover:bg-ash-900/[0.03]"
                   }`}
                 >
                   On the call floor
@@ -90,7 +90,7 @@ export default function PeopleBoard({
               <button
                 type="button"
                 onClick={() => setRole(null)}
-                className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${role == null ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-900/[0.05]"}`}
+                className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${role == null ? "bg-invert text-invert-fg" : "text-ash-500 hover:bg-ash-900/[0.05]"}`}
               >
                 All roles
               </button>
@@ -99,7 +99,7 @@ export default function PeopleBoard({
                   key={r.id}
                   type="button"
                   onClick={() => setRole(role === r.id ? null : r.id)}
-                  className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${role === r.id ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-900/[0.05]"}`}
+                  className={`rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold ${role === r.id ? "bg-invert text-invert-fg" : "text-ash-500 hover:bg-ash-900/[0.05]"}`}
                 >
                   {r.name} ({N(r.n)})
                 </button>
@@ -113,31 +113,31 @@ export default function PeopleBoard({
             <div className="max-h-[640px] overflow-auto">
               <table className="w-full min-w-[820px] text-left">
                 <thead>
-                  <tr className="border-y border-zinc-900/[0.07] text-[9.5px] font-bold uppercase tracking-[0.1em] text-zinc-400">
-                    <th className="sticky top-0 bg-white px-4 py-2">Person</th>
-                    <th className="sticky top-0 bg-white px-3 py-2">Role</th>
-                    <th className="sticky top-0 bg-white px-3 py-2">Branch</th>
-                    <th className="sticky top-0 bg-white px-3 py-2 text-right">Borrowers</th>
-                    <th className="sticky top-0 bg-white px-3 py-2 text-right">Book</th>
-                    <th className="sticky top-0 bg-white px-3 py-2">Call floor</th>
+                  <tr className="border-y border-ash-900/[0.07] text-[9.5px] font-bold uppercase tracking-[0.1em] text-ash-400">
+                    <th className="sticky top-0 bg-paper px-4 py-2">Person</th>
+                    <th className="sticky top-0 bg-paper px-3 py-2">Role</th>
+                    <th className="sticky top-0 bg-paper px-3 py-2">Branch</th>
+                    <th className="sticky top-0 bg-paper px-3 py-2 text-right">Borrowers</th>
+                    <th className="sticky top-0 bg-paper px-3 py-2 text-right">Book</th>
+                    <th className="sticky top-0 bg-paper px-3 py-2">Call floor</th>
                   </tr>
                 </thead>
                 <tbody>
                   {shown.map((p) => (
-                    <tr key={p.id} className="border-b border-zinc-900/[0.045] last:border-0 hover:bg-zinc-900/[0.022]">
+                    <tr key={p.id} className="border-b border-ash-900/[0.045] last:border-0 hover:bg-ash-900/[0.022]">
                       <td className="px-4 py-2">
-                        <span className="block truncate text-[12.5px] font-semibold text-zinc-800">{p.name}</span>
-                        <span className="block truncate text-[10px] text-zinc-400">{p.email || p.phone || "—"}</span>
+                        <span className="block truncate text-[12.5px] font-semibold text-ash-800">{p.name}</span>
+                        <span className="block truncate text-[10px] text-ash-400">{p.email || p.phone || "—"}</span>
                       </td>
                       <td className="px-3 py-2">
-                        <span className="block truncate text-[11.5px] text-zinc-600">{p.role}</span>
+                        <span className="block truncate text-[11.5px] text-ash-600">{p.role}</span>
                         {p.entityId === 3005 && <Tag tone="good">Fintech</Tag>}
                       </td>
-                      <td className="px-3 py-2 truncate text-[11.5px] text-zinc-600">{p.branch}</td>
-                      <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-zinc-700">
+                      <td className="px-3 py-2 truncate text-[11.5px] text-ash-600">{p.branch}</td>
+                      <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-ash-700">
                         {p.borrowers > 0 ? N(p.borrowers) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-zinc-600">
+                      <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-ash-600">
                         {p.bookOlb > 0 ? KES(p.bookOlb, { compact: true }) : "—"}
                       </td>
                       <td className="px-3 py-2">
@@ -151,7 +151,7 @@ export default function PeopleBoard({
                             {p.desk.recovered30d > 0 ? KES(p.desk.recovered30d, { compact: true }) : "seated"}
                           </Link>
                         ) : (
-                          <span className="text-[11px] text-zinc-300">—</span>
+                          <span className="text-[11px] text-ash-300">—</span>
                         )}
                       </td>
                     </tr>
@@ -183,12 +183,12 @@ export default function PeopleBoard({
             <CardHead title="What this cannot show" sub="And why, named table by named table." />
             <div className="space-y-2">
               {emptySources.map((s) => (
-                <div key={s.table} className="rounded-lg border border-zinc-900/[0.07] px-2.5 py-2">
-                  <p className="flex items-center justify-between gap-2 text-[11px] font-semibold text-zinc-700">
-                    <code className="truncate rounded bg-zinc-900/[0.05] px-1 text-[10px]">{s.table.split(".")[1]}</code>
+                <div key={s.table} className="rounded-lg border border-ash-900/[0.07] px-2.5 py-2">
+                  <p className="flex items-center justify-between gap-2 text-[11px] font-semibold text-ash-700">
+                    <code className="truncate rounded bg-ash-900/[0.05] px-1 text-[10px]">{s.table.split(".")[1]}</code>
                     <Tag tone="warn">{s.rows} rows</Tag>
                   </p>
-                  <p className="mt-1 text-[10.5px] leading-snug text-zinc-500">{s.wouldPower}</p>
+                  <p className="mt-1 text-[10.5px] leading-snug text-ash-500">{s.wouldPower}</p>
                 </div>
               ))}
             </div>
@@ -199,10 +199,10 @@ export default function PeopleBoard({
         </div>
       </div>
 
-      <p className="mt-3 text-[10.5px] leading-relaxed text-zinc-400">
+      <p className="mt-3 text-[10.5px] leading-relaxed text-ash-400">
         Serviceconnect.UserMaster · Serviceconnect.Roles · Serviceconnect.OrganizationUnits · Serviceconnect.Borrowers ·
         CollectBox.UserMaster · CollectBox.PayedAmount. Call-floor matching goes through
-        <code className="mx-1 rounded bg-zinc-900/[0.05] px-1">Serviceconnect.CollectionAgents</code>
+        <code className="mx-1 rounded bg-ash-900/[0.05] px-1">Serviceconnect.CollectionAgents</code>
         where it is populated (1 row of 63) and falls back to phone, then email — the method is shown on every match.
       </p>
     </div>

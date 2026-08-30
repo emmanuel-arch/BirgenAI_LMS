@@ -81,7 +81,7 @@ export default function SuiteDoor({
           <div className="flex items-center gap-3">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-white p-1 shadow-sm">
+              <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-paper p-1 shadow-sm">
                 <img src={logoUrl} alt={orgName ?? "logo"} className="max-h-full max-w-full object-contain" />
               </span>
             ) : (
@@ -128,7 +128,7 @@ export default function SuiteDoor({
 
           <div className="mt-4 flex flex-wrap gap-1.5">
             {app.modules.map((m) => (
-              <span key={m} className="rounded-md bg-white/[0.07] px-2 py-1 text-[10px] font-medium text-white/45">
+              <span key={m} className="rounded-md bg-paper/[0.07] px-2 py-1 text-[10px] font-medium text-white/45">
                 {m}
               </span>
             ))}

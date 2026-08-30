@@ -54,16 +54,16 @@ function Section({ n, title, blurb, children }: { n: string; title: string; blur
     >
       <div className="flex items-baseline gap-2.5">
         <span className="font-mono text-[11px] font-bold tracking-widest text-[color:var(--brand)]">{n}</span>
-        <h2 className="text-lg font-bold tracking-tight text-zinc-900">{title}</h2>
+        <h2 className="text-lg font-bold tracking-tight text-ash-900">{title}</h2>
       </div>
-      <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-zinc-500">{blurb}</p>
+      <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-ash-500">{blurb}</p>
       <div className="mt-4">{children}</div>
     </motion.section>
   );
 }
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-zinc-900/[0.07] bg-white/70 p-4 shadow-sm ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border border-ash-900/[0.07] bg-paper/70 p-4 shadow-sm ${className}`}>{children}</div>;
 }
 
 export function LoopClient({ report, orgName }: { report: LoopReport; orgName: string }) {
@@ -76,7 +76,7 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6">
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-3xl border border-zinc-900/[0.07] bg-zinc-950 p-6 text-white sm:p-8">
+      <div className="relative overflow-hidden rounded-3xl border border-ash-900/[0.07] bg-invert p-6 text-invert-fg sm:p-8">
         <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full blur-3xl" style={{ background: "var(--brand)", opacity: 0.35 }} />
         <div aria-hidden className="pointer-events-none absolute -bottom-32 -left-16 h-72 w-72 rounded-full bg-emerald-500/20 blur-3xl" />
         <div className="relative">
@@ -100,7 +100,7 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
               { k: "Labelled outcomes", v: e.resolved.toLocaleString() },
               { k: "Awaiting a label", v: e.pending.toLocaleString() },
             ].map((s) => (
-              <div key={s.k} className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 backdrop-blur">
+              <div key={s.k} className="rounded-xl border border-white/10 bg-paper/[0.06] px-3 py-2.5 backdrop-blur">
                 <p className="text-[10px] uppercase tracking-wide text-white/50">{s.k}</p>
                 <p className="mt-0.5 text-xl font-bold tabular-nums">{s.v}</p>
               </div>
@@ -128,7 +128,7 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
                 transition={{ delay: i * 0.06, duration: 0.4 }}
                 onClick={() => setActive(on ? null : s.key)}
                 className={`relative rounded-2xl border p-3 text-left transition-all ${
-                  on ? "border-[color:var(--brand)] bg-white shadow-md" : "border-zinc-900/[0.07] bg-white/70 hover:border-zinc-900/20"
+                  on ? "border-[color:var(--brand)] bg-paper shadow-md" : "border-ash-900/[0.07] bg-paper/70 hover:border-ash-900/20"
                 }`}
               >
                 {/* The connector — a hairline that says these are sequential, and
@@ -140,13 +140,13 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
                     style={{ background: s.live ? "var(--brand)" : "rgba(9,9,11,0.12)" }}
                   />
                 )}
-                <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${s.live ? "text-white" : "bg-zinc-900/5 text-zinc-400"}`}
+                <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${s.live ? "text-white" : "bg-ash-900/5 text-ash-400"}`}
                   style={s.live ? { backgroundColor: "var(--brand)" } : undefined}>
                   <SIcon className="h-4 w-4" />
                 </span>
-                <p className="mt-2 text-[12px] font-bold text-zinc-800">{s.title}</p>
-                <p className="mt-0.5 text-lg font-bold leading-none tabular-nums text-zinc-900">{s.count.toLocaleString()}</p>
-                <p className="mt-0.5 text-[9.5px] leading-tight text-zinc-500">{s.unit}</p>
+                <p className="mt-2 text-[12px] font-bold text-ash-800">{s.title}</p>
+                <p className="mt-0.5 text-lg font-bold leading-none tabular-nums text-ash-900">{s.count.toLocaleString()}</p>
+                <p className="mt-0.5 text-[9.5px] leading-tight text-ash-500">{s.unit}</p>
               </motion.button>
             );
           })}
@@ -163,8 +163,8 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
               className="overflow-hidden"
             >
               {stations.filter((s) => s.key === active).map((s) => (
-                <div key={s.key} className="mt-2.5 rounded-2xl border border-zinc-900/[0.07] bg-white/70 p-4">
-                  <p className="text-[13px] leading-relaxed text-zinc-700">{s.what}</p>
+                <div key={s.key} className="mt-2.5 rounded-2xl border border-ash-900/[0.07] bg-paper/70 p-4">
+                  <p className="text-[13px] leading-relaxed text-ash-700">{s.what}</p>
                   {s.href && (
                     <Link href={s.href} className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-[color:var(--brand)] hover:gap-1.5">
                       Open the screen <ArrowUpRight className="h-3.5 w-3.5" />
@@ -186,19 +186,19 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
         <Card>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Labelled outcomes on this book</p>
-              <p className="mt-0.5 text-4xl font-bold tabular-nums text-zinc-900">
+              <p className="text-[11px] uppercase tracking-wide text-ash-500">Labelled outcomes on this book</p>
+              <p className="mt-0.5 text-4xl font-bold tabular-nums text-ash-900">
                 {e.resolved.toLocaleString()}
-                <span className="ml-1.5 text-lg font-semibold text-zinc-400">/ {e.target}</span>
+                <span className="ml-1.5 text-lg font-semibold text-ash-400">/ {e.target}</span>
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Status</p>
+              <p className="text-[11px] uppercase tracking-wide text-ash-500">Status</p>
               <p className={`mt-0.5 text-sm font-bold ${armed ? "text-emerald-600" : "text-amber-600"}`}>
                 {armed ? "MODEL ARMED" : `${e.remaining} to go`}
               </p>
               {e.etaMonths != null && !armed && (
-                <p className="text-[11px] text-zinc-500">
+                <p className="text-[11px] text-ash-500">
                   ~{e.etaMonths} month{e.etaMonths === 1 ? "" : "s"} at {Math.round(e.velocity ?? 0)}/mo
                 </p>
               )}
@@ -206,7 +206,7 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
           </div>
 
           {/* The bar */}
-          <div className="relative mt-4 h-3 overflow-hidden rounded-full bg-zinc-900/[0.06]">
+          <div className="relative mt-4 h-3 overflow-hidden rounded-full bg-ash-900/[0.06]">
             <motion.div
               initial={{ width: 0 }}
               whileInView={{ width: `${Math.max(1.5, pctToTarget)}%` }}
@@ -216,21 +216,21 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
               style={{ background: "linear-gradient(90deg, var(--brand), #10b981)" }}
             />
           </div>
-          <div className="mt-1.5 flex justify-between text-[10px] text-zinc-400">
+          <div className="mt-1.5 flex justify-between text-[10px] text-ash-400">
             <span>0 — expert scorecard decides</span>
-            <span className="font-semibold text-zinc-600">{pctToTarget}%</span>
+            <span className="font-semibold text-ash-600">{pctToTarget}%</span>
             <span>{e.target} — this book&apos;s own model decides</span>
           </div>
 
           {/* Cadence */}
           <div className="mt-5">
-            <p className="text-[11px] uppercase tracking-wide text-zinc-500">Decisions scored, last 6 months</p>
+            <p className="text-[11px] uppercase tracking-wide text-ash-500">Decisions scored, last 6 months</p>
             <div className="mt-2 flex h-20 items-end gap-1.5">
               {e.monthly.map((m) => {
                 const max = Math.max(...e.monthly.map((x) => x.scored), 1);
                 return (
                   <div key={m.month} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
-                    <span className="text-[9px] tabular-nums text-zinc-400">{m.scored || ""}</span>
+                    <span className="text-[9px] tabular-nums text-ash-400">{m.scored || ""}</span>
                     <div className="flex w-full flex-1 flex-col justify-end gap-px">
                       <motion.div
                         initial={{ height: 0 }}
@@ -250,12 +250,12 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
                         title={`${m.scored - m.resolved} still pending`}
                       />
                     </div>
-                    <span className="text-[8.5px] text-zinc-400">{m.month.slice(5)}</span>
+                    <span className="text-[8.5px] text-ash-400">{m.month.slice(5)}</span>
                   </div>
                 );
               })}
             </div>
-            <div className="mt-1.5 flex gap-3 text-[9.5px] text-zinc-500">
+            <div className="mt-1.5 flex gap-3 text-[9.5px] text-ash-500">
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-emerald-500" /> labelled</span>
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm" style={{ backgroundColor: "var(--brand)", opacity: 0.25 }} /> awaiting outcome</span>
             </div>
@@ -271,8 +271,8 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
       >
         {e.resolved === 0 ? (
           <Card className="flex items-start gap-2.5">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-            <p className="text-[13px] leading-relaxed text-zinc-600">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-ash-400" />
+            <p className="text-[13px] leading-relaxed text-ash-600">
               No outcome has been labelled yet, so there is nothing to be confident or unconfident about.
               The loop starts producing evidence the first time a scored loan reaches its ending.
             </p>
@@ -280,26 +280,26 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
         ) : (
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
             <Card>
-              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Observed default rate</p>
-              <p className="mt-1 text-4xl font-bold tabular-nums text-zinc-900">{pct(e.observedDefaultRate ?? 0)}</p>
-              <p className="mt-1 text-[12px] text-zinc-500">
+              <p className="text-[11px] uppercase tracking-wide text-ash-500">Observed default rate</p>
+              <p className="mt-1 text-4xl font-bold tabular-nums text-ash-900">{pct(e.observedDefaultRate ?? 0)}</p>
+              <p className="mt-1 text-[12px] text-ash-500">
                 {e.defaulted} of {e.resolved} labelled loans
               </p>
               {e.interval && (
                 <>
-                  <div className="mt-4 rounded-xl bg-zinc-900/[0.03] px-3 py-2.5">
-                    <p className="text-[10.5px] uppercase tracking-wide text-zinc-500">95% confidence (Wilson)</p>
-                    <p className="mt-0.5 font-mono text-[13px] font-bold text-zinc-800">
+                  <div className="mt-4 rounded-xl bg-ash-900/[0.03] px-3 py-2.5">
+                    <p className="text-[10.5px] uppercase tracking-wide text-ash-500">95% confidence (Wilson)</p>
+                    <p className="mt-0.5 font-mono text-[13px] font-bold text-ash-800">
                       {pct(e.interval.lo)} — {pct(e.interval.hi)}
                     </p>
-                    <p className="mt-1 text-[11px] leading-snug text-zinc-500">
+                    <p className="mt-1 text-[11px] leading-snug text-ash-500">
                       The true rate is somewhere in that range. Today it is ±{pct(e.interval.halfWidth)} wide —
                       {e.interval.halfWidth > 0.08
                         ? " far too wide to price against, or to tell a good model from a lucky one."
                         : " tight enough to start pricing against."}
                     </p>
                   </div>
-                  <p className="mt-3 text-[11px] leading-snug text-zinc-400">
+                  <p className="mt-3 text-[11px] leading-snug text-ash-400">
                     Wilson rather than the textbook normal interval: at these sample sizes the normal
                     approximation returns negative default rates, which is not a defensible thing to
                     put in front of a credit committee.
@@ -309,7 +309,7 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
             </Card>
 
             <Card>
-              <p className="text-[11px] uppercase tracking-wide text-zinc-500">The same rate, at four sample sizes</p>
+              <p className="text-[11px] uppercase tracking-wide text-ash-500">The same rate, at four sample sizes</p>
               <div className="mt-3 space-y-2.5">
                 {[
                   { n: e.resolved, halfWidth: e.interval?.halfWidth ?? 0.5, reachable: true, now: true },
@@ -319,12 +319,12 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
                   return (
                     <div key={i}>
                       <div className="flex items-baseline justify-between text-[11px]">
-                        <span className={p.now ? "font-bold text-zinc-800" : "text-zinc-600"}>
+                        <span className={p.now ? "font-bold text-ash-800" : "text-ash-600"}>
                           n = {p.n.toLocaleString()}{p.now ? " (today)" : ""}
                         </span>
-                        <span className="font-mono tabular-nums text-zinc-500">±{pct(p.halfWidth)}</span>
+                        <span className="font-mono tabular-nums text-ash-500">±{pct(p.halfWidth)}</span>
                       </div>
-                      <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-zinc-900/[0.05]">
+                      <div className="mt-1 h-2.5 overflow-hidden rounded-full bg-ash-900/[0.05]">
                         <motion.div
                           initial={{ width: 0 }}
                           whileInView={{ width: `${Math.max(3, width)}%` }}
@@ -338,7 +338,7 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
                   );
                 })}
               </div>
-              <p className="mt-3 flex items-start gap-1.5 text-[11.5px] leading-snug text-zinc-500">
+              <p className="mt-3 flex items-start gap-1.5 text-[11.5px] leading-snug text-ash-500">
                 <TrendingDown className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 Shorter is better. Uncertainty falls with the square root of n — which is why
                 {" "}{e.target} is a real line and not a round number: it is roughly where the interval
@@ -359,8 +359,8 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
           <Card className="flex items-start gap-2.5">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
             <div>
-              <p className="text-[13px] font-semibold text-zinc-800">Not enough labelled outcomes for a matrix yet.</p>
-              <p className="mt-1 text-[12.5px] leading-relaxed text-zinc-600">
+              <p className="text-[13px] font-semibold text-ash-800">Not enough labelled outcomes for a matrix yet.</p>
+              <p className="mt-1 text-[12.5px] leading-relaxed text-ash-600">
                 A confusion matrix on a handful of loans is four numbers that will all change next week.
                 This panel fills in at 25 labelled outcomes with a predicted probability;
                 there {e.resolved === 1 ? "is" : "are"} {e.resolved}.
@@ -371,8 +371,8 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <Card>
               <div className="flex items-baseline justify-between">
-                <p className="text-[11px] uppercase tracking-wide text-zinc-500">At the live operating threshold</p>
-                <span className="font-mono text-[11px] font-bold text-zinc-700">PD ≥ {pct(matrix.threshold)}</span>
+                <p className="text-[11px] uppercase tracking-wide text-ash-500">At the live operating threshold</p>
+                <span className="font-mono text-[11px] font-bold text-ash-700">PD ≥ {pct(matrix.threshold)}</span>
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-1.5">
@@ -383,13 +383,13 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
                   { l: "Correct approvals", v: matrix.tn, sub: "approved · repaid", tone: "zinc" },
                 ].map((c) => (
                   <div key={c.l} className={`rounded-xl px-3 py-2.5 ${
-                    c.tone === "emerald" ? "bg-emerald-50" : c.tone === "amber" ? "bg-amber-50" : c.tone === "rose" ? "bg-rose-50" : "bg-zinc-900/[0.03]"
+                    c.tone === "emerald" ? "bg-emerald-50" : c.tone === "amber" ? "bg-amber-50" : c.tone === "rose" ? "bg-rose-50" : "bg-ash-900/[0.03]"
                   }`}>
                     <p className={`text-2xl font-bold tabular-nums ${
-                      c.tone === "emerald" ? "text-emerald-700" : c.tone === "amber" ? "text-amber-700" : c.tone === "rose" ? "text-rose-700" : "text-zinc-700"
+                      c.tone === "emerald" ? "text-emerald-700" : c.tone === "amber" ? "text-amber-700" : c.tone === "rose" ? "text-rose-700" : "text-ash-700"
                     }`}>{c.v}</p>
-                    <p className="text-[11px] font-semibold leading-tight text-zinc-700">{c.l}</p>
-                    <p className="text-[9.5px] leading-tight text-zinc-500">{c.sub}</p>
+                    <p className="text-[11px] font-semibold leading-tight text-ash-700">{c.l}</p>
+                    <p className="text-[9.5px] leading-tight text-ash-500">{c.sub}</p>
                   </div>
                 ))}
               </div>
@@ -400,15 +400,15 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
                   { l: "Precision", v: matrix.precision, hero: false, help: "Share of our flags that were real" },
                   { l: "AUC", v: matrix.auc, hero: false, help: "Ranking power, 0.5 = coin flip" },
                 ].map((m) => (
-                  <div key={m.l} className={`rounded-xl border px-2.5 py-2 ${m.hero ? "border-[color:var(--brand)]" : "border-zinc-900/[0.07]"}`} title={m.help}>
-                    <p className="text-[9.5px] uppercase tracking-wide text-zinc-500">{m.l}</p>
-                    <p className={`text-lg font-bold tabular-nums ${m.hero ? "text-[color:var(--brand)]" : "text-zinc-800"}`}>
+                  <div key={m.l} className={`rounded-xl border px-2.5 py-2 ${m.hero ? "border-[color:var(--brand)]" : "border-ash-900/[0.07]"}`} title={m.help}>
+                    <p className="text-[9.5px] uppercase tracking-wide text-ash-500">{m.l}</p>
+                    <p className={`text-lg font-bold tabular-nums ${m.hero ? "text-[color:var(--brand)]" : "text-ash-800"}`}>
                       {m.v == null ? "—" : m.l === "AUC" ? m.v.toFixed(3) : pct(m.v, 0)}
                     </p>
                   </div>
                 ))}
               </div>
-              <p className="mt-2 text-[10.5px] leading-snug text-zinc-400">
+              <p className="mt-2 text-[10.5px] leading-snug text-ash-400">
                 Measured over {matrix.n} labelled decisions.
                 {matrix.ks != null && ` KS ${matrix.ks.toFixed(3)}.`}
                 {matrix.brier != null && ` Brier ${matrix.brier.toFixed(3)}.`}
@@ -417,7 +417,7 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
 
             {economics && (
               <Card>
-                <p className="text-[11px] uppercase tracking-wide text-zinc-500">What each mistake cost, in shillings</p>
+                <p className="text-[11px] uppercase tracking-wide text-ash-500">What each mistake cost, in shillings</p>
                 <div className="mt-3 space-y-2.5">
                   <div className="rounded-xl border border-rose-200 bg-rose-50/60 px-3 py-2.5">
                     <div className="flex items-baseline justify-between">
@@ -439,12 +439,12 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
                     </p>
                   </div>
                 </div>
-                <div className="mt-3 flex items-start gap-2 rounded-xl bg-zinc-900/[0.03] px-3 py-2.5">
+                <div className="mt-3 flex items-start gap-2 rounded-xl bg-ash-900/[0.03] px-3 py-2.5">
                   <Target className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[color:var(--brand)]" />
-                  <p className="text-[11.5px] leading-snug text-zinc-600">
+                  <p className="text-[11.5px] leading-snug text-ash-600">
                     Average exposure on this book is {kes(economics.avgExposure)}.
                     {economics.recallPointValue != null && (
-                      <> Each percentage point of recall is worth about <span className="font-semibold text-zinc-800">{kes(economics.recallPointValue)}</span> of principal moved from &ldquo;missed&rdquo; to &ldquo;caught&rdquo;.</>
+                      <> Each percentage point of recall is worth about <span className="font-semibold text-ash-800">{kes(economics.recallPointValue)}</span> of principal moved from &ldquo;missed&rdquo; to &ldquo;caught&rdquo;.</>
                     )}
                     {" "}That number is the objective function. Everything else on this page exists to move it.
                   </p>
@@ -457,21 +457,21 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
         {/* Drift — the other half of "is it still true" */}
         <Card className="mt-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[11px] uppercase tracking-wide text-zinc-500">Is the model still telling the truth?</p>
+            <p className="text-[11px] uppercase tracking-wide text-ash-500">Is the model still telling the truth?</p>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
               drift.status === "STABLE" ? "bg-emerald-100 text-emerald-700"
                 : drift.status === "WATCH" ? "bg-amber-100 text-amber-700"
-                  : drift.status === "DRIFTING" ? "bg-rose-100 text-rose-700" : "bg-zinc-900/5 text-zinc-500"
+                  : drift.status === "DRIFTING" ? "bg-rose-100 text-rose-700" : "bg-ash-900/5 text-ash-500"
             }`}>{drift.status}</span>
           </div>
           <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
-            <div className="rounded-xl border border-zinc-900/[0.07] px-3 py-2.5">
-              <p className="text-[11px] font-semibold text-zinc-700">Calibration</p>
-              <p className="mt-0.5 text-[11.5px] leading-snug text-zinc-500">{drift.calibration.note}</p>
+            <div className="rounded-xl border border-ash-900/[0.07] px-3 py-2.5">
+              <p className="text-[11px] font-semibold text-ash-700">Calibration</p>
+              <p className="mt-0.5 text-[11.5px] leading-snug text-ash-500">{drift.calibration.note}</p>
             </div>
-            <div className="rounded-xl border border-zinc-900/[0.07] px-3 py-2.5">
-              <p className="text-[11px] font-semibold text-zinc-700">Population stability</p>
-              <p className="mt-0.5 text-[11.5px] leading-snug text-zinc-500">{drift.population.note}</p>
+            <div className="rounded-xl border border-ash-900/[0.07] px-3 py-2.5">
+              <p className="text-[11px] font-semibold text-ash-700">Population stability</p>
+              <p className="mt-0.5 text-[11.5px] leading-snug text-ash-500">{drift.population.note}</p>
             </div>
           </div>
         </Card>
@@ -491,26 +491,26 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.05, duration: 0.4 }}
-              className="rounded-2xl border border-zinc-900/[0.07] bg-white/70 p-3.5"
+              className="rounded-2xl border border-ash-900/[0.07] bg-paper/70 p-3.5"
             >
               <div className="flex items-center justify-between">
-                <p className="text-[13px] font-bold text-zinc-800">{f.family}</p>
-                <span className="rounded-full bg-zinc-900/5 px-2 py-0.5 text-[9.5px] font-semibold text-zinc-500">
+                <p className="text-[13px] font-bold text-ash-800">{f.family}</p>
+                <span className="rounded-full bg-ash-900/5 px-2 py-0.5 text-[9.5px] font-semibold text-ash-500">
                   {f.features.length} signal{f.features.length === 1 ? "" : "s"}
                 </span>
               </div>
-              <p className="mt-1 text-[11.5px] leading-snug text-zinc-500">{f.why}</p>
+              <p className="mt-1 text-[11.5px] leading-snug text-ash-500">{f.why}</p>
               <div className="mt-2 flex flex-wrap gap-1">
                 {f.features.map((x) => (
-                  <span key={x.key} className="inline-flex items-center gap-1 rounded-md border border-zinc-900/[0.07] bg-white px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
-                    <CheckCircle2 className={`h-2.5 w-2.5 ${x.captured ? "text-emerald-500" : "text-zinc-300"}`} /> {x.label}
+                  <span key={x.key} className="inline-flex items-center gap-1 rounded-md border border-ash-900/[0.07] bg-paper px-1.5 py-0.5 text-[10px] font-medium text-ash-600">
+                    <CheckCircle2 className={`h-2.5 w-2.5 ${x.captured ? "text-emerald-500" : "text-ash-300"}`} /> {x.label}
                   </span>
                 ))}
               </div>
             </motion.div>
           ))}
         </div>
-        <p className="mt-2.5 flex items-start gap-1.5 text-[11.5px] leading-snug text-zinc-500">
+        <p className="mt-2.5 flex items-start gap-1.5 text-[11.5px] leading-snug text-ash-500">
           <Database className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           Alongside these, the raw cashflow vector, the derived model features, the internal score,
           the starting limit and the reason codes are all persisted on the decision — so a model
@@ -532,25 +532,25 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.05, duration: 0.4 }}
-              className="rounded-2xl border border-zinc-900/[0.07] bg-white/70 p-3.5"
+              className="rounded-2xl border border-ash-900/[0.07] bg-paper/70 p-3.5"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-[13px] font-bold text-zinc-800">{m.name}</p>
+                <p className="text-[13px] font-bold text-ash-800">{m.name}</p>
                 <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${
-                  m.stage === "LIVE" ? "bg-emerald-100 text-emerald-700" : m.stage === "SHADOW" ? "bg-violet-100 text-violet-700" : "bg-zinc-900/5 text-zinc-500"
+                  m.stage === "LIVE" ? "bg-emerald-100 text-emerald-700" : m.stage === "SHADOW" ? "bg-violet-100 text-violet-700" : "bg-ash-900/5 text-ash-500"
                 }`}>{m.stage}</span>
-                {m.metric && <span className="rounded bg-zinc-900/5 px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-zinc-600">{m.metric}</span>}
-                <span className="ml-auto text-[11px] tabular-nums text-zinc-500">{m.scores.toLocaleString()} scored here</span>
+                {m.metric && <span className="rounded bg-ash-900/5 px-1.5 py-0.5 font-mono text-[9.5px] font-bold text-ash-600">{m.metric}</span>}
+                <span className="ml-auto text-[11px] tabular-nums text-ash-500">{m.scores.toLocaleString()} scored here</span>
               </div>
-              <p className="mt-1 text-[11.5px] text-zinc-500">{m.population}</p>
-              <p className="mt-1 text-[12px] leading-relaxed text-zinc-600">{m.note}</p>
+              <p className="mt-1 text-[11.5px] text-ash-500">{m.population}</p>
+              <p className="mt-1 text-[12px] leading-relaxed text-ash-600">{m.note}</p>
             </motion.div>
           ))}
         </div>
 
         <Card className="mt-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[11px] uppercase tracking-wide text-zinc-500">Thin-file artifact</p>
+            <p className="text-[11px] uppercase tracking-wide text-ash-500">Thin-file artifact</p>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${artifact.active ? "bg-emerald-100 text-emerald-700" : "bg-violet-100 text-violet-700"}`}>
               {artifact.active ? "DECIDING" : "SHADOW"}
             </span>
@@ -562,14 +562,14 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
               { k: "Observed outcomes", v: artifact.nObserved.toLocaleString() },
               { k: "AUC (fit)", v: artifact.metrics.n > 0 ? artifact.metrics.auc.toFixed(3) : "—" },
             ].map((x) => (
-              <div key={x.k} className="rounded-xl bg-zinc-900/[0.03] px-2.5 py-2">
-                <p className="text-[9.5px] uppercase tracking-wide text-zinc-500">{x.k}</p>
-                <p className="mt-0.5 truncate font-mono text-[11.5px] font-bold text-zinc-800">{x.v}</p>
+              <div key={x.k} className="rounded-xl bg-ash-900/[0.03] px-2.5 py-2">
+                <p className="text-[9.5px] uppercase tracking-wide text-ash-500">{x.k}</p>
+                <p className="mt-0.5 truncate font-mono text-[11.5px] font-bold text-ash-800">{x.v}</p>
               </div>
             ))}
           </div>
           {!artifact.active && (
-            <p className="mt-2.5 flex items-start gap-1.5 text-[11.5px] leading-snug text-zinc-600">
+            <p className="mt-2.5 flex items-start gap-1.5 text-[11.5px] leading-snug text-ash-600">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
               The trained model scores every applicant already — its number is recorded and compared,
               but the expert scorecard still makes the call. That is deliberate: a model promoted
@@ -586,7 +586,7 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.5 }}
-        className="mt-10 rounded-3xl border border-zinc-900/[0.07] bg-gradient-to-br from-zinc-900 to-zinc-800 p-6 text-white sm:p-7"
+        className="mt-10 rounded-3xl border border-ash-900/[0.07] bg-gradient-to-br from-ash-900 to-ash-800 p-6 text-white sm:p-7"
       >
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">What compounds</p>
         <p className="mt-2 max-w-3xl text-[14.5px] leading-relaxed text-white/85">
@@ -602,16 +602,16 @@ export function LoopClient({ report, orgName }: { report: LoopReport; orgName: s
           and the only way to get one is to have been collecting since the first customer.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Link href="/console/intelligence/scoring" className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-[13px] font-semibold text-zinc-900 hover:bg-white/90">
+          <Link href="/console/intelligence/scoring" className="inline-flex items-center gap-1.5 rounded-xl bg-paper px-3.5 py-2 text-[13px] font-semibold text-ash-900 hover:bg-paper/90">
             Credit Scoring <ArrowRight className="h-3.5 w-3.5" />
           </Link>
-          <Link href="/console/crunch" className="inline-flex items-center gap-1.5 rounded-xl border border-white/25 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-white/10">
+          <Link href="/console/crunch" className="inline-flex items-center gap-1.5 rounded-xl border border-white/25 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-paper/10">
             Statement Cruncher <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       </motion.div>
 
-      <p className="mt-6 text-center text-[11px] text-zinc-400">
+      <p className="mt-6 text-center text-[11px] text-ash-400">
         Every figure on this page is computed from rows this platform stores. Generated {new Date(report.generatedAt).toLocaleString("en-KE")}.
       </p>
     </main>

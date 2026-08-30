@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./theme-dark.css";
 
 /* ── BirgenAI_LMS design tokens ──────────────────────────────────────────────
    Borrower surfaces: white background + glass panels (ported from the original

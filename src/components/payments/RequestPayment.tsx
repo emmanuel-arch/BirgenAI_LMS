@@ -148,7 +148,7 @@ export function RequestPaymentModal({
       }
       sub={
         <>
-          An M-Pesa prompt goes to {borrowerName ? <span className="font-semibold text-zinc-700">{borrowerName}</span> : "the customer"} on their
+          An M-Pesa prompt goes to {borrowerName ? <span className="font-semibold text-ash-700">{borrowerName}</span> : "the customer"} on their
           registered number.
         </>
       }
@@ -164,8 +164,8 @@ export function RequestPaymentModal({
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100">
               <CheckCircle2 className="h-6 w-6 text-emerald-600" />
             </div>
-            <p className="mt-3 text-sm font-semibold text-zinc-800">{sent}</p>
-            <p className="mt-1 text-[11px] text-zinc-500">
+            <p className="mt-3 text-sm font-semibold text-ash-800">{sent}</p>
+            <p className="mt-1 text-[11px] text-ash-500">
               Nothing is paid until they enter their PIN. The receipt lands on their record by itself.
             </p>
             <button onClick={onClose} className="mt-4 rounded-lg px-5 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: "var(--brand)" }}>
@@ -175,7 +175,7 @@ export function RequestPaymentModal({
         ) : (
           <>
             {!askables && !error && (
-              <p className="mt-4 flex items-center gap-2 text-sm text-zinc-500">
+              <p className="mt-4 flex items-center gap-2 text-sm text-ash-500">
                 <Loader2 className="h-4 w-4 animate-spin" /> Working out what they owe…
               </p>
             )}
@@ -183,7 +183,7 @@ export function RequestPaymentModal({
             {askables && (
               <div className="mt-4 space-y-1.5">
                 {askables.length === 0 && (
-                  <p className="rounded-lg bg-zinc-900/5 px-3 py-2.5 text-xs text-zinc-500">
+                  <p className="rounded-lg bg-ash-900/5 px-3 py-2.5 text-xs text-ash-500">
                     Nothing outstanding, and no fees set up. You can still ask for a custom amount below.
                   </p>
                 )}
@@ -192,13 +192,13 @@ export function RequestPaymentModal({
                     key={`${a.kind}:${a.id}`}
                     disabled={busy}
                     onClick={() => { setPicked(a); sendAskable(a); }}
-                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-zinc-900/10 bg-white/70 px-3 py-2.5 text-left transition-colors hover:bg-white disabled:opacity-50"
+                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-ash-900/10 bg-paper/70 px-3 py-2.5 text-left transition-colors hover:bg-paper disabled:opacity-50"
                   >
                     <span className="min-w-0">
-                      <span className="flex items-center gap-1.5 text-[13px] font-semibold text-zinc-800">
+                      <span className="flex items-center gap-1.5 text-[13px] font-semibold text-ash-800">
                         {a.kind === "charge"
-                          ? <Building2 className="h-3.5 w-3.5 text-zinc-400" />
-                          : <Landmark className="h-3.5 w-3.5 text-zinc-400" />}
+                          ? <Building2 className="h-3.5 w-3.5 text-ash-400" />
+                          : <Landmark className="h-3.5 w-3.5 text-ash-400" />}
                         {a.label}
                         {/* Whose money this becomes. A lender is entitled to know which of
                             these fees is theirs and which is ours. */}
@@ -206,9 +206,9 @@ export function RequestPaymentModal({
                           <span className="rounded bg-violet-100 px-1 py-0.5 text-[9px] font-bold uppercase text-violet-700">BirgenAI</span>
                         )}
                       </span>
-                      <span className="block truncate text-[11px] text-zinc-500">{a.sublabel}</span>
+                      <span className="block truncate text-[11px] text-ash-500">{a.sublabel}</span>
                     </span>
-                    <span className="flex shrink-0 items-center gap-1.5 text-sm font-bold text-zinc-800">
+                    <span className="flex shrink-0 items-center gap-1.5 text-sm font-bold text-ash-800">
                       {busy && picked?.id === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                       {kes(a.amount)}
                     </span>
@@ -218,27 +218,27 @@ export function RequestPaymentModal({
             )}
 
             {/* A doorstep part-payment. Real, and it must not be forced through a fee. */}
-            <div className="mt-4 border-t border-zinc-900/10 pt-3">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Or a custom amount</p>
+            <div className="mt-4 border-t border-ash-900/10 pt-3">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-ash-400">Or a custom amount</p>
               <div className="mt-1.5 flex gap-2">
                 <input
-                  className="w-32 rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2 text-sm outline-none"
+                  className="w-32 rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2 text-sm outline-none"
                   inputMode="numeric" placeholder="KES" value={custom}
                   onChange={(e) => setCustom(e.target.value.replace(/\D/g, ""))}
                 />
                 <input
-                  className="min-w-0 flex-1 rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2 text-sm outline-none"
+                  className="min-w-0 flex-1 rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2 text-sm outline-none"
                   placeholder="What is it for?" value={note} onChange={(e) => setNote(e.target.value)}
                 />
                 <button
                   onClick={sendCustom}
                   disabled={busy || !(Number(custom) > 0)}
-                  className="shrink-0 rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-40"
+                  className="shrink-0 rounded-lg bg-invert px-3 py-2 text-xs font-semibold text-invert-fg disabled:opacity-40"
                 >
                   {busy && !picked ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Send"}
                 </button>
               </div>
-              <p className="mt-1 text-[10px] text-zinc-400">Recorded under your name, and applied to their loan if they have one.</p>
+              <p className="mt-1 text-[10px] text-ash-400">Recorded under your name, and applied to their loan if they have one.</p>
             </div>
           </>
         )}

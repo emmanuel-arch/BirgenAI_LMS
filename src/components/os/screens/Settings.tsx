@@ -46,19 +46,19 @@ function Toggle({
       onClick={onChange}
       role="switch"
       aria-checked={on}
-      className="flex w-full items-start gap-2.5 rounded-2xl border border-zinc-900/[0.07] bg-white/75 px-3 py-2.5 text-left transition-colors hover:border-[color:var(--brand)]"
+      className="flex w-full items-start gap-2.5 rounded-2xl border border-ash-900/[0.07] bg-paper/75 px-3 py-2.5 text-left transition-colors hover:border-[color:var(--brand)]"
     >
-      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${on && tone === "brand" ? "text-white" : "bg-zinc-900/[0.05] text-zinc-500"}`}
+      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${on && tone === "brand" ? "text-white" : "bg-ash-900/[0.05] text-ash-500"}`}
         style={on && tone === "brand" ? { backgroundColor: "var(--brand)" } : undefined}>
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[12.5px] font-semibold leading-tight text-zinc-800">{title}</span>
-        <span className="mt-0.5 block text-[10.5px] leading-snug text-zinc-500">{detail}</span>
+        <span className="block text-[12.5px] font-semibold leading-tight text-ash-800">{title}</span>
+        <span className="mt-0.5 block text-[10.5px] leading-snug text-ash-500">{detail}</span>
       </span>
-      <span className={`mt-1 flex h-[18px] w-[30px] shrink-0 items-center rounded-full px-[2px] transition-colors ${on ? "" : "bg-zinc-300"}`}
+      <span className={`mt-1 flex h-[18px] w-[30px] shrink-0 items-center rounded-full px-[2px] transition-colors ${on ? "" : "bg-ash-300"}`}
         style={on ? { backgroundColor: "var(--brand)" } : undefined}>
-        <span className={`h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${on ? "translate-x-[12px]" : ""}`} />
+        <span className={`h-3.5 w-3.5 rounded-full bg-paper shadow transition-transform ${on ? "translate-x-[12px]" : ""}`} />
       </span>
     </button>
   );
@@ -118,36 +118,36 @@ export function SettingsScreen({
 
           <button
             onClick={onLang}
-            className="flex w-full items-center gap-2.5 rounded-2xl border border-zinc-900/[0.07] bg-white/75 px-3 py-2.5 text-left transition-colors hover:border-[color:var(--brand)]"
+            className="flex w-full items-center gap-2.5 rounded-2xl border border-ash-900/[0.07] bg-paper/75 px-3 py-2.5 text-left transition-colors hover:border-[color:var(--brand)]"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-900/[0.05] text-zinc-500">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-ash-900/[0.05] text-ash-500">
               <Languages className="h-4 w-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[12.5px] font-semibold leading-tight text-zinc-800">Language</span>
-              <span className="mt-0.5 block text-[10.5px] leading-snug text-zinc-500">
+              <span className="block text-[12.5px] font-semibold leading-tight text-ash-800">Language</span>
+              <span className="mt-0.5 block text-[10.5px] leading-snug text-ash-500">
                 Ask in either — typed questions follow the words you use.
               </span>
             </span>
-            <span className="shrink-0 rounded-full bg-zinc-900/5 px-2 py-0.5 text-[10px] font-bold text-zinc-600">
+            <span className="shrink-0 rounded-full bg-ash-900/5 px-2 py-0.5 text-[10px] font-bold text-ash-600">
               {lang === "sw-KE" ? "Kiswahili" : "English"}
             </span>
           </button>
 
           <button
             onClick={onCorner}
-            className="flex w-full items-center gap-2.5 rounded-2xl border border-zinc-900/[0.07] bg-white/75 px-3 py-2.5 text-left transition-colors hover:border-[color:var(--brand)]"
+            className="flex w-full items-center gap-2.5 rounded-2xl border border-ash-900/[0.07] bg-paper/75 px-3 py-2.5 text-left transition-colors hover:border-[color:var(--brand)]"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-900/[0.05] text-zinc-500">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-ash-900/[0.05] text-ash-500">
               {corner === "br" ? <PanelRight className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[12.5px] font-semibold leading-tight text-zinc-800">Which side</span>
-              <span className="mt-0.5 block text-[10.5px] leading-snug text-zinc-500">
+              <span className="block text-[12.5px] font-semibold leading-tight text-ash-800">Which side</span>
+              <span className="mt-0.5 block text-[10.5px] leading-snug text-ash-500">
                 Drag the launcher anywhere; it snaps to the nearest side.
               </span>
             </span>
-            <span className="shrink-0 rounded-full bg-zinc-900/5 px-2 py-0.5 text-[10px] font-bold text-zinc-600">
+            <span className="shrink-0 rounded-full bg-ash-900/5 px-2 py-0.5 text-[10px] font-bold text-ash-600">
               {corner === "br" ? "Right" : "Left"}
             </span>
           </button>
@@ -158,15 +158,15 @@ export function SettingsScreen({
           <SectionLabel>Conversations</SectionLabel>
           {historyAvailable ? (
             <>
-              <div className="flex items-center gap-2.5 rounded-2xl border border-zinc-900/[0.07] bg-white/75 px-3 py-2.5">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-900/[0.05] text-zinc-500">
+              <div className="flex items-center gap-2.5 rounded-2xl border border-ash-900/[0.07] bg-paper/75 px-3 py-2.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-ash-900/[0.05] text-ash-500">
                   <History className="h-4 w-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[12.5px] font-semibold leading-tight text-zinc-800">
+                  <span className="block text-[12.5px] font-semibold leading-tight text-ash-800">
                     {threadCount} saved conversation{threadCount === 1 ? "" : "s"}
                   </span>
-                  <span className="mt-0.5 block text-[10.5px] leading-snug text-zinc-500">
+                  <span className="mt-0.5 block text-[10.5px] leading-snug text-ash-500">
                     Kept so you can pick one up later. Only you can read yours.
                   </span>
                 </span>
@@ -175,7 +175,7 @@ export function SettingsScreen({
                 onClick={clear}
                 disabled={clearing || threadCount === 0}
                 className={`flex w-full items-center gap-2.5 rounded-2xl border px-3 py-2.5 text-left transition-colors disabled:opacity-40 ${
-                  confirm ? "border-rose-300 bg-rose-50" : "border-zinc-900/[0.07] bg-white/75 hover:border-rose-300"
+                  confirm ? "border-rose-300 bg-rose-50" : "border-ash-900/[0.07] bg-paper/75 hover:border-rose-300"
                 }`}
               >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-500">
@@ -185,16 +185,16 @@ export function SettingsScreen({
                   <span className="block text-[12.5px] font-semibold leading-tight text-rose-700">
                     {cleared ? "All conversations deleted" : confirm ? "Tap again to delete everything" : "Delete every conversation"}
                   </span>
-                  <span className="mt-0.5 block text-[10.5px] leading-snug text-zinc-500">
+                  <span className="mt-0.5 block text-[10.5px] leading-snug text-ash-500">
                     Gone, not hidden. The audit record that the questions were asked stays — the transcripts are yours.
                   </span>
                 </span>
               </button>
             </>
           ) : (
-            <div className="flex items-start gap-2.5 rounded-2xl border border-zinc-900/[0.07] bg-white/60 px-3 py-2.5">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
-              <p className="text-[10.5px] leading-snug text-zinc-500">
+            <div className="flex items-start gap-2.5 rounded-2xl border border-ash-900/[0.07] bg-paper/60 px-3 py-2.5">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ash-400" />
+              <p className="text-[10.5px] leading-snug text-ash-500">
                 Conversation history isn&apos;t switched on for this deployment yet. Everything still works — questions
                 just aren&apos;t kept between sessions.
               </p>

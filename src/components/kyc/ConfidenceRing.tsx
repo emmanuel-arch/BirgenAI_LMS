@@ -24,7 +24,7 @@ export function ConfidenceRing({ value, label, size = 120 }: { value: number; la
           className="text-2xl font-bold" style={{ color: tone }}>
           {Math.round(value)}%
         </motion.span>
-        {label && <span className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</span>}
+        {label && <span className="text-[10px] uppercase tracking-wide text-ash-500">{label}</span>}
       </div>
     </div>
   );

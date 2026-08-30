@@ -78,7 +78,7 @@ export function CustomerTimeline({ borrowerId, events }: { borrowerId: string; e
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
           <History className="h-4 w-4" style={{ color: "var(--brand)" }} /> Customer timeline
-          <span className="font-normal text-zinc-400">· every touch &amp; decision</span>
+          <span className="font-normal text-ash-400">· every touch &amp; decision</span>
         </h2>
         <button onClick={() => setLogging((v) => !v)}
           className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-white"
@@ -92,12 +92,12 @@ export function CustomerTimeline({ borrowerId, events }: { borrowerId: string; e
         {logging && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden">
-            <div className="mt-3 rounded-xl border border-zinc-900/10 bg-white/60 p-3">
-              <p className="text-[11px] font-semibold text-zinc-600">Disposition</p>
+            <div className="mt-3 rounded-xl border border-ash-900/10 bg-paper/60 p-3">
+              <p className="text-[11px] font-semibold text-ash-600">Disposition</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {DISPOSITIONS.map((d) => (
                   <button key={d} onClick={() => setDisposition(d)}
-                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 transition-colors ${disposition === d ? "text-white" : "text-zinc-600 ring-zinc-900/10 hover:bg-zinc-900/5"}`}
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 transition-colors ${disposition === d ? "text-white" : "text-ash-600 ring-ash-900/10 hover:bg-ash-900/5"}`}
                     style={disposition === d ? { backgroundColor: "var(--brand)", borderColor: "var(--brand)" } : undefined}>
                     {d}
                   </button>
@@ -105,13 +105,13 @@ export function CustomerTimeline({ borrowerId, events }: { borrowerId: string; e
               </div>
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 <select value={channel} onChange={(e) => setChannel(e.target.value)}
-                  className="rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none">
+                  className="rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-xs outline-none">
                   {CHANNELS.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)"
-                  className="min-w-0 flex-1 rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none" />
+                  className="min-w-0 flex-1 rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-xs outline-none" />
                 <button onClick={save} disabled={busy || !disposition}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-3 py-1.5 text-xs font-semibold text-invert-fg disabled:opacity-40">
                   {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Save
                 </button>
               </div>
@@ -132,9 +132,9 @@ export function CustomerTimeline({ borrowerId, events }: { borrowerId: string; e
       {/* The spine */}
       <div className="mt-3">
         {shown.length === 0 ? (
-          <p className="text-sm text-zinc-500">No activity yet. Log the first interaction above.</p>
+          <p className="text-sm text-ash-500">No activity yet. Log the first interaction above.</p>
         ) : (
-          <ol className="relative space-y-3 before:absolute before:left-[11px] before:top-1 before:bottom-1 before:w-px before:bg-zinc-900/10">
+          <ol className="relative space-y-3 before:absolute before:left-[11px] before:top-1 before:bottom-1 before:w-px before:bg-ash-900/10">
             {shown.map((e) => {
               const k = KIND[e.kind];
               const Icon = k.icon;
@@ -145,11 +145,11 @@ export function CustomerTimeline({ borrowerId, events }: { borrowerId: string; e
                   </span>
                   <div className="min-w-0 flex-1 -mt-0.5">
                     <div className="flex items-baseline justify-between gap-2">
-                      <p className="truncate text-sm font-medium text-zinc-800">{e.title}</p>
-                      <span className="shrink-0 text-[10px] text-zinc-400">{rel(e.at)}</span>
+                      <p className="truncate text-sm font-medium text-ash-800">{e.title}</p>
+                      <span className="shrink-0 text-[10px] text-ash-400">{rel(e.at)}</span>
                     </div>
-                    {e.detail && <p className="text-[12px] leading-snug text-zinc-500">{e.detail}</p>}
-                    {e.actor && <p className="text-[10px] text-zinc-400">by {e.actor}</p>}
+                    {e.detail && <p className="text-[12px] leading-snug text-ash-500">{e.detail}</p>}
+                    {e.actor && <p className="text-[10px] text-ash-400">by {e.actor}</p>}
                   </div>
                 </li>
               );
@@ -164,7 +164,7 @@ export function CustomerTimeline({ borrowerId, events }: { borrowerId: string; e
 function Chip({ active, onClick, label, color }: { active: boolean; onClick: () => void; label: string; color: string }) {
   return (
     <button onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 transition-colors ${active ? "bg-zinc-900 text-white ring-zinc-900" : "text-zinc-600 ring-zinc-900/10 hover:bg-zinc-900/5"}`}>
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 transition-colors ${active ? "bg-invert text-invert-fg ring-ash-900" : "text-ash-600 ring-ash-900/10 hover:bg-ash-900/5"}`}>
       {!active && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />}
       {label}
     </button>

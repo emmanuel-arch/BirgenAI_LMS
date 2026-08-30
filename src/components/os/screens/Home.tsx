@@ -94,10 +94,10 @@ export function HomeScreen({
 
       <div className="relative flex h-full min-h-0 flex-col overflow-y-auto px-4 pb-2 pt-2">
         <div className="shrink-0">
-          <p className="text-[10.5px] font-medium text-zinc-500">
+          <p className="text-[10.5px] font-medium text-ash-500">
             {salutation}{first ? `, ${first}` : ""}
           </p>
-          <h2 className="mt-0.5 text-[19px] font-bold leading-tight tracking-tight text-zinc-900">{orgName}</h2>
+          <h2 className="mt-0.5 text-[19px] font-bold leading-tight tracking-tight text-ash-900">{orgName}</h2>
         </div>
 
         {/* THE LIVE LINE. The most urgent counted fact, or the fact that there
@@ -107,23 +107,23 @@ export function HomeScreen({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05, ...SPRING }}
           onClick={() => (lead ? onSignal(lead) : onOpen({ name: "alerts" }))}
-          className="mt-2.5 flex shrink-0 items-center gap-2.5 rounded-2xl border border-zinc-900/[0.07] bg-white/80 px-3 py-2.5 text-left shadow-sm backdrop-blur transition-all hover:border-[color:var(--brand)] active:scale-[0.985]"
+          className="mt-2.5 flex shrink-0 items-center gap-2.5 rounded-2xl border border-ash-900/[0.07] bg-paper/80 px-3 py-2.5 text-left shadow-sm backdrop-blur transition-all hover:border-[color:var(--brand)] active:scale-[0.985]"
         >
           {lead ? (
             <>
               <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${SEV_DOT[lead.severity]}`} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[12px] font-semibold leading-tight text-zinc-800">{lead.title}</span>
-                <span className="mt-0.5 block truncate text-[10.5px] leading-tight text-zinc-500">{lead.actionLabel}</span>
+                <span className="block truncate text-[12px] font-semibold leading-tight text-ash-800">{lead.title}</span>
+                <span className="mt-0.5 block truncate text-[10.5px] leading-tight text-ash-500">{lead.actionLabel}</span>
               </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300" />
+              <ChevronRight className="h-4 w-4 shrink-0 text-ash-300" />
             </>
           ) : (
             <>
               <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-500" />
               <span className="min-w-0 flex-1">
-                <span className="block text-[12px] font-semibold leading-tight text-zinc-800">Nothing needs you right now</span>
-                <span className="mt-0.5 block truncate text-[10.5px] leading-tight text-zinc-500">
+                <span className="block text-[12px] font-semibold leading-tight text-ash-800">Nothing needs you right now</span>
+                <span className="mt-0.5 block truncate text-[10.5px] leading-tight text-ash-500">
                   No arrears spike, no unmatched money, no queue backing up.
                 </span>
               </span>
@@ -154,7 +154,7 @@ export function HomeScreen({
                 title={app.blurb}
               >
                 <span
-                  className="relative flex aspect-square w-full items-center justify-center rounded-[18px] shadow-lg shadow-zinc-900/20 ring-1 ring-inset ring-white/30"
+                  className="relative flex aspect-square w-full items-center justify-center rounded-[18px] shadow-lg shadow-ash-900/20 ring-1 ring-inset ring-white/30"
                   style={{ background: `linear-gradient(147deg, ${app.tile.from}, ${app.tile.to})` }}
                 >
                   {/* The specular sweep every real icon has across its top-left. */}
@@ -170,10 +170,10 @@ export function HomeScreen({
                     </span>
                   )}
                   {lastRoute === app.route && (
-                    <span className="absolute -bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-zinc-900/30" />
+                    <span className="absolute -bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-ash-900/30" />
                   )}
                 </span>
-                <span className="w-full truncate text-center text-[9.5px] font-semibold leading-tight text-zinc-700">{app.name}</span>
+                <span className="w-full truncate text-center text-[9.5px] font-semibold leading-tight text-ash-700">{app.name}</span>
               </motion.button>
             );
           })}
@@ -183,7 +183,7 @@ export function HomeScreen({
 
         {/* THE DOCK. The four you reach for without looking, on frosted glass so
             it reads as a layer above the wallpaper rather than a row in the grid. */}
-        <div className="mt-3 shrink-0 rounded-[26px] border border-white/60 bg-white/60 p-2 shadow-lg shadow-zinc-900/5 backdrop-blur-xl">
+        <div className="mt-3 shrink-0 rounded-[26px] border border-white/60 bg-paper/60 p-2 shadow-lg shadow-ash-900/5 backdrop-blur-xl">
           <div className="grid grid-cols-4 gap-2">
             {DOCK_APPS.map((app) => {
               const Glyph = ICONS[app.icon] ?? MessageCircle;
@@ -215,7 +215,7 @@ export function HomeScreen({
           </div>
         </div>
 
-        <p className="mt-2 shrink-0 text-center text-[9px] leading-snug text-zinc-400">
+        <p className="mt-2 shrink-0 text-center text-[9px] leading-snug text-ash-400">
           {ASSISTANT_NAME} can be wrong — verify figures before acting
         </p>
       </div>

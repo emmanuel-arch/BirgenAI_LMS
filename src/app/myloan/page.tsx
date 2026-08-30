@@ -99,11 +99,11 @@ export default function MyLoanPage() {
     } catch { setError(t.myloan.couldNotStartPayment); } finally { setPaying(false); }
   };
 
-  const field = "flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3";
-  const input = "flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-zinc-400";
+  const field = "flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3";
+  const input = "flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-ash-400";
 
   return (
-    <div className="min-h-screen relative text-zinc-900" style={{ ["--brand" as never]: brand.accent, ["--brand-soft" as never]: brand.accentSoft }}>
+    <div className="min-h-screen relative text-ash-900" style={{ ["--brand" as never]: brand.accent, ["--brand-soft" as never]: brand.accentSoft }}>
       <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-8">
         {/* The code screen is its own full card — no header above it. */}
@@ -119,12 +119,12 @@ export default function MyLoanPage() {
             />
           </div>
         ) : (
-        <div className="glass w-full max-w-md rounded-3xl bg-white/65 p-6 sm:p-8">
+        <div className="glass w-full max-w-md rounded-3xl bg-paper/65 p-6 sm:p-8">
           <div className="flex justify-end"><LangToggle /></div>
           <div className="text-center">
             <CreditCard className="mx-auto h-10 w-10" style={{ color: "var(--brand)" }} />
             <h1 className="mt-3 text-2xl font-bold">{t.myloan.title}</h1>
-            <p className="mt-1.5 text-sm text-zinc-500">{t.myloan.sub}</p>
+            <p className="mt-1.5 text-sm text-ash-500">{t.myloan.sub}</p>
           </div>
 
           {error && <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
@@ -133,14 +133,14 @@ export default function MyLoanPage() {
           {!result?.found && stage === "phone" && (
             <>
               <div className={`mt-5 ${field}`}>
-                <Phone className="h-4 w-4 text-zinc-400 shrink-0" />
+                <Phone className="h-4 w-4 text-ash-400 shrink-0" />
                 <input className={input} inputMode="tel" placeholder={t.landing.phonePlaceholderOpen} value={phone} onChange={(e) => setPhone(e.target.value)} />
               </div>
               <button onClick={requestOtp} disabled={loading}
-                className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-invert px-5 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {t.common.continue} <ArrowRight className="h-4 w-4" />
               </button>
-              <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-400">
+              <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-ash-400">
                 <Lock className="h-3 w-3" /> {t.landing.smsNote}
               </p>
             </>
@@ -152,40 +152,40 @@ export default function MyLoanPage() {
                 <input className={input} inputMode="numeric" placeholder={t.myloan.idPlaceholder} value={nationalId} onChange={(e) => setNationalId(e.target.value)} />
               </div>
               <button onClick={lookup} disabled={loading}
-                className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-invert px-5 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {t.myloan.findMyLoan} <ArrowRight className="h-4 w-4" />
               </button>
               {result && !result.found && (
-                <p className="mt-4 text-center text-sm text-zinc-500">{result.message ?? t.myloan.noMatch} <Link href="/" className="font-semibold" style={{ color: "var(--brand)" }}>{t.myloan.applyForLoan}</Link></p>
+                <p className="mt-4 text-center text-sm text-ash-500">{result.message ?? t.myloan.noMatch} <Link href="/" className="font-semibold" style={{ color: "var(--brand)" }}>{t.myloan.applyForLoan}</Link></p>
               )}
             </>
           )}
 
           {result?.found && (
             <div className="mt-5">
-              <p className="text-sm text-zinc-600">{t.myloan.hi} <span className="font-semibold">{result.firstName ?? ""}</span> 👋 {result.clearedLoans ? fmt(t.myloan.loansCleared, { n: result.clearedLoans }) : ""}</p>
+              <p className="text-sm text-ash-600">{t.myloan.hi} <span className="font-semibold">{result.firstName ?? ""}</span> 👋 {result.clearedLoans ? fmt(t.myloan.loansCleared, { n: result.clearedLoans }) : ""}</p>
               {!result.activeLoan ? (
-                <div className="mt-4 rounded-xl border border-zinc-900/10 bg-white/70 p-4 text-center">
+                <div className="mt-4 rounded-xl border border-ash-900/10 bg-paper/70 p-4 text-center">
                   <p className="text-sm font-semibold">{t.myloan.noActiveLoan}</p>
-                  <Link href="/" className="mt-3 inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800">
+                  <Link href="/" className="mt-3 inline-flex items-center gap-2 rounded-lg bg-invert px-5 py-2.5 text-sm font-semibold text-invert-fg hover:bg-invert-2">
                     {t.myloan.applyAgain} <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
               ) : (
-                <div className="mt-4 rounded-xl border border-zinc-900/10 bg-white/70 p-4">
+                <div className="mt-4 rounded-xl border border-ash-900/10 bg-paper/70 p-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold">{result.activeLoan.product}</p>
-                    <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-[11px] font-semibold text-zinc-600">{fmt(t.myloan.ref, { ref: result.activeLoan.ref })}</span>
+                    <span className="rounded-md bg-ash-900/5 px-2 py-0.5 text-[11px] font-semibold text-ash-600">{fmt(t.myloan.ref, { ref: result.activeLoan.ref })}</span>
                   </div>
-                  <p className="mt-3 text-[11px] uppercase tracking-wide text-zinc-500">{t.myloan.balance}</p>
+                  <p className="mt-3 text-[11px] uppercase tracking-wide text-ash-500">{t.myloan.balance}</p>
                   <p className="text-2xl font-bold" style={{ color: "var(--brand)" }}>{fmtKES(result.activeLoan.balance)}</p>
                   {result.activeLoan.nextDue && (
-                    <p className="mt-1 text-xs text-zinc-500">{fmt(t.myloan.nextDue, { kes: fmtKES(result.activeLoan.nextDue.amount), date: result.activeLoan.nextDue.date })}</p>
+                    <p className="mt-1 text-xs text-ash-500">{fmt(t.myloan.nextDue, { kes: fmtKES(result.activeLoan.nextDue.amount), date: result.activeLoan.nextDue.date })}</p>
                   )}
                   {result.activeLoan.status === "ACTIVE" && (
                     <div className="mt-4">
                       <div className={field}>
-                        <span className="text-xs text-zinc-400 shrink-0">KES</span>
+                        <span className="text-xs text-ash-400 shrink-0">KES</span>
                         <input className={input} inputMode="numeric" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
                       </div>
                       <button onClick={pay} disabled={paying}
@@ -193,7 +193,7 @@ export default function MyLoanPage() {
                         style={{ backgroundColor: "var(--brand)" }}>
                         {paying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4" />} {t.myloan.payNow}
                       </button>
-                      <p className="mt-2 text-center text-[11px] text-zinc-400">{t.myloan.stkNote}</p>
+                      <p className="mt-2 text-center text-[11px] text-ash-400">{t.myloan.stkNote}</p>
                     </div>
                   )}
                 </div>

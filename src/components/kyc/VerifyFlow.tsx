@@ -274,7 +274,7 @@ export function VerifyFlow({
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[color:var(--ink-faint)]">{t.kyc.progressLabel}</p>
           <p className="text-xs font-bold tabular-nums" style={{ color: "var(--brand)" }}>{pct}%</p>
         </div>
-        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-zinc-900/[0.08]">
+        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-ash-900/[0.08]">
           <motion.div
             className="h-full rounded-full"
             style={{ backgroundColor: "var(--brand)" }}
@@ -292,7 +292,7 @@ export function VerifyFlow({
               <div key={s.key} className="flex flex-1 items-center gap-1.5">
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-                    done ? "bg-emerald-500 text-white" : current ? "text-white" : "bg-zinc-900/5 text-zinc-400"
+                    done ? "bg-emerald-500 text-white" : current ? "text-white" : "bg-ash-900/5 text-ash-400"
                   }`}
                   style={current ? { backgroundColor: "var(--brand)" } : undefined}
                   title={label}
@@ -341,9 +341,9 @@ export function VerifyFlow({
             >
               {/* ID DOCUMENT */}
               {step === "id" && (
-                <div className="glass rounded-3xl bg-white/65 p-5">
+                <div className="glass rounded-3xl bg-paper/65 p-5">
                   <h2 className="text-base font-bold">{t.kyc.scanIdTitle}</h2>
-                  <p className="mt-1 text-xs text-zinc-500">{t.kyc.scanIdSub}</p>
+                  <p className="mt-1 text-xs text-ash-500">{t.kyc.scanIdSub}</p>
                   <div className="mt-4">
                     {analysing ? (
                       <ScanTheatre image={analysing} aspect="id" lines={t.kyc.idLines} />
@@ -356,9 +356,9 @@ export function VerifyFlow({
 
               {/* FACE MATCH */}
               {step === "facematch" && reveal !== "facematch" && (
-                <div className="glass rounded-3xl bg-white/65 p-5">
+                <div className="glass rounded-3xl bg-paper/65 p-5">
                   <h2 className="text-base font-bold">{t.kyc.faceTitle}</h2>
-                  <p className="mt-1 text-xs text-zinc-500">{t.kyc.faceSub}</p>
+                  <p className="mt-1 text-xs text-ash-500">{t.kyc.faceSub}</p>
                   <div className="mt-4">
                     {analysing && idImage ? (
                       <MatchTheatre idImage={idImage} selfie={analysing} t={t} />
@@ -382,14 +382,14 @@ export function VerifyFlow({
 
               {/* REGISTRY */}
               {step === "iprs" && (
-                <div className="glass rounded-3xl bg-white/65 p-6 text-center">
+                <div className="glass rounded-3xl bg-paper/65 p-6 text-center">
                   {busy ? (
                     <RegistryTheatre t={t} />
                   ) : (
                     <>
                       <Landmark className="mx-auto h-10 w-10" style={{ color: "var(--brand)" }} />
                       <h2 className="mt-3 text-base font-bold">{t.kyc.registryTitle}</h2>
-                      <p className="mt-1 text-xs text-zinc-500">{t.kyc.registrySub}</p>
+                      <p className="mt-1 text-xs text-ash-500">{t.kyc.registrySub}</p>
                       <button
                         onClick={runIprs}
                         disabled={busy}
@@ -435,7 +435,7 @@ function ScanTheatre({ image, lines, aspect }: { image: string; lines: string[];
   const p = useClimb();
   const line = lines[Math.min(lines.length - 1, Math.floor((p / 92) * lines.length))];
   return (
-    <div className={`relative w-full overflow-hidden rounded-2xl bg-zinc-900 ${aspect === "id" ? "aspect-[1.586/1]" : "aspect-square"}`}>
+    <div className={`relative w-full overflow-hidden rounded-2xl bg-stage ${aspect === "id" ? "aspect-[1.586/1]" : "aspect-square"}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={image} alt="" className="h-full w-full object-cover opacity-80" />
       <motion.div
@@ -447,7 +447,7 @@ function ScanTheatre({ image, lines, aspect }: { image: string; lines: string[];
           <span className="flex items-center gap-1.5 text-xs font-medium"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {line}</span>
           <span className="text-sm font-bold tabular-nums">{p}%</span>
         </div>
-        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/20">
+        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-paper/20">
           <div className="h-full rounded-full bg-[var(--brand)] transition-all duration-150" style={{ width: `${p}%` }} />
         </div>
       </div>
@@ -462,7 +462,7 @@ function MatchTheatre({ idImage, selfie, t }: { idImage: string; selfie: string;
     <div>
       <div className="grid grid-cols-2 gap-2">
         {[{ src: idImage, label: t.kyc.idPortrait }, { src: selfie, label: t.kyc.liveSelfie }].map((f) => (
-          <div key={f.label} className="relative aspect-square overflow-hidden rounded-xl bg-zinc-900">
+          <div key={f.label} className="relative aspect-square overflow-hidden rounded-xl bg-stage">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={f.src} alt={f.label.toLowerCase()} className="h-full w-full object-cover opacity-85" />
             <motion.div
@@ -478,10 +478,10 @@ function MatchTheatre({ idImage, selfie, t }: { idImage: string; selfie: string;
         ))}
       </div>
       <div className="mt-3 flex items-center justify-between">
-        <span className="flex items-center gap-1.5 text-xs font-medium text-zinc-600"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t.kyc.comparingGeometry}</span>
+        <span className="flex items-center gap-1.5 text-xs font-medium text-ash-600"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t.kyc.comparingGeometry}</span>
         <span className="text-sm font-bold tabular-nums" style={{ color: "var(--brand)" }}>{p}%</span>
       </div>
-      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-900/10">
+      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-ash-900/10">
         <div className="h-full rounded-full bg-[var(--brand)] transition-all duration-150" style={{ width: `${p}%` }} />
       </div>
     </div>
@@ -495,7 +495,7 @@ function RegistryTheatre({ t }: { t: PortalDict }) {
     <div className="py-4">
       <Landmark className="mx-auto h-10 w-10 animate-pulse" style={{ color: "var(--brand)" }} />
       <p className="mt-3 text-sm font-semibold">{lines[Math.min(lines.length - 1, Math.floor((p / 92) * lines.length))]}</p>
-      <div className="mx-auto mt-4 h-1.5 max-w-xs overflow-hidden rounded-full bg-zinc-900/10">
+      <div className="mx-auto mt-4 h-1.5 max-w-xs overflow-hidden rounded-full bg-ash-900/10">
         <div className="h-full rounded-full bg-[var(--brand)] transition-all duration-150" style={{ width: `${p}%` }} />
       </div>
     </div>
@@ -566,14 +566,14 @@ function IdExtractionReveal({ result, idImage, blocked, onContinue, onRetake, t 
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass mt-5 rounded-3xl bg-white/70 p-5 sm:p-7"
+      className="glass mt-5 rounded-3xl bg-paper/70 p-5 sm:p-7"
     >
       <div className="grid gap-6 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
         {/* LEFT — the evidence: the card, and the fields lifted straight off it. */}
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[color:var(--ink-faint)]">{b.extracted}</p>
           {idImage && (
-            <div className="mt-2 overflow-hidden rounded-2xl ring-1 ring-zinc-900/10">
+            <div className="mt-2 overflow-hidden rounded-2xl ring-1 ring-ash-900/10">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={idImage} alt="" className="aspect-[1.586/1] w-full object-cover" />
             </div>
@@ -584,9 +584,9 @@ function IdExtractionReveal({ result, idImage, blocked, onContinue, onRetake, t 
               { k: b.idNo, v: ocr?.idNumber },
               { k: b.dob, v: ocr?.dob },
             ].map((f) => (
-              <div key={f.k} className="flex items-baseline justify-between gap-3 rounded-lg bg-zinc-900/[0.04] px-3 py-2">
-                <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{f.k}</dt>
-                <dd className="min-w-0 truncate text-right text-sm font-bold text-zinc-800">{f.v || "—"}</dd>
+              <div key={f.k} className="flex items-baseline justify-between gap-3 rounded-lg bg-ash-900/[0.04] px-3 py-2">
+                <dt className="text-[11px] font-semibold uppercase tracking-wide text-ash-400">{f.k}</dt>
+                <dd className="min-w-0 truncate text-right text-sm font-bold text-ash-800">{f.v || "—"}</dd>
               </div>
             ))}
           </dl>
@@ -599,8 +599,8 @@ function IdExtractionReveal({ result, idImage, blocked, onContinue, onRetake, t 
 
         {/* RIGHT — the three names, read top to bottom, each with its own verdict. */}
         <div className="min-w-0">
-          <h2 className="text-lg font-bold text-zinc-900">{b.title}</h2>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-500">{b.sub}</p>
+          <h2 className="text-lg font-bold text-ash-900">{b.title}</h2>
+          <p className="mt-1 text-xs leading-relaxed text-ash-500">{b.sub}</p>
 
           <div className="mt-4 space-y-2.5">
             {rows.map((r, i) => (
@@ -617,9 +617,9 @@ function IdExtractionReveal({ result, idImage, blocked, onContinue, onRetake, t 
                     {r.agrees ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">{r.label}</p>
-                    <p className={`truncate text-base font-bold ${r.agrees ? "text-zinc-900" : "text-rose-700"}`}>{r.value || "—"}</p>
-                    {r.sub && <p className="truncate text-[11px] text-zinc-500">{r.sub}</p>}
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-ash-400">{r.label}</p>
+                    <p className={`truncate text-base font-bold ${r.agrees ? "text-ash-900" : "text-rose-700"}`}>{r.value || "—"}</p>
+                    {r.sub && <p className="truncate text-[11px] text-ash-500">{r.sub}</p>}
                   </div>
                   <span className={`shrink-0 text-[11px] font-semibold ${r.agrees ? "text-emerald-600" : "text-rose-600"}`}>
                     {r.agrees ? b.agrees : b.disagrees}
@@ -627,7 +627,7 @@ function IdExtractionReveal({ result, idImage, blocked, onContinue, onRetake, t 
                 </motion.div>
                 {/* connective seam between the rows */}
                 {i < rows.length - 1 && (
-                  <div className="ml-[1.15rem] h-2 w-px bg-zinc-900/15" aria-hidden />
+                  <div className="ml-[1.15rem] h-2 w-px bg-ash-900/15" aria-hidden />
                 )}
               </div>
             ))}
@@ -644,7 +644,7 @@ function IdExtractionReveal({ result, idImage, blocked, onContinue, onRetake, t 
               {allMatch ? <ShieldCheck className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
               {allMatch ? b.confirmedTitle : noRecord ? t.kyc.gateNoRecord : b.mismatchTitle}
             </p>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+            <p className="mt-1 text-xs leading-relaxed text-ash-600">
               {allMatch
                 ? fmt(b.confirmedBody, { name: borrowerName || registryName || "" })
                 : noRecord
@@ -663,7 +663,7 @@ function IdExtractionReveal({ result, idImage, blocked, onContinue, onRetake, t 
             ) : (
               <button
                 onClick={onRetake}
-                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300 bg-white/80 px-5 py-3 text-sm font-semibold text-rose-700 hover:bg-white sm:w-auto"
+                className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-rose-300 bg-paper/80 px-5 py-3 text-sm font-semibold text-rose-700 hover:bg-paper sm:w-auto"
               >
                 {b.retake} <ArrowRight className="h-4 w-4" />
               </button>
@@ -687,7 +687,7 @@ function FaceMatchReveal({ idImage, selfie, result, onContinue, t }: {
   const good = fm.band === "match";
   const review = fm.band === "review";
   return (
-    <div className="glass rounded-3xl bg-white/65 p-6">
+    <div className="glass rounded-3xl bg-paper/65 p-6">
       <div className="mx-auto grid max-w-xs grid-cols-2 gap-2">
         {[idImage, selfie].map((src, i) => src && (
           <div key={i} className={`relative aspect-square overflow-hidden rounded-xl ring-2 ${good ? "ring-emerald-500" : review ? "ring-amber-500" : "ring-red-500"}`}>
@@ -703,7 +703,7 @@ function FaceMatchReveal({ idImage, selfie, result, onContinue, t }: {
           {good ? <CheckCircle2 className="h-4 w-4" /> : review ? <AlertTriangle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
           {good ? t.kyc.matchConfirmed : review ? t.kyc.needsHumanReview : t.kyc.notAMatch}
         </motion.p>
-        <p className="mt-1 text-[11px] text-zinc-400">{t.kyc.bgRemoved}</p>
+        <p className="mt-1 text-[11px] text-ash-400">{t.kyc.bgRemoved}</p>
         <button onClick={onContinue} className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--brand)" }}>
           {t.kyc.continue} <ArrowRight className="h-3.5 w-3.5" />
         </button>
@@ -747,7 +747,7 @@ function Dossier({ idImage, selfie, results, mode, t }: {
   if (iprs) rows.push({ label: t.kyc.registryRow, value: iprs.matched ? t.kyc.matched : t.kyc.noRecord, good: !!iprs.matched });
 
   return (
-    <aside className="glass h-fit rounded-3xl bg-white/65 p-4 lg:sticky lg:top-24">
+    <aside className="glass h-fit rounded-3xl bg-paper/65 p-4 lg:sticky lg:top-24">
       <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[color:var(--ink-faint)]">{t.kyc.caseFile}</p>
 
       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -756,7 +756,7 @@ function Dossier({ idImage, selfie, results, mode, t }: {
       </div>
 
       {id?.ocr?.fullName && (
-        <div className="mt-3 rounded-lg bg-zinc-900/[0.04] p-2.5 text-xs">
+        <div className="mt-3 rounded-lg bg-ash-900/[0.04] p-2.5 text-xs">
           <p className="font-semibold text-[color:var(--ink)]">{id.ocr.fullName}</p>
           {id.ocr.idNumber && <p className="mt-0.5 text-[color:var(--ink-muted)]">ID {id.ocr.idNumber}</p>}
         </div>
@@ -781,7 +781,7 @@ function Dossier({ idImage, selfie, results, mode, t }: {
         </p>
       )}
 
-      <p className="mt-3 border-t border-zinc-900/10 pt-2 text-[10px] text-[color:var(--ink-faint)]">
+      <p className="mt-3 border-t border-ash-900/10 pt-2 text-[10px] text-[color:var(--ink-faint)]">
         {mode === "live" ? t.kyc.liveProvider : t.kyc.simProvider}
       </p>
     </aside>
@@ -792,7 +792,7 @@ function EvidenceSlot({ label, pendingLabel, image, wide }: { label: string; pen
   return (
     <div>
       <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[color:var(--ink-faint)]">{label}</p>
-      <div className={`relative overflow-hidden rounded-lg bg-zinc-900/[0.05] ${wide ? "aspect-[1.586/1]" : "aspect-square"} ${image ? "" : "border border-dashed border-zinc-900/15"}`}>
+      <div className={`relative overflow-hidden rounded-lg bg-ash-900/[0.05] ${wide ? "aspect-[1.586/1]" : "aspect-square"} ${image ? "" : "border border-dashed border-ash-900/15"}`}>
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={image} alt={label} className="h-full w-full object-cover" />

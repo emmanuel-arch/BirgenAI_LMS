@@ -138,8 +138,8 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
     } catch { setError("Reset failed."); } finally { setLoading(false); }
   };
 
-  const wrap = "flex items-center gap-2.5 rounded-xl border border-zinc-900/12 bg-white/80 px-3.5 transition-colors focus-within:border-[color:var(--brand)] focus-within:bg-white";
-  const input = "flex-1 bg-transparent outline-none text-[15px] py-3.5 placeholder:text-zinc-400";
+  const wrap = "flex items-center gap-2.5 rounded-xl border border-ash-900/12 bg-paper/80 px-3.5 transition-colors focus-within:border-[color:var(--brand)] focus-within:bg-paper";
+  const input = "flex-1 bg-transparent outline-none text-[15px] py-3.5 placeholder:text-ash-400";
   // The branded accent drives the primary button; the un-branded default now wears
   // MICRO EAZY'S OWN COLOURS rather than the old near-black. Sampled from the mark
   // itself so the paint and the logo cannot drift apart: the wordmark is navy
@@ -150,7 +150,7 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
     "--brand": brand?.accent ?? ME_NAVY,
     "--brand-soft": brand?.accentSoft ?? "rgba(0,48,107,0.12)",
   } as CSSProperties;
-  const primaryBtn = "mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-zinc-900/10 transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:hover:brightness-100";
+  const primaryBtn = "mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-ash-900/10 transition-all hover:brightness-110 active:scale-[0.99] disabled:opacity-60 disabled:hover:brightness-100";
   const accent = brand?.accent ?? ME_NAVY;
   const accent2 = brand?.accent2 ?? (brand ? accent : ME_GREEN);
   const primaryStyle: CSSProperties = { background: `linear-gradient(120deg, ${accent}, ${accent2})` };
@@ -213,7 +213,7 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
             : focusField === "email" ? "open" : "locked";
 
   return (
-    <div className="min-h-screen relative text-zinc-900" style={accentVars}>
+    <div className="min-h-screen relative text-ash-900" style={accentVars}>
       <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
       <AuthAmbient accent={accent} accent2={accent2} />
 
@@ -222,7 +222,7 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
           initial={{ opacity: 0, y: 16, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          className="glass w-full max-w-md overflow-hidden rounded-3xl bg-white/75 shadow-2xl shadow-zinc-900/10"
+          className="glass w-full max-w-md overflow-hidden rounded-3xl bg-paper/75 shadow-2xl shadow-ash-900/10"
         >
           {/* Brand-lit crown — a thin gradient seam so every door feels bespoke.
               On the un-branded door this is now navy→green rather than the old
@@ -281,7 +281,7 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
                     eyebrow would be the tail wagging the dog. */}
                 <AccessSeal state={seal} accent={accent} accent2={accent2} size={soloEyebrow ? 34 : 26} />
               </div>
-              {heading && <h1 className="mt-1.5 text-[22px] font-bold leading-tight tracking-tight text-zinc-900">{heading}</h1>}
+              {heading && <h1 className="mt-1.5 text-[22px] font-bold leading-tight tracking-tight text-ash-900">{heading}</h1>}
             </div>
 
             {error && (
@@ -291,7 +291,7 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
             )}
             {/* Higher-calibre status line (forgot/reset) — brand-toned, not a green tick banner */}
             {notice && mode !== "otp" && (
-              <div className="mt-4 flex items-start gap-2 rounded-xl border border-zinc-900/10 bg-white/70 px-3 py-2.5 text-sm text-zinc-700">
+              <div className="mt-4 flex items-start gap-2 rounded-xl border border-ash-900/10 bg-paper/70 px-3 py-2.5 text-sm text-ash-700">
                 <MailCheck className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--brand)" }} /> {notice}
               </div>
             )}
@@ -301,7 +301,7 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
                 <motion.div key="signin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                   <div className="mt-5 space-y-3">
                     <div className={wrap}>
-                      <Mail className="h-4 w-4 text-zinc-400 shrink-0" />
+                      <Mail className="h-4 w-4 text-ash-400 shrink-0" />
                       <input
                         value={email} onChange={(e) => setEmail(e.target.value)}
                         onFocus={() => setFocusField("email")} onBlur={() => setFocusField(null)}
@@ -309,7 +309,7 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
                       />
                     </div>
                     <div className={wrap}>
-                      <Lock className="h-4 w-4 text-zinc-400 shrink-0" />
+                      <Lock className="h-4 w-4 text-ash-400 shrink-0" />
                       <input
                         value={password} onChange={(e) => setPassword(e.target.value)}
                         onFocus={() => setFocusField("password")} onBlur={() => setFocusField(null)}
@@ -322,12 +322,12 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Sign in <ArrowRight className="h-4 w-4" />
                   </button>
                   <div className="mt-4 flex items-center justify-between text-xs">
-                    <button onClick={() => { setMode("forgot"); setError(null); setNotice(null); }} className="text-zinc-500 hover:text-zinc-800">Forgot password?</button>
+                    <button onClick={() => { setMode("forgot"); setError(null); setNotice(null); }} className="text-ash-500 hover:text-ash-800">Forgot password?</button>
                     {!brand && (
                       <Link href="/onboard" className="font-semibold" style={{ color: "var(--brand)" }}>Create your organization</Link>
                     )}
                   </div>
-                  <p className="mt-4 flex items-center gap-1.5 text-[11px] text-zinc-400">
+                  <p className="mt-4 flex items-center gap-1.5 text-[11px] text-ash-400">
                     <ShieldCheck className="h-3 w-3 shrink-0" /> Two-factor protected · every action audited
                   </p>
                 </motion.div>
@@ -354,20 +354,20 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
                   <button onClick={() => submit(otp)} disabled={loading || sealed || otp.length !== 6} className={primaryBtn} style={primaryStyle}>
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {sealed ? "Opening…" : "Verify & sign in"} {!loading && !sealed && <ArrowRight className="h-4 w-4" />}
                   </button>
-                  <p className="mt-3 text-center text-[11px] leading-relaxed text-zinc-400">
+                  <p className="mt-3 text-center text-[11px] leading-relaxed text-ash-400">
                     No email? The code from earlier today still works — check your inbox and spam.
                   </p>
-                  <button onClick={() => { setMode("signin"); setOtp(""); setError(null); setNotice(null); setFallbackCode(null); }} className="mt-3 w-full text-center text-xs text-zinc-500 hover:text-zinc-800">Back to sign in</button>
+                  <button onClick={() => { setMode("signin"); setOtp(""); setError(null); setNotice(null); setFallbackCode(null); }} className="mt-3 w-full text-center text-xs text-ash-500 hover:text-ash-800">Back to sign in</button>
                 </motion.div>
               )}
 
               {mode === "forgot" && (
                 <motion.div key="forgot" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                  <div className="mt-5"><div className={wrap}><Mail className="h-4 w-4 text-zinc-400 shrink-0" /><input value={email} onChange={(e) => setEmail(e.target.value)} onFocus={() => setFocusField("email")} onBlur={() => setFocusField(null)} inputMode="email" placeholder="Work email" onKeyDown={(e) => e.key === "Enter" && requestCode()} className={input} /></div></div>
+                  <div className="mt-5"><div className={wrap}><Mail className="h-4 w-4 text-ash-400 shrink-0" /><input value={email} onChange={(e) => setEmail(e.target.value)} onFocus={() => setFocusField("email")} onBlur={() => setFocusField(null)} inputMode="email" placeholder="Work email" onKeyDown={(e) => e.key === "Enter" && requestCode()} className={input} /></div></div>
                   <button onClick={requestCode} disabled={loading} className={primaryBtn} style={primaryStyle}>
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />} Send reset code
                   </button>
-                  <button onClick={() => { setMode("signin"); setError(null); setNotice(null); }} className="mt-4 w-full text-center text-xs text-zinc-500 hover:text-zinc-800">Back to sign in</button>
+                  <button onClick={() => { setMode("signin"); setError(null); setNotice(null); }} className="mt-4 w-full text-center text-xs text-ash-500 hover:text-ash-800">Back to sign in</button>
                 </motion.div>
               )}
 
@@ -375,18 +375,18 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
                 <motion.div key="reset" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                   <div className="mt-5 space-y-3">
                     <CodeInput value={code} onChange={setCode} length={6} disabled={loading} autoFocus />
-                    <div className={wrap}><Lock className="h-4 w-4 text-zinc-400 shrink-0" /><input value={nextPass} onChange={(e) => setNextPass(e.target.value)} onFocus={() => setFocusField("password")} onBlur={() => setFocusField(null)} type="password" placeholder="New password (10+ chars)" onKeyDown={(e) => e.key === "Enter" && confirmReset()} className={input} /></div>
+                    <div className={wrap}><Lock className="h-4 w-4 text-ash-400 shrink-0" /><input value={nextPass} onChange={(e) => setNextPass(e.target.value)} onFocus={() => setFocusField("password")} onBlur={() => setFocusField(null)} type="password" placeholder="New password (10+ chars)" onKeyDown={(e) => e.key === "Enter" && confirmReset()} className={input} /></div>
                   </div>
                   <button onClick={confirmReset} disabled={loading} className={primaryBtn} style={primaryStyle}>
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Update password
                   </button>
-                  <button onClick={() => { setMode("signin"); setError(null); setNotice(null); }} className="mt-4 w-full text-center text-xs text-zinc-500 hover:text-zinc-800">Back to sign in</button>
+                  <button onClick={() => { setMode("signin"); setError(null); setNotice(null); }} className="mt-4 w-full text-center text-xs text-ash-500 hover:text-ash-800">Back to sign in</button>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <p className="mt-6 text-center text-[11px] text-zinc-400">
-              Powered by <span className="font-semibold text-zinc-500">BirgenAI</span>
+            <p className="mt-6 text-center text-[11px] text-ash-400">
+              Powered by <span className="font-semibold text-ash-500">BirgenAI</span>
             </p>
           </div>
         </motion.div>

@@ -59,14 +59,14 @@ export default function RankBoard({
   return (
     <div className="space-y-3">
       {/* ── The definition picker ─────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-zinc-900/10 bg-white p-4">
+      <div className="rounded-2xl border border-ash-900/10 bg-paper p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[12px] font-bold text-zinc-800">
+          <p className="text-[12px] font-bold text-ash-800">
             &ldquo;Best&rdquo; means what, exactly?
           </p>
-          {pending && <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-400" />}
+          {pending && <Loader2 className="h-3.5 w-3.5 animate-spin text-ash-400" />}
         </div>
-        <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
+        <p className="mt-0.5 text-[11px] leading-snug text-ash-500">
           There is no single best {unitLabel.replace(/s$/, "")}. Pick the definition you actually mean — the order below
           changes with it, and the ones that move most are the ones worth talking about.
         </p>
@@ -80,7 +80,7 @@ export default function RankBoard({
                 onClick={() => setMetric(m.key)}
                 title={`${m.question} — ${m.formula}`}
                 className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
-                  on ? "bg-zinc-900 text-white" : "bg-zinc-900/[0.05] text-zinc-600 hover:bg-zinc-900/10"
+                  on ? "bg-invert text-invert-fg" : "bg-ash-900/[0.05] text-ash-600 hover:bg-ash-900/10"
                 }`}
               >
                 {m.label}
@@ -91,10 +91,10 @@ export default function RankBoard({
       </div>
 
       {/* ── What we are looking at ────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-zinc-900/10 bg-white p-4 sm:p-5">
-        <h3 className="text-[13px] font-bold text-zinc-800">{question}</h3>
-        <p className="mt-0.5 text-[11px] text-zinc-500">
-          Ranked by <span className="font-semibold text-zinc-700">{metricLabel}</span> — {formula.toLowerCase()}.
+      <div className="rounded-2xl border border-ash-900/10 bg-paper p-4 sm:p-5">
+        <h3 className="text-[13px] font-bold text-ash-800">{question}</h3>
+        <p className="mt-0.5 text-[11px] text-ash-500">
+          Ranked by <span className="font-semibold text-ash-700">{metricLabel}</span> — {formula.toLowerCase()}.
         </p>
 
         {caveat && (
@@ -107,7 +107,7 @@ export default function RankBoard({
         {/* ── The table ───────────────────────────────────────────────────── */}
         <div className="mt-3 space-y-2">
           {rows.length === 0 && (
-            <p className="py-8 text-center text-[13px] text-zinc-500">
+            <p className="py-8 text-center text-[13px] text-ash-500">
               No {unitLabel} with any activity in this cut.
             </p>
           )}
@@ -117,10 +117,10 @@ export default function RankBoard({
               <div key={r.key} className="group">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="flex min-w-0 items-baseline gap-2">
-                    <span className="w-4 shrink-0 text-right text-[10px] font-bold tabular-nums text-zinc-300">
+                    <span className="w-4 shrink-0 text-right text-[10px] font-bold tabular-nums text-ash-300">
                       {r.position}
                     </span>
-                    <span className="truncate text-[12.5px] font-medium text-zinc-800">{r.label}</span>
+                    <span className="truncate text-[12.5px] font-medium text-ash-800">{r.label}</span>
                     {r.thin && (
                       <span
                         className="inline-flex shrink-0 items-center gap-0.5 rounded bg-amber-100 px-1 py-0.5 text-[8px] font-bold uppercase text-amber-700"
@@ -131,12 +131,12 @@ export default function RankBoard({
                     )}
                   </span>
                   {/* Values in ink, never in the series colour. */}
-                  <span className="shrink-0 text-[12.5px] font-bold tabular-nums text-zinc-900">
+                  <span className="shrink-0 text-[12.5px] font-bold tabular-nums text-ash-900">
                     {formatValue(r.score, r.format)}
                   </span>
                 </div>
 
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-zinc-900/[0.05]">
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-ash-900/[0.05]">
                   <div
                     className="h-full rounded-r-[4px] transition-all duration-500"
                     style={{
@@ -151,7 +151,7 @@ export default function RankBoard({
 
                 {/* The context behind the rank. This is what stops a league table
                     being read as a verdict: the numbers that produced it. */}
-                <p className="mt-0.5 text-[10px] tabular-nums text-zinc-400">
+                <p className="mt-0.5 text-[10px] tabular-nums text-ash-400">
                   {r.row.activeLoans.toLocaleString()} active · {formatValue(r.row.olb, "money", { compact: true })} out ·{" "}
                   {r.row.par30.toFixed(1)}% PAR 30 · {r.row.newLoans.toLocaleString()} booked ·{" "}
                   {formatValue(r.row.disbursed, "money", { compact: true })} lent
@@ -162,7 +162,7 @@ export default function RankBoard({
         </div>
 
         {spreadNote && (
-          <p className="mt-4 border-t border-zinc-900/[0.06] pt-3 text-[11.5px] leading-snug text-zinc-600">
+          <p className="mt-4 border-t border-ash-900/[0.06] pt-3 text-[11.5px] leading-snug text-ash-600">
             {spreadNote}
           </p>
         )}

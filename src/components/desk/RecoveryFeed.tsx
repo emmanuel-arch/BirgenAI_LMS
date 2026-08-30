@@ -41,14 +41,14 @@ export default function RecoveryFeed({
         title="Recoveries"
         sub="Every payment attributed to the agent who earned it, with the M-Pesa reference it arrived on. Read from CollectBox, never written."
         right={
-          <div className="flex rounded-lg bg-zinc-900/[0.045] p-0.5">
+          <div className="flex rounded-lg bg-ash-900/[0.045] p-0.5">
             {[1, 2, 7, 30].map((d) => (
               <button
                 key={d}
                 type="button"
                 onClick={() => setDays(d)}
                 className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                  days === d ? "bg-white text-zinc-800 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+                  days === d ? "bg-paper text-ash-800 shadow-sm" : "text-ash-500 hover:text-ash-700"
                 }`}
               >
                 {d === 1 ? "24h" : `${d}d`}
@@ -102,40 +102,40 @@ export default function RecoveryFeed({
           <div className="max-h-[620px] overflow-auto">
             <table className="w-full min-w-[900px] text-left">
               <thead>
-                <tr className="border-y border-zinc-900/[0.07] bg-white text-[9.5px] font-bold uppercase tracking-[0.1em] text-zinc-400">
-                  <th className="sticky top-0 bg-white px-4 py-2">Time</th>
-                  <th className="sticky top-0 bg-white px-3 py-2">Customer</th>
-                  <th className="sticky top-0 bg-white px-3 py-2 text-right">Amount</th>
-                  <th className="sticky top-0 bg-white px-3 py-2">M-Pesa</th>
-                  <th className="sticky top-0 bg-white px-3 py-2">Band</th>
-                  <th className="sticky top-0 bg-white px-3 py-2">Recovered by</th>
-                  <th className="sticky top-0 bg-white px-3 py-2 text-right">Comm.</th>
+                <tr className="border-y border-ash-900/[0.07] bg-paper text-[9.5px] font-bold uppercase tracking-[0.1em] text-ash-400">
+                  <th className="sticky top-0 bg-paper px-4 py-2">Time</th>
+                  <th className="sticky top-0 bg-paper px-3 py-2">Customer</th>
+                  <th className="sticky top-0 bg-paper px-3 py-2 text-right">Amount</th>
+                  <th className="sticky top-0 bg-paper px-3 py-2">M-Pesa</th>
+                  <th className="sticky top-0 bg-paper px-3 py-2">Band</th>
+                  <th className="sticky top-0 bg-paper px-3 py-2">Recovered by</th>
+                  <th className="sticky top-0 bg-paper px-3 py-2 text-right">Comm.</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-zinc-900/[0.045] last:border-0 hover:bg-zinc-900/[0.022]">
-                    <td className="px-4 py-1.5 text-[11px] tabular-nums text-zinc-500">
+                  <tr key={r.id} className="border-b border-ash-900/[0.045] last:border-0 hover:bg-ash-900/[0.022]">
+                    <td className="px-4 py-1.5 text-[11px] tabular-nums text-ash-500">
                       {shortTime(r.paidAt)}
-                      <span className="block text-[9.5px] text-zinc-400">{ago(r.paidAt)}</span>
+                      <span className="block text-[9.5px] text-ash-400">{ago(r.paidAt)}</span>
                     </td>
                     <td className="px-3 py-1.5">
                       <Link href={`/desk/case/${r.loanId}`} className="block min-w-0">
-                        <span className="block truncate text-[12px] font-medium text-zinc-800 hover:text-[color:var(--accent)]">{r.name}</span>
-                        <span className="block truncate text-[10px] text-zinc-400">{r.branch}</span>
+                        <span className="block truncate text-[12px] font-medium text-ash-800 hover:text-[color:var(--accent)]">{r.name}</span>
+                        <span className="block truncate text-[10px] text-ash-400">{r.branch}</span>
                       </Link>
                     </td>
                     <td className="px-3 py-1.5 text-right text-[12.5px] font-semibold tabular-nums text-emerald-700">{KES(r.amount)}</td>
                     <td className="px-3 py-1.5">
-                      <span className="rounded bg-zinc-900/[0.05] px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-zinc-600">
+                      <span className="rounded bg-ash-900/[0.05] px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-ash-600">
                         {r.mpesaCode || "—"}
                       </span>
                     </td>
                     <td className="px-3 py-1.5">
-                      {r.band ? <Chip label={r.band.short} accent={r.band.accent} title={`${r.band.name} · ${r.band.commission}%`} /> : <span className="text-zinc-300">—</span>}
+                      {r.band ? <Chip label={r.band.short} accent={r.band.accent} title={`${r.band.name} · ${r.band.commission}%`} /> : <span className="text-ash-300">—</span>}
                     </td>
-                    <td className="px-3 py-1.5 truncate text-[11.5px] text-zinc-600">{r.agentName ?? "—"}</td>
-                    <td className="px-3 py-1.5 text-right text-[11px] tabular-nums text-zinc-500">
+                    <td className="px-3 py-1.5 truncate text-[11.5px] text-ash-600">{r.agentName ?? "—"}</td>
+                    <td className="px-3 py-1.5 text-right text-[11px] tabular-nums text-ash-500">
                       {r.commission > 0 ? KES(r.commission) : "—"}
                     </td>
                   </tr>

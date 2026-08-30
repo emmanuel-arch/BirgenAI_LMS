@@ -40,9 +40,9 @@ export default function ShadowQueue({
           <p className={`mt-1 text-[11.5px] leading-relaxed ${posture.armed ? "text-red-800/85" : "text-amber-800/85"}`}>
             {posture.detail}
           </p>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-600">
+          <p className="mt-1.5 text-[11px] leading-relaxed text-ash-600">
             The mirror is controlled by one environment variable,{" "}
-            <code className="rounded bg-zinc-900/[0.07] px-1 text-[10.5px]">COLLECTBOX_POSTING_ENABLED</code>. Nothing in
+            <code className="rounded bg-ash-900/[0.07] px-1 text-[10.5px]">COLLECTBOX_POSTING_ENABLED</code>. Nothing in
             the interface can arm it — that is deliberate: a button that can start writing to somebody else&rsquo;s
             production database is a button that gets pressed by accident.
           </p>
@@ -70,17 +70,17 @@ export default function ShadowQueue({
             />
           </div>
         ) : (
-          <ol className="divide-y divide-zinc-900/[0.05]">
+          <ol className="divide-y divide-ash-900/[0.05]">
             {rows.map((r) => (
               <li key={r.id} className="px-4 py-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="flex flex-wrap items-center gap-1.5 text-[12.5px] font-semibold text-zinc-800">
+                    <p className="flex flex-wrap items-center gap-1.5 text-[12.5px] font-semibold text-ash-800">
                       {r.headline}
                       <Tag tone={r.state === "FAILED" ? "bad" : "warn"}>{r.state === "FAILED" ? "Failed" : "Held"}</Tag>
                       {r.entityId === 3005 && <Tag tone="good">Fintech 3005</Tag>}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-zinc-500">
+                    <p className="mt-0.5 text-[11px] text-ash-500">
                       {r.subjectName ? (
                         <Link href={`/desk/case/${r.liveLoanId}`} className="hover:text-[color:var(--accent)] hover:underline">
                           {r.subjectName}
@@ -88,10 +88,10 @@ export default function ShadowQueue({
                       ) : (
                         `loan #${r.liveLoanId}`
                       )}
-                      <span className="text-zinc-400"> · {r.actorName} · {ago(r.createdAt)}</span>
+                      <span className="text-ash-400"> · {r.actorName} · {ago(r.createdAt)}</span>
                     </p>
                   </div>
-                  <span className="shrink-0 rounded bg-zinc-900/[0.05] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-zinc-500">
+                  <span className="shrink-0 rounded bg-ash-900/[0.05] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-ash-500">
                     {r.kind}
                   </span>
                 </div>
@@ -103,7 +103,7 @@ export default function ShadowQueue({
                   </p>
                 )}
 
-                <pre className="mt-2 overflow-x-auto rounded-lg bg-zinc-900 p-2.5 text-[10px] leading-relaxed text-emerald-300">
+                <pre className="mt-2 overflow-x-auto rounded-lg bg-stage p-2.5 text-[10px] leading-relaxed text-emerald-300">
                   {r.shadowSql}
                 </pre>
               </li>

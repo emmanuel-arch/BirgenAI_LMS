@@ -29,9 +29,9 @@ type Agent = { id: string; name: string; title: string | null; lat: number | nul
 type Visit = { id: string; label: string; kind: string; status: string; address: string | null; lat: number; lng: number; distanceKm: number | null; outcome: string | null; agentId: string | null; agentName: string | null; createdAt: string };
 
 const STATUS_TONE: Record<string, string> = {
-  QUEUED: "bg-zinc-900/5 text-zinc-600", ALLOCATED: "bg-blue-100 text-blue-700",
+  QUEUED: "bg-ash-900/5 text-ash-600", ALLOCATED: "bg-blue-100 text-blue-700",
   EN_ROUTE: "bg-indigo-100 text-indigo-700", ARRIVED: "bg-amber-100 text-amber-700",
-  VERIFIED: "bg-emerald-100 text-emerald-700", FAILED: "bg-red-100 text-red-700", CANCELLED: "bg-zinc-900/5 text-zinc-400",
+  VERIFIED: "bg-emerald-100 text-emerald-700", FAILED: "bg-red-100 text-red-700", CANCELLED: "bg-ash-900/5 text-ash-400",
 };
 const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
 const AVA = ["#f97316", "#3b82f6", "#10b981", "#8b5cf6", "#e11d48", "#0ea5e9"];
@@ -95,14 +95,14 @@ export function FieldClient() {
         subtitle="Drop a visit where the customer actually is; the nearest available agent is allocated automatically — and every stop is one tap from turn-by-turn navigation."
       >
         <Link href="/console/field/map"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+          className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
           <Navigation className="h-3.5 w-3.5" /> Route Planner
         </Link>
       </PageHeader>
 
       {notice && <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50/90 px-3 py-2.5 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> {notice}</div>}
       {error && <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
-      {loading && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>}
+      {loading && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>}
 
       {!loading && (
         <div className="mt-5 grid gap-5 lg:grid-cols-[1.4fr_1fr]">
@@ -111,11 +111,11 @@ export function FieldClient() {
             <PinDropMap value={pin} onChange={setPin} height={340} />
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <input value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))} placeholder="Visit label (e.g. Jane's kiosk)"
-                className="rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2 text-sm outline-none sm:col-span-2" />
+                className="rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2 text-sm outline-none sm:col-span-2" />
               <input value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder="Address / landmark"
-                className="rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2 text-sm outline-none" />
+                className="rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2 text-sm outline-none" />
               <select value={form.kind} onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value }))}
-                className="rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2 text-sm outline-none">
+                className="rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2 text-sm outline-none">
                 <option value="BUSINESS_VERIFICATION">Business verification</option>
                 <option value="HOME_VERIFICATION">Home verification</option>
                 <option value="COLLECTION_VISIT">Collection visit</option>
@@ -138,12 +138,12 @@ export function FieldClient() {
                     <div className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold text-white shrink-0" style={{ backgroundColor: avaColor(a.avatarSeed) }}>{initials(a.name)}</div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold truncate">{a.name}</p>
-                      <p className="text-[11px] text-zinc-500">{a.title ?? "Field agent"}{a.lat == null ? " · no location" : ""}</p>
+                      <p className="text-[11px] text-ash-500">{a.title ?? "Field agent"}{a.lat == null ? " · no location" : ""}</p>
                     </div>
-                    <span className="rounded-md bg-zinc-900/5 px-2 py-1 text-[11px] font-semibold text-zinc-600 shrink-0">{a.openVisits} open</span>
+                    <span className="rounded-md bg-ash-900/5 px-2 py-1 text-[11px] font-semibold text-ash-600 shrink-0">{a.openVisits} open</span>
                   </div>
                 ))}
-                {agents.length === 0 && <p className="text-xs text-zinc-500">No field agents yet — mark staff as field agents in Team & roles.</p>}
+                {agents.length === 0 && <p className="text-xs text-ash-500">No field agents yet — mark staff as field agents in Team & roles.</p>}
               </div>
             </motion.div>
 
@@ -151,12 +151,12 @@ export function FieldClient() {
               <h2 className="text-sm font-semibold">Visits ({visits.length})</h2>
               <div className="mt-3 space-y-2 max-h-[420px] overflow-y-auto">
                 {visits.map((v) => (
-                  <div key={v.id} className="rounded-xl border border-zinc-900/10 bg-white/70 p-3">
+                  <div key={v.id} className="rounded-xl border border-ash-900/10 bg-paper/70 p-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-semibold truncate">{v.label}</p>
                       <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold shrink-0 ${STATUS_TONE[v.status]}`}>{v.status.replace("_", " ")}</span>
                     </div>
-                    <p className="text-[11px] text-zinc-500 truncate">{v.address ?? v.kind.replace(/_/g, " ").toLowerCase()}{v.agentName ? ` · ${v.agentName}` : ""}{v.distanceKm != null ? ` · ${v.distanceKm} km` : ""}</p>
+                    <p className="text-[11px] text-ash-500 truncate">{v.address ?? v.kind.replace(/_/g, " ").toLowerCase()}{v.agentName ? ` · ${v.agentName}` : ""}{v.distanceKm != null ? ` · ${v.distanceKm} km` : ""}</p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {["ALLOCATED", "EN_ROUTE", "ARRIVED"].includes(v.status) && (
                         <>
@@ -176,7 +176,7 @@ export function FieldClient() {
                     </div>
                   </div>
                 ))}
-                {visits.length === 0 && <p className="text-xs text-zinc-500">No visits yet.</p>}
+                {visits.length === 0 && <p className="text-xs text-ash-500">No visits yet.</p>}
               </div>
             </motion.div>
           </div>
@@ -189,7 +189,7 @@ export function FieldClient() {
 function FieldBtn({ onClick, busy, label, primary }: { onClick: () => void; busy: boolean; label: string; primary?: boolean }) {
   return (
     <button onClick={onClick} disabled={busy}
-      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-60 ${primary ? "text-white" : "border border-zinc-900/15 bg-white/70 text-zinc-700 hover:bg-white"}`}
+      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-60 ${primary ? "text-white" : "border border-ash-900/15 bg-paper/70 text-ash-700 hover:bg-paper"}`}
       style={primary ? { backgroundColor: "var(--brand)" } : undefined}>
       {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null} {label}
     </button>

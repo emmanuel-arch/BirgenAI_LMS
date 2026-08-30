@@ -54,10 +54,10 @@ export default function KycGallery({ portraitKey, idFrontKey, selfieKey }: {
   };
 
   return (
-    <div className="mt-4 border-t border-zinc-900/10 pt-3">
+    <div className="mt-4 border-t border-ash-900/10 pt-3">
       {!shown ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-zinc-500 flex items-center gap-1.5">
+          <p className="text-xs text-ash-500 flex items-center gap-1.5">
             <Lock className="h-3.5 w-3.5" />
             {docs.length} identity document{docs.length === 1 ? "" : "s"} on file
             {simulated && (
@@ -67,34 +67,34 @@ export default function KycGallery({ portraitKey, idFrontKey, selfieKey }: {
             )}
           </p>
           <button onClick={reveal} disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white disabled:opacity-60">
+            className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-1.5 text-xs font-semibold text-ash-700 hover:bg-paper disabled:opacity-60">
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} Show documents
           </button>
         </div>
       ) : (
         <>
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs text-zinc-500">Links expire in about two minutes. This view was logged.</p>
+            <p className="text-xs text-ash-500">Links expire in about two minutes. This view was logged.</p>
             <button onClick={() => setShown(null)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white">
+              className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-1.5 text-xs font-semibold text-ash-700 hover:bg-paper">
               <EyeOff className="h-3.5 w-3.5" /> Hide
             </button>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2">
             {shown.map((d) => (
               <figure key={d.label} className="min-w-0">
-                <div className="aspect-[4/3] overflow-hidden rounded-xl border border-zinc-900/10 bg-zinc-50">
+                <div className="aspect-[4/3] overflow-hidden rounded-xl border border-ash-900/10 bg-ash-50">
                   {d.url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={d.url} alt={d.label} className="h-full w-full object-cover" />
                   ) : (
-                    <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center text-zinc-400">
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-2 text-center text-ash-400">
                       <ImageOff className="h-5 w-5" />
                       <span className="text-[10px] leading-tight">{d.note ?? "Unavailable"}</span>
                     </div>
                   )}
                 </div>
-                <figcaption className="mt-1 text-[11px] text-zinc-500">{d.label}</figcaption>
+                <figcaption className="mt-1 text-[11px] text-ash-500">{d.label}</figcaption>
               </figure>
             ))}
           </div>

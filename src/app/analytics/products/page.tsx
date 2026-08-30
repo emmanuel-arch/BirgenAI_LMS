@@ -52,7 +52,7 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
     >
       {disagreement && (
         <div className="mb-3 rounded-2xl border p-4" style={{ borderColor: `${STATUS.warning}55`, backgroundColor: `${STATUS.warning}0d` }}>
-          <p className="text-[13px] leading-snug text-zinc-800">{disagreement}</p>
+          <p className="text-[13px] leading-snug text-ash-800">{disagreement}</p>
         </div>
       )}
 

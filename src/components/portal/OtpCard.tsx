@@ -156,15 +156,15 @@ export default function OtpCard({
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-      className="glass w-full rounded-3xl border border-white/70 bg-white/65 backdrop-blur-2xl p-6 sm:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+      className="glass w-full rounded-3xl border border-white/70 bg-paper/65 backdrop-blur-2xl p-6 sm:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
       <div className="text-center">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: "var(--brand-soft, #f4f4f5)" }}>
           <MessageSquare className="h-7 w-7" style={{ color: "var(--brand, #18181b)" }} />
         </div>
         <h1 className="mt-4 text-2xl font-bold">{title ?? t.otp.title}</h1>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-ash-500">
           {issue.delivered ? t.otp.sentTo : t.otp.codeFor}{" "}
-          <span className="font-semibold text-zinc-900">{phone}</span>
+          <span className="font-semibold text-ash-900">{phone}</span>
         </p>
       </div>
 
@@ -194,24 +194,24 @@ export default function OtpCard({
             autoComplete={i === 0 ? "one-time-code" : "off"}
             aria-label={fmt(t.otp.digit, { n: i + 1 })}
             disabled={busy}
-            className="h-14 w-11 sm:h-16 sm:w-13 rounded-xl border border-zinc-900/15 bg-white/80 text-center text-2xl font-bold outline-none transition-colors focus:border-[var(--brand,#18181b)] focus:ring-2 focus:ring-[var(--brand-soft,#e4e4e7)] disabled:opacity-60"
+            className="h-14 w-11 sm:h-16 sm:w-13 rounded-xl border border-ash-900/15 bg-paper/80 text-center text-2xl font-bold outline-none transition-colors focus:border-[var(--brand,#18181b)] focus:ring-2 focus:ring-[var(--brand-soft,#e4e4e7)] disabled:opacity-60"
           />
         ))}
       </div>
 
       {busy && (
-        <p className="mt-4 flex items-center justify-center gap-2 text-sm text-zinc-500">
+        <p className="mt-4 flex items-center justify-center gap-2 text-sm text-ash-500">
           <Loader2 className="h-4 w-4 animate-spin" /> {t.otp.verifying}
         </p>
       )}
 
       <div className="mt-6 flex items-center justify-between gap-3">
         <button onClick={onChangeNumber} disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 px-3.5 py-2.5 text-sm text-zinc-600 hover:bg-zinc-900/5 disabled:opacity-60">
+          className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 px-3.5 py-2.5 text-sm text-ash-600 hover:bg-ash-900/5 disabled:opacity-60">
           <ArrowLeft className="h-4 w-4" /> {t.otp.changeNumber}
         </button>
         <button onClick={resend} disabled={cooldown > 0 || busy}
-          className="text-sm font-semibold disabled:text-zinc-400"
+          className="text-sm font-semibold disabled:text-ash-400"
           style={cooldown > 0 || busy ? undefined : { color: "var(--brand, #18181b)" }}>
           {cooldown > 0 ? fmt(t.otp.resendIn, { s: cooldown }) : t.otp.resend}
         </button>

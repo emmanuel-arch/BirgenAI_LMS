@@ -27,6 +27,7 @@ import {
 import { PageHeader } from "@/components/shell/PageHeader";
 import { BorrowerAvatar } from "@/components/kyc/BorrowerAvatar";
 import CrunchTheatre, { type CrunchData } from "@/components/statement/CrunchTheatre";
+import { StatementHowTo } from "@/components/statement/StatementHowTo";
 import { toFeatureMap } from "@/lib/statement/model-features";
 
 type Picked = { id: string; name: string | null; phone: string };
@@ -137,13 +138,13 @@ function Crunch() {
 
   const reset = () => { setData(null); setFile(null); setPassword(""); setError(null); setSaved(null); };
 
-  const field = "flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3";
-  const input = "flex-1 bg-transparent outline-none text-sm py-2.5 placeholder:text-zinc-400";
+  const field = "flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3";
+  const input = "flex-1 bg-transparent outline-none text-sm py-2.5 placeholder:text-ash-400";
 
   return (
     <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
       {from360 && borrower && (
-        <Link href={`/console/borrowers/${borrower.id}`} className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
+        <Link href={`/console/borrowers/${borrower.id}`} className="inline-flex items-center gap-1.5 text-sm text-ash-500 hover:text-ash-800">
           <ArrowLeft className="h-4 w-4" /> Back to {borrower.name ?? "Customer 360"}
         </Link>
       )}
@@ -168,27 +169,31 @@ function Crunch() {
                 <p className="text-sm font-semibold flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-emerald-600" /> Passed KYC — awaiting their first crunch
                 </p>
-                {queue && <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-[11px] font-semibold text-zinc-600">{queue.length}</span>}
+                {queue && <span className="rounded-md bg-ash-900/5 px-2 py-0.5 text-[11px] font-semibold text-ash-600">{queue.length}</span>}
               </div>
-              {!queue && <div className="mt-4 flex justify-center"><Loader2 className="h-4 w-4 animate-spin text-zinc-400" /></div>}
+              {!queue && <div className="mt-4 flex justify-center"><Loader2 className="h-4 w-4 animate-spin text-ash-400" /></div>}
               {queue?.length === 0 && (
-                <p className="mt-2 text-xs text-zinc-500">Nobody is waiting — every verified customer has a score. Use search below for a re-crunch.</p>
+                <p className="mt-2 text-xs text-ash-500">Nobody is waiting — every verified customer has a score. Use search below for a re-crunch.</p>
               )}
               <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
                 {queue?.slice(0, 8).map((b) => (
                   <button key={b.id} onClick={() => setBorrower({ id: b.id, name: b.name, phone: b.phone })}
-                    className="flex items-center gap-2.5 rounded-xl border border-zinc-900/10 bg-white/70 px-3 py-2 text-left hover:bg-white">
+                    className="flex items-center gap-2.5 rounded-xl border border-ash-900/10 bg-paper/70 px-3 py-2 text-left hover:bg-paper">
                     <BorrowerAvatar name={b.name ?? b.phone} portraitUrl={b.portraitUrl} verified size="sm" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">{b.name ?? b.phone}</span>
-                      <span className="block text-[11px] text-zinc-500">{b.phone}</span>
+                      <span className="block text-[11px] text-ash-500">{b.phone}</span>
                     </span>
-                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-ash-400" />
                   </button>
                 ))}
               </div>
             </div>
           )}
+
+          <div className="mt-4">
+            <StatementHowTo />
+          </div>
 
           <div className="glass mt-4 p-5 sm:p-6">
             {/* Who this statement belongs to. */}
@@ -197,51 +202,51 @@ function Crunch() {
               <>
                 <div className="mt-2 flex max-w-md gap-2">
                   <div className={`${field} flex-1`}>
-                    <Search className="h-4 w-4 shrink-0 text-zinc-400" />
+                    <Search className="h-4 w-4 shrink-0 text-ash-400" />
                     <input className={input} placeholder="Find any borrower — name, phone or ID"
                       value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && searchBorrowers()} />
                   </div>
-                  <button onClick={searchBorrowers} className="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white">Search</button>
+                  <button onClick={searchBorrowers} className="rounded-lg bg-invert px-3 py-2 text-xs font-semibold text-invert-fg">Search</button>
                 </div>
                 <div className="mt-2 max-w-md space-y-1">
                   {results.map((b) => (
                     <button key={b.id} onClick={() => { setBorrower(b); setResults([]); }}
-                      className="flex w-full items-center justify-between rounded-lg border border-zinc-900/10 bg-white/70 px-3 py-2 text-left text-sm hover:bg-white">
+                      className="flex w-full items-center justify-between rounded-lg border border-ash-900/10 bg-paper/70 px-3 py-2 text-left text-sm hover:bg-paper">
                       <span className="font-medium">{b.name ?? "Borrower"}</span>
-                      <span className="text-xs text-zinc-500">{b.phone}</span>
+                      <span className="text-xs text-ash-500">{b.phone}</span>
                     </button>
                   ))}
                 </div>
-                <p className="mt-1.5 text-[11px] text-zinc-400">You can crunch without picking anyone — the score just won&apos;t attach to a record.</p>
+                <p className="mt-1.5 text-[11px] text-ash-400">You can crunch without picking anyone — the score just won&apos;t attach to a record.</p>
               </>
             ) : (
-              <p className="mt-2 text-xs text-zinc-500">
-                For <span className="font-semibold text-zinc-800">{borrower.name ?? borrower.phone}</span>{" "}
+              <p className="mt-2 text-xs text-ash-500">
+                For <span className="font-semibold text-ash-800">{borrower.name ?? borrower.phone}</span>{" "}
                 <button className="underline" onClick={() => setBorrower(null)}>change</button>
-                <span className="ml-2 text-zinc-400">· the statement must be in their name — the engine checks.</span>
+                <span className="ml-2 text-ash-400">· the statement must be in their name — the engine checks.</span>
               </p>
             )}
 
             {/* The statement + the code that opens it. */}
-            <div className="mt-5 border-t border-zinc-900/10 pt-4">
-              <p className="flex items-center gap-1.5 text-xs text-zinc-500">
+            <div className="mt-5 border-t border-ash-900/10 pt-4">
+              <p className="flex items-center gap-1.5 text-xs text-ash-500">
                 <HelpCircle className="h-3.5 w-3.5 text-emerald-600" />
-                The customer gets it free: dial *334# → M-PESA Statement → Full Statement → 6 Months. Safaricom emails a
-                password-protected PDF; the SMS access code (or their ID number) opens it.
+                Six months of M-PESA, as the password-protected PDF Safaricom emails. The seven-step walkthrough
+                is at the top of this page.
               </p>
 
               <div onClick={() => fileRef.current?.click()}
-                className="mt-3 cursor-pointer rounded-xl border border-dashed border-zinc-900/20 bg-white/70 px-4 py-8 text-center hover:border-[var(--brand)]">
+                className="mt-3 cursor-pointer rounded-xl border border-dashed border-ash-900/20 bg-paper/70 px-4 py-8 text-center hover:border-[var(--brand)]">
                 <Upload className="mx-auto mb-2 h-6 w-6" style={{ color: "var(--brand)" }} />
                 {file
                   ? <p className="flex items-center justify-center gap-2 text-sm"><FileText className="h-4 w-4" /> {file.name}</p>
-                  : <p className="text-sm text-zinc-600">Tap to choose the statement PDF</p>}
+                  : <p className="text-sm text-ash-600">Tap to choose the statement PDF</p>}
                 <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="hidden"
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
               </div>
 
               <div className={`${field} mt-3 max-w-md`}>
-                <Lock className="h-4 w-4 shrink-0 text-zinc-400" />
+                <Lock className="h-4 w-4 shrink-0 text-ash-400" />
                 <input className={input} placeholder="Statement password (SMS code or ID number)"
                   value={password} onChange={(e) => setPassword(e.target.value)} />
               </div>
@@ -301,13 +306,13 @@ function ResultPanel({ data, borrower, saved, from360, onStartApplication, onRes
           <div className="flex items-center gap-4">
             <ScoreDial score={cs.score} tone={cs.tone} />
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-ash-500">
                 {borrower ? `${borrower.name ?? borrower.phone} — statement score` : "Statement score"}
               </p>
               <p className={`text-lg font-bold ${TONE[cs.tone] ?? ""}`}>{cs.band}</p>
-              <p className="text-xs text-zinc-500">PD {cs.pdPercent} · {cs.modelVersion}</p>
+              <p className="text-xs text-ash-500">PD {cs.pdPercent} · {cs.modelVersion}</p>
               {borrower && (
-                <p className={`mt-1 inline-flex items-center gap-1 text-[11px] font-medium ${saved === "saved" ? "text-emerald-600" : saved === "failed" ? "text-rose-600" : "text-zinc-500"}`}>
+                <p className={`mt-1 inline-flex items-center gap-1 text-[11px] font-medium ${saved === "saved" ? "text-emerald-600" : saved === "failed" ? "text-rose-600" : "text-ash-500"}`}>
                   {saved === "saving" && <><Loader2 className="h-3 w-3 animate-spin" /> Saving to their file…</>}
                   {saved === "saved" && <><CheckCircle2 className="h-3 w-3" /> Saved — score history + report document on their 360</>}
                   {saved === "failed" && <><AlertTriangle className="h-3 w-3" /> Could not save the report to their file</>}
@@ -316,11 +321,11 @@ function ResultPanel({ data, borrower, saved, from360, onStartApplication, onRes
             </div>
           </div>
           <div className="text-right">
-            <span className={`inline-block rounded-lg px-3 py-1.5 text-sm font-bold ${DECISION_TONE[cs.decision] ?? "bg-zinc-900/5 text-zinc-600"}`}>
+            <span className={`inline-block rounded-lg px-3 py-1.5 text-sm font-bold ${DECISION_TONE[cs.decision] ?? "bg-ash-900/5 text-ash-600"}`}>
               {cs.decision}
             </span>
-            <p className="mt-1.5 text-xs text-zinc-500">
-              Affordable installment ≈ <span className="font-semibold text-zinc-700">{kes(data.affordability.recommendedMaxInstallment)}</span>
+            <p className="mt-1.5 text-xs text-ash-500">
+              Affordable installment ≈ <span className="font-semibold text-ash-700">{kes(data.affordability.recommendedMaxInstallment)}</span>
             </p>
           </div>
         </div>
@@ -350,7 +355,7 @@ function ResultPanel({ data, borrower, saved, from360, onStartApplication, onRes
               </div>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {q.reasonCodes.slice(0, 4).map((r) => (
-                  <span key={r.code} className="rounded-full border border-emerald-200 bg-white/70 px-2.5 py-1 text-[11px] text-emerald-800">{r.label}</span>
+                  <span key={r.code} className="rounded-full border border-emerald-200 bg-paper/70 px-2.5 py-1 text-[11px] text-emerald-800">{r.label}</span>
                 ))}
               </div>
             </div>
@@ -367,15 +372,15 @@ function ResultPanel({ data, borrower, saved, from360, onStartApplication, onRes
               </button>
               {from360 && (
                 <Link href={`/console/borrowers/${borrower.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2.5 text-sm font-medium text-zinc-700">
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2.5 text-sm font-medium text-ash-700">
                   <ArrowLeft className="h-4 w-4" /> Back to their 360
                 </Link>
               )}
             </>
           ) : (
-            <p className="text-xs text-zinc-500">Pick a borrower before crunching to turn this score into an application.</p>
+            <p className="text-xs text-ash-500">Pick a borrower before crunching to turn this score into an application.</p>
           )}
-          <button onClick={onReset} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2.5 text-sm text-zinc-600">
+          <button onClick={onReset} className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2.5 text-sm text-ash-600">
             <RefreshCw className="h-4 w-4" /> Crunch another
           </button>
         </div>
@@ -391,7 +396,7 @@ function ResultPanel({ data, borrower, saved, from360, onStartApplication, onRes
                 {r.direction === "up"
                   ? <TrendingUp className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
                   : <TrendingDown className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" />}
-                <span className="text-zinc-600">{r.detail}</span>
+                <span className="text-ash-600">{r.detail}</span>
               </div>
             ))}
           </div>
@@ -405,15 +410,15 @@ function ResultPanel({ data, borrower, saved, from360, onStartApplication, onRes
               <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
                 <div className="flex w-full flex-1 items-end justify-center gap-0.5">
                   <div className="w-2.5 rounded-t bg-emerald-400" style={{ height: `${(m.income / maxAbs) * 100}%` }} title={`In ${kes(m.income)}`} />
-                  <div className="w-2.5 rounded-t bg-zinc-300" style={{ height: `${(m.expense / maxAbs) * 100}%` }} title={`Out ${kes(m.expense)}`} />
+                  <div className="w-2.5 rounded-t bg-ash-300" style={{ height: `${(m.expense / maxAbs) * 100}%` }} title={`Out ${kes(m.expense)}`} />
                 </div>
-                <span className="text-[9px] text-zinc-400">{m.month.slice(-2)}</span>
+                <span className="text-[9px] text-ash-400">{m.month.slice(-2)}</span>
               </div>
             ))}
           </div>
-          <p className="mt-2 text-[10px] text-zinc-400">
+          <p className="mt-2 text-[10px] text-ash-400">
             <span className="mr-3 inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-emerald-400" /> money in</span>
-            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-zinc-300" /> money out</span>
+            <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-ash-300" /> money out</span>
           </p>
         </div>
       </div>
@@ -423,9 +428,9 @@ function ResultPanel({ data, borrower, saved, from360, onStartApplication, onRes
 
 function Tile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-zinc-900/10 bg-white/60 px-2.5 py-2">
-      <p className="text-[9px] uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className="text-sm font-bold text-zinc-800">{value}</p>
+    <div className="rounded-lg border border-ash-900/10 bg-paper/60 px-2.5 py-2">
+      <p className="text-[9px] uppercase tracking-wide text-ash-500">{label}</p>
+      <p className="text-sm font-bold text-ash-800">{value}</p>
     </div>
   );
 }
@@ -444,7 +449,7 @@ function ScoreDial({ score, tone }: { score: number; tone: string }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-lg font-bold tabular-nums" style={{ color }}>{score}</span>
-        <span className="text-[8px] text-zinc-400">/ 900</span>
+        <span className="text-[8px] text-ash-400">/ 900</span>
       </div>
     </div>
   );

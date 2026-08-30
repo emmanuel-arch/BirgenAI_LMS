@@ -42,8 +42,8 @@ const C_TONE: Record<string, string> = {
   VERIFIED: "bg-emerald-100 text-emerald-700",
   REGISTERED: "bg-sky-100 text-sky-700",
   REJECTED: "bg-rose-100 text-rose-700",
-  RELEASED: "bg-zinc-900/5 text-zinc-500",
-  SEIZED: "bg-zinc-900/10 text-zinc-700",
+  RELEASED: "bg-ash-900/5 text-ash-500",
+  SEIZED: "bg-ash-900/10 text-ash-700",
 };
 
 export function SecurityPanel({ applicationId, onChanged }: { applicationId: string; onChanged?: () => void }) {
@@ -86,14 +86,14 @@ export function SecurityPanel({ applicationId, onChanged }: { applicationId: str
   if (!data.guarantorRequired && !data.security?.required && data.guarantors.length === 0 && data.collateral.length === 0) return null;
 
   return (
-    <div className="mt-3 rounded-xl border border-zinc-900/10 bg-white/60 p-3">
+    <div className="mt-3 rounded-xl border border-ash-900/10 bg-paper/60 p-3">
       {/* Guarantors */}
       {(data.guarantorRequired || data.guarantors.length > 0) && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-1.5 text-xs font-semibold">
-              <Users className="h-3.5 w-3.5 text-zinc-400" /> Guarantors
-              {data.guarantorRequired && <span className="text-[10px] font-normal text-zinc-400">required by this product</span>}
+              <Users className="h-3.5 w-3.5 text-ash-400" /> Guarantors
+              {data.guarantorRequired && <span className="text-[10px] font-normal text-ash-400">required by this product</span>}
             </p>
             {data.guarantorRequired && (
               <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold ${data.hasStandingGuarantor ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
@@ -103,15 +103,15 @@ export function SecurityPanel({ applicationId, onChanged }: { applicationId: str
           </div>
 
           {!data.hasOffer && data.guarantorRequired && (
-            <p className="mt-1.5 text-[11px] text-zinc-500">Issue the offer first — nobody can guarantee an agreement that does not exist yet.</p>
+            <p className="mt-1.5 text-[11px] text-ash-500">Issue the offer first — nobody can guarantee an agreement that does not exist yet.</p>
           )}
 
           <div className="mt-2 space-y-1.5">
             {data.guarantors.map((x) => (
-              <div key={x.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-2.5 py-1.5">
+              <div key={x.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-paper/70 px-2.5 py-1.5">
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-medium">{x.fullName} <span className="font-normal text-zinc-400">{x.phone}</span></p>
-                  <p className="text-[10px] text-zinc-400">
+                  <p className="truncate text-xs font-medium">{x.fullName} <span className="font-normal text-ash-400">{x.phone}</span></p>
+                  <p className="text-[10px] text-ash-400">
                     {x.relationship ?? "guarantor"}
                     {x.amountGuaranteed ? ` · stands behind ${kes(x.amountGuaranteed)}` : ""}
                   </p>
@@ -125,7 +125,7 @@ export function SecurityPanel({ applicationId, onChanged }: { applicationId: str
                   <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${G_TONE[x.status]}`}>{x.status.toLowerCase()}</span>
                   {x.status !== "CONSENTED" && (
                     <button onClick={() => post({ action: "remove-guarantor", guarantorId: x.id })} disabled={busy}
-                      className="rounded p-1 text-zinc-400 hover:bg-zinc-900/5 hover:text-zinc-700" title="Withdraw the request">
+                      className="rounded p-1 text-ash-400 hover:bg-ash-900/5 hover:text-ash-700" title="Withdraw the request">
                       <X className="h-3 w-3" />
                     </button>
                   )}
@@ -140,7 +140,7 @@ export function SecurityPanel({ applicationId, onChanged }: { applicationId: str
                   and it cannot resolve to the borrower's own ID. Manual is a fallback. */}
               {gManual ? (
                 <input value={g.fullName} onChange={(e) => setG({ ...g, fullName: e.target.value })} placeholder="Their full name" autoFocus
-                  className="w-full rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none" />
+                  className="w-full rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-xs outline-none" />
               ) : (
                 <IdentityLookup role="guarantor" excludeNationalId={data.borrowerNationalId}
                   onResolved={(p) => setG((prev) => ({ ...prev, fullName: p?.fullName ?? "", nationalId: p?.nationalId ?? "", phone: p?.phone ? p.phone.replace(/^\+?254/, "0") : prev.phone }))}
@@ -148,23 +148,23 @@ export function SecurityPanel({ applicationId, onChanged }: { applicationId: str
               )}
               <div className="grid gap-1.5 sm:grid-cols-2">
                 <input value={g.phone} onChange={(e) => setG({ ...g, phone: e.target.value })} placeholder="07XX XXX XXX" inputMode="tel"
-                  className="rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none" />
+                  className="rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-xs outline-none" />
                 <input value={g.relationship} onChange={(e) => setG({ ...g, relationship: e.target.value })} placeholder="Relationship"
-                  className="rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none" />
+                  className="rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-xs outline-none" />
               </div>
               <div className="flex gap-1.5">
                 <button disabled={busy || !g.fullName || !g.phone}
                   onClick={async () => { if (await post({ action: "invite-guarantor", fullName: g.fullName, phone: g.phone, relationship: g.relationship, nationalId: g.nationalId || undefined })) { setAddingG(false); setGManual(false); setG({ fullName: "", phone: "", relationship: "", nationalId: "" }); } }}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-3 py-1.5 text-xs font-semibold text-invert-fg disabled:opacity-40">
                   {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Send the request
                 </button>
-                <button onClick={() => { setAddingG(false); setGManual(false); }} className="px-2 text-xs text-zinc-500 hover:text-zinc-800">Cancel</button>
+                <button onClick={() => { setAddingG(false); setGManual(false); }} className="px-2 text-xs text-ash-500 hover:text-ash-800">Cancel</button>
               </div>
-              <p className="text-[10px] text-zinc-400">They get an SMS. Only they can agree — you cannot agree for them.</p>
+              <p className="text-[10px] text-ash-400">They get an SMS. Only they can agree — you cannot agree for them.</p>
             </div>
           ) : (
             <button onClick={() => setAddingG(true)}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 hover:bg-white">
+              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-2.5 py-1 text-[11px] font-semibold text-ash-700 hover:bg-paper">
               <Plus className="h-3 w-3" /> Ask someone to guarantee
             </button>
           )}
@@ -173,12 +173,12 @@ export function SecurityPanel({ applicationId, onChanged }: { applicationId: str
 
       {/* Collateral */}
       {(data.security?.required || data.collateral.length > 0) && (
-        <div className={data.guarantorRequired || data.guarantors.length > 0 ? "mt-4 border-t border-zinc-900/5 pt-3" : ""}>
+        <div className={data.guarantorRequired || data.guarantors.length > 0 ? "mt-4 border-t border-ash-900/5 pt-3" : ""}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-1.5 text-xs font-semibold">
-              <Package className="h-3.5 w-3.5 text-zinc-400" /> Security
+              <Package className="h-3.5 w-3.5 text-ash-400" /> Security
               {data.security?.required && (
-                <span className="text-[10px] font-normal text-zinc-400">
+                <span className="text-[10px] font-normal text-ash-400">
                   {data.security.coverPct}% of principal · {kes(data.security.requiredValue)} needed
                 </span>
               )}
@@ -194,10 +194,10 @@ export function SecurityPanel({ applicationId, onChanged }: { applicationId: str
 
           <div className="mt-2 space-y-1.5">
             {data.collateral.map((x) => (
-              <div key={x.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-2.5 py-1.5">
+              <div key={x.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-paper/70 px-2.5 py-1.5">
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-medium">{x.description} <span className="font-normal text-zinc-400">{kes(x.estimatedValueKes)}</span></p>
-                  <p className="text-[10px] text-zinc-400">
+                  <p className="truncate text-xs font-medium">{x.description} <span className="font-normal text-ash-400">{kes(x.estimatedValueKes)}</span></p>
+                  <p className="text-[10px] text-ash-400">
                     {x.kind.toLowerCase()}{x.registrationRef ? ` · ${x.registrationRef}` : ""}
                     {x.rejectedReason ? ` · ${x.rejectedReason}` : ""}
                   </p>
@@ -220,28 +220,28 @@ export function SecurityPanel({ applicationId, onChanged }: { applicationId: str
           {addingC ? (
             <div className="mt-2 grid gap-1.5 sm:grid-cols-4">
               <select value={c.kind} onChange={(e) => setC({ ...c, kind: e.target.value })}
-                className="rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none">
+                className="rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-xs outline-none">
                 {KINDS.map((k) => <option key={k} value={k}>{k.toLowerCase()}</option>)}
               </select>
               <input value={c.description} onChange={(e) => setC({ ...c, description: e.target.value })} placeholder="What it is"
-                className="rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none sm:col-span-2" />
+                className="rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-xs outline-none sm:col-span-2" />
               <input value={c.estimatedValueKes} onChange={(e) => setC({ ...c, estimatedValueKes: e.target.value.replace(/\D/g, "") })} placeholder="Worth (KES)" inputMode="numeric"
-                className="rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none" />
+                className="rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-xs outline-none" />
               <input value={c.registrationRef} onChange={(e) => setC({ ...c, registrationRef: e.target.value })} placeholder="Logbook / title / serial"
-                className="rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none sm:col-span-2" />
+                className="rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-xs outline-none sm:col-span-2" />
               <div className="flex gap-1.5 sm:col-span-2">
                 <button disabled={busy || !c.description || !c.estimatedValueKes}
                   onClick={async () => { if (await post({ action: "add-collateral", ...c, estimatedValueKes: Number(c.estimatedValueKes) })) { setAddingC(false); setC({ kind: "VEHICLE", description: "", estimatedValueKes: "", registrationRef: "" }); } }}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-3 py-1.5 text-xs font-semibold text-invert-fg disabled:opacity-40">
                   {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Register it
                 </button>
-                <button onClick={() => setAddingC(false)} className="px-2 text-xs text-zinc-500 hover:text-zinc-800">Cancel</button>
+                <button onClick={() => setAddingC(false)} className="px-2 text-xs text-ash-500 hover:text-ash-800">Cancel</button>
               </div>
-              <p className="text-[10px] text-zinc-400 sm:col-span-4">Registering records a claim. Only verified security counts — somebody has to see it.</p>
+              <p className="text-[10px] text-ash-400 sm:col-span-4">Registering records a claim. Only verified security counts — somebody has to see it.</p>
             </div>
           ) : (
             <button onClick={() => setAddingC(true)}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 hover:bg-white">
+              className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-2.5 py-1 text-[11px] font-semibold text-ash-700 hover:bg-paper">
               <Plus className="h-3 w-3" /> Pledge security
             </button>
           )}

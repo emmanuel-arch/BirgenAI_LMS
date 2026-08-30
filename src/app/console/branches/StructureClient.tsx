@@ -89,7 +89,7 @@ export function StructureClient() {
   if (loading) {
     return (
       <main className="mx-auto max-w-5xl px-4 sm:px-6 py-10">
-        <p className="flex items-center gap-2 text-sm text-zinc-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading your structure…</p>
+        <p className="flex items-center gap-2 text-sm text-ash-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading your structure…</p>
       </main>
     );
   }
@@ -97,10 +97,10 @@ export function StructureClient() {
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
       <header>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-zinc-900">
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-ash-900">
           <Building2 className="h-6 w-6" style={{ color: "var(--brand)" }} /> Organisation Structure
         </h1>
-        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-zinc-500">
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ash-500">
           Your head office, regions, branches and units. Every staff member, borrower and loan belongs to one of these —
           and it is what decides who sees whose book. A branch manager sees their branch; a regional manager sees
           everything under their region; an officer sees only their own customers.
@@ -134,7 +134,7 @@ export function StructureClient() {
       )}
 
       {root && canManage && (
-        <p className="mt-6 text-[12px] leading-relaxed text-zinc-400">
+        <p className="mt-6 text-[12px] leading-relaxed text-ash-400">
           Add a region or a branch with the <Plus className="inline h-3 w-3" /> on any office. An office can&apos;t be deleted
           while staff, borrowers or loans still belong to it — move them first, or switch it off.
         </p>
@@ -148,16 +148,16 @@ function FirstOffice({ canManage, busy, onCreate }: { canManage: boolean; busy: 
 
   if (!canManage) {
     return (
-      <p className="mt-6 rounded-xl border border-zinc-900/10 bg-white/60 px-4 py-8 text-center text-sm text-zinc-500">
+      <p className="mt-6 rounded-xl border border-ash-900/10 bg-paper/60 px-4 py-8 text-center text-sm text-ash-500">
         Your organisation structure hasn&apos;t been set up yet. An administrator needs to create the head office.
       </p>
     );
   }
 
   return (
-    <div className="mt-6 rounded-2xl border border-zinc-900/10 bg-white/70 p-6">
-      <h2 className="text-base font-semibold text-zinc-900">Start with your head office</h2>
-      <p className="mt-1 max-w-lg text-[13px] leading-relaxed text-zinc-500">
+    <div className="mt-6 rounded-2xl border border-ash-900/10 bg-paper/70 p-6">
+      <h2 className="text-base font-semibold text-ash-900">Start with your head office</h2>
+      <p className="mt-1 max-w-lg text-[13px] leading-relaxed text-ash-500">
         This is the top of your organisation. Everything else — regions, branches, units — hangs off it, and you can name
         the levels whatever your company actually calls them.
       </p>
@@ -166,7 +166,7 @@ function FirstOffice({ canManage, busy, onCreate }: { canManage: boolean; busy: 
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Head Office"
-          className="w-64 rounded-lg border border-zinc-900/15 bg-white px-3 py-2 text-sm outline-none focus:border-[color:var(--brand)]"
+          className="w-64 rounded-lg border border-ash-900/15 bg-paper px-3 py-2 text-sm outline-none focus:border-[color:var(--brand)]"
         />
         <button
           disabled={busy || !name.trim()}
@@ -201,17 +201,17 @@ function TreeNode({
 
   return (
     <div style={{ marginLeft: depth === 0 ? 0 : 20 }}>
-      <div className={`rounded-xl border bg-white/70 px-3.5 py-3 ${node.active ? "border-zinc-900/10" : "border-zinc-900/10 opacity-55"}`}>
+      <div className={`rounded-xl border bg-paper/70 px-3.5 py-3 ${node.active ? "border-ash-900/10" : "border-ash-900/10 opacity-55"}`}>
         <div className="flex flex-wrap items-center gap-2">
-          {depth > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-300" />}
+          {depth > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-ash-300" />}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[15px] font-semibold text-zinc-900">{node.name}</span>
-              <span className="rounded-full bg-zinc-900/5 px-2 py-0.5 text-[10px] font-medium text-zinc-500">{node.levelName}</span>
-              {node.code && <span className="text-[11px] text-zinc-400">{node.code}</span>}
-              {!node.active && <span className="rounded-full bg-zinc-900/5 px-2 py-0.5 text-[10px] font-medium text-zinc-500">Switched off</span>}
+              <span className="text-[15px] font-semibold text-ash-900">{node.name}</span>
+              <span className="rounded-full bg-ash-900/5 px-2 py-0.5 text-[10px] font-medium text-ash-500">{node.levelName}</span>
+              {node.code && <span className="text-[11px] text-ash-400">{node.code}</span>}
+              {!node.active && <span className="rounded-full bg-ash-900/5 px-2 py-0.5 text-[10px] font-medium text-ash-500">Switched off</span>}
             </div>
-            <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-zinc-500">
+            <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-ash-500">
               <span className="flex items-center gap-1"><Users className="h-3 w-3" /> {node.staff} staff</span>
               <span className="flex items-center gap-1"><Landmark className="h-3 w-3" /> {node.loans} loans · {kes(node.olb)}</span>
               <span>{node.borrowers} borrowers</span>
@@ -223,14 +223,14 @@ function TreeNode({
               <button
                 onClick={() => setAddingUnder(addingUnder === node.id ? null : node.id)}
                 title="Add an office under this one"
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-900"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-ash-500 hover:bg-ash-900/5 hover:text-ash-900"
               >
                 <Plus className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setEditing(editing === node.id ? null : node.id)}
                 title="Rename"
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-900"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-ash-500 hover:bg-ash-900/5 hover:text-ash-900"
               >
                 {editing === node.id ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
               </button>
@@ -239,7 +239,7 @@ function TreeNode({
                   disabled={busy}
                   onClick={() => call("DELETE", undefined, `?id=${node.id}`)}
                   title="Delete"
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-ash-400 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-40"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -253,7 +253,7 @@ function TreeNode({
       </div>
 
       {kids.length > 0 && (
-        <div className="mt-2 space-y-2 border-l border-zinc-900/10 pl-2">
+        <div className="mt-2 space-y-2 border-l border-ash-900/10 pl-2">
           {kids.map((k) => (
             <TreeNode
               key={k.id} node={k} depth={depth + 1} nodes={nodes} childrenOf={childrenOf}
@@ -273,18 +273,18 @@ function AddRow({ parent, busy, call }: { parent: Node; busy: boolean; call: (m:
   const [code, setCode] = useState("");
 
   return (
-    <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-zinc-900/10 bg-zinc-900/[0.02] p-2.5">
+    <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-ash-900/10 bg-ash-900/[0.02] p-2.5">
       <Field label={`New office under ${parent.name}`}>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nairobi CBD" autoFocus
-          className="w-48 rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]" />
+          className="w-48 rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]" />
       </Field>
       <Field label="What you call this level">
         <input value={levelName} onChange={(e) => setLevelName(e.target.value)} placeholder="Branch"
-          className="w-32 rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]" />
+          className="w-32 rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]" />
       </Field>
       <Field label="Code">
         <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="NRB-CBD"
-          className="w-28 rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]" />
+          className="w-28 rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]" />
       </Field>
       <button
         disabled={busy || !name.trim()}
@@ -315,19 +315,19 @@ function EditRow({ node, nodes, busy, call }: { node: Node; nodes: Node[]; busy:
   const parentOptions = nodes.filter((n) => !descendants.has(n.id));
 
   return (
-    <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-zinc-900/10 bg-zinc-900/[0.02] p-2.5">
+    <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-ash-900/10 bg-ash-900/[0.02] p-2.5">
       <Field label="Name">
         <input value={name} onChange={(e) => setName(e.target.value)}
-          className="w-48 rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]" />
+          className="w-48 rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]" />
       </Field>
       <Field label="Level">
         <input value={levelName} onChange={(e) => setLevelName(e.target.value)}
-          className="w-32 rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]" />
+          className="w-32 rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]" />
       </Field>
       {!isRoot && (
         <Field label="Reports to">
           <select value={parentId} onChange={(e) => setParentId(e.target.value)}
-            className="w-44 rounded-lg border border-zinc-900/15 bg-white px-2 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]">
+            className="w-44 rounded-lg border border-ash-900/15 bg-paper px-2 py-1.5 text-[13px] outline-none focus:border-[color:var(--brand)]">
             {parentOptions.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </Field>
@@ -344,7 +344,7 @@ function EditRow({ node, nodes, busy, call }: { node: Node; nodes: Node[]; busy:
         <button
           disabled={busy}
           onClick={() => call("PUT", { id: node.id, active: !node.active })}
-          className="rounded-lg border border-zinc-900/12 bg-white px-3 py-1.5 text-[13px] font-medium text-zinc-600 hover:text-zinc-900 disabled:opacity-50"
+          className="rounded-lg border border-ash-900/12 bg-paper px-3 py-1.5 text-[13px] font-medium text-ash-600 hover:text-ash-900 disabled:opacity-50"
         >
           {node.active ? "Switch off" : "Switch on"}
         </button>
@@ -356,7 +356,7 @@ function EditRow({ node, nodes, busy, call }: { node: Node; nodes: Node[]; busy:
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="mb-1 block text-[11px] font-medium text-zinc-500">{label}</label>
+      <label className="mb-1 block text-[11px] font-medium text-ash-500">{label}</label>
       {children}
     </div>
   );

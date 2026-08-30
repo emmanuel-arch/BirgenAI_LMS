@@ -102,7 +102,7 @@ export default function SettingsLauncher() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Find a setting…"
-              className="w-44 rounded-lg border border-[color:var(--ink)]/10 bg-white/70 py-1.5 pl-8 pr-2.5 text-[12px] outline-none placeholder:text-[color:var(--ink-faint)] focus:border-transparent focus:ring-2 focus:ring-[color:var(--brand)] sm:w-56"
+              className="w-44 rounded-lg border border-[color:var(--ink)]/10 bg-paper/70 py-1.5 pl-8 pr-2.5 text-[12px] outline-none placeholder:text-[color:var(--ink-faint)] focus:border-transparent focus:ring-2 focus:ring-[color:var(--brand)] sm:w-56"
             />
           </div>
         </div>
@@ -177,7 +177,7 @@ export default function SettingsLauncher() {
 function Tile({ tile, status, onOpen }: { tile: SettingsTile; status: string | null; onOpen: () => void }) {
   const Icon = tile.icon;
   const body = (
-    <div className="glass group h-full p-3.5 transition-colors hover:bg-white/80 sm:p-5">
+    <div className="glass group h-full p-3.5 transition-colors hover:bg-paper/80 sm:p-5">
       <div className="flex items-start justify-between gap-2">
         <Icon className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: "var(--brand)" }} aria-hidden />
         {status ? (
@@ -248,7 +248,7 @@ function VaultDrawer({
         initial={reduce ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={reduce ? undefined : { opacity: 0 }}
-        className="absolute inset-0 bg-zinc-950/30 backdrop-blur-sm"
+        className="absolute inset-0 bg-ash-950/30 backdrop-blur-sm"
         onClick={onClose}
       />
       <motion.aside
@@ -258,7 +258,7 @@ function VaultDrawer({
         animate={{ x: 0 }}
         exit={reduce ? undefined : { x: "100%" }}
         transition={{ type: "spring", stiffness: 320, damping: 34 }}
-        className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl"
+        className="relative flex h-full w-full max-w-md flex-col bg-paper shadow-2xl"
       >
         <header className="flex items-start justify-between gap-3 border-b border-[color:var(--ink)]/[0.08] px-5 py-4">
           <div className="flex items-start gap-3">
@@ -333,7 +333,7 @@ function VaultDrawer({
 
 function Field({ spec, value, onChange }: { spec: FieldSpec; value: string; onChange: (v: string) => void }) {
   const cls =
-    "mt-1 w-full rounded-lg border border-[color:var(--ink)]/12 bg-white px-3 py-2.5 text-sm outline-none placeholder:text-[color:var(--ink-faint)] focus:border-transparent focus:ring-2 focus:ring-[color:var(--brand)]";
+    "mt-1 w-full rounded-lg border border-[color:var(--ink)]/12 bg-paper px-3 py-2.5 text-sm outline-none placeholder:text-[color:var(--ink-faint)] focus:border-transparent focus:ring-2 focus:ring-[color:var(--brand)]";
   return (
     <label className={spec.wide ? "sm:col-span-2" : undefined}>
       <span className="t-label">{spec.label}</span>

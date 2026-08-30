@@ -117,7 +117,7 @@ export default function BillingPage() {
 
   if (!data) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-zinc-500">
+      <div className="min-h-screen flex items-center justify-center text-ash-500">
         {error ? <span className="text-red-600">{error}</span> : <Loader2 className="h-5 w-5 animate-spin" />}
       </div>
     );
@@ -138,21 +138,21 @@ export default function BillingPage() {
               <div className="flex items-center gap-2">
                 <Crown className="h-5 w-5" style={{ color: "var(--brand)" }} />
                 <h1 className="text-xl font-bold">{data.plan.name}</h1>
-                <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${STATUS_TONE[data.status] ?? "bg-zinc-900/5 text-zinc-500"}`}>
+                <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${STATUS_TONE[data.status] ?? "bg-ash-900/5 text-ash-500"}`}>
                   {data.status.replace("_", " ")}
                 </span>
               </div>
-              <p className="mt-1.5 text-sm text-zinc-500">{data.plan.blurb}</p>
-              <p className="mt-1 text-xs text-zinc-400">
+              <p className="mt-1.5 text-sm text-ash-500">{data.plan.blurb}</p>
+              <p className="mt-1 text-xs text-ash-400">
                 Billing period {day(data.period.start)} – {day(data.period.end)} ·{" "}
                 {data.seats === null ? "Unlimited seats" : `${data.seats} seats`}
                 {data.status === "TRIALING" && data.trialEndsAt ? ` · trial ends ${day(data.trialEndsAt)}` : ""}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Estimated this month</p>
+              <p className="text-[11px] uppercase tracking-wide text-ash-500">Estimated this month</p>
               <p className="text-3xl font-bold">{kes(data.estimate.totalKes)}</p>
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-ash-400">
                 {kes(data.estimate.baseKes)} package
                 {data.estimate.overageKes > 0 ? ` + ${kes(data.estimate.overageKes)} usage` : ""}
               </p>
@@ -169,7 +169,7 @@ export default function BillingPage() {
               </button>
             )}
             <button onClick={sync} disabled={busy !== null}
-              className="inline-flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-3 text-sm text-zinc-700 hover:bg-white disabled:opacity-60">
+              className="inline-flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-3 text-sm text-ash-700 hover:bg-paper disabled:opacity-60">
               {busy === "sync" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Refresh from wallet
             </button>
             {data.payment.mode === "simulation" && (
@@ -178,7 +178,7 @@ export default function BillingPage() {
               </span>
             )}
           </div>
-          <p className="mt-2.5 text-[11px] text-zinc-400">
+          <p className="mt-2.5 text-[11px] text-ash-400">
             Payments settle in the BirgenAI wallet — the same Till and receipt as every other BirgenAI service.
             The final amount is confirmed there.
           </p>
@@ -190,20 +190,20 @@ export default function BillingPage() {
             <Gauge className="h-4 w-4" style={{ color: "var(--brand)" }} /> Usage this period
           </h2>
           {data.lines.length === 0 ? (
-            <p className="mt-3 text-sm text-zinc-500">Nothing metered yet this month.</p>
+            <p className="mt-3 text-sm text-ash-500">Nothing metered yet this month.</p>
           ) : (
             <div className="mt-3 space-y-3">
               {data.lines.map((l) => (
                 <div key={l.kind}>
                   <div className="flex items-baseline justify-between gap-3 text-sm">
                     <span className="font-medium">{l.label}</span>
-                    <span className="tabular-nums text-zinc-600">
+                    <span className="tabular-nums text-ash-600">
                       {l.used.toLocaleString()}
-                      <span className="text-zinc-400"> / {l.included.toLocaleString()} included</span>
+                      <span className="text-ash-400"> / {l.included.toLocaleString()} included</span>
                       {l.overage > 0 && <span className="ml-2 font-semibold text-amber-700">+{l.overage.toLocaleString()} × {kes(l.unitPriceKes)} = {kes(l.costKes)}</span>}
                     </span>
                   </div>
-                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-zinc-900/5">
+                  <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-ash-900/5">
                     <div className="h-full rounded-full transition-all"
                       style={{ width: `${usedPct(l)}%`, backgroundColor: l.overage > 0 ? "#d97706" : "var(--brand)" }} />
                   </div>
@@ -220,14 +220,14 @@ export default function BillingPage() {
               <h2 className="text-sm font-semibold flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" style={{ color: "var(--brand)" }} /> Messaging
               </h2>
-              <p className="mt-1 text-xs text-zinc-500 max-w-sm">
+              <p className="mt-1 text-xs text-ash-500 max-w-sm">
                 {data.sms.included > 0
                   ? `${data.sms.included.toLocaleString()} SMS come with your package each month. After that, messages use your prepaid credits.`
                   : "Messages use your prepaid credits."}
               </p>
             </div>
             <div className="text-right shrink-0">
-              <p className="text-[11px] uppercase tracking-wide text-zinc-500">SMS credits</p>
+              <p className="text-[11px] uppercase tracking-wide text-ash-500">SMS credits</p>
               <p className={`text-3xl font-bold tabular-nums ${data.sms.balance < 0 ? "text-red-600" : ""}`}>
                 {data.sms.balance.toLocaleString()}
               </p>
@@ -238,12 +238,12 @@ export default function BillingPage() {
           <div className="mt-4">
             <div className="flex items-baseline justify-between gap-3 text-sm">
               <span className="font-medium">Sent this month</span>
-              <span className="tabular-nums text-zinc-600">
+              <span className="tabular-nums text-ash-600">
                 {data.sms.used.toLocaleString()}
-                {data.sms.included > 0 && <span className="text-zinc-400"> / {data.sms.included.toLocaleString()} included</span>}
+                {data.sms.included > 0 && <span className="text-ash-400"> / {data.sms.included.toLocaleString()} included</span>}
               </span>
             </div>
-            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-zinc-900/5">
+            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-ash-900/5">
               <div className="h-full rounded-full transition-all"
                 style={{
                   width: `${data.sms.included > 0 ? Math.min(100, (data.sms.used / data.sms.included) * 100) : data.sms.used > 0 ? 100 : 0}%`,
@@ -276,31 +276,31 @@ export default function BillingPage() {
               <div className="mt-4 grid gap-2 sm:grid-cols-3">
                 {data.sms.packs.map((p) => (
                   <button key={p.key} onClick={() => buyPack(p.key)} disabled={busy !== null}
-                    className="group rounded-xl border border-zinc-900/10 bg-white/70 px-4 py-3 text-left transition hover:border-zinc-900/25 hover:bg-white disabled:opacity-60">
+                    className="group rounded-xl border border-ash-900/10 bg-paper/70 px-4 py-3 text-left transition hover:border-ash-900/25 hover:bg-paper disabled:opacity-60">
                     <span className="flex items-baseline justify-between">
                       <span className="text-lg font-bold tabular-nums">{p.units.toLocaleString()}</span>
-                      {busy === p.key ? <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-400" />
-                        : <span className="text-[11px] text-zinc-400">KES {(p.priceKes / p.units).toFixed(2)}/SMS</span>}
+                      {busy === p.key ? <Loader2 className="h-3.5 w-3.5 animate-spin text-ash-400" />
+                        : <span className="text-[11px] text-ash-400">KES {(p.priceKes / p.units).toFixed(2)}/SMS</span>}
                     </span>
-                    <span className="mt-0.5 block text-xs text-zinc-500">SMS for {kes(p.priceKes)}</span>
+                    <span className="mt-0.5 block text-xs text-ash-500">SMS for {kes(p.priceKes)}</span>
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-[11px] text-zinc-400">
+              <p className="mt-2 text-[11px] text-ash-400">
                 Credits never expire and are billed through the BirgenAI wallet like everything else.
               </p>
             </>
           ) : null}
 
           {data.sms.topups.length > 0 && (
-            <div className="mt-4 space-y-1.5 border-t border-zinc-900/5 pt-3">
+            <div className="mt-4 space-y-1.5 border-t border-ash-900/5 pt-3">
               {data.sms.topups.map((t) => (
                 <div key={t.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <span className="inline-flex items-center gap-1.5 font-medium">
-                    {t.source === "PLATFORM_GRANT" && <Gift className="h-3 w-3 text-zinc-400" />}
+                    {t.source === "PLATFORM_GRANT" && <Gift className="h-3 w-3 text-ash-400" />}
                     +{t.units.toLocaleString()} SMS
                   </span>
-                  <span className="text-zinc-400">
+                  <span className="text-ash-400">
                     {t.source === "PLATFORM_GRANT" ? (t.note || "granted by BirgenAI") : kes(t.amountKes)} · {day(t.createdAt)}
                   </span>
                 </div>
@@ -315,22 +315,22 @@ export default function BillingPage() {
             <h2 className="text-sm font-semibold flex items-center gap-2">
               <FileText className="h-4 w-4" style={{ color: "var(--brand)" }} /> Invoices
             </h2>
-            <p className="mt-1 text-[11px] text-zinc-400">
+            <p className="mt-1 text-[11px] text-ash-400">
               Each closed month, priced as it was charged. These do not change when our prices do.
             </p>
             <div className="mt-3 space-y-1.5">
               {data.invoices.map((inv) => (
-                <div key={inv.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2">
+                <div key={inv.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-paper/70 px-3 py-2">
                   <div>
                     <p className="text-xs font-semibold">{inv.number}</p>
-                    <p className="text-[11px] text-zinc-400">
+                    <p className="text-[11px] text-ash-400">
                       {new Date(inv.periodStart).toLocaleDateString("en-GB", { month: "long", year: "numeric" })} · {inv.plan.toLowerCase()}
                       {inv.overageKes > 0 ? ` · ${kes(inv.planFeeKes)} + ${kes(inv.overageKes)} usage` : ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold tabular-nums">{kes(inv.totalKes)}</span>
-                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${inv.status === "PAID" ? "bg-emerald-100 text-emerald-700" : inv.status === "VOID" ? "bg-zinc-900/5 text-zinc-500" : "bg-amber-100 text-amber-700"}`}>
+                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${inv.status === "PAID" ? "bg-emerald-100 text-emerald-700" : inv.status === "VOID" ? "bg-ash-900/5 text-ash-500" : "bg-amber-100 text-amber-700"}`}>
                       {inv.status.toLowerCase()}
                     </span>
                   </div>
@@ -352,17 +352,17 @@ export default function BillingPage() {
                 <p className="text-sm font-bold">{p.name}</p>
                 <p className="mt-1 text-2xl font-bold">
                   {(p.monthlyKes / 1000).toLocaleString()}K
-                  <span className="text-xs font-normal text-zinc-400"> KES/mo</span>
+                  <span className="text-xs font-normal text-ash-400"> KES/mo</span>
                 </p>
-                <p className="mt-1.5 text-xs text-zinc-500 flex-1">{p.blurb}</p>
-                <p className="mt-2 text-[11px] text-zinc-400">{p.seats === null ? "Unlimited seats" : `${p.seats} seats`}</p>
+                <p className="mt-1.5 text-xs text-ash-500 flex-1">{p.blurb}</p>
+                <p className="mt-2 text-[11px] text-ash-400">{p.seats === null ? "Unlimited seats" : `${p.seats} seats`}</p>
                 {current ? (
-                  <span className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-lg bg-zinc-900/5 px-3 py-2 text-xs font-semibold text-zinc-500">
+                  <span className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-lg bg-ash-900/5 px-3 py-2 text-xs font-semibold text-ash-500">
                     <CheckCircle2 className="h-3.5 w-3.5" /> Current
                   </span>
                 ) : data.canPay ? (
                   <button onClick={() => pay(p.key)} disabled={busy !== null}
-                    className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                    className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-lg bg-invert px-3 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
                     {busy === p.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                     {p.monthlyKes > data.plan.monthlyKes ? "Upgrade" : "Switch"}
                   </button>

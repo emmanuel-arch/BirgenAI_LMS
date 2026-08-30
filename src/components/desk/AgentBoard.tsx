@@ -56,14 +56,14 @@ export default function AgentBoard({
         title="Agents"
         sub="Ranked by cash recovered. Recovered, promised and contacted are three different quantities and are never added together."
         right={
-          <div className="flex rounded-lg bg-zinc-900/[0.045] p-0.5">
+          <div className="flex rounded-lg bg-ash-900/[0.045] p-0.5">
             {WINDOWS.map((w) => (
               <button
                 key={w.key}
                 type="button"
                 onClick={() => set(w.key)}
                 className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                  win === w.key ? "bg-white text-zinc-800 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+                  win === w.key ? "bg-paper text-ash-800 shadow-sm" : "text-ash-500 hover:text-ash-700"
                 }`}
               >
                 {w.label}
@@ -105,7 +105,7 @@ export default function AgentBoard({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1180px] text-left">
               <thead>
-                <tr className="border-y border-zinc-900/[0.07] text-[9.5px] font-bold uppercase tracking-[0.1em] text-zinc-400">
+                <tr className="border-y border-ash-900/[0.07] text-[9.5px] font-bold uppercase tracking-[0.1em] text-ash-400">
                   <th className="px-4 py-2">Agent</th>
                   <th className="px-3 py-2">Identity</th>
                   <th className="px-3 py-2 text-right">Recovered</th>
@@ -120,18 +120,18 @@ export default function AgentBoard({
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={r.agentId} className="border-b border-zinc-900/[0.045] last:border-0 hover:bg-zinc-900/[0.022]">
+                  <tr key={r.agentId} className="border-b border-ash-900/[0.045] last:border-0 hover:bg-ash-900/[0.022]">
                     <td className="px-4 py-2">
                       <span className="flex items-start gap-2">
-                        <span className="w-5 shrink-0 pt-0.5 text-right text-[10px] font-bold tabular-nums text-zinc-300">{i + 1}</span>
+                        <span className="w-5 shrink-0 pt-0.5 text-right text-[10px] font-bold tabular-nums text-ash-300">{i + 1}</span>
                         <span className="min-w-0">
-                          <Link href={`/desk/queue?agent=${r.agentId}`} className="block truncate text-[12.5px] font-semibold text-zinc-800 hover:text-[color:var(--accent)]">
+                          <Link href={`/desk/queue?agent=${r.agentId}`} className="block truncate text-[12.5px] font-semibold text-ash-800 hover:text-[color:var(--accent)]">
                             {r.name}
                           </Link>
-                          <span className="block truncate text-[10px] text-zinc-400">
+                          <span className="block truncate text-[10px] text-ash-400">
                             {r.role}{r.extension ? ` · ext ${r.extension}` : ""}
                           </span>
-                          <span className="mt-1 block h-1 w-28 overflow-hidden rounded-full bg-zinc-900/[0.06]">
+                          <span className="mt-1 block h-1 w-28 overflow-hidden rounded-full bg-ash-900/[0.06]">
                             <span className="block h-full rounded-full" style={{ width: `${(r.recovered / top) * 100}%`, backgroundColor: "var(--accent)" }} />
                           </span>
                         </span>
@@ -145,29 +145,29 @@ export default function AgentBoard({
                           <span className="font-normal text-emerald-700/60">{r.linkedBy}</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-zinc-900/[0.05] px-1.5 py-0.5 text-[10px] font-semibold text-zinc-400" title="No CollectionAgents row links this agent to a lending-system identity">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-ash-900/[0.05] px-1.5 py-0.5 text-[10px] font-semibold text-ash-400" title="No CollectionAgents row links this agent to a lending-system identity">
                           <Link2Off className="h-2.5 w-2.5" /> unlinked
                         </span>
                       )}
                     </td>
 
-                    <td className="px-3 py-2 text-right text-[12.5px] font-semibold tabular-nums text-zinc-800">{KES(r.recovered)}</td>
-                    <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-zinc-500">{N(r.payments)}</td>
+                    <td className="px-3 py-2 text-right text-[12.5px] font-semibold tabular-nums text-ash-800">{KES(r.recovered)}</td>
+                    <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-ash-500">{N(r.payments)}</td>
                     <td className="px-3 py-2 text-right">
-                      <span className="block text-[11.5px] tabular-nums text-zinc-600">{N(r.assigned)}</span>
-                      <span className="block text-[10px] tabular-nums text-zinc-400">{KES(r.assignedOlb, { compact: true })}</span>
+                      <span className="block text-[11.5px] tabular-nums text-ash-600">{N(r.assigned)}</span>
+                      <span className="block text-[10px] tabular-nums text-ash-400">{KES(r.assignedOlb, { compact: true })}</span>
                     </td>
-                    <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-zinc-500">
+                    <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-ash-500">
                       {r.assignedOlb > 0 ? PCT(r.recoveryRate, 2) : "—"}
                     </td>
-                    <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-zinc-500">{r.calls > 0 ? N(r.calls) : "—"}</td>
-                    <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-zinc-500">
+                    <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-ash-500">{r.calls > 0 ? N(r.calls) : "—"}</td>
+                    <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-ash-500">
                       {r.calls > 0 ? PCT(r.contactRate, 0) : "—"}
                     </td>
-                    <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-zinc-500">
+                    <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-ash-500">
                       {r.commission > 0 ? KES(r.commission) : "—"}
                     </td>
-                    <td className="px-3 py-2 text-right text-[10.5px] tabular-nums text-zinc-400">{ago(r.lastActivityAt)}</td>
+                    <td className="px-3 py-2 text-right text-[10.5px] tabular-nums text-ash-400">{ago(r.lastActivityAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -176,10 +176,10 @@ export default function AgentBoard({
         )}
       </Card>
 
-      <p className="mt-3 text-[10.5px] leading-relaxed text-zinc-400">
+      <p className="mt-3 text-[10.5px] leading-relaxed text-ash-400">
         {roster.extensionsMapped} of {roster.extensions} PBX extensions are mapped to an agent.
-        {" "}Identity linking uses <code className="rounded bg-zinc-900/[0.05] px-1">Serviceconnect.CollectionAgents</code> — the only
-        table carrying both a lending-system staff id and a CollectBox agent id. Where its <code className="rounded bg-zinc-900/[0.05] px-1">CollectBoxRef</code>
+        {" "}Identity linking uses <code className="rounded bg-ash-900/[0.05] px-1">Serviceconnect.CollectionAgents</code> — the only
+        table carrying both a lending-system staff id and a CollectBox agent id. Where its <code className="rounded bg-ash-900/[0.05] px-1">CollectBoxRef</code>
         {" "}is zero, the match falls back to phone and then email, and the method is shown on every row rather than assumed.
       </p>
     </div>

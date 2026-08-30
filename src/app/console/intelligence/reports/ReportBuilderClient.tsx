@@ -60,13 +60,13 @@ export function ReportBuilderClient({ org, metrics }: {
   // ── The document ────────────────────────────────────────────────────────────
   if (result) {
     return (
-      <div className="min-h-screen rounded-2xl bg-white text-zinc-900 print-doc">
-        <div className="no-print sticky top-0 z-10 rounded-t-2xl border-b border-zinc-900/10 bg-white/80 backdrop-blur">
+      <div className="min-h-screen rounded-2xl bg-paper text-ash-900 print-doc">
+        <div className="no-print sticky top-0 z-10 rounded-t-2xl border-b border-ash-900/10 bg-paper/80 backdrop-blur">
           <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4 sm:px-6">
-            <button onClick={() => setResult(null)} className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
+            <button onClick={() => setResult(null)} className="inline-flex items-center gap-1.5 text-sm text-ash-500 hover:text-ash-800">
               <ArrowLeft className="h-4 w-4" /> Compose another
             </button>
-            <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+            <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
               <Printer className="h-3.5 w-3.5" /> Download report
             </button>
           </div>
@@ -82,7 +82,7 @@ export function ReportBuilderClient({ org, metrics }: {
             )}
             <div className="text-right">
               <h1 className="text-lg font-bold tracking-tight uppercase">{result.title}</h1>
-              <p className="text-[11px] text-zinc-500">
+              <p className="text-[11px] text-ash-500">
                 {PERIODS.find((p) => p.key === period)?.label}
                 {slice !== "none" ? ` · ${SLICES.find((s) => s.key === slice)?.label.toLowerCase()}` : ""} ·
                 generated {new Date(result.generatedAt).toLocaleString("en-GB")}
@@ -93,7 +93,7 @@ export function ReportBuilderClient({ org, metrics }: {
           {result.items.map((item) => (
             <section key={item.metricId} className="mt-5 print-break">
               <h2 className="text-sm font-bold">{item.label}</h2>
-              <p className="text-[11px] text-zinc-500">{item.description}</p>
+              <p className="text-[11px] text-ash-500">{item.description}</p>
               {!item.ok ? (
                 <p className="mt-1.5 text-xs text-amber-700">Could not be computed for this period.</p>
               ) : (
@@ -101,24 +101,24 @@ export function ReportBuilderClient({ org, metrics }: {
                   {item.chips && item.chips.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {item.chips.map((c, i) => (
-                        <div key={i} className="rounded-lg border border-zinc-900/10 px-2.5 py-1.5">
-                          <p className="text-[9px] uppercase tracking-wide text-zinc-500">{c.label}</p>
+                        <div key={i} className="rounded-lg border border-ash-900/10 px-2.5 py-1.5">
+                          <p className="text-[9px] uppercase tracking-wide text-ash-500">{c.label}</p>
                           <p className="text-sm font-bold" style={{ color: org.accent }}>{c.value}</p>
                         </div>
                       ))}
                     </div>
                   )}
-                  <p className="mt-2 whitespace-pre-line text-xs leading-relaxed text-zinc-700">{stripMd(item.answer)}</p>
+                  <p className="mt-2 whitespace-pre-line text-xs leading-relaxed text-ash-700">{stripMd(item.answer)}</p>
                   {item.table && (
                     <table className="mt-2 w-full text-[11px]">
                       <thead>
-                        <tr className="border-b border-zinc-900/15 text-left text-zinc-500">
+                        <tr className="border-b border-ash-900/15 text-left text-ash-500">
                           {item.table.columns.map((c) => <th key={c} className="py-1 pr-3 font-medium">{c}</th>)}
                         </tr>
                       </thead>
                       <tbody>
                         {item.table.rows.map((r, i) => (
-                          <tr key={i} className="border-b border-zinc-900/5">
+                          <tr key={i} className="border-b border-ash-900/5">
                             {r.map((cell, j) => <td key={j} className={`py-1 pr-3 ${j > 0 ? "tabular-nums" : ""}`}>{String(cell)}</td>)}
                           </tr>
                         ))}
@@ -127,8 +127,8 @@ export function ReportBuilderClient({ org, metrics }: {
                   )}
                   {item.sql && (
                     <details className="no-print mt-1.5">
-                      <summary className="cursor-pointer text-[10px] text-zinc-400">The exact query that produced this</summary>
-                      <pre className="mt-1 overflow-x-auto rounded bg-zinc-900/[0.04] p-2 text-[9px] leading-relaxed text-zinc-600">{item.sql}</pre>
+                      <summary className="cursor-pointer text-[10px] text-ash-400">The exact query that produced this</summary>
+                      <pre className="mt-1 overflow-x-auto rounded bg-ash-900/[0.04] p-2 text-[9px] leading-relaxed text-ash-600">{item.sql}</pre>
                     </details>
                   )}
                 </>
@@ -136,7 +136,7 @@ export function ReportBuilderClient({ org, metrics }: {
             </section>
           ))}
 
-          <footer className="mt-8 border-t border-zinc-900/10 pt-3 text-[10px] leading-relaxed text-zinc-500">
+          <footer className="mt-8 border-t border-ash-900/10 pt-3 text-[10px] leading-relaxed text-ash-500">
             <p>Composed by {result.generatedBy} from the metric catalogue. Every figure ran the same audited, read-only query ServiceSuite AI shows in the dock.</p>
             <p className="mt-1">Powered by BirgenAI · lms.birgenai.com</p>
           </footer>
@@ -163,7 +163,7 @@ export function ReportBuilderClient({ org, metrics }: {
       <div className="glass mt-4 p-5">
         <div className="grid gap-3 sm:grid-cols-3">
           <input
-            className="w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400 sm:col-span-3"
+            className="w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none placeholder:text-ash-400 sm:col-span-3"
             placeholder="Report title (e.g. Weekly portfolio review)"
             value={title} onChange={(e) => setTitle(e.target.value)}
           />
@@ -179,17 +179,17 @@ export function ReportBuilderClient({ org, metrics }: {
           </div>
         </div>
 
-        <p className="mt-3 text-[11px] text-zinc-500">
+        <p className="mt-3 text-[11px] text-ash-500">
           Pick up to 12. Each runs the same audited query ServiceSuite AI would — and is metered as one ServiceSuite AI query.
         </p>
         <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
           {metrics.map((m) => (
-            <label key={m.id} className={`flex cursor-pointer items-start gap-2.5 rounded-lg border p-2.5 transition-colors ${picked.has(m.id) ? "bg-white/80" : "border-zinc-900/10 bg-white/50 hover:bg-white/70"}`}
+            <label key={m.id} className={`flex cursor-pointer items-start gap-2.5 rounded-lg border p-2.5 transition-colors ${picked.has(m.id) ? "bg-paper/80" : "border-ash-900/10 bg-paper/50 hover:bg-paper/70"}`}
               style={picked.has(m.id) ? { borderColor: "var(--brand)" } : undefined}>
               <input type="checkbox" checked={picked.has(m.id)} onChange={() => toggle(m.id)} className="mt-0.5 h-4 w-4" style={{ accentColor: "var(--brand)" }} />
               <span className="min-w-0">
-                <span className="block text-[13px] font-semibold text-zinc-800">{m.label}</span>
-                <span className="block text-[11px] leading-snug text-zinc-500">{m.description}</span>
+                <span className="block text-[13px] font-semibold text-ash-800">{m.label}</span>
+                <span className="block text-[11px] leading-snug text-ash-500">{m.description}</span>
               </span>
             </label>
           ))}
@@ -204,13 +204,13 @@ function LabeledSelect({ label, value, onChange, options }: {
 }) {
   return (
     <label className="block">
-      <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">{label}</span>
+      <span className="text-[10px] font-bold uppercase tracking-wide text-ash-500">{label}</span>
       <span className="relative mt-1 block">
         <select value={value} onChange={(e) => onChange(e.target.value)}
-          className="w-full appearance-none rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 pr-8 text-sm outline-none">
+          className="w-full appearance-none rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 pr-8 text-sm outline-none">
           {options.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
         </select>
-        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ash-400" />
       </span>
     </label>
   );

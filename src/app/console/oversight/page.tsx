@@ -151,11 +151,11 @@ export default function OversightPage() {
       {/* Filters */}
       <div className="glass mt-4 p-3">
         <div className="flex items-center gap-2">
-          <Search className="h-4 w-4 shrink-0 text-zinc-400" />
+          <Search className="h-4 w-4 shrink-0 text-ash-400" />
           <input value={q} onChange={(e) => setQ(e.target.value)}
             placeholder="Search person, action, device, IP, place…"
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400" />
-          {(q || cat) && <button onClick={() => { setQ(""); setCat(null); }} className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"><X className="h-4 w-4" /></button>}
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ash-400" />
+          {(q || cat) && <button onClick={() => { setQ(""); setCat(null); }} className="rounded-lg p-1 text-ash-400 hover:bg-ash-100 hover:text-ash-700"><X className="h-4 w-4" /></button>}
         </div>
         <div className="mt-2.5 flex flex-wrap gap-1.5">
           {CATS.filter((c) => (catCounts.get(c.key) ?? 0) > 0).map((c) => {
@@ -173,19 +173,19 @@ export default function OversightPage() {
       </div>
 
       {/* Stream */}
-      {!events && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>}
+      {!events && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>}
       {filtered && filtered.length === 0 && (
-        <p className="mt-10 text-center text-sm text-zinc-500">Nothing matches — {q || cat ? "clear the filters" : "no activity recorded yet"}.</p>
+        <p className="mt-10 text-center text-sm text-ash-500">Nothing matches — {q || cat ? "clear the filters" : "no activity recorded yet"}.</p>
       )}
 
       <div className="mt-4 space-y-6">
         {groups.map((g) => (
           <div key={g.day}>
             <div className="sticky top-0 z-10 -mx-1 mb-1 bg-gradient-to-b from-[var(--surface,#faf9fb)] to-transparent px-1 py-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">{g.day}</span>
-              <span className="ml-2 text-[11px] text-zinc-300">{g.items.length}</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-ash-400">{g.day}</span>
+              <span className="ml-2 text-[11px] text-ash-300">{g.items.length}</span>
             </div>
-            <div className="relative ml-3 border-l border-zinc-900/10 pl-5">
+            <div className="relative ml-3 border-l border-ash-900/10 pl-5">
               {g.items.map((e, i) => <StreamRow key={e.id} e={e} delay={i * 0.015} />)}
             </div>
           </div>
@@ -213,15 +213,15 @@ function StreamRow({ e, delay }: { e: Event; delay: number }) {
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm leading-snug">
-              <span className="font-semibold text-zinc-800">{e.actorName}</span>
-              <span className="text-zinc-500"> · {humanize(e.action)}</span>
+              <span className="font-semibold text-ash-800">{e.actorName}</span>
+              <span className="text-ash-500"> · {humanize(e.action)}</span>
               {e.entity && (
-                <span className="ml-1.5 rounded-md bg-zinc-900/5 px-1.5 py-0.5 text-[11px] font-medium text-zinc-500">
+                <span className="ml-1.5 rounded-md bg-ash-900/5 px-1.5 py-0.5 text-[11px] font-medium text-ash-500">
                   {e.entity}{e.entityId ? ` #${String(e.entityId).slice(0, 8)}` : ""}
                 </span>
               )}
             </p>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-zinc-400">
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-ash-400">
               <span>{e.actorTitle}</span>
               {e.device && <span className="inline-flex items-center gap-1"><Monitor className="h-3 w-3" /> {e.device}</span>}
               {e.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> {e.location}</span>}
@@ -229,8 +229,8 @@ function StreamRow({ e, delay }: { e: Event; delay: number }) {
             </div>
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-[11px] font-semibold text-zinc-500 tabular-nums">{fmtClock(e.createdAt)}</p>
-            <p className="text-[10px] text-zinc-400">{relTime(e.createdAt)}</p>
+            <p className="text-[11px] font-semibold text-ash-500 tabular-nums">{fmtClock(e.createdAt)}</p>
+            <p className="text-[10px] text-ash-400">{relTime(e.createdAt)}</p>
           </div>
         </div>
       </div>
@@ -242,7 +242,7 @@ function SummaryTile({ label, value, accent, small }: { label: string; value: nu
   return (
     <div className="glass px-3 py-2.5">
       <p className={`font-black tabular-nums ${small ? "text-sm truncate" : "text-2xl"}`} style={accent ? { color: "var(--brand)" } : undefined}>{value}</p>
-      <p className="text-[11px] text-zinc-500">{label}</p>
+      <p className="text-[11px] text-ash-500">{label}</p>
     </div>
   );
 }

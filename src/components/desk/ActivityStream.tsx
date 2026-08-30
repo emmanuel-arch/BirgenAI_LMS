@@ -74,7 +74,7 @@ export default function ActivityStream({ items }: { items: Item[] }) {
           type="button"
           onClick={() => setSystem(null)}
           className={`rounded-lg border px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
-            system == null ? "border-transparent bg-zinc-900 text-white" : "border-zinc-900/10 bg-white text-zinc-600 hover:bg-zinc-900/[0.03]"
+            system == null ? "border-transparent bg-invert text-invert-fg" : "border-ash-900/10 bg-paper text-ash-600 hover:bg-ash-900/[0.03]"
           }`}
         >
           Everything ({N(items.length)})
@@ -85,7 +85,7 @@ export default function ActivityStream({ items }: { items: Item[] }) {
             type="button"
             onClick={() => setSystem(system === s ? null : s)}
             className={`rounded-lg border px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
-              system === s ? "border-transparent bg-zinc-900 text-white" : "border-zinc-900/10 bg-white text-zinc-600 hover:bg-zinc-900/[0.03]"
+              system === s ? "border-transparent bg-invert text-invert-fg" : "border-ash-900/10 bg-paper text-ash-600 hover:bg-ash-900/[0.03]"
             }`}
           >
             {s} ({N(n)})
@@ -98,23 +98,23 @@ export default function ActivityStream({ items }: { items: Item[] }) {
       ) : (
         groups.map((g) => (
           <div key={g.day} className="mb-4">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">{g.day}</p>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-ash-400">{g.day}</p>
             <Card pad={false}>
               <ol>
                 {g.rows.map((i) => (
-                  <li key={i.id} className="border-b border-zinc-900/[0.045] last:border-0">
-                    <Link href={`/desk/case/${i.loanId}`} className="flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-900/[0.022]">
+                  <li key={i.id} className="border-b border-ash-900/[0.045] last:border-0">
+                    <Link href={`/desk/case/${i.loanId}`} className="flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-ash-900/[0.022]">
                       <span aria-hidden className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: TONE[i.tone] ?? TONE.neutral }} />
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-baseline justify-between gap-x-3">
-                          <span className="text-[12.5px] font-semibold text-zinc-800">{i.headline}</span>
-                          <span className="text-[10.5px] tabular-nums text-zinc-400">{shortTime(i.at)}</span>
+                          <span className="text-[12.5px] font-semibold text-ash-800">{i.headline}</span>
+                          <span className="text-[10.5px] tabular-nums text-ash-400">{shortTime(i.at)}</span>
                         </span>
-                        <span className="mt-0.5 block truncate text-[11.5px] text-zinc-500">
+                        <span className="mt-0.5 block truncate text-[11.5px] text-ash-500">
                           {i.subject}
-                          {i.actor ? <span className="text-zinc-400"> · {i.actor}{i.actorRole ? ` (${i.actorRole})` : ""}</span> : null}
+                          {i.actor ? <span className="text-ash-400"> · {i.actor}{i.actorRole ? ` (${i.actorRole})` : ""}</span> : null}
                         </span>
-                        {i.detail && <span className="mt-0.5 block truncate text-[11px] text-zinc-400">{i.detail}</span>}
+                        {i.detail && <span className="mt-0.5 block truncate text-[11px] text-ash-400">{i.detail}</span>}
                         <span className="mt-1 flex flex-wrap gap-1">
                           <Tag tone={SYSTEM_TONE[i.system] ?? "neutral"}>{i.system}</Tag>
                           {i.tags.filter((t) => t && !["Payment", "Call"].includes(t)).slice(0, 3).map((t) => <Tag key={t}>{t}</Tag>)}

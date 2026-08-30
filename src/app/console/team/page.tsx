@@ -80,10 +80,10 @@ export default function TeamPage() {
     await load();
   };
 
-  const field = "flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3";
-  const input = "flex-1 bg-transparent outline-none text-sm py-2.5 placeholder:text-zinc-400 min-w-0";
+  const field = "flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3";
+  const input = "flex-1 bg-transparent outline-none text-sm py-2.5 placeholder:text-ash-400 min-w-0";
   const Tier = ({ on, label, onClick }: { on: boolean; label: string; onClick: () => void }) => (
-    <button onClick={onClick} className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${on ? "bg-zinc-900 text-white" : "bg-zinc-900/5 text-zinc-500"}`}>{label}</button>
+    <button onClick={onClick} className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${on ? "bg-invert text-invert-fg" : "bg-ash-900/5 text-ash-500"}`}>{label}</button>
   );
 
   return (
@@ -91,15 +91,15 @@ export default function TeamPage() {
         <div className="mt-3 flex items-center justify-between gap-3">
           <h1 className="text-xl font-bold flex items-center gap-2"><Users className="h-5 w-5" style={{ color: "var(--brand)" }} /> Team</h1>
           <div className="flex items-center gap-2">
-            <Link href="/console/roles" className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-white">
+            <Link href="/console/roles" className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-2 text-xs font-semibold text-ash-700 hover:bg-paper">
               Manage roles →
             </Link>
-            <button onClick={() => setShowForm((s) => !s)} className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+            <button onClick={() => setShowForm((s) => !s)} className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
               <Plus className="h-3.5 w-3.5" /> Add teammate
             </button>
           </div>
         </div>
-        <p className="mt-1 text-xs text-zinc-500">Roles decide which menus and abilities each person gets. Tiers drive approvals: INIT reviews, AUTH seconds, VALID finalizes (with an OTP) and checks disbursements.</p>
+        <p className="mt-1 text-xs text-ash-500">Roles decide which menus and abilities each person gets. Tiers drive approvals: INIT reviews, AUTH seconds, VALID finalizes (with an OTP) and checks disbursements.</p>
 
         {notice && <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50/90 px-3 py-2.5 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> {notice}</div>}
         {error && <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
@@ -134,20 +134,20 @@ export default function TeamPage() {
               </div>
             )}
             <button onClick={invite} disabled={saving || (otpStep && otpCode.length < 6)}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-invert px-5 py-2.5 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : otpStep ? <ShieldCheck className="h-4 w-4" /> : null} {otpStep ? "Confirm with code" : "Add & email credentials"}
             </button>
           </div>
         )}
 
-        {!staff && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>}
+        {!staff && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>}
         <div className="mt-5 space-y-2">
           {staff?.map((s) => (
             <div key={s.id} className={`glass p-4 ${s.status !== "ACTIVE" ? "opacity-60" : ""}`}>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="min-w-0">
-                <p className="text-sm font-semibold truncate">{s.firstName} {s.otherName ?? ""} <span className="text-zinc-400 font-normal">· {s.email}</span></p>
-                <p className="text-xs text-zinc-500">{s.role?.title ?? "No role"}{s.branch ? ` · ${s.branch.name}` : ""}{s.lastLoginAt ? ` · last seen ${new Date(s.lastLoginAt).toLocaleDateString("en-KE")}` : " · never signed in"}</p>
+                <p className="text-sm font-semibold truncate">{s.firstName} {s.otherName ?? ""} <span className="text-ash-400 font-normal">· {s.email}</span></p>
+                <p className="text-xs text-ash-500">{s.role?.title ?? "No role"}{s.branch ? ` · ${s.branch.name}` : ""}{s.lastLoginAt ? ` · last seen ${new Date(s.lastLoginAt).toLocaleDateString("en-KE")}` : " · never signed in"}</p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <Tier on={s.isInitiator} label="INIT" onClick={() => toggleTier(s, "initiator")} />
@@ -159,7 +159,7 @@ export default function TeamPage() {
                   {s.status}
                 </button>
                 <button onClick={() => setEditing(editing === s.id ? null : s.id)}
-                  className={`ml-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${editing === s.id ? "bg-zinc-900 text-white" : "bg-zinc-900/[0.06] text-zinc-600 hover:bg-zinc-900/[0.1]"}`}>
+                  className={`ml-1 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${editing === s.id ? "bg-invert text-invert-fg" : "bg-ash-900/[0.06] text-ash-600 hover:bg-ash-900/[0.1]"}`}>
                   <SlidersHorizontal className="h-3 w-3" /> Manage
                 </button>
               </div>

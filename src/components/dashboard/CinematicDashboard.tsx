@@ -56,7 +56,7 @@ function effectiveScope(capability: FilterCapability, sel: FilterSelection): Sco
 function Modelled({ note }: { note?: string }) {
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-1 rounded-md bg-zinc-900/[0.06] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500"
+      className="inline-flex shrink-0 items-center gap-1 rounded-md bg-ash-900/[0.06] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ash-500"
       title={note ?? "Illustrative shape — this panel is not yet fed by the lender's own history"}
     >
       Modelled
@@ -120,13 +120,13 @@ export default function CinematicDashboard({
               {data.simulated ? "Showcase" : "Live"}
             </span>
           </div>
-          <p className="mt-0.5 text-sm text-zinc-500">
+          <p className="mt-0.5 text-sm text-ash-500">
             {orgName} · {narrowed ? "Filtered view" : capability.scopeLabel} · updated moments ago
           </p>
           {/* Name the source. "Live" on its own invites the reader to assume every
               pixel is their data; this says which book answered, and whose scope. */}
           {provenance?.source === "servicesuite" && !narrowed && (
-            <p className="mt-0.5 text-[11px] text-zinc-400">
+            <p className="mt-0.5 text-[11px] text-ash-400">
               Read live from the lender&apos;s own system
               {provenance.entityId != null ? ` · entity ${provenance.entityId}` : ""}
               {provenance.liveMetrics.length ? ` · ${provenance.liveMetrics.length} metrics` : ""}
@@ -160,7 +160,7 @@ export default function CinematicDashboard({
             <div className="flex items-center gap-2">
               {live && <Modelled note="Daily production history is not exposed by the lender's dashboard proc — this curve is illustrative" />}
               <button onClick={() => setFilters((f) => ({ ...f, compare: !f.compare }))}
-                className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ring-1 transition-colors ${compare ? "text-white" : "text-zinc-500 ring-zinc-900/10 hover:bg-zinc-900/5"}`}
+                className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ring-1 transition-colors ${compare ? "text-white" : "text-ash-500 ring-ash-900/10 hover:bg-ash-900/5"}`}
                 style={compare ? { backgroundColor: accent, borderColor: accent } : undefined}>
                 vs previous
               </button>
@@ -223,7 +223,7 @@ export default function CinematicDashboard({
               </ResponsiveContainer>
             ) : <ChartSkeleton />}
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <p className="text-[10px] uppercase tracking-wide text-zinc-400">Book value</p>
+              <p className="text-[10px] uppercase tracking-wide text-ash-400">Book value</p>
               <p className="text-xl font-bold" style={{ color: accent }}>{KESc(k.olb)}</p>
             </div>
           </div>
@@ -231,7 +231,7 @@ export default function CinematicDashboard({
             {data.composition.map((s) => (
               <div key={s.name} className="flex items-center justify-between text-xs">
                 <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: s.color }} />{s.name}</span>
-                <span className="font-semibold text-zinc-700">{KESc(s.value)}</span>
+                <span className="font-semibold text-ash-700">{KESc(s.value)}</span>
               </div>
             ))}
           </div>
@@ -296,10 +296,10 @@ export default function CinematicDashboard({
               return (
                 <div key={p.name}>
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-zinc-700">{p.name}</span>
-                    <span className="text-zinc-500">{KESc(p.olb)} · {p.count}</span>
+                    <span className="font-medium text-ash-700">{p.name}</span>
+                    <span className="text-ash-500">{KESc(p.olb)} · {p.count}</span>
                   </div>
-                  <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-zinc-900/5">
+                  <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-ash-900/5">
                     <motion.div initial={{ width: 0 }} animate={{ width: `${share}%` }} transition={{ duration: 0.7, ease: "easeOut" }}
                       className="h-full rounded-full" style={{ backgroundColor: c }} />
                   </div>
@@ -312,7 +312,7 @@ export default function CinematicDashboard({
         <Panel title="NPL watch" subtitle="Non-performing, and what's coming back">
           <div className="flex items-baseline gap-2">
             <p className="text-2xl font-bold" style={{ color: TONE.bad }}>{KESc(k.npl)}</p>
-            <span className="text-xs text-zinc-500">{k.nplCount} loans</span>
+            <span className="text-xs text-ash-500">{k.nplCount} loans</span>
           </div>
           <div className="mt-3 space-y-2">
             <MiniStat label="Recovered this month" value={KESc(k.nplCollectedMonth)} sub="from NPL book" tone={green} />
@@ -327,13 +327,13 @@ export default function CinematicDashboard({
         right={
           <div className="flex items-center gap-2">
             {live && <Modelled note="Branch-level splits need the org-unit scoped proc (FilterServiceSuiteDashboard), not yet wired" />}
-            <span className="text-[11px] text-zinc-400">{data.branches.length} branches</span>
+            <span className="text-[11px] text-ash-400">{data.branches.length} branches</span>
           </div>
         }>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] text-sm">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wide text-zinc-400">
+              <tr className="text-left text-[11px] uppercase tracking-wide text-ash-400">
                 <th className="pb-2 font-semibold">Branch</th>
                 <th className="pb-2 text-right font-semibold">Outstanding</th>
                 <th className="pb-2 text-right font-semibold">PAR</th>
@@ -343,13 +343,13 @@ export default function CinematicDashboard({
             </thead>
             <tbody>
               {data.branches.map((b) => (
-                <tr key={b.name} className="border-t border-zinc-900/5">
+                <tr key={b.name} className="border-t border-ash-900/5">
                   <td className="py-2.5 font-medium">{b.name}</td>
                   <td className="py-2.5 text-right tabular-nums">{KESc(b.olb)}</td>
                   <td className="py-2.5 text-right tabular-nums" style={{ color: b.par > 10 ? TONE.bad : b.par > 6 ? TONE.warn : green }}>{pct(b.par)}</td>
-                  <td className="py-2.5 text-right tabular-nums text-zinc-500">{b.officers}</td>
+                  <td className="py-2.5 text-right tabular-nums text-ash-500">{b.officers}</td>
                   <td className="py-2.5">
-                    <div className="ml-auto h-1.5 w-24 overflow-hidden rounded-full bg-zinc-900/5">
+                    <div className="ml-auto h-1.5 w-24 overflow-hidden rounded-full bg-ash-900/5">
                       <div className="h-full rounded-full" style={{ width: `${Math.max(6, 100 - b.par * 5)}%`, backgroundColor: b.par > 10 ? TONE.bad : b.par > 6 ? TONE.warn : green }} />
                     </div>
                   </td>
@@ -380,12 +380,12 @@ function Segmented({ value, onChange, options, accent }: {
   value: string; onChange: (v: string) => void; accent: string; options: { value: string; label: string }[];
 }) {
   return (
-    <div className="inline-flex rounded-xl bg-zinc-900/5 p-0.5">
+    <div className="inline-flex rounded-xl bg-ash-900/5 p-0.5">
       {options.map((o) => {
         const active = o.value === value;
         return (
           <button key={o.value} onClick={() => onChange(o.value)}
-            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${active ? "text-white shadow-sm" : "text-zinc-500 hover:text-zinc-800"}`}
+            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${active ? "text-white shadow-sm" : "text-ash-500 hover:text-ash-800"}`}
             style={active ? { backgroundColor: accent } : undefined}>
             {o.label}
           </button>
@@ -404,7 +404,7 @@ function Panel({ title, subtitle, right, children, className = "" }: {
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold">{title}</h2>
-          {subtitle && <p className="text-[11px] text-zinc-500">{subtitle}</p>}
+          {subtitle && <p className="text-[11px] text-ash-500">{subtitle}</p>}
         </div>
         {right}
       </div>
@@ -431,9 +431,9 @@ function StatTile({ icon: Icon, label, value, sub, delta, spark, accent, invertD
           </span>
         )}
       </div>
-      <p className="mt-2.5 text-[11px] uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="mt-2.5 text-[11px] uppercase tracking-wide text-ash-500">{label}</p>
       <p className="mt-0.5 text-lg font-bold leading-tight sm:text-xl">{value}</p>
-      {sub && <p className="mt-0.5 text-[11px] text-zinc-400">{sub}</p>}
+      {sub && <p className="mt-0.5 text-[11px] text-ash-400">{sub}</p>}
       {spark && spark.length > 1 && <Sparkline data={spark} color={accent} />}
     </motion.div>
   );
@@ -464,17 +464,17 @@ function Radial({ label, value, color }: { label: string; value: number; color: 
         </svg>
         <div className="absolute inset-0 flex items-center justify-center text-sm font-bold" style={{ color }}>{Math.round(v)}%</div>
       </div>
-      <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="mt-1 text-[10px] uppercase tracking-wide text-ash-500">{label}</p>
     </div>
   );
 }
 
 function MiniStat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-zinc-900/5 bg-white/50 px-3 py-2">
+    <div className="flex items-center justify-between rounded-xl border border-ash-900/5 bg-paper/50 px-3 py-2">
       <div>
-        <p className="text-[11px] text-zinc-500">{label}</p>
-        {sub && <p className="text-[10px] text-zinc-400">{sub}</p>}
+        <p className="text-[11px] text-ash-500">{label}</p>
+        {sub && <p className="text-[10px] text-ash-400">{sub}</p>}
       </div>
       <p className="text-sm font-bold tabular-nums" style={{ color: tone ?? "#18181b" }}>{value}</p>
     </div>
@@ -486,10 +486,10 @@ function Pipe({ label, count, total, color }: { label: string; count: number; to
   return (
     <div>
       <div className="flex items-center justify-between text-xs">
-        <span className="font-medium text-zinc-700">{label}</span>
+        <span className="font-medium text-ash-700">{label}</span>
         <span className="font-bold tabular-nums" style={{ color }}>{count}</span>
       </div>
-      <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-zinc-900/5">
+      <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-ash-900/5">
         <motion.div initial={{ width: 0 }} animate={{ width: `${share}%` }} transition={{ duration: 0.7, ease: "easeOut" }}
           className="h-full rounded-full" style={{ backgroundColor: color }} />
       </div>
@@ -501,7 +501,7 @@ function Legend({ items }: { items: { c: string; label: string }[] }) {
   return (
     <div className="mt-2 flex items-center gap-4">
       {items.map((i) => (
-        <span key={i.label} className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+        <span key={i.label} className="flex items-center gap-1.5 text-[11px] text-ash-500">
           <span className="h-2 w-3 rounded-sm" style={{ backgroundColor: i.c }} /> {i.label}
         </span>
       ))}
@@ -510,19 +510,19 @@ function Legend({ items }: { items: { c: string; label: string }[] }) {
 }
 
 function ChartSkeleton() {
-  return <div className="h-full w-full animate-pulse rounded-xl bg-zinc-900/5" />;
+  return <div className="h-full w-full animate-pulse rounded-xl bg-ash-900/5" />;
 }
 
 // Recharts tooltip payload is loosely typed; keep the surface minimal.
 function ChartTip({ active, payload, label, money }: { active?: boolean; payload?: Array<{ name?: string; value?: number; color?: string }>; label?: string; money?: boolean }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border border-zinc-900/10 bg-white/95 px-3 py-2 text-xs shadow-lg backdrop-blur">
-      {label && <p className="mb-1 font-semibold text-zinc-700">{label}</p>}
+    <div className="rounded-xl border border-ash-900/10 bg-paper/95 px-3 py-2 text-xs shadow-lg backdrop-blur">
+      {label && <p className="mb-1 font-semibold text-ash-700">{label}</p>}
       {payload.map((p, i) => (
         <div key={i} className="flex items-center justify-between gap-4">
-          <span className="flex items-center gap-1.5 text-zinc-500"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />{p.name}</span>
-          <span className="font-semibold tabular-nums text-zinc-800">{money ? KES(p.value ?? 0) : KESc(p.value ?? 0)}</span>
+          <span className="flex items-center gap-1.5 text-ash-500"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />{p.name}</span>
+          <span className="font-semibold tabular-nums text-ash-800">{money ? KES(p.value ?? 0) : KESc(p.value ?? 0)}</span>
         </div>
       ))}
     </div>

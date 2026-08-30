@@ -41,6 +41,7 @@ import { Menu, X, PanelLeftClose, PanelLeftOpen, ArrowUpRight } from "lucide-rea
 import { useLoad } from "@/lib/hooks/useLoad";
 import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 import IdentityMenu from "@/components/shell/IdentityMenu";
+import ThemeSwitch from "@/components/shell/ThemeSwitch";
 import { navIcon } from "@/components/shell/icons";
 
 // ── The nav shape every system speaks ────────────────────────────────────────
@@ -118,7 +119,7 @@ export default function SuiteShell({
 
   return (
     <div
-      className="relative min-h-screen text-zinc-800"
+      className="relative min-h-screen text-ash-800"
       style={{ ["--accent" as never]: identity.accent, ["--accent2" as never]: identity.accent2 ?? identity.accent }}
     >
       {/* ── THE CANVAS ─────────────────────────────────────────────────────────
@@ -140,7 +141,7 @@ export default function SuiteShell({
           should be the thing you notice on walking into a room, not the thing you
           read. Every surface above it is a .panel or .canvas with its own opaque
           background, so no text ever sits on the wash directly. */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-[#f6f6f4]">
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-studio">
         <div className="absolute inset-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
         <div
           className="absolute inset-0 opacity-[0.20]"
@@ -168,7 +169,7 @@ export default function SuiteShell({
               across the artwork it is supposed to be floating over. The accent
               hairline underneath is what tells you which system you are in from
               the corner of your eye. */}
-          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-zinc-900/[0.07] bg-white/55 px-4 backdrop-blur-xl sm:px-6">
+          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-ash-900/[0.07] bg-paper/55 px-4 backdrop-blur-xl sm:px-6">
             <span
               aria-hidden
               className="pointer-events-none absolute inset-x-0 bottom-0 h-px"
@@ -177,18 +178,19 @@ export default function SuiteShell({
             <button
               type="button"
               onClick={() => setDrawer(true)}
-              className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-900/5 lg:hidden"
+              className="rounded-lg p-2 text-ash-500 hover:bg-ash-900/5 lg:hidden"
               aria-label="Open navigation"
             >
               <Menu className="h-4 w-4" />
             </button>
-            <p className="hidden min-w-0 truncate text-[11px] font-medium text-zinc-500 lg:block">
-              <span className="font-semibold text-zinc-700">{org.name}</span>
+            <p className="hidden min-w-0 truncate text-[11px] font-medium text-ash-500 lg:block">
+              <span className="font-semibold text-ash-700">{org.name}</span>
               {" · "}
               {identity.strap}
             </p>
             <div className="ml-auto flex items-center gap-2">
               {headerRight}
+              <ThemeSwitch />
               <IdentityMenu
                 name={user.name}
                 email={user.email}
@@ -212,7 +214,7 @@ export default function SuiteShell({
               type="button"
               onClick={() => setDrawer(false)}
               aria-label="Close navigation"
-              className="absolute right-2 top-3 z-10 rounded-lg p-2 text-white/50 hover:bg-white/10"
+              className="absolute right-2 top-3 z-10 rounded-lg p-2 text-white/50 hover:bg-paper/10"
             >
               <X className="h-4 w-4" />
             </button>
@@ -253,7 +255,7 @@ function Rail({
       <div className={`flex shrink-0 items-center gap-2.5 px-3 py-3.5 ${collapsed ? "justify-center px-2" : ""}`}>
         {org.logoUrl ? (
           <span
-            className={`flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm ${
+            className={`flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-paper shadow-sm ${
               collapsed ? "h-9 w-9 p-1" : "h-10 w-10 p-1"
             }`}
           >
@@ -279,7 +281,7 @@ function Rail({
           <button
             type="button"
             onClick={onToggle}
-            className="rounded-md p-1.5 text-white/35 hover:bg-white/10 hover:text-white/70"
+            className="rounded-md p-1.5 text-white/35 hover:bg-paper/10 hover:text-white/70"
             aria-label="Collapse navigation"
           >
             <PanelLeftClose className="h-3.5 w-3.5" />
@@ -299,7 +301,7 @@ function Rail({
         <button
           type="button"
           onClick={onToggle}
-          className="mx-auto mb-2 rounded-md p-1.5 text-white/35 hover:bg-white/10 hover:text-white/70"
+          className="mx-auto mb-2 rounded-md p-1.5 text-white/35 hover:bg-paper/10 hover:text-white/70"
           aria-label="Expand navigation"
         >
           <PanelLeftOpen className="h-3.5 w-3.5" />
@@ -312,7 +314,7 @@ function Rail({
             {!collapsed && (
               <p className="px-3 pb-1 pt-3 text-[9px] font-bold uppercase tracking-[0.14em] text-white/30">{mod.label}</p>
             )}
-            {collapsed && <div className="mx-3 my-2 h-px bg-white/10" aria-hidden />}
+            {collapsed && <div className="mx-3 my-2 h-px bg-paper/10" aria-hidden />}
             {mod.items.map((item) => {
               const Icon = navIcon(item.icon);
               const active = isActive(item.href, item.exact);
@@ -336,7 +338,7 @@ function Rail({
                     </span>
                   )}
                   {!collapsed && dead && (
-                    <span className="shrink-0 rounded bg-white/10 px-1 py-0.5 text-[8px] font-bold uppercase text-white/40">soon</span>
+                    <span className="shrink-0 rounded bg-paper/10 px-1 py-0.5 text-[8px] font-bold uppercase text-white/40">soon</span>
                   )}
                 </>
               );
@@ -345,10 +347,10 @@ function Rail({
                 collapsed ? "justify-center px-2" : ""
               } ${
                 active
-                  ? "bg-white/[0.10] text-white"
+                  ? "bg-paper/[0.10] text-white"
                   : dead
                     ? "cursor-not-allowed text-white/25"
-                    : "text-white/60 hover:bg-white/[0.06] hover:text-white/90"
+                    : "text-white/60 hover:bg-paper/[0.06] hover:text-white/90"
               }`;
 
               if (dead) {
@@ -376,7 +378,7 @@ function Rail({
       <div className="shrink-0 border-t border-white/[0.08] p-2">
         <Link
           href={consoleHref}
-          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-white/50 transition-colors hover:bg-white/[0.06] hover:text-white/90 ${
+          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-white/50 transition-colors hover:bg-paper/[0.06] hover:text-white/90 ${
             collapsed ? "justify-center px-2" : ""
           }`}
           title="Back to the lending console"

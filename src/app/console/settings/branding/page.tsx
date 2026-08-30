@@ -63,7 +63,7 @@ export default function BrandingPage() {
       <main className="mx-auto max-w-3xl px-4 sm:px-6 py-8">
         {error
           ? <div className="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>
-          : <div className="glass p-4 text-sm text-zinc-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>}
+          : <div className="glass p-4 text-sm text-ash-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>}
       </main>
     );
   }
@@ -73,7 +73,7 @@ export default function BrandingPage() {
       <h1 className="text-xl font-bold flex items-center gap-2">
         <Palette className="h-5 w-5" style={{ color: "var(--brand)" }} /> Branding
       </h1>
-      <p className="mt-1 text-sm text-zinc-500 max-w-2xl">
+      <p className="mt-1 text-sm text-ash-500 max-w-2xl">
         Your logo and colors, applied to the staff console and your borrower portal at {branding.slug}.birgenai.com.
         Other lenders on the platform never see or share these.
       </p>
@@ -97,16 +97,16 @@ export default function BrandingPage() {
       <div className="glass mt-4 p-5">
         <p className="text-sm font-semibold">Words</p>
         <label className="mt-3 block">
-          <span className="text-[11px] font-semibold text-zinc-600">Tagline</span>
-          <span className="block text-[11px] text-zinc-500">One line under your name on the borrower portal — what you promise.</span>
+          <span className="text-[11px] font-semibold text-ash-600">Tagline</span>
+          <span className="block text-[11px] text-ash-500">One line under your name on the borrower portal — what you promise.</span>
           <input value={tagline} onChange={(e) => setTagline(e.target.value)} maxLength={120} placeholder="Credit that understands your cashflow."
-            className="mt-1.5 w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none" />
+            className="mt-1.5 w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none" />
         </label>
         <label className="mt-3 block">
-          <span className="text-[11px] font-semibold text-zinc-600">About line</span>
-          <span className="block text-[11px] text-zinc-500">A sentence about who you are, shown where borrowers choose a lender.</span>
+          <span className="text-[11px] font-semibold text-ash-600">About line</span>
+          <span className="block text-[11px] text-ash-500">A sentence about who you are, shown where borrowers choose a lender.</span>
           <input value={blurb} onChange={(e) => setBlurb(e.target.value)} maxLength={240} placeholder="Nairobi's microfinance for market traders."
-            className="mt-1.5 w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none" />
+            className="mt-1.5 w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none" />
         </label>
       </div>
 

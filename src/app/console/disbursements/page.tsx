@@ -13,7 +13,7 @@ type Disb = {
 
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 const TONE: Record<string, string> = {
-  PENDING_MAKER: "bg-zinc-900/5 text-zinc-600",
+  PENDING_MAKER: "bg-ash-900/5 text-ash-600",
   PENDING_CHECKER: "bg-amber-100 text-amber-700",
   SENDING: "bg-blue-100 text-blue-700",
   SENT: "bg-blue-100 text-blue-700",
@@ -82,10 +82,10 @@ export default function DisbursementsPage() {
           <div className="glass px-4 py-2 flex items-center gap-3">
             <Wallet className="h-4 w-4" style={{ color: "var(--brand)" }} />
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-zinc-500">Float balance</p>
+              <p className="text-[10px] uppercase tracking-wide text-ash-500">Float balance</p>
               <p className="text-sm font-bold">{fmtKES(balance)}</p>
             </div>
-            <button onClick={() => setShowTopup((s) => !s)} className="ml-2 inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-zinc-800">
+            <button onClick={() => setShowTopup((s) => !s)} className="ml-2 inline-flex items-center gap-1 rounded-lg bg-invert px-2.5 py-1.5 text-[11px] font-semibold text-invert-fg hover:bg-invert-2">
               <Plus className="h-3 w-3" /> Top up
             </button>
           </div>
@@ -94,10 +94,10 @@ export default function DisbursementsPage() {
         {showTopup && (
           <div className="glass mt-4 p-4 flex flex-wrap items-center gap-3">
             <input value={topupAmount} onChange={(e) => setTopupAmount(e.target.value)} inputMode="numeric" placeholder="Amount (KES)"
-              className="rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2 text-sm outline-none w-36" />
+              className="rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2 text-sm outline-none w-36" />
             <input value={topupRef} onChange={(e) => setTopupRef(e.target.value)} placeholder="Reference (bank/M-Pesa)"
-              className="rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2 text-sm outline-none flex-1 min-w-40" />
-            <button onClick={topup} disabled={acting === "topup"} className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+              className="rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2 text-sm outline-none flex-1 min-w-40" />
+            <button onClick={topup} disabled={acting === "topup"} className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
               {acting === "topup" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Record top-up
             </button>
           </div>
@@ -105,8 +105,8 @@ export default function DisbursementsPage() {
 
         {notice && <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50/90 px-3 py-2.5 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> {notice}</div>}
         {error && <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
-        {!rows && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>}
-        {rows?.length === 0 && <p className="mt-10 text-center text-sm text-zinc-500">No disbursements yet — approve an application to queue one.</p>}
+        {!rows && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>}
+        {rows?.length === 0 && <p className="mt-10 text-center text-sm text-ash-500">No disbursements yet — approve an application to queue one.</p>}
 
         <div className="mt-5 space-y-3">
           {rows?.map((d) => (
@@ -118,7 +118,7 @@ export default function DisbursementsPage() {
                   <p className="text-sm font-semibold sm:truncate">
                     {d.borrower} · {fmtKES(d.amount)} → {d.payee ? (d.payee.name || `paybill ${d.payee.paybill}`) : d.phone}
                   </p>
-                  <p className="text-xs text-zinc-500 sm:truncate">
+                  <p className="text-xs text-ash-500 sm:truncate">
                     {d.product} · loan {d.loanId.slice(0, 8)} · {new Date(d.createdAt).toLocaleString("en-KE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                     {d.receiptRef && <> · ref {d.receiptRef}</>}
                   </p>
@@ -135,7 +135,7 @@ export default function DisbursementsPage() {
               <div className="mt-3 flex flex-wrap gap-2">
                 {d.state === "PENDING_MAKER" && (
                   <button disabled={!!acting} onClick={() => act(d.id, "submit")}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
                     {acting === d.id + "submit" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Submit for approval
                   </button>
                 )}
@@ -145,12 +145,12 @@ export default function DisbursementsPage() {
                         the direct-paybill rail ships they're paid outside + recorded. */}
                     {!d.payee && (
                       <button disabled={!!acting} onClick={() => act(d.id, "approve")}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
                         {acting === d.id + "approve" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Banknote className="h-3.5 w-3.5" />} Pay via M-Pesa B2C
                       </button>
                     )}
                     <button disabled={!!acting} onClick={() => setManualFor(manualFor === d.id ? null : d.id)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-white disabled:opacity-60"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2 text-xs font-semibold text-ash-700 hover:bg-paper disabled:opacity-60"
                       style={d.payee ? { backgroundColor: "var(--brand)", color: "#fff", borderColor: "transparent" } : undefined}>
                       {d.payee ? `Confirm paid to paybill ${d.payee.paybill}` : "Record manual payment"}
                     </button>
@@ -158,7 +158,7 @@ export default function DisbursementsPage() {
                 )}
                 {d.state === "FAILED" && (
                   <button disabled={!!acting} onClick={() => act(d.id, "retry")}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-white disabled:opacity-60">
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2 text-xs font-semibold text-ash-700 hover:bg-paper disabled:opacity-60">
                     <RotateCcw className="h-3.5 w-3.5" /> Retry
                   </button>
                 )}
@@ -167,9 +167,9 @@ export default function DisbursementsPage() {
               {manualFor === d.id && (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <input value={manualRef} onChange={(e) => setManualRef(e.target.value)} placeholder="M-Pesa/bank reference"
-                    className="rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2 text-sm outline-none flex-1 min-w-48" />
+                    className="rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2 text-sm outline-none flex-1 min-w-48" />
                   <button disabled={!!acting} onClick={() => act(d.id, "manual", manualRef)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
                     {acting === d.id + "manual" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} Confirm paid
                   </button>
                 </div>

@@ -55,7 +55,7 @@ export function AlertsScreen({
     return (
       <Screen>
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-zinc-300" />
+          <Loader2 className="h-5 w-5 animate-spin text-ash-300" />
         </div>
       </Screen>
     );
@@ -69,7 +69,7 @@ export function AlertsScreen({
           title="Nothing needs you"
           detail={`No arrears spike, no unmatched money, no queue backing up. ${scope ? SCOPE_NOTE[scope] ?? "" : ""}`}
           action={
-            <button onClick={onRefresh} className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-900/10 bg-white px-3 py-1.5 text-[11.5px] font-semibold text-zinc-600 hover:text-zinc-900">
+            <button onClick={onRefresh} className="inline-flex items-center gap-1.5 rounded-xl border border-ash-900/10 bg-paper px-3 py-1.5 text-[11.5px] font-semibold text-ash-600 hover:text-ash-900">
               <RefreshCw className="h-3 w-3" /> Check again
             </button>
           }
@@ -102,12 +102,12 @@ export function AlertsScreen({
                   >
                     <span className="min-w-0 flex-1">
                       <span className="flex items-start gap-1.5">
-                        <span className="min-w-0 flex-1 text-[12.5px] font-semibold leading-tight text-zinc-900">{s.title}</span>
+                        <span className="min-w-0 flex-1 text-[12.5px] font-semibold leading-tight text-ash-900">{s.title}</span>
                         {s.amount && (
                           <span className={`shrink-0 text-[11px] font-bold tabular-nums ${band.tint}`}>{s.amount}</span>
                         )}
                       </span>
-                      <span className="mt-1 block text-[10.5px] leading-snug text-zinc-600">{s.body}</span>
+                      <span className="mt-1 block text-[10.5px] leading-snug text-ash-600">{s.body}</span>
                       <span className={`mt-1.5 inline-flex items-center gap-1 text-[10.5px] font-semibold ${band.tint}`}>
                         {s.actionLabel} <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                       </span>
@@ -122,14 +122,14 @@ export function AlertsScreen({
         {/* The provenance line. It matters that a lender knows this is arithmetic
             over their own rows and not an opinion — it is the difference between
             acting on it and wondering about it. */}
-        <div className="rounded-xl border border-zinc-900/[0.06] bg-white/60 px-3 py-2">
-          <p className="text-[9.5px] leading-snug text-zinc-500">
+        <div className="rounded-xl border border-ash-900/[0.06] bg-paper/60 px-3 py-2">
+          <p className="text-[9.5px] leading-snug text-ash-500">
             Every line above is a count off your live book, not a prediction.
             {scope && ` ${SCOPE_NOTE[scope] ?? ""}`}
           </p>
           <button
             onClick={onRefresh}
-            className="mt-1 inline-flex items-center gap-1 text-[9.5px] font-semibold text-zinc-400 hover:text-zinc-700"
+            className="mt-1 inline-flex items-center gap-1 text-[9.5px] font-semibold text-ash-400 hover:text-ash-700"
           >
             <RefreshCw className={`h-2.5 w-2.5 ${loading ? "animate-spin" : ""}`} />
             {at ? `Read ${new Date(at).toLocaleTimeString("en-KE", { hour: "2-digit", minute: "2-digit", hour12: false })} — check again` : "Check again"}

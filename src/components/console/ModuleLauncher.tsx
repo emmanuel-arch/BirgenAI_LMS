@@ -40,13 +40,13 @@ export default function ModuleLauncher({ rights, features }: { rights: ReadonlyS
     <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
       {visible.map(({ icon: Icon, title, desc, ready, ...m }) => {
         const card = (
-          <div className={`glass p-3.5 sm:p-5 h-full ${ready ? "hover:bg-white/80 transition-colors" : "opacity-60"}`}>
+          <div className={`glass p-3.5 sm:p-5 h-full ${ready ? "hover:bg-paper/80 transition-colors" : "opacity-60"}`}>
             <div className="flex items-center justify-between">
               <Icon className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: "var(--brand)" }} aria-hidden />
-              {!ready && <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">COMING UP</span>}
+              {!ready && <span className="rounded-md bg-ash-900/5 px-2 py-0.5 text-[10px] font-semibold text-ash-500">COMING UP</span>}
             </div>
             <h2 className="mt-2.5 sm:mt-3 text-[13px] sm:text-sm font-semibold leading-snug">{title}</h2>
-            <p className="mt-1 text-[11px] sm:text-sm leading-snug sm:leading-relaxed text-zinc-600 line-clamp-2 sm:line-clamp-none">{desc}</p>
+            <p className="mt-1 text-[11px] sm:text-sm leading-snug sm:leading-relaxed text-ash-600 line-clamp-2 sm:line-clamp-none">{desc}</p>
           </div>
         );
         if (m.href && ready) return <a key={title} href={m.href}>{card}</a>;

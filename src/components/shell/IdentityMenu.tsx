@@ -22,7 +22,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, ChevronDown, Grip, KeyRound, LogOut, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Grip, KeyRound, LogOut, ShieldCheck } from "lucide-react";
 import { SUITE_APPS } from "@/lib/suite/apps";
 import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 
@@ -82,14 +82,21 @@ export default function IdentityMenu({
 
   return (
     <div ref={ref} className="relative">
-      {/* ONE PILL. Grip (the systems affordance) · avatar · the person's name. */}
+      {/* ONE PILL, and now a QUIET one: grip · avatar.},
+  q{          The name and the chevron came off because they were the only two things},
+  q{          up here that grew with the DATA rather than holding a fixed shape — a},
+  q{          long name pushed the pill wide and unbalanced a header whose left side},
+  q{          is a precise segmented control. The affordance survives without them:},
+  q{          the grip is the learned suite gesture, the avatar says who, and the name},
+  q{          is the first line of the sheet this opens. It is still in the title},
+  q{          attribute, so a hover answers it without a press. */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
         title={`${name} — systems & account  (⌘K)`}
-        className="panel flex items-center gap-2 rounded-2xl py-[5px] pl-2.5 pr-2 transition-colors hover:bg-white"
+        className="panel flex items-center gap-2 rounded-2xl px-2.5 py-[5px] transition-colors hover:bg-paper"
       >
         <Grip className="h-4 w-4 shrink-0 text-[color:var(--ink-muted)]" />
         <span aria-hidden className="h-4 w-px shrink-0 bg-[color:var(--ink)]/10" />
@@ -99,16 +106,12 @@ export default function IdentityMenu({
         >
           {initial}
         </span>
-        <span className="hidden max-w-[140px] truncate text-[12px] font-semibold text-[color:var(--ink)] sm:block">
-          {name}
-        </span>
-        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-[color:var(--ink-faint)] transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full z-50 mt-2 w-[min(22.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-[color:var(--ink)]/10 bg-white shadow-2xl"
+          className="absolute right-0 top-full z-50 mt-2 w-[min(22.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-[color:var(--ink)]/10 bg-paper shadow-2xl"
         >
           {/* WHO. The identity the systems below are opened with. */}
           <div className="flex items-center gap-3 border-b border-[color:var(--ink)]/[0.07] bg-[color:var(--ink)]/[0.02] px-3.5 py-3">

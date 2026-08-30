@@ -28,7 +28,7 @@ const STATUS_TONE: Record<string, string> = {
   REFERRED: "bg-orange-100 text-orange-700",
   APPROVED: "bg-emerald-100 text-emerald-700",
   DECLINED: "bg-red-100 text-red-700",
-  SUBMITTED: "bg-zinc-900/5 text-zinc-600",
+  SUBMITTED: "bg-ash-900/5 text-ash-600",
 };
 
 export default function ApplicationsPage() {
@@ -61,13 +61,13 @@ function ApplicationsQueue() {
       <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-xl font-bold flex items-center gap-2"><FileText className="h-5 w-5" style={{ color: "var(--brand)" }} /> Applications</h1>
         <div className="flex items-center gap-2">
-          <Link href="/console/applications/new" className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+          <Link href="/console/applications/new" className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
             <FilePlus2 className="h-3.5 w-3.5" /> New application
           </Link>
-          <div className="flex gap-1 rounded-lg border border-zinc-900/10 bg-white/70 p-1 text-xs font-semibold">
+          <div className="flex gap-1 rounded-lg border border-ash-900/10 bg-paper/70 p-1 text-xs font-semibold">
             {(["live", "all"] as const).map((s) => (
               <button key={s} onClick={() => setScope(s)}
-                className={`rounded-md px-3 py-1.5 ${scope === s ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-white"}`}>
+                className={`rounded-md px-3 py-1.5 ${scope === s ? "bg-invert text-invert-fg" : "text-ash-600 hover:bg-paper"}`}>
                 {s === "live" ? "Needs action" : "All"}
               </button>
             ))}
@@ -80,13 +80,13 @@ function ApplicationsQueue() {
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}
         </div>
       )}
-      {!apps && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>}
-      {apps?.length === 0 && <p className="mt-10 text-center text-sm text-zinc-500">No applications {scope === "live" ? "waiting for action" : "yet"}.</p>}
+      {!apps && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>}
+      {apps?.length === 0 && <p className="mt-10 text-center text-sm text-ash-500">No applications {scope === "live" ? "waiting for action" : "yet"}.</p>}
 
       <div className="mt-5 space-y-2.5">
         {apps?.map((a) => (
           <Link key={a.id} href={`/console/applications/${a.id}`}
-            className="glass flex items-center gap-3 p-4 transition-colors hover:bg-white/70">
+            className="glass flex items-center gap-3 p-4 transition-colors hover:bg-paper/70">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-sm font-semibold truncate">{a.borrowerName || a.phone || "Applicant"}</p>
@@ -97,16 +97,16 @@ function ApplicationsQueue() {
                   </span>
                 )}
               </div>
-              <p className="mt-0.5 text-xs text-zinc-500 truncate">
+              <p className="mt-0.5 text-xs text-ash-500 truncate">
                 {a.productName ?? "No product"} · {new Date(a.createdAt).toLocaleString("en-KE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                 {a.score != null && <> · <Gauge className="inline h-3 w-3" /> score <span className="font-semibold">{a.score}</span></>}
                 {a.approvedLimit != null && Number(a.approvedLimit) > 0 && <> · up to <span className="font-semibold">{fmtKES(Number(a.approvedLimit))}</span></>}
               </p>
             </div>
-            <span className={`rounded-md px-2 py-1 text-[11px] font-semibold shrink-0 ${STATUS_TONE[a.status] ?? "bg-zinc-900/5 text-zinc-600"}`}>
+            <span className={`rounded-md px-2 py-1 text-[11px] font-semibold shrink-0 ${STATUS_TONE[a.status] ?? "bg-ash-900/5 text-ash-600"}`}>
               {a.stageTitle ?? a.status}
             </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-ash-300" />
           </Link>
         ))}
       </div>

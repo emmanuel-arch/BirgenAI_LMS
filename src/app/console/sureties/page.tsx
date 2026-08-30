@@ -93,7 +93,7 @@ export default function SuretiesPage() {
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div className="glass col-span-2 flex flex-col justify-center px-4 py-3 sm:col-span-1" style={{ background: "linear-gradient(135deg, rgba(5,150,105,0.10), transparent)" }}>
             <p className="text-2xl font-black tabular-nums text-emerald-700">{kes(summary.coverage)}</p>
-            <p className="text-[11px] text-zinc-500">consented coverage</p>
+            <p className="text-[11px] text-ash-500">consented coverage</p>
           </div>
           <SummaryTile label="consented" value={summary.consented} tone="#059669" />
           <SummaryTile label="awaiting signature" value={summary.pending} tone="#d97706" />
@@ -109,17 +109,17 @@ export default function SuretiesPage() {
           const on = filter === f.key;
           return (
             <button key={f.key} onClick={() => setFilter(f.key)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${on ? "text-white" : "border border-zinc-900/10 bg-white/70 text-zinc-600 hover:bg-white"}`}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${on ? "text-white" : "border border-ash-900/10 bg-paper/70 text-ash-600 hover:bg-paper"}`}
               style={on ? { backgroundColor: "var(--brand)" } : undefined}>
-              {f.label} <span className={on ? "text-white/80" : "text-zinc-400"}>{count}</span>
+              {f.label} <span className={on ? "text-white/80" : "text-ash-400"}>{count}</span>
             </button>
           );
         })}
       </div>
 
-      {!sureties && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>}
+      {!sureties && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>}
       {visible && visible.length === 0 && (
-        <p className="mt-10 text-center text-sm text-zinc-500">
+        <p className="mt-10 text-center text-sm text-ash-500">
           {filter === "all" ? "No guarantors on the book yet — they're invited from an application that requires one." : "None in this state."}
         </p>
       )}
@@ -146,11 +146,11 @@ function SuretyCard({ s, delay }: { s: Surety; delay: number }) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate text-base font-bold text-zinc-800">{s.name}</p>
+            <p className="truncate text-base font-bold text-ash-800">{s.name}</p>
             {s.hasId && <BadgeCheck className="h-4 w-4 shrink-0 text-sky-500" />}
           </div>
-          <p className="text-[12px] text-zinc-500">
-            {s.relationship ?? "Guarantor"} · <a href={`tel:${s.phone}`} className="inline-flex items-center gap-1 hover:text-zinc-700"><Phone className="h-3 w-3" /> {s.phone}</a>
+          <p className="text-[12px] text-ash-500">
+            {s.relationship ?? "Guarantor"} · <a href={`tel:${s.phone}`} className="inline-flex items-center gap-1 hover:text-ash-700"><Phone className="h-3 w-3" /> {s.phone}</a>
           </p>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold" style={{ backgroundColor: st.soft, color: st.color }}>
@@ -159,23 +159,23 @@ function SuretyCard({ s, delay }: { s: Surety; delay: number }) {
       </div>
 
       {/* The promise */}
-      <div className="mt-3 flex items-end justify-between gap-3 rounded-xl bg-zinc-900/[0.03] px-3 py-2.5">
+      <div className="mt-3 flex items-end justify-between gap-3 rounded-xl bg-ash-900/[0.03] px-3 py-2.5">
         <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-wide text-zinc-400">Stood behind</p>
-          <p className="truncate text-[12px] font-medium text-zinc-600">
+          <p className="text-[10px] uppercase tracking-wide text-ash-400">Stood behind</p>
+          <p className="truncate text-[12px] font-medium text-ash-600">
             {s.applicantName}{s.productName ? ` · ${s.productName}` : ""}
           </p>
         </div>
-        <p className="shrink-0 text-lg font-black tabular-nums text-zinc-800">{kes(s.amountGuaranteed ?? s.amountRequested)}</p>
+        <p className="shrink-0 text-lg font-black tabular-nums text-ash-800">{kes(s.amountGuaranteed ?? s.amountRequested)}</p>
       </div>
 
       {/* The evidence — the part a table hides */}
       <div className="mt-2.5 flex items-center justify-between gap-2 text-[11px]">
-        <span className="text-zinc-500">
+        <span className="text-ash-500">
           {s.status === "CONSENTED" && s.consentedAt && (
             <span className="inline-flex flex-wrap items-center gap-x-1.5">
               <ShieldCheck className="h-3 w-3 text-emerald-600" /> Signed {fmtDate(s.consentedAt)}
-              {s.consentIp && <span className="inline-flex items-center gap-1 text-zinc-400"><Globe className="h-3 w-3" /> {s.consentIp}</span>}
+              {s.consentIp && <span className="inline-flex items-center gap-1 text-ash-400"><Globe className="h-3 w-3" /> {s.consentIp}</span>}
             </span>
           )}
           {s.status === "INVITED" && (
@@ -199,7 +199,7 @@ function SummaryTile({ label, value, tone }: { label: string; value: number; ton
   return (
     <div className="glass px-3 py-2.5">
       <p className="text-2xl font-black tabular-nums" style={{ color: tone }}>{value}</p>
-      <p className="text-[11px] text-zinc-500">{label}</p>
+      <p className="text-[11px] text-ash-500">{label}</p>
     </div>
   );
 }

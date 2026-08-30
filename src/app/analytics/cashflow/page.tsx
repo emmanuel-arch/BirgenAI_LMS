@@ -83,7 +83,7 @@ export default async function CashflowPage({ searchParams }: { searchParams: Pro
 
       {net < 0 && (
         <div className="mt-3 rounded-2xl border p-4" style={{ borderColor: `${CATEGORICAL[0]}44`, backgroundColor: `${CATEGORICAL[0]}0a` }}>
-          <p className="text-[13px] leading-snug text-zinc-800">
+          <p className="text-[13px] leading-snug text-ash-800">
             Net {formatValue(Math.abs(net), "money")} of capital went out this period — collections covered{" "}
             {now.disbursed > 0 ? ((now.collected / now.disbursed) * 100).toFixed(0) : "0"}% of lending. For a growing book
             that is expected, not alarming; what matters is whether the gap is funded and whether it is widening.
@@ -131,7 +131,7 @@ export default async function CashflowPage({ searchParams }: { searchParams: Pro
         />
       </div>
 
-      <p className="mt-6 text-[11px] leading-snug text-zinc-400">
+      <p className="mt-6 text-[11px] leading-snug text-ash-400">
         This is the LOAN BOOK&apos;s cash movement, not the company&apos;s. Operating costs, salaries, capital injections
         and the M-Pesa float itself are not in here — those live in Ledgerly. What this page tells you is whether lending
         is consuming cash or releasing it.

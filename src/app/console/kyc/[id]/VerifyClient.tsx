@@ -61,7 +61,7 @@ export function VerifyClient({ borrower, returnTo, returnLabel }: {
   return (
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <div className="flex items-center justify-between gap-3">
-        <Link href={returnTo} className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
+        <Link href={returnTo} className="inline-flex items-center gap-1.5 text-sm text-ash-500 hover:text-ash-800">
           <ArrowLeft className="h-4 w-4" /> Back to {returnLabel}
         </Link>
         {/* The wizard speaks to the CUSTOMER facing the camera — the officer can
@@ -75,14 +75,14 @@ export function VerifyClient({ borrower, returnTo, returnLabel }: {
             <ShieldCheck className="h-5 w-5" style={{ color: "var(--brand)" }} />
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold text-zinc-900">{borrower.name}</h1>
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-500">
+            <h1 className="truncate text-lg font-bold text-ash-900">{borrower.name}</h1>
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-ash-500">
               <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {borrower.phone}</span>
               {borrower.nationalId && <span className="inline-flex items-center gap-1"><IdCard className="h-3 w-3" /> {borrower.nationalId}</span>}
             </p>
           </div>
         </div>
-        <p className="mt-3 border-t border-zinc-900/10 pt-3 text-xs leading-relaxed text-zinc-500">
+        <p className="mt-3 border-t border-ash-900/10 pt-3 text-xs leading-relaxed text-ash-500">
           The customer should be with you. You are vouching that the face in front of the camera is
           the person on this record — your name goes on that.
         </p>
@@ -137,7 +137,7 @@ function Verified({ firstName, name, returnTo, returnLabel, onGo }: {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-40 flex items-center justify-center bg-zinc-900/25 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-ash-900/25 p-4 backdrop-blur-sm"
       role="status"
       aria-live="polite"
     >
@@ -145,7 +145,7 @@ function Verified({ firstName, name, returnTo, returnLabel, onGo }: {
         initial={{ opacity: 0, y: 16, scale: 0.94 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: "spring", stiffness: 260, damping: 22 }}
-        className="glass w-full max-w-sm overflow-hidden rounded-3xl bg-white/80 p-7 text-center shadow-2xl"
+        className="glass w-full max-w-sm overflow-hidden rounded-3xl bg-paper/80 p-7 text-center shadow-2xl"
       >
         {/* The tick, haloed in the lender's own colour. */}
         <div className="relative mx-auto h-24 w-24">
@@ -181,11 +181,11 @@ function Verified({ firstName, name, returnTo, returnLabel, onGo }: {
           <p className="mt-6 text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--brand)" }}>
             Identity verified
           </p>
-          <h2 className="mt-1.5 text-2xl font-bold leading-tight text-zinc-900">
+          <h2 className="mt-1.5 text-2xl font-bold leading-tight text-ash-900">
             {firstName} is verified
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-            <span className="font-semibold text-zinc-800">{name}</span> has passed every check.
+          <p className="mt-2 text-sm leading-relaxed text-ash-600">
+            <span className="font-semibold text-ash-800">{name}</span> has passed every check.
             They can now be disbursed to.
           </p>
         </motion.div>
@@ -198,13 +198,13 @@ function Verified({ firstName, name, returnTo, returnLabel, onGo }: {
           >
             Back to {returnLabel} <ArrowRight className="h-4 w-4" />
           </button>
-          <p className="mt-2.5 text-[11px] text-zinc-400">
+          <p className="mt-2.5 text-[11px] text-ash-400">
             Taking you there in {left}s…
           </p>
         </motion.div>
 
         {/* The bar drains as the timer does — the wait is visible, not just felt. */}
-        <div className="mt-3 h-1 overflow-hidden rounded-full bg-zinc-900/8">
+        <div className="mt-3 h-1 overflow-hidden rounded-full bg-ash-900/8">
           <motion.div
             className="h-full rounded-full"
             style={{ backgroundColor: "var(--brand)" }}
@@ -245,13 +245,13 @@ function NotThroughCard({ outcome, borrower, attached, returnTo }: {
         {review ? <UserCheck className="h-8 w-8 text-amber-600" /> : <AlertTriangle className="h-8 w-8 text-rose-600" />}
       </div>
 
-      <h2 className="mt-4 text-xl font-bold text-zinc-900">
+      <h2 className="mt-4 text-xl font-bold text-ash-900">
         {brokenAttach ? "Checks passed — but the record didn't move"
           : review ? "Needs a second pair of eyes"
           : `${borrower.firstName} is not verified`}
       </h2>
 
-      <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+      <p className="mt-2 text-sm leading-relaxed text-ash-600">
         {brokenAttach
           ? "Every check passed, but the verification did not attach to this customer's record — so they are still blocked from disbursement. Don't tell them they're done. Report this."
           : review
@@ -262,7 +262,7 @@ function NotThroughCard({ outcome, borrower, attached, returnTo }: {
       {outcome.flags.length > 0 && (
         <ul className="mt-4 space-y-1.5 text-left">
           {outcome.flags.map((f) => (
-            <li key={f} className="flex items-start gap-2 rounded-lg bg-zinc-900/[0.03] px-3 py-2 text-[13px] text-zinc-700">
+            <li key={f} className="flex items-start gap-2 rounded-lg bg-ash-900/[0.03] px-3 py-2 text-[13px] text-ash-700">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-500" />
               {FLAG_TEXT[f] ?? f}
             </li>
@@ -280,7 +280,7 @@ function NotThroughCard({ outcome, borrower, attached, returnTo }: {
         </Link>
         <Link
           href={returnTo}
-          className="inline-flex flex-1 items-center justify-center rounded-xl border border-zinc-900/12 bg-white/70 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-white"
+          className="inline-flex flex-1 items-center justify-center rounded-xl border border-ash-900/12 bg-paper/70 px-4 py-2.5 text-sm font-medium text-ash-700 hover:bg-paper"
         >
           Leave it for now
         </Link>

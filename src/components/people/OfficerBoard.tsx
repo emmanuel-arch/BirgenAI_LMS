@@ -105,17 +105,17 @@ export default function OfficerBoard({
         title="Relationship officers"
         sub="Every officer, the book they carry, and what the collections floor recovered against it last month. The roster lives in HR, the book lives in lending and the recovery lives in collections — this is the first screen that reads all three at once."
         right={
-          <div className="flex items-center gap-1.5 rounded-lg border border-zinc-900/10 bg-white px-2 py-1.5">
-            <Search className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+          <div className="flex items-center gap-1.5 rounded-lg border border-ash-900/10 bg-paper px-2 py-1.5">
+            <Search className="h-3.5 w-3.5 shrink-0 text-ash-400" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Officer, branch or role"
-              className="w-52 bg-transparent text-[12px] outline-none placeholder:text-zinc-400"
+              className="w-52 bg-transparent text-[12px] outline-none placeholder:text-ash-400"
             />
             {q && (
               <button type="button" onClick={() => setQ("")} aria-label="Clear">
-                <X className="h-3.5 w-3.5 text-zinc-400 hover:text-zinc-700" />
+                <X className="h-3.5 w-3.5 text-ash-400 hover:text-ash-700" />
               </button>
             )}
           </div>
@@ -170,12 +170,12 @@ export default function OfficerBoard({
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card pad={false}>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-900/[0.06] px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ash-900/[0.06] px-4 py-3">
             <div className="min-w-0">
-              <h2 className="text-[13px] font-semibold text-zinc-800">
+              <h2 className="text-[13px] font-semibold text-ash-800">
                 {riskOnly ? "Officers with no recovery" : "The officer book"}
               </h2>
-              <p className="mt-0.5 text-[11px] text-zinc-500">
+              <p className="mt-0.5 text-[11px] text-ash-500">
                 {N(shown.length)} shown{q || riskOnly ? ` of ${N(officers.length)}` : ""}
               </p>
             </div>
@@ -194,7 +194,7 @@ export default function OfficerBoard({
                   type="button"
                   onClick={() => setSort(k)}
                   className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
-                    sort === k ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-900/[0.05]"
+                    sort === k ? "bg-invert text-invert-fg" : "text-ash-500 hover:bg-ash-900/[0.05]"
                   }`}
                 >
                   {label}
@@ -211,7 +211,7 @@ export default function OfficerBoard({
             <div className="overflow-x-auto">
               <table className="w-full min-w-[880px] border-collapse text-[12px]">
                 <thead>
-                  <tr className="border-b border-zinc-900/[0.06] text-[10px] uppercase tracking-wide text-zinc-400">
+                  <tr className="border-b border-ash-900/[0.06] text-[10px] uppercase tracking-wide text-ash-400">
                     <th className="px-4 py-2 text-left font-bold">Officer</th>
                     <th className="px-3 py-2 text-right font-bold">Borrowers</th>
                     <th className="px-3 py-2 text-right font-bold">Outstanding</th>
@@ -226,12 +226,12 @@ export default function OfficerBoard({
                     const cov = coverageOf(o);
                     const dead = o.tracked > 0 && o.payments30d === 0;
                     return (
-                      <tr key={o.id} className="border-b border-zinc-900/[0.04] last:border-0 hover:bg-zinc-900/[0.02]">
+                      <tr key={o.id} className="border-b border-ash-900/[0.04] last:border-0 hover:bg-ash-900/[0.02]">
                         <td className="px-4 py-2">
                           <div className="flex min-w-0 items-center gap-2">
                             <span className="min-w-0">
-                              <span className="block truncate font-medium text-zinc-800">{o.name}</span>
-                              <span className="block truncate text-[10.5px] text-zinc-400">
+                              <span className="block truncate font-medium text-ash-800">{o.name}</span>
+                              <span className="block truncate text-[10.5px] text-ash-400">
                                 {o.branch} · {o.role}
                                 {o.entityId === 3005 && " · Fintech"}
                               </span>
@@ -239,16 +239,16 @@ export default function OfficerBoard({
                             {!o.active && <Tag tone="neutral">inactive</Tag>}
                           </div>
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-zinc-700">{N(o.borrowers)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums font-semibold text-zinc-800">
+                        <td className="px-3 py-2 text-right tabular-nums text-ash-700">{N(o.borrowers)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums font-semibold text-ash-800">
                           {KES(o.olb, { compact: true })}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-zinc-600">{N(o.tracked)}</td>
-                        <td className="px-3 py-2 text-right tabular-nums text-zinc-600">
+                        <td className="px-3 py-2 text-right tabular-nums text-ash-600">{N(o.tracked)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-ash-600">
                           {o.nplAmount > 0 ? KES(o.nplAmount, { compact: true }) : "—"}
-                          {o.nplLoans > 0 && <span className="ml-1 text-[10px] text-zinc-400">({N(o.nplLoans)})</span>}
+                          {o.nplLoans > 0 && <span className="ml-1 text-[10px] text-ash-400">({N(o.nplLoans)})</span>}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-zinc-700">
+                        <td className="px-3 py-2 text-right tabular-nums text-ash-700">
                           {o.recovered30d > 0 ? KES(o.recovered30d, { compact: true }) : "—"}
                         </td>
                         <td className="px-3 py-2 text-right">
@@ -262,7 +262,7 @@ export default function OfficerBoard({
                               {PCT(cov)}
                             </span>
                           ) : (
-                            <span className="text-zinc-300">—</span>
+                            <span className="text-ash-300">—</span>
                           )}
                         </td>
                       </tr>
@@ -271,7 +271,7 @@ export default function OfficerBoard({
                 </tbody>
               </table>
               {shown.length > 250 && (
-                <p className="px-4 py-2 text-[11px] text-zinc-400">
+                <p className="px-4 py-2 text-[11px] text-ash-400">
                   Showing the first 250 of {N(shown.length)}. Narrow it with the search.
                 </p>
               )}
@@ -298,7 +298,7 @@ export default function OfficerBoard({
                 />
               ))}
             </div>
-            <p className="mt-3 border-t border-zinc-900/[0.06] pt-2 text-[10.5px] leading-relaxed text-zinc-400">
+            <p className="mt-3 border-t border-ash-900/[0.06] pt-2 text-[10.5px] leading-relaxed text-ash-400">
               An officer&rsquo;s branch and their borrowers&rsquo; branch are two different columns
               (<code className="text-[10px]">UserMaster.OrganizationUnit</code> and{" "}
               <code className="text-[10px]">Borrowers.EntityUnit</code>), and they do not always agree — several officers carry
@@ -308,7 +308,7 @@ export default function OfficerBoard({
 
           <Card>
             <CardHead title="How coverage is computed" accent={ACCENT} />
-            <p className="text-[11.5px] leading-relaxed text-zinc-500">
+            <p className="text-[11.5px] leading-relaxed text-ash-500">
               Coverage is what the floor recovered in thirty days as a share of everything in arrears against that officer&rsquo;s
               borrowers — every band, not only NPL. The recovery is attributed by joining{" "}
               <code className="text-[10px]">PayedAmount.LoanId</code> back through{" "}
@@ -319,8 +319,8 @@ export default function OfficerBoard({
 
           <Card>
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 shrink-0 text-zinc-400" />
-              <p className="text-[11.5px] leading-relaxed text-zinc-500">
+              <Users className="h-4 w-4 shrink-0 text-ash-400" />
+              <p className="text-[11.5px] leading-relaxed text-ash-500">
                 Officers whose sign-in has lapsed still appear — they still carry a book, and that is exactly the case worth
                 seeing. The most recent sign-in is on each person&rsquo;s row in the directory.
               </p>
@@ -329,7 +329,7 @@ export default function OfficerBoard({
         </div>
       </div>
 
-      <p className="mt-4 text-[10.5px] text-zinc-400">
+      <p className="mt-4 text-[10.5px] text-ash-400">
         Read live from Serviceconnect and CollectBox when this page rendered
         {officers.length > 0 && officers.some((o) => o.lastLoginAt)
           ? ` — most recent officer sign-in ${ago(

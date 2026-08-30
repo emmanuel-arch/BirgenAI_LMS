@@ -51,13 +51,13 @@ const TONE = {
   declined: { icon: XCircle, ring: "border-red-300", bg: "bg-red-50/90", ink: "text-red-700" },
   review: { icon: Clock, ring: "border-amber-300", bg: "bg-amber-50/90", ink: "text-amber-800" },
   approved: { icon: CheckCircle2, ring: "border-emerald-300", bg: "bg-emerald-50/90", ink: "text-emerald-700" },
-  pending: { icon: Clock, ring: "border-zinc-300", bg: "bg-zinc-50/90", ink: "text-zinc-700" },
+  pending: { icon: Clock, ring: "border-ash-300", bg: "bg-ash-50/90", ink: "text-ash-700" },
 } as const;
 
 function DirectionIcon({ d }: { d: CustomerReason["direction"] }) {
   if (d === "up") return <TrendingUp className="h-4 w-4 text-emerald-600 shrink-0" aria-label="counted in your favour" />;
   if (d === "down") return <TrendingDown className="h-4 w-4 text-red-500 shrink-0" aria-label="counted against" />;
-  return <Minus className="h-4 w-4 text-zinc-400 shrink-0" aria-label="neutral" />;
+  return <Minus className="h-4 w-4 text-ash-400 shrink-0" aria-label="neutral" />;
 }
 
 export default function WhyPage() {
@@ -68,7 +68,7 @@ export default function WhyPage() {
       subtitle="See exactly what your application was assessed on — and what changes it."
       icon={<HelpCircle className="h-10 w-10" />}
       notFound={
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-ash-600">
           No application was found for that ID with this lender. If you applied with a different
           number or ID, try that one.
         </p>
@@ -80,9 +80,9 @@ export default function WhyPage() {
         if (!d) {
           return (
             <div className="mx-auto w-full max-w-md">
-              <div className="glass rounded-3xl bg-white/65 p-6 sm:p-8">
+              <div className="glass rounded-3xl bg-paper/65 p-6 sm:p-8">
                 <h1 className="text-xl font-bold">No decision yet</h1>
-                <p className="mt-2 text-sm text-zinc-600">
+                <p className="mt-2 text-sm text-ash-600">
                   {data.lender ?? "The lender"} has not recorded a decision on an application for you yet.
                 </p>
                 <Link href="/" className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: "var(--brand)" }}>
@@ -107,22 +107,22 @@ export default function WhyPage() {
                 <ToneIcon className={`h-6 w-6 shrink-0 ${tone.ink}`} />
                 <div>
                   <h1 className={`text-xl font-bold ${tone.ink}`}>{d.headline}</h1>
-                  <p className="mt-1.5 text-sm text-zinc-700">{d.body}</p>
+                  <p className="mt-1.5 text-sm text-ash-700">{d.body}</p>
                 </div>
               </div>
               <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <dt className="text-[11px] uppercase tracking-wide text-zinc-500">You asked for</dt>
+                  <dt className="text-[11px] uppercase tracking-wide text-ash-500">You asked for</dt>
                   <dd className="font-semibold">{kes(d.requested)}</dd>
                 </div>
                 {d.qualifiedFor != null && (
                   <div>
-                    <dt className="text-[11px] uppercase tracking-wide text-zinc-500">Assessed limit</dt>
+                    <dt className="text-[11px] uppercase tracking-wide text-ash-500">Assessed limit</dt>
                     <dd className="font-semibold">{kes(d.qualifiedFor)}</dd>
                   </div>
                 )}
               </dl>
-              <p className="mt-4 text-[11px] text-zinc-500">
+              <p className="mt-4 text-[11px] text-ash-500">
                 Reference {d.ref} · decided {new Date(d.decidedAt).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}
                 {d.product ? ` · ${d.product}` : ""}
               </p>
@@ -130,12 +130,12 @@ export default function WhyPage() {
 
             {/* ── The one number that is also an instruction ──────────────── */}
             {d.askingAboveLimit && d.qualifiedFor != null && (
-              <div className="glass rounded-3xl border border-zinc-900/10 bg-white/70 p-5">
+              <div className="glass rounded-3xl border border-ash-900/10 bg-paper/70 p-5">
                 <div className="flex items-start gap-3">
                   <Scale className="h-5 w-5 shrink-0" style={{ color: "var(--brand)" }} />
                   <div>
                     <h2 className="font-semibold">Try {kes(d.qualifiedFor)}</h2>
-                    <p className="mt-1 text-sm text-zinc-600">
+                    <p className="mt-1 text-sm text-ash-600">
                       You asked for {kes(d.requested)}. Your assessment supports {kes(d.qualifiedFor)} —
                       applying at or below that usually goes straight through.
                     </p>
@@ -149,7 +149,7 @@ export default function WhyPage() {
 
             {/* ── What you can change ─────────────────────────────────────── */}
             {fixable.length > 0 && (
-              <section className="glass rounded-3xl border border-zinc-900/10 bg-white/70 p-5">
+              <section className="glass rounded-3xl border border-ash-900/10 bg-paper/70 p-5">
                 <h2 className="flex items-center gap-2 font-semibold">
                   <Wrench className="h-4 w-4" style={{ color: "var(--brand)" }} /> What you can change
                 </h2>
@@ -160,8 +160,8 @@ export default function WhyPage() {
                         <DirectionIcon d={r.direction} />
                         <h3 className="text-sm font-semibold">{r.title}</h3>
                       </div>
-                      <p className="mt-1 text-sm text-zinc-600">{r.why}</p>
-                      <p className="mt-1.5 text-sm text-zinc-900">{r.howToFix}</p>
+                      <p className="mt-1 text-sm text-ash-600">{r.why}</p>
+                      <p className="mt-1.5 text-sm text-ash-900">{r.howToFix}</p>
                     </li>
                   ))}
                 </ul>
@@ -170,7 +170,7 @@ export default function WhyPage() {
 
             {/* ── What was weighed, that you cannot change ────────────────── */}
             {rest.length > 0 && (
-              <section className="glass rounded-3xl border border-zinc-900/10 bg-white/70 p-5">
+              <section className="glass rounded-3xl border border-ash-900/10 bg-paper/70 p-5">
                 <h2 className="font-semibold">Also weighed</h2>
                 <ul className="mt-3 space-y-3">
                   {rest.map((r, i) => (
@@ -178,7 +178,7 @@ export default function WhyPage() {
                       <DirectionIcon d={r.direction} />
                       <div>
                         <h3 className="text-sm font-semibold">{r.title}</h3>
-                        <p className="text-sm text-zinc-600">{r.why}</p>
+                        <p className="text-sm text-ash-600">{r.why}</p>
                       </div>
                     </li>
                   ))}
@@ -188,12 +188,12 @@ export default function WhyPage() {
 
             {/* ── The appeal right. A disclosure, not a support link ──────── */}
             {d.appeal.available && (
-              <section className="glass rounded-3xl border border-zinc-900/10 bg-white/70 p-5">
+              <section className="glass rounded-3xl border border-ash-900/10 bg-paper/70 p-5">
                 <h2 className="flex items-center gap-2 font-semibold">
                   <ShieldQuestion className="h-4 w-4" style={{ color: "var(--brand)" }} /> Ask for a human review
                 </h2>
-                <p className="mt-2 text-sm text-zinc-600">{d.appeal.note}</p>
-                <p className="mt-3 text-[11px] text-zinc-500">
+                <p className="mt-2 text-sm text-ash-600">{d.appeal.note}</p>
+                <p className="mt-3 text-[11px] text-ash-500">
                   This assessment was made with the help of an automated model.
                   {data.lender ? ` ${data.lender} is the lender of record.` : ""}
                 </p>

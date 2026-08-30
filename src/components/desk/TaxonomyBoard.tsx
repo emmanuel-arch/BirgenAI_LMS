@@ -60,20 +60,20 @@ export default function TaxonomyBoard({
           <CardHead title="Collection bands" sub="The severity ladder. Ordinal, so the colour is a one-hue ramp rather than a set of unrelated hues." />
           <div className="space-y-2">
             {categories.map((c) => (
-              <div key={c.id} className="rounded-lg border border-zinc-900/[0.07] p-2.5">
+              <div key={c.id} className="rounded-lg border border-ash-900/[0.07] p-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="flex items-center gap-2">
                     <Chip label={c.short} accent={c.accent} />
-                    <span className="text-[12.5px] font-semibold text-zinc-800">{c.name}</span>
+                    <span className="text-[12.5px] font-semibold text-ash-800">{c.name}</span>
                   </span>
-                  <span className="flex items-center gap-2 text-[10.5px] tabular-nums text-zinc-500">
+                  <span className="flex items-center gap-2 text-[10.5px] tabular-nums text-ash-500">
                     <span>{c.from === c.to ? `${c.from} days` : `${c.from}–${c.to > 10000 ? "∞" : c.to} days`}</span>
                     {c.commission > 0 && <Tag tone="good">{c.commission}% commission</Tag>}
                   </span>
                 </div>
-                <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">{c.posture}</p>
-                <p className="mt-1 text-[9.5px] text-zinc-400">
-                  balance carried in <code className="rounded bg-zinc-900/[0.05] px-1">CollectionTracker.{c.column}</code>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-ash-500">{c.posture}</p>
+                <p className="mt-1 text-[9.5px] text-ash-400">
+                  balance carried in <code className="rounded bg-ash-900/[0.05] px-1">CollectionTracker.{c.column}</code>
                 </p>
               </div>
             ))}
@@ -85,11 +85,11 @@ export default function TaxonomyBoard({
             <CardHead title="Dispositions" sub="What an agent can record. The rules each one carries are enforced by the API, not just suggested by the interface." />
             <div className="space-y-1.5">
               {dispositions.map((d) => (
-                <div key={d.id} className="rounded-lg border border-zinc-900/[0.07] p-2.5">
+                <div key={d.id} className="rounded-lg border border-ash-900/[0.07] p-2.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="flex items-center gap-2">
                       <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: d.accent }} />
-                      <span className="text-[12.5px] font-semibold text-zinc-800">{d.name}</span>
+                      <span className="text-[12.5px] font-semibold text-ash-800">{d.name}</span>
                       <Tag tone={d.callStatus === 1 ? "good" : "neutral"}>
                         {d.callStatus === 1 ? "contact made" : "no contact"}
                       </Tag>
@@ -102,11 +102,11 @@ export default function TaxonomyBoard({
                         <span title="Suggests a follow-up task" className="text-violet-600"><CalendarClock className="h-3.5 w-3.5" /></span>
                       )}
                       {d.suppresses && (
-                        <span title="Suppresses the number from redialling" className="text-zinc-500"><PhoneOff className="h-3.5 w-3.5" /></span>
+                        <span title="Suppresses the number from redialling" className="text-ash-500"><PhoneOff className="h-3.5 w-3.5" /></span>
                       )}
                     </span>
                   </div>
-                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">{d.meaning}</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-ash-500">{d.meaning}</p>
                 </div>
               ))}
             </div>
@@ -116,7 +116,7 @@ export default function TaxonomyBoard({
             <CardHead title="Task actions" sub="CollectBox.TaskAction — what a follow-up can be." />
             <div className="flex flex-wrap gap-1.5">
               {tasks.map((t) => (
-                <span key={t.id} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/10 px-2 py-1 text-[11.5px] font-medium text-zinc-600">
+                <span key={t.id} className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/10 px-2 py-1 text-[11.5px] font-medium text-ash-600">
                   <span aria-hidden className="h-2 w-2 rounded-full" style={{ backgroundColor: t.accent }} />
                   {t.name}
                 </span>

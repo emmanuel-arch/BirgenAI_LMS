@@ -32,7 +32,7 @@ function BrandBlock({ org, collapsed, onNavigate }: { org: ShellOrg; collapsed: 
       onClick={onNavigate}
       aria-label={`${org.name} — console home`}
       title={org.name}
-      className={`flex min-w-0 flex-1 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-900/[0.06] bg-white shadow-sm transition-all ${
+      className={`flex min-w-0 flex-1 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-ash-900/[0.06] bg-paper shadow-sm transition-all ${
         collapsed ? "h-12 px-1.5" : "min-h-36 px-2 py-2.5"
       }`}
     >
@@ -155,7 +155,7 @@ export default function Sidebar({
             onClick={onToggleCollapse}
             aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
             title={collapsed ? "Expand" : "Collapse"}
-            className={`flex shrink-0 items-center justify-center rounded-xl border border-zinc-900/[0.06] bg-white text-zinc-400 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-700 ${
+            className={`flex shrink-0 items-center justify-center rounded-xl border border-ash-900/[0.06] bg-paper text-ash-400 shadow-sm transition-colors hover:bg-ash-50 hover:text-ash-700 ${
               collapsed ? "h-8 w-full" : "w-7"
             }`}
           >
@@ -185,7 +185,7 @@ export default function Sidebar({
                   const Icon = navIcon(item.icon);
                   const active = item.key === activeKey;
                   const cls = `group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors ${
-                    active ? "text-white shadow-sm" : "text-[color:var(--ink-body)] hover:bg-zinc-900/[0.055] hover:text-[color:var(--ink)]"
+                    active ? "text-white shadow-sm" : "text-[color:var(--ink-body)] hover:bg-ash-900/[0.055] hover:text-[color:var(--ink)]"
                   } ${collapsed ? "justify-center px-0" : ""}`;
                   const style = active ? { backgroundColor: "var(--brand)" } : undefined;
                   const inner = (
@@ -193,7 +193,7 @@ export default function Sidebar({
                       <Icon className={`h-4 w-4 shrink-0 ${active ? "" : "text-[color:var(--ink-faint)] group-hover:text-[color:var(--ink-body)]"}`} aria-hidden />
                       {!collapsed && <span className="truncate">{item.label}</span>}
                       {!collapsed && item.ready === false && (
-                        <span className="ml-auto rounded bg-zinc-900/5 px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--ink-faint)]">SOON</span>
+                        <span className="ml-auto rounded bg-ash-900/5 px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--ink-faint)]">SOON</span>
                       )}
                     </>
                   );

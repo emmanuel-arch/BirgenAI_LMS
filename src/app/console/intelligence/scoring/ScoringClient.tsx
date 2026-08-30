@@ -57,7 +57,7 @@ export function ScoringClient(props: {
         subtitle="Every engine on the fleet, the whole book batch-scored, and the exact accounts to cure to hit next week's number."
       >
         <button onClick={runNow} disabled={running}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-50">
+          className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-50">
           {running ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} Batch score now
         </button>
       </PageHeader>
@@ -74,9 +74,9 @@ export function ScoringClient(props: {
 // ── 1 · This week vs last week ────────────────────────────────────────────────
 
 function Delta({ now, then, goodWhenDown = true, fmt }: { now: number; then: number | null; goodWhenDown?: boolean; fmt: (n: number) => string }) {
-  if (then == null) return <span className="text-[10px] text-zinc-400">no run a week ago to compare</span>;
+  if (then == null) return <span className="text-[10px] text-ash-400">no run a week ago to compare</span>;
   const d = now - then;
-  if (Math.abs(d) < 0.05) return <span className="text-[10px] font-semibold text-zinc-500">unchanged vs last week</span>;
+  if (Math.abs(d) < 0.05) return <span className="text-[10px] font-semibold text-ash-500">unchanged vs last week</span>;
   const improving = goodWhenDown ? d < 0 : d > 0;
   return (
     <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${improving ? "text-emerald-600" : "text-rose-600"}`}>
@@ -94,25 +94,25 @@ function WeekOverWeek(p: Parameters<typeof ScoringClient>[0]) {
     <div className="glass mt-4 p-5">
       <h2 className="text-sm font-semibold">The book, this week vs last</h2>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        <div className="rounded-xl border border-zinc-900/10 bg-white/60 p-3.5">
-          <p className="text-[10px] uppercase tracking-wide text-zinc-500">Value at risk</p>
+        <div className="rounded-xl border border-ash-900/10 bg-paper/60 p-3.5">
+          <p className="text-[10px] uppercase tracking-wide text-ash-500">Value at risk</p>
           <p className="text-xl font-bold" style={{ color: "var(--brand)" }}>{pct(p.atRiskPct)}</p>
-          <p className="text-[11px] text-zinc-500">{kes(p.atRiskValue)} of {kes(p.olb)}</p>
+          <p className="text-[11px] text-ash-500">{kes(p.atRiskValue)} of {kes(p.olb)}</p>
           <Delta now={p.atRiskPct} then={weekAgo?.atRiskPct ?? null} fmt={(n) => `${n.toFixed(1)}pp`} />
         </div>
-        <div className="rounded-xl border border-zinc-900/10 bg-white/60 p-3.5">
-          <p className="text-[10px] uppercase tracking-wide text-zinc-500">Projected loss</p>
-          <p className="text-xl font-bold text-zinc-800">{kes(p.projectedLoss)}</p>
-          <p className="text-[11px] text-zinc-500">balance × blended PD</p>
+        <div className="rounded-xl border border-ash-900/10 bg-paper/60 p-3.5">
+          <p className="text-[10px] uppercase tracking-wide text-ash-500">Projected loss</p>
+          <p className="text-xl font-bold text-ash-800">{kes(p.projectedLoss)}</p>
+          <p className="text-[11px] text-ash-500">balance × blended PD</p>
           <Delta now={p.projectedLoss} then={weekAgo?.projectedLoss ?? null} fmt={(n) => kes(Math.abs(n))} />
         </div>
-        <div className="rounded-xl border border-zinc-900/10 bg-white/60 p-3.5">
-          <p className="text-[10px] uppercase tracking-wide text-zinc-500">Watchlist</p>
-          <p className="text-xl font-bold text-zinc-800">
+        <div className="rounded-xl border border-ash-900/10 bg-paper/60 p-3.5">
+          <p className="text-[10px] uppercase tracking-wide text-ash-500">Watchlist</p>
+          <p className="text-xl font-bold text-ash-800">
             {p.bands.high + p.bands.elevated + p.bands.watch}
             <span className="ml-1.5 text-xs font-semibold text-rose-600">{p.bands.high} high</span>
           </p>
-          <p className="text-[11px] text-zinc-500">of {p.activeLoans} active loans</p>
+          <p className="text-[11px] text-ash-500">of {p.activeLoans} active loans</p>
           <Delta now={p.bands.high} then={weekAgo?.high ?? null} fmt={(n) => `${Math.abs(Math.round(n))} high`} />
         </div>
       </div>
@@ -128,7 +128,7 @@ function WeekOverWeek(p: Parameters<typeof ScoringClient>[0]) {
       {/* At-risk % across the recorded runs — one series, no legend needed. */}
       {spark.length >= 2 && (
         <div className="mt-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">At-risk % · last {spark.length} runs</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-ash-400">At-risk % · last {spark.length} runs</p>
           <svg viewBox={`0 0 ${spark.length * 24} 48`} className="mt-1 h-12 w-full max-w-md" preserveAspectRatio="none" role="img" aria-label="At-risk percentage trend">
             <polyline
               fill="none" stroke="#0284c7" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round"
@@ -171,12 +171,12 @@ function Projection({ rows, olb, atRiskValue, atRiskPct }: { rows: SlimRow[]; ol
     <div className="glass mt-4 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-semibold">Next week&apos;s number, worked backwards</h2>
-        <label className="flex items-center gap-2 text-xs text-zinc-500">
+        <label className="flex items-center gap-2 text-xs text-ash-500">
           Target at-risk
           <input
             type="number" min={0} max={99} value={target}
             onChange={(e) => setTarget(Math.max(0, Math.min(99, Number(e.target.value) || 0)))}
-            className="w-16 rounded-lg border border-zinc-900/15 bg-white/80 px-2 py-1.5 text-center text-sm font-bold outline-none"
+            className="w-16 rounded-lg border border-ash-900/15 bg-paper/80 px-2 py-1.5 text-center text-sm font-bold outline-none"
           />
           %
         </label>
@@ -188,7 +188,7 @@ function Projection({ rows, olb, atRiskValue, atRiskPct }: { rows: SlimRow[]; ol
         </p>
       ) : (
         <>
-          <p className="mt-2 text-sm text-zinc-600">
+          <p className="mt-2 text-sm text-ash-600">
             To move from <span className="font-bold">{pct(atRiskPct)}</span> to <span className="font-bold">{target}%</span>,{" "}
             <span className="font-bold" style={{ color: "var(--brand)" }}>{kes(plan.needValue)}</span> of at-risk balance has to
             come back to schedule — that is <span className="font-bold">{plan.accounts.length} account{plan.accounts.length === 1 ? "" : "s"}</span>,
@@ -197,19 +197,19 @@ function Projection({ rows, olb, atRiskValue, atRiskPct }: { rows: SlimRow[]; ol
           <div className="mt-3 space-y-1.5">
             {plan.accounts.slice(0, 8).map((r) => (
               <Link key={r.loanId} href={`/console/borrowers/${r.borrowerId}`}
-                className="flex items-center justify-between gap-2 rounded-lg border border-zinc-900/10 bg-white/60 px-3 py-2 text-xs hover:bg-white">
+                className="flex items-center justify-between gap-2 rounded-lg border border-ash-900/10 bg-paper/60 px-3 py-2 text-xs hover:bg-paper">
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold ${r.band === "HIGH" ? "bg-rose-100 text-rose-700" : r.band === "ELEVATED" ? "bg-amber-100 text-amber-700" : "bg-zinc-900/5 text-zinc-600"}`}>{r.band}</span>
-                  <span className="truncate font-medium text-zinc-700">{r.name}</span>
-                  <span className="shrink-0 text-zinc-400">{r.dpd} dpd</span>
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold ${r.band === "HIGH" ? "bg-rose-100 text-rose-700" : r.band === "ELEVATED" ? "bg-amber-100 text-amber-700" : "bg-ash-900/5 text-ash-600"}`}>{r.band}</span>
+                  <span className="truncate font-medium text-ash-700">{r.name}</span>
+                  <span className="shrink-0 text-ash-400">{r.dpd} dpd</span>
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
                   <span className="font-bold tabular-nums" style={{ color: "var(--brand)" }}>{kes(r.balance)}</span>
-                  <ArrowRight className="h-3 w-3 text-zinc-400" />
+                  <ArrowRight className="h-3 w-3 text-ash-400" />
                 </span>
               </Link>
             ))}
-            {plan.accounts.length > 8 && <p className="text-[11px] text-zinc-400">…and {plan.accounts.length - 8} more in the collections queue, same order.</p>}
+            {plan.accounts.length > 8 && <p className="text-[11px] text-ash-400">…and {plan.accounts.length - 8} more in the collections queue, same order.</p>}
           </div>
           <Link href="/console/collections" className="mt-3 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold text-white" style={{ backgroundColor: "var(--brand)" }}>
             <PhoneCall className="h-3.5 w-3.5" /> Work these in Collections
@@ -244,7 +244,7 @@ function Playbook({ rows }: { rows: SlimRow[] }) {
     return (
       <div className="glass mt-4 p-5">
         <h2 className="text-sm font-semibold">Default-reduction playbook</h2>
-        <p className="mt-2 text-sm text-zinc-500">No live risk drivers — the book is performing to schedule.</p>
+        <p className="mt-2 text-sm text-ash-500">No live risk drivers — the book is performing to schedule.</p>
       </div>
     );
   }
@@ -260,17 +260,17 @@ function Playbook({ rows }: { rows: SlimRow[] }) {
       </div>
       <div className="mt-3 space-y-2.5">
         {drivers.map((d) => (
-          <div key={d.title} className="rounded-xl border border-zinc-900/10 bg-white/60 p-3.5">
+          <div key={d.title} className="rounded-xl border border-ash-900/10 bg-paper/60 p-3.5">
             <div className="flex items-center justify-between gap-2">
-              <p className="flex items-center gap-2 text-[13px] font-semibold text-zinc-800">
+              <p className="flex items-center gap-2 text-[13px] font-semibold text-ash-800">
                 <d.icon className="h-4 w-4" style={{ color: "var(--brand)" }} /> {d.title}
               </p>
-              <p className="text-xs text-zinc-500"><span className="font-bold text-zinc-700">{d.hits}</span> loans · {kes(d.value)}</p>
+              <p className="text-xs text-ash-500"><span className="font-bold text-ash-700">{d.hits}</span> loans · {kes(d.value)}</p>
             </div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-900/[0.06]">
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ash-900/[0.06]">
               <div className="h-full rounded-full" style={{ width: `${(d.value / maxValue) * 100}%`, backgroundColor: "var(--brand)" }} />
             </div>
-            <p className="mt-2 text-xs text-zinc-600">{d.action}</p>
+            <p className="mt-2 text-xs text-ash-600">{d.action}</p>
             <Link href={d.href} className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold" style={{ color: "var(--brand)" }}>
               Open <ArrowRight className="h-3 w-3" />
             </Link>
@@ -287,22 +287,22 @@ function Engines({ engines }: { engines: Engine[] }) {
   return (
     <div className="glass mt-4 p-5">
       <h2 className="text-sm font-semibold">The scoring fleet</h2>
-      <p className="mt-0.5 text-[11px] text-zinc-500">
+      <p className="mt-0.5 text-[11px] text-ash-500">
         Every engine, its population, and how many scores it has produced on this book. The router picks per applicant; nothing is scored twice.
       </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {engines.map((e) => (
-          <div key={e.key} className="rounded-xl border border-zinc-900/10 bg-white/60 p-3.5">
+          <div key={e.key} className="rounded-xl border border-ash-900/10 bg-paper/60 p-3.5">
             <div className="flex items-start justify-between gap-2">
-              <p className="text-[13px] font-semibold leading-tight text-zinc-800">{e.name}</p>
+              <p className="text-[13px] font-semibold leading-tight text-ash-800">{e.name}</p>
               <span className="shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700">LIVE</span>
             </div>
-            <p className="mt-1 text-[11px] leading-snug text-zinc-500">{e.role}</p>
+            <p className="mt-1 text-[11px] leading-snug text-ash-500">{e.role}</p>
             <div className="mt-2 flex items-center justify-between text-[10px]">
-              <span className="rounded bg-zinc-900/5 px-1.5 py-0.5 font-semibold text-zinc-500">{e.population}</span>
-              <span className="font-bold tabular-nums text-zinc-700">{e.count.toLocaleString()} scores</span>
+              <span className="rounded bg-ash-900/5 px-1.5 py-0.5 font-semibold text-ash-500">{e.population}</span>
+              <span className="font-bold tabular-nums text-ash-700">{e.count.toLocaleString()} scores</span>
             </div>
-            <p className="mt-1.5 text-[10px] text-zinc-400">{e.note}</p>
+            <p className="mt-1.5 text-[10px] text-ash-400">{e.note}</p>
           </div>
         ))}
       </div>

@@ -102,7 +102,7 @@ function EntityCard({ e, hue }: { e: EntityBook; hue: string }) {
         <Figure label="30-day lending" value={money(e.disbursed30d)} hint={`${fmt(e.loans30d)} loans`} />
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-zinc-900/[0.07] pt-3.5">
+      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-ash-900/[0.07] pt-3.5">
         <Figure label="OLB (total)" value={money(e.olbTotal)} hint="performing book" />
         <Figure label="OLB (clean)" value={money(e.olbClean)} hint={`less ${money(e.arrears)} in arrears`} />
       </div>
@@ -163,7 +163,7 @@ export function GroupBoard({ book, trend, orgName }: { book: GroupBook; trend: G
             <Figure label="Lent in 30 days" value={money(t.disbursed30d)} hint={`${fmt(t.loans30d)} loans`} />
           </div>
         </div>
-        <p className="t-meta flex flex-wrap items-center gap-1.5 border-t border-zinc-900/[0.06] px-5 py-2">
+        <p className="t-meta flex flex-wrap items-center gap-1.5 border-t border-ash-900/[0.06] px-5 py-2">
           <RadioTower className="h-3.5 w-3.5" style={{ color: "var(--brand)" }} aria-hidden />
           Read live from the lender&rsquo;s own system · every entity on their server · OLB, PQS and NPL computed by
           their MainDashboard definitions, not ours
@@ -184,7 +184,7 @@ export function GroupBoard({ book, trend, orgName }: { book: GroupBook; trend: G
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[46rem] text-sm">
             <thead>
-              <tr className="border-b border-zinc-900/10">
+              <tr className="border-b border-ash-900/10">
                 <th className="t-label py-2 text-left font-medium">Entity</th>
                 <th className="t-label py-2 text-right font-medium">Customers</th>
                 <th className="t-label py-2 text-right font-medium">Active loans</th>
@@ -196,7 +196,7 @@ export function GroupBoard({ book, trend, orgName }: { book: GroupBook; trend: G
             </thead>
             <tbody>
               {ranked.map((e) => (
-                <tr key={e.entityId} className="border-b border-zinc-900/[0.06]">
+                <tr key={e.entityId} className="border-b border-ash-900/[0.06]">
                   <td className="py-2.5">
                     <span className="flex items-center gap-2">
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: hueOf(e.entityId) }} aria-hidden />
@@ -212,7 +212,7 @@ export function GroupBoard({ book, trend, orgName }: { book: GroupBook; trend: G
                   <td className="t-num py-2.5 text-right text-amber-700">{e.nplCount > 0 ? money(e.nplAmount) : "—"}</td>
                 </tr>
               ))}
-              <tr className="border-t-2 border-zinc-900/15">
+              <tr className="border-t-2 border-ash-900/15">
                 <td className="py-2.5 font-bold">Group</td>
                 <td className="t-num py-2.5 text-right font-bold">{fmt(t.borrowers)}</td>
                 <td className="t-num py-2.5 text-right font-bold">{fmt(t.activeLoans)}</td>
@@ -255,7 +255,7 @@ export function GroupBoard({ book, trend, orgName }: { book: GroupBook; trend: G
                     <td className="t-num py-2 pr-3 text-right whitespace-nowrap">{fmt(b.loans)} loans</td>
                     <td className="t-num py-2 pr-3 text-right font-semibold whitespace-nowrap">{money(b.olb)}</td>
                     <td className="w-1/3 py-2">
-                      <span className="block h-2 w-full overflow-hidden rounded-full bg-zinc-900/[0.06]">
+                      <span className="block h-2 w-full overflow-hidden rounded-full bg-ash-900/[0.06]">
                         <span
                           className="block h-full rounded-full"
                           style={{ width: `${Math.max(share, 0.4)}%`, backgroundColor: npl ? "#d97706" : "var(--brand)" }}
@@ -290,7 +290,7 @@ export function GroupBoard({ book, trend, orgName }: { book: GroupBook; trend: G
         <div className="mt-4 flex items-end gap-1.5 sm:gap-2.5" style={{ height: "9rem" }}>
           {byMonth.map((m) => (
             <div key={m.month} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-              <span className="t-num text-[10px] leading-none text-zinc-500">{m.total > 0 ? money(m.total).replace("Ksh ", "") : ""}</span>
+              <span className="t-num text-[10px] leading-none text-ash-500">{m.total > 0 ? money(m.total).replace("Ksh ", "") : ""}</span>
               <div className="flex w-full flex-col-reverse justify-start" style={{ height: `${(m.total / peak) * 100}%`, minHeight: m.total > 0 ? "3px" : "0" }}>
                 {m.parts.map((p) => (
                   <span
@@ -304,7 +304,7 @@ export function GroupBoard({ book, trend, orgName }: { book: GroupBook; trend: G
             </div>
           ))}
         </div>
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-zinc-900/[0.06] pt-3">
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-ash-900/[0.06] pt-3">
           {ranked.filter((e) => e.borrowers > 0).map((e) => (
             <span key={e.entityId} className="t-meta flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: hueOf(e.entityId) }} aria-hidden />

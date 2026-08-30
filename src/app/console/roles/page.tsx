@@ -125,12 +125,12 @@ export default function RolesPage() {
           <h1 className="text-xl font-bold flex items-center gap-2">
             <KeyRound className="h-5 w-5" style={{ color: "var(--brand)" }} /> Roles & Rights
           </h1>
-          <p className="mt-1 text-sm text-zinc-500 max-w-2xl">
+          <p className="mt-1 text-sm text-ash-500 max-w-2xl">
             Create roles and choose exactly which menus and abilities each one gets. Staff on a role see only their
             assigned modules — assign roles in <Link href="/console/team" className="font-semibold hover:underline" style={{ color: "var(--brand)" }}>Team</Link>.
           </p>
         </div>
-        <button onClick={openNew} className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+        <button onClick={openNew} className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
           <Plus className="h-3.5 w-3.5" /> New role
         </button>
       </div>
@@ -142,9 +142,9 @@ export default function RolesPage() {
         {/* Role list */}
         <div className="space-y-2">
           {roles === null ? (
-            <div className="glass p-4 text-sm text-zinc-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+            <div className="glass p-4 text-sm text-ash-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
           ) : roles.length === 0 ? (
-            <div className="glass p-4 text-sm text-zinc-500">No roles yet — create the first one.</div>
+            <div className="glass p-4 text-sm text-ash-500">No roles yet — create the first one.</div>
           ) : (
             roles.map((r) => {
               const admin = r.rights.includes(WILDCARD);
@@ -152,14 +152,14 @@ export default function RolesPage() {
                 <button
                   key={r.id}
                   onClick={() => openRole(r)}
-                  className={`glass w-full p-3.5 text-left transition-colors ${selected === r.id ? "ring-2" : "hover:bg-white/80"}`}
+                  className={`glass w-full p-3.5 text-left transition-colors ${selected === r.id ? "ring-2" : "hover:bg-paper/80"}`}
                   style={selected === r.id ? ({ ["--tw-ring-color" as never]: "var(--brand)" }) : undefined}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold truncate">{r.title}</p>
                     {admin && <Crown className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-label="Administrator" />}
                   </div>
-                  <p className="mt-0.5 text-[11px] text-zinc-500">
+                  <p className="mt-0.5 text-[11px] text-ash-500">
                     {admin ? "Everything" : `${r.rights.length} permission${r.rights.length === 1 ? "" : "s"}`} · {r.staffCount} staff
                   </p>
                 </button>
@@ -170,16 +170,16 @@ export default function RolesPage() {
 
         {/* Editor */}
         {selected === null ? (
-          <div className="glass p-8 text-center text-sm text-zinc-500">Pick a role to edit, or create a new one.</div>
+          <div className="glass p-8 text-center text-sm text-ash-500">Pick a role to edit, or create a new one.</div>
         ) : (
           <div className="space-y-4">
             <div className="glass p-5">
-              <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Role name</label>
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-ash-500">Role name</label>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Loan Officer"
-                className="mt-1.5 w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none"
+                className="mt-1.5 w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none"
               />
               <label className="mt-4 flex items-start gap-2.5 rounded-lg border border-amber-300/60 bg-amber-50/70 p-3">
                 <input type="checkbox" checked={isAdmin} onChange={(e) => setIsAdmin(e.target.checked)} className="mt-0.5" />
@@ -195,7 +195,7 @@ export default function RolesPage() {
                 and still must not see the same customers. */}
             <div className="glass p-5">
               <p className="text-sm font-semibold">Whose customers can they see?</p>
-              <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
+              <p className="mt-0.5 text-[11px] leading-snug text-ash-500">
                 Permissions decide what someone may do. This decides whose borrowers, applications and loans they may do it
                 to. It follows your <a href="/console/branches" className="underline">organisation structure</a>.
               </p>
@@ -204,7 +204,7 @@ export default function RolesPage() {
                   <label
                     key={o.id}
                     className={`flex cursor-pointer items-start gap-2.5 rounded-lg border p-2.5 transition-colors ${
-                      scope === o.id ? "border-[color:var(--brand)] bg-white" : "border-zinc-900/10 bg-white/60 hover:border-zinc-900/20"
+                      scope === o.id ? "border-[color:var(--brand)] bg-paper" : "border-ash-900/10 bg-paper/60 hover:border-ash-900/20"
                     }`}
                   >
                     <input
@@ -215,8 +215,8 @@ export default function RolesPage() {
                       className="mt-0.5"
                     />
                     <span>
-                      <span className="block text-[13px] font-semibold text-zinc-800">{o.label}</span>
-                      <span className="block text-[11px] leading-snug text-zinc-500">{o.help}</span>
+                      <span className="block text-[13px] font-semibold text-ash-800">{o.label}</span>
+                      <span className="block text-[11px] leading-snug text-ash-500">{o.help}</span>
                     </span>
                   </label>
                 ))}
@@ -226,22 +226,22 @@ export default function RolesPage() {
             {!isAdmin && (
               <div className="glass p-5">
                 <p className="text-sm font-semibold">Permissions</p>
-                <p className="mt-0.5 text-[11px] text-zinc-500">Ticking a permission puts its menu on this role&apos;s sidebar and unlocks the action behind it.</p>
+                <p className="mt-0.5 text-[11px] text-ash-500">Ticking a permission puts its menu on this role&apos;s sidebar and unlocks the action behind it.</p>
                 <div className="mt-4 grid gap-5 sm:grid-cols-2">
                   {RIGHT_GROUPS.map((g) => (
                     <div key={g.key}>
-                      <p className="text-[10.5px] font-semibold uppercase tracking-wider text-zinc-500">{g.label}</p>
+                      <p className="text-[10.5px] font-semibold uppercase tracking-wider text-ash-500">{g.label}</p>
                       <div className="mt-1.5 space-y-1.5">
                         {g.rights.map((right) => (
-                          <label key={right} className="flex items-start gap-2 rounded-md px-1 py-0.5 hover:bg-zinc-900/[0.03]">
+                          <label key={right} className="flex items-start gap-2 rounded-md px-1 py-0.5 hover:bg-ash-900/[0.03]">
                             <input type="checkbox" checked={draft.has(right)} onChange={() => toggle(right)} className="mt-1" />
                             <span className="min-w-0">
-                              <span className="text-[12.5px] font-medium text-zinc-800 flex items-center gap-1.5 flex-wrap">
-                                <code className="text-[10.5px] text-zinc-400">{right}</code>
+                              <span className="text-[12.5px] font-medium text-ash-800 flex items-center gap-1.5 flex-wrap">
+                                <code className="text-[10.5px] text-ash-400">{right}</code>
                                 {ADMIN_SET.has(right) && <span className="rounded bg-amber-100 px-1 py-px text-[9px] font-semibold text-amber-700">ADMIN</span>}
-                                {RESERVED_SET.has(right) && <span className="rounded bg-zinc-900/5 px-1 py-px text-[9px] font-semibold text-zinc-400">SOON</span>}
+                                {RESERVED_SET.has(right) && <span className="rounded bg-ash-900/5 px-1 py-px text-[9px] font-semibold text-ash-400">SOON</span>}
                               </span>
-                              <span className="block text-[11px] leading-snug text-zinc-500">{RIGHT_LABELS[right as Right]}</span>
+                              <span className="block text-[11px] leading-snug text-ash-500">{RIGHT_LABELS[right as Right]}</span>
                             </span>
                           </label>
                         ))}
@@ -254,16 +254,16 @@ export default function RolesPage() {
 
             {/* Live menu preview */}
             <div className="glass p-5">
-              <p className="text-sm font-semibold flex items-center gap-1.5"><Eye className="h-4 w-4 text-zinc-400" /> What this role&apos;s sidebar will show</p>
-              <p className="mt-0.5 text-[11px] text-zinc-500">Menus your package doesn&apos;t include stay hidden for everyone, whatever the role says.</p>
+              <p className="text-sm font-semibold flex items-center gap-1.5"><Eye className="h-4 w-4 text-ash-400" /> What this role&apos;s sidebar will show</p>
+              <p className="mt-0.5 text-[11px] text-ash-500">Menus your package doesn&apos;t include stay hidden for everyone, whatever the role says.</p>
               {preview.length === 1 && !isAdmin ? (
-                <p className="mt-3 text-sm text-zinc-500">Only the dashboard — tick some permissions above.</p>
+                <p className="mt-3 text-sm text-ash-500">Only the dashboard — tick some permissions above.</p>
               ) : (
                 <div className="mt-3 flex flex-wrap gap-3">
                   {preview.map((mod) => (
-                    <div key={mod.key} className="rounded-lg border border-zinc-900/10 bg-white/70 px-3 py-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">{mod.label}</p>
-                      <p className="mt-0.5 text-[11px] text-zinc-700">{mod.items.map((i) => i.label).join(" · ")}</p>
+                    <div key={mod.key} className="rounded-lg border border-ash-900/10 bg-paper/70 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-ash-500">{mod.label}</p>
+                      <p className="mt-0.5 text-[11px] text-ash-700">{mod.items.map((i) => i.label).join(" · ")}</p>
                     </div>
                   ))}
                 </div>

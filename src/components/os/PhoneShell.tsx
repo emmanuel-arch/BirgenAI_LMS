@@ -127,11 +127,11 @@ export function PhoneShell({
     <div className="os-frame relative flex h-full w-full flex-col overflow-hidden rounded-[42px] p-[9px]">
       {/* Side buttons, drawn on the band. Decorative — but a phone without them
           reads as a mock-up, and this one is meant to read as a device. */}
-      <span aria-hidden className="pointer-events-none absolute -left-[2px] top-[112px] h-9 w-[3px] rounded-l-sm bg-zinc-500/70" />
-      <span aria-hidden className="pointer-events-none absolute -left-[2px] top-[158px] h-14 w-[3px] rounded-l-sm bg-zinc-500/70" />
-      <span aria-hidden className="pointer-events-none absolute -right-[2px] top-[136px] h-20 w-[3px] rounded-r-sm bg-zinc-500/70" />
+      <span aria-hidden className="pointer-events-none absolute -left-[2px] top-[112px] h-9 w-[3px] rounded-l-sm bg-ash-500/70" />
+      <span aria-hidden className="pointer-events-none absolute -left-[2px] top-[158px] h-14 w-[3px] rounded-l-sm bg-ash-500/70" />
+      <span aria-hidden className="pointer-events-none absolute -right-[2px] top-[136px] h-20 w-[3px] rounded-r-sm bg-ash-500/70" />
 
-      <div className="os-glass relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[34px] bg-white">
+      <div className="os-glass relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[34px] bg-paper">
         {cover ? (
           cover
         ) : (
@@ -139,7 +139,7 @@ export function PhoneShell({
         {/* ── STATUS BAR ─────────────────────────────────────────────────────
             Carrier, clock, radios. The carrier is the lender's own assistant
             name, because on this device that is who is providing service. */}
-        <div className="relative z-20 flex h-[26px] shrink-0 items-center justify-between px-4 pt-1.5 text-[10px] font-semibold text-zinc-500">
+        <div className="relative z-20 flex h-[26px] shrink-0 items-center justify-between px-4 pt-1.5 text-[10px] font-semibold text-ash-500">
           <span className="tabular-nums">{clock}</span>
           <span className="flex items-center gap-1">
             <Signal className="h-2.5 w-2.5" />
@@ -163,7 +163,7 @@ export function PhoneShell({
           {onBack ? (
             <button
               onClick={onBack}
-              className="-ml-1 flex h-8 shrink-0 items-center gap-0.5 rounded-full pl-1 pr-2 text-[11.5px] font-semibold text-zinc-500 transition-colors hover:bg-zinc-900/5 hover:text-zinc-900"
+              className="-ml-1 flex h-8 shrink-0 items-center gap-0.5 rounded-full pl-1 pr-2 text-[11.5px] font-semibold text-ash-500 transition-colors hover:bg-ash-900/5 hover:text-ash-900"
               aria-label={`Back to ${backLabel ?? "the previous screen"}`}
             >
               <ChevronLeft className="h-4.5 w-4.5" />
@@ -174,8 +174,8 @@ export function PhoneShell({
           )}
 
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-bold leading-tight text-zinc-900">{title}</p>
-            <p className="flex items-center gap-1 truncate text-[10.5px] leading-tight text-zinc-500">
+            <p className="truncate text-[13px] font-bold leading-tight text-ash-900">{title}</p>
+            <p className="flex items-center gap-1 truncate text-[10.5px] leading-tight text-ash-500">
               {busy ? (
                 <>
                   Working
@@ -195,7 +195,7 @@ export function PhoneShell({
           {action}
           <button
             onClick={onClose}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-900/5 hover:text-zinc-900"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ash-400 transition-colors hover:bg-ash-900/5 hover:text-ash-900"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
@@ -212,12 +212,12 @@ export function PhoneShell({
             The gesture pill for the people who reach for it, and under it the
             button for everyone else. Disabled at home, because a control that
             does nothing should look like it. */}
-        <div className="relative z-10 flex shrink-0 flex-col items-center gap-1.5 border-t border-zinc-900/[0.06] bg-white/60 pb-2 pt-1.5">
+        <div className="relative z-10 flex shrink-0 flex-col items-center gap-1.5 border-t border-ash-900/[0.06] bg-paper/60 pb-2 pt-1.5">
           <button
             onClick={press}
             disabled={atHome}
             aria-label="Home"
-            className="h-1 w-24 rounded-full bg-zinc-900/20 transition-colors enabled:hover:bg-zinc-900/40 disabled:opacity-30"
+            className="h-1 w-24 rounded-full bg-ash-900/20 transition-colors enabled:hover:bg-zinc-900/40 disabled:opacity-30"
           />
           <motion.button
             onClick={press}

@@ -94,14 +94,14 @@ export function TuningClient() {
   if (error && !data) {
     return <p className="mt-6 flex items-center gap-2 text-sm text-red-600"><AlertTriangle className="h-4 w-4" /> {error}</p>;
   }
-  if (!data || !draft) return <div className="flex justify-center py-20"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>;
+  if (!data || !draft) return <div className="flex justify-center py-20"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>;
 
   const setWeight = (k: string, v: number) => setDraft({ ...draft, weights: { ...draft.weights, [k]: v } });
   const setThreshold = (k: string, v: number) => setDraft({ ...draft, thresholds: { ...draft.thresholds, [k]: v } });
 
   return (
     <main className="mx-auto max-w-4xl px-4 sm:px-6 py-10">
-        <Link href="/console/intelligence" className="mb-6 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800">
+        <Link href="/console/intelligence" className="mb-6 inline-flex items-center gap-1.5 text-sm text-ash-500 hover:text-ash-800">
           <ArrowLeft className="h-4 w-4" /> Credit Intelligence
         </Link>
 
@@ -110,19 +110,19 @@ export function TuningClient() {
             <h1 className="flex items-center gap-2 text-xl font-bold">
               <Gauge className="h-5 w-5" style={{ color: "var(--brand)" }} /> Your risk policy
             </h1>
-            <p className="mt-1 max-w-xl text-sm text-zinc-500">
+            <p className="mt-1 max-w-xl text-sm text-ash-500">
               These weights decide who your officers are told to call first. They never change what a borrower owes,
               and they never reverse a decision already made.
             </p>
           </div>
-          <div className="text-right text-xs text-zinc-400">
+          <div className="text-right text-xs text-ash-400">
             {data.isDefault ? "BirgenAI defaults" : `Version ${data.version}`}
           </div>
         </div>
 
         {/* What the policy flags today */}
         <div className="mt-5 glass p-5">
-          <p className="text-xs font-semibold text-zinc-500">On your book right now</p>
+          <p className="text-xs font-semibold text-ash-500">On your book right now</p>
           <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="On the watchlist" value={String(data.current.watchlist)} />
             <Stat label="High risk" value={String(data.current.high)} />
@@ -135,7 +135,7 @@ export function TuningClient() {
         {GROUPS.map((group) => (
           <section key={group} className="mt-6">
             <h2 className="text-sm font-semibold">{group}</h2>
-            <div className="mt-2 glass divide-y divide-zinc-900/5 p-1">
+            <div className="mt-2 glass divide-y divide-ash-900/5 p-1">
               {Object.entries(data.labels)
                 .filter(([, m]) => m.group === group)
                 .map(([key, meta]) => (
@@ -159,7 +159,7 @@ export function TuningClient() {
         {/* Thresholds */}
         <section className="mt-6">
           <h2 className="text-sm font-semibold">Bands and cut-offs</h2>
-          <div className="mt-2 glass divide-y divide-zinc-900/5 p-1">
+          <div className="mt-2 glass divide-y divide-ash-900/5 p-1">
             {Object.entries(THRESHOLD_META).map(([key, m]) => (
               <Slider
                 key={key}
@@ -181,7 +181,7 @@ export function TuningClient() {
         {/* Preview */}
         {preview && (
           <section className="mt-6 glass p-5">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold"><Eye className="h-4 w-4 text-zinc-400" /> What this would change</h2>
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold"><Eye className="h-4 w-4 text-ash-400" /> What this would change</h2>
             {preview.adjustments.length > 0 && (
               <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
                 {preview.adjustments.map((a, i) => (
@@ -199,7 +199,7 @@ export function TuningClient() {
             {(preview.changed.length > 0 || preview.dropped.length > 0) && (
               <table className="mt-4 w-full text-xs">
                 <thead>
-                  <tr className="text-left text-zinc-400">
+                  <tr className="text-left text-ash-400">
                     <th className="py-1 font-medium">Borrower</th>
                     <th className="py-1 font-medium">Days late</th>
                     <th className="py-1 font-medium">Was</th>
@@ -208,10 +208,10 @@ export function TuningClient() {
                 </thead>
                 <tbody>
                   {[...preview.changed, ...preview.dropped].map((m, i) => (
-                    <tr key={i} className="border-t border-zinc-900/5">
+                    <tr key={i} className="border-t border-ash-900/5">
                       <td className="py-1.5 font-medium">{m.name}</td>
-                      <td className="py-1.5 tabular-nums text-zinc-500">{m.dpd}</td>
-                      <td className="py-1.5 text-zinc-500">{m.from}</td>
+                      <td className="py-1.5 tabular-nums text-ash-500">{m.dpd}</td>
+                      <td className="py-1.5 text-ash-500">{m.from}</td>
                       <td className="py-1.5 font-semibold">{m.to}</td>
                     </tr>
                   ))}
@@ -219,7 +219,7 @@ export function TuningClient() {
               </table>
             )}
             {preview.changed.length === 0 && preview.dropped.length === 0 && (
-              <p className="mt-3 text-xs text-zinc-500">Nobody moves band. The change is cosmetic on today&apos;s book.</p>
+              <p className="mt-3 text-xs text-ash-500">Nobody moves band. The change is cosmetic on today&apos;s book.</p>
             )}
           </section>
         )}
@@ -227,18 +227,18 @@ export function TuningClient() {
         {/* Actions */}
         {data.canEdit ? (
           <div className="mt-6 glass p-5">
-            <label className="text-xs font-medium text-zinc-500">Why are you changing this?</label>
+            <label className="text-xs font-medium text-ash-500">Why are you changing this?</label>
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. our market-stall book breathes late; 10 days is normal here"
-              className="mt-1.5 w-full rounded-lg border border-zinc-900/15 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
+              className="mt-1.5 w-full rounded-lg border border-ash-900/15 bg-paper px-3 py-2 text-sm outline-none focus:border-ash-400"
             />
-            <p className="mt-1 text-[11px] text-zinc-400">Recorded against your name in the audit log, with the whole policy.</p>
+            <p className="mt-1 text-[11px] text-ash-400">Recorded against your name in the audit log, with the whole policy.</p>
 
             <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={runPreview} disabled={!!busy || !dirty}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-white disabled:opacity-40">
+                className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2.5 text-sm font-semibold text-ash-700 hover:bg-paper disabled:opacity-40">
                 {busy === "preview" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} Preview on my book
               </button>
               <button onClick={save} disabled={!!busy || !dirty}
@@ -247,7 +247,7 @@ export function TuningClient() {
                 {busy === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save policy
               </button>
               <button onClick={reset} disabled={!!busy || data.isDefault}
-                className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm text-zinc-500 hover:text-zinc-800 disabled:opacity-40">
+                className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm text-ash-500 hover:text-ash-800 disabled:opacity-40">
                 {busy === "reset" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />} Back to defaults
               </button>
             </div>
@@ -256,7 +256,7 @@ export function TuningClient() {
             {notice && <p className="mt-3 text-xs text-emerald-700">{notice}</p>}
           </div>
         ) : (
-          <p className="mt-6 text-xs text-zinc-500">You can see the policy, but only an admin can change it.</p>
+          <p className="mt-6 text-xs text-ash-500">You can see the policy, but only an admin can change it.</p>
         )}
       </main>
   );
@@ -265,7 +265,7 @@ export function TuningClient() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-wide text-zinc-400">{label}</p>
+      <p className="text-[11px] uppercase tracking-wide text-ash-400">{label}</p>
       <p className="mt-0.5 text-lg font-bold tabular-nums">{value}</p>
     </div>
   );
@@ -276,9 +276,9 @@ function Delta({ label, before, after, money }: { label: string; before: number;
   const fmt = (n: number) => (money ? kes(n) : String(n));
   return (
     <div>
-      <p className="text-[11px] uppercase tracking-wide text-zinc-400">{label}</p>
+      <p className="text-[11px] uppercase tracking-wide text-ash-400">{label}</p>
       <p className="mt-0.5 text-lg font-bold tabular-nums">{fmt(after)}</p>
-      <p className={`text-[11px] tabular-nums ${diff === 0 ? "text-zinc-400" : diff > 0 ? "text-amber-700" : "text-emerald-700"}`}>
+      <p className={`text-[11px] tabular-nums ${diff === 0 ? "text-ash-400" : diff > 0 ? "text-amber-700" : "text-emerald-700"}`}>
         {diff === 0 ? "no change" : `${diff > 0 ? "+" : "−"}${fmt(Math.abs(diff))}`}
       </p>
     </div>
@@ -300,7 +300,7 @@ function Slider({
         <label className="text-sm font-medium">{label}</label>
         <span className="shrink-0 text-sm tabular-nums font-semibold">
           {show(value)}{suffix ?? ""}
-          {moved && <span className="ml-1.5 text-[11px] font-normal text-zinc-400">was {show(def)}{suffix ?? ""}</span>}
+          {moved && <span className="ml-1.5 text-[11px] font-normal text-ash-400">was {show(def)}{suffix ?? ""}</span>}
         </span>
       </div>
       <input
@@ -308,7 +308,7 @@ function Slider({
         onChange={(e) => onChange(Number(e.target.value))}
         className="mt-1.5 w-full accent-[var(--brand)] disabled:opacity-50"
       />
-      {help && <p className="text-[11px] text-zinc-400">{help}</p>}
+      {help && <p className="text-[11px] text-ash-400">{help}</p>}
     </div>
   );
 }

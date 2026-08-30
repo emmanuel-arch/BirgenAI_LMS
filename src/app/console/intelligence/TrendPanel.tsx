@@ -67,7 +67,7 @@ function Sparkline({ points, color, format }: { points: { x: string; y: number }
         )}
       </svg>
       {hover != null && (
-        <div className="pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 rounded-md border border-zinc-900/10 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-700 shadow-sm whitespace-nowrap">
+        <div className="pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 rounded-md border border-ash-900/10 bg-paper px-2 py-0.5 text-[10px] font-medium text-ash-700 shadow-sm whitespace-nowrap">
           {points[hover].x} · {format(points[hover].y)}
         </div>
       )}
@@ -138,18 +138,18 @@ export function TrendPanel({ trend, latest }: { trend: TrendPoint[]; latest: Lat
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-sm font-semibold flex items-center gap-2">
           <Activity className="h-4 w-4" style={{ color: "var(--brand)" }} /> Risk over time
-          {last && <span className="text-zinc-400 font-normal">· scored nightly under the {last.policy} policy</span>}
+          {last && <span className="text-ash-400 font-normal">· scored nightly under the {last.policy} policy</span>}
         </h2>
         <div className="flex items-center gap-2">
           {latest && (
-            <span className="text-[11px] text-zinc-400">
+            <span className="text-[11px] text-ash-400">
               Last run {new Date(latest.ranAt).toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}{latest.trigger === "manual" ? " · manual" : ""}
             </span>
           )}
           <button
             onClick={runNow}
             disabled={running}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-1.5 text-xs font-semibold text-ash-700 hover:bg-paper disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${running ? "animate-spin" : ""}`} /> {running ? "Scoring…" : "Run now"}
           </button>
@@ -160,7 +160,7 @@ export function TrendPanel({ trend, latest }: { trend: TrendPoint[]; latest: Lat
       {trend.length === 0 ? (
         <div className="mt-3 glass p-6 text-center">
           <p className="text-sm font-semibold">No runs recorded yet</p>
-          <p className="mt-1 text-sm text-zinc-500 max-w-xl mx-auto">
+          <p className="mt-1 text-sm text-ash-500 max-w-xl mx-auto">
             The book is scored automatically every night, and each run becomes a point on this line. Run one now to lay down the first point.
           </p>
         </div>
@@ -169,7 +169,7 @@ export function TrendPanel({ trend, latest }: { trend: TrendPoint[]; latest: Lat
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <div className="glass p-3.5">
               <div className="flex items-baseline justify-between">
-                <p className="text-[10px] uppercase tracking-wide text-zinc-500">At risk · % of book</p>
+                <p className="text-[10px] uppercase tracking-wide text-ash-500">At risk · % of book</p>
                 {delta != null && delta !== 0 && (
                   <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold ${delta > 0 ? "text-rose-600" : "text-emerald-600"}`}>
                     {delta > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -181,7 +181,7 @@ export function TrendPanel({ trend, latest }: { trend: TrendPoint[]; latest: Lat
               <Sparkline points={pctPoints} color="#d97706" format={(y) => `${y.toFixed(1)}% of book`} />
             </div>
             <div className="glass p-3.5">
-              <p className="text-[10px] uppercase tracking-wide text-zinc-500">Projected loss</p>
+              <p className="text-[10px] uppercase tracking-wide text-ash-500">Projected loss</p>
               <p className="mt-1 text-base font-bold" style={{ color: "#e11d48" }}>{kes(last!.projectedLoss)}</p>
               <Sparkline points={lossPoints} color="#e11d48" format={(y) => `KES ${kesShort(y)}`} />
             </div>
@@ -189,7 +189,7 @@ export function TrendPanel({ trend, latest }: { trend: TrendPoint[]; latest: Lat
 
           {movement.length > 0 && (
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
-              <span className="text-[11px] text-zinc-500">Since the previous run:</span>
+              <span className="text-[11px] text-ash-500">Since the previous run:</span>
               {movement.map((c) => (
                 <span
                   key={c.label}
@@ -209,35 +209,35 @@ export function TrendPanel({ trend, latest }: { trend: TrendPoint[]; latest: Lat
             <h3 className="text-sm font-semibold">Model health</h3>
             <VerdictPill verdict={drift.status} />
           </div>
-          <p className="mt-1 text-[11px] text-zinc-400 max-w-2xl">
+          <p className="mt-1 text-[11px] text-ash-400 max-w-2xl">
             Measured from the closed ML loop — every score the platform issued, joined back to what the loan actually did.
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-zinc-900/10 bg-white/60 p-3">
+            <div className="rounded-lg border border-ash-900/10 bg-paper/60 p-3">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] uppercase tracking-wide text-zinc-500">Calibration</p>
+                <p className="text-[10px] uppercase tracking-wide text-ash-500">Calibration</p>
                 <VerdictPill verdict={drift.calibration.verdict} />
               </div>
               {drift.calibration.realisedRate != null && (
-                <p className="mt-1.5 text-sm font-bold text-zinc-800">
+                <p className="mt-1.5 text-sm font-bold text-ash-800">
                   {(drift.calibration.realisedRate * 100).toFixed(1)}% realised
-                  <span className="font-normal text-zinc-500"> vs {(drift.calibration.predictedRate! * 100).toFixed(1)}% predicted</span>
+                  <span className="font-normal text-ash-500"> vs {(drift.calibration.predictedRate! * 100).toFixed(1)}% predicted</span>
                 </p>
               )}
-              <p className="mt-1 text-xs text-zinc-500">{drift.calibration.note}</p>
+              <p className="mt-1 text-xs text-ash-500">{drift.calibration.note}</p>
             </div>
-            <div className="rounded-lg border border-zinc-900/10 bg-white/60 p-3">
+            <div className="rounded-lg border border-ash-900/10 bg-paper/60 p-3">
               <div className="flex items-center justify-between">
-                <p className="text-[10px] uppercase tracking-wide text-zinc-500">Applicant population</p>
+                <p className="text-[10px] uppercase tracking-wide text-ash-500">Applicant population</p>
                 <VerdictPill verdict={drift.population.verdict} />
               </div>
               {drift.population.psi != null && (
-                <p className="mt-1.5 text-sm font-bold text-zinc-800">
+                <p className="mt-1.5 text-sm font-bold text-ash-800">
                   PSI {drift.population.psi.toFixed(2)}
-                  <span className="font-normal text-zinc-500"> · mean score {drift.population.baselineMeanScore} → {drift.population.recentMeanScore}</span>
+                  <span className="font-normal text-ash-500"> · mean score {drift.population.baselineMeanScore} → {drift.population.recentMeanScore}</span>
                 </p>
               )}
-              <p className="mt-1 text-xs text-zinc-500">{drift.population.note}</p>
+              <p className="mt-1 text-xs text-ash-500">{drift.population.note}</p>
             </div>
           </div>
         </div>

@@ -11,7 +11,7 @@ const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 const BAND: Record<RiskBand, { label: string; text: string; bg: string; bar: string }> = {
   HIGH: { label: "High risk", text: "text-rose-700", bg: "bg-rose-100", bar: "#e11d48" },
   ELEVATED: { label: "Elevated", text: "text-amber-700", bg: "bg-amber-100", bar: "#d97706" },
-  WATCH: { label: "Watch", text: "text-zinc-600", bg: "bg-zinc-900/5", bar: "#a1a1aa" },
+  WATCH: { label: "Watch", text: "text-ash-600", bg: "bg-ash-900/5", bar: "#a1a1aa" },
 };
 
 type Row = RiskRow;
@@ -65,18 +65,18 @@ export function Watchlist({ rows }: { rows: Row[] }) {
                     <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${b.bg} ${b.text}`}>{b.label}</span>
                     {r.dpd > 0 && <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600">{r.dpd}d overdue</span>}
                   </div>
-                  <p className="text-xs text-zinc-500 truncate">{r.product} · {r.phone}</p>
+                  <p className="text-xs text-ash-500 truncate">{r.product} · {r.phone}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4 text-right shrink-0">
-                <div><p className="text-[10px] uppercase text-zinc-500">Balance</p><p className="text-sm font-bold" style={{ color: "var(--brand)" }}>{fmtKES(r.balance)}</p></div>
-                <div className="hidden sm:block"><p className="text-[10px] uppercase text-zinc-500">Proj. loss</p><p className="text-sm font-bold text-rose-600">{fmtKES(r.expectedLoss)}</p></div>
+                <div><p className="text-[10px] uppercase text-ash-500">Balance</p><p className="text-sm font-bold" style={{ color: "var(--brand)" }}>{fmtKES(r.balance)}</p></div>
+                <div className="hidden sm:block"><p className="text-[10px] uppercase text-ash-500">Proj. loss</p><p className="text-sm font-bold text-rose-600">{fmtKES(r.expectedLoss)}</p></div>
               </div>
             </div>
 
             {/* Risk meter */}
             <div className="mt-3 flex items-center gap-2.5">
-              <div className="flex-1 h-2 rounded-full bg-zinc-900/8 overflow-hidden">
+              <div className="flex-1 h-2 rounded-full bg-ash-900/8 overflow-hidden">
                 <div className="h-full rounded-full transition-[width] duration-700 ease-out" style={{ width: mounted ? `${r.riskScore}%` : "0%", backgroundColor: b.bar }} />
               </div>
               <span className="text-[11px] font-bold tabular-nums" style={{ color: b.bar }}>{r.riskScore}</span>
@@ -85,7 +85,7 @@ export function Watchlist({ rows }: { rows: Row[] }) {
             {/* Reason codes */}
             <div className="mt-2.5 flex flex-wrap gap-1.5">
               {r.reasons.map((reason, i) => (
-                <span key={i} className="rounded-full border border-zinc-900/10 bg-white/60 px-2 py-0.5 text-[10px] text-zinc-600">{reason}</span>
+                <span key={i} className="rounded-full border border-ash-900/10 bg-paper/60 px-2 py-0.5 text-[10px] text-ash-600">{reason}</span>
               ))}
             </div>
 
@@ -103,10 +103,10 @@ export function Watchlist({ rows }: { rows: Row[] }) {
                   {st?.busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MapPin className="h-3.5 w-3.5" />} Dispatch agent
                 </button>
               )}
-              <button data-riri-open="analytics" className="inline-flex items-center gap-1.5 rounded-lg bg-white/70 border border-zinc-900/10 px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:text-zinc-900">
+              <button data-riri-open="analytics" className="inline-flex items-center gap-1.5 rounded-lg bg-paper/70 border border-ash-900/10 px-3 py-1.5 text-xs font-semibold text-ash-600 hover:text-ash-900">
                 <Send className="h-3.5 w-3.5" /> Ask {ASSISTANT_NAME}
               </button>
-              <Link href={`/console/borrowers/${r.borrowerId}`} className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800">
+              <Link href={`/console/borrowers/${r.borrowerId}`} className="inline-flex items-center gap-1 text-xs text-ash-500 hover:text-ash-800">
                 View <ExternalLink className="h-3 w-3" />
               </Link>
               {st?.msg && (

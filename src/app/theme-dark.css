@@ -1,0 +1,187 @@
+/* ═════════════════════════════════════════════════════════════════════════════
+   THE TWO-THEME LAYER
+   ─────────────────────────────────────────────────────────────────────────────
+   The suite was built light-only: 4,098 hard-coded `bg-white`, `text-zinc-500`,
+   `border-zinc-900/10` across six systems. None of those flip when a token
+   changes, so a dark toggle bolted onto the existing tokens produced a dark
+   shell full of white rectangles.
+
+   This file is the layer that makes them flip, and the rule it follows is the
+   only reason the migration is safe:
+
+       EVERY LIGHT VALUE BELOW IS BYTE-IDENTICAL TO THE TAILWIND DEFAULT IT
+       REPLACES. Copied out of node_modules/tailwindcss/theme.css, not typed
+       from memory.
+
+   So `text-zinc-500` → `text-ash-500` cannot change how anything looks today.
+   The whole codemod is a no-op in light mode, which is what makes a 4,098-line
+   diff reviewable: if a light screenshot moved, the mapping is wrong.
+
+   ── THE ASH RAMP INVERTS; IT DOES NOT DARKEN ────────────────────────────────
+   In light, ash-900 is near-black and ash-400 is a mid grey. In dark the ramp is
+   turned over — ash-900 becomes near-WHITE — so a class keeps its MEANING rather
+   than its colour. `text-ash-900` means "the strongest text on this surface" in
+   both themes; `border-ash-900/10` means "a hairline" in both, because 10% of
+   near-black on white and 10% of near-white on near-black are the same gesture.
+
+   That is why this is an inversion and not a second palette. Nothing at the call
+   site has to know which theme it is in.
+
+   ── AND ONE PAIR THAT MUST NOT INVERT ───────────────────────────────────────
+   `bg-zinc-900 text-white` is not ink. It is a deliberate dark control on a
+   light page — the primary button, the active nav pill. Flipping it with the
+   ramp would make it white-on-white in light mode. It maps to `bg-invert` /
+   `text-invert-fg` instead: "the opposite of the page, whatever the page is."
+   In dark it becomes a light button on a dark page, which is the same control.
+
+   Scrims are the exception to the exception: `bg-zinc-950/50` behind a modal is
+   meant to be dark in BOTH themes, so anything carrying an opacity modifier is
+   left alone by the codemod.
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* The page's own surface — cards, sheets, popovers. */
+  --paper: #ffffff;
+
+  /* The ash ramp. Exact Tailwind v4 zinc values. */
+  --ash-50: oklch(98.5% 0 0);
+  --ash-100: oklch(96.7% 0.001 286.375);
+  --ash-200: oklch(92% 0.004 286.32);
+  --ash-300: oklch(87.1% 0.006 286.286);
+  --ash-400: oklch(70.5% 0.015 286.067);
+  --ash-500: oklch(55.2% 0.016 285.938);
+  --ash-600: oklch(44.2% 0.017 285.786);
+  --ash-700: oklch(37% 0.013 285.805);
+  --ash-800: oklch(27.4% 0.006 286.033);
+  --ash-900: oklch(21% 0.006 285.885);
+  --ash-950: oklch(14.1% 0.005 285.823);
+
+  /* The deliberate dark control, and its hover shade. The pair has to keep a
+     DIRECTION, not just a difference: in light the button lifts towards grey on
+     hover, so in dark it must dip away from white. Mapping both to one token
+     would leave every primary button in the suite with a dead hover. */
+  --invert: oklch(21% 0.006 285.885);
+  --invert-2: oklch(27.4% 0.006 286.033);
+  --invert-fg: #ffffff;
+
+  /* THE STAGE — dark in BOTH themes, on purpose.
+     A camera viewfinder, a terminal log, a map in navigation mode. These are not
+     "the opposite of the page", they are surfaces whose content only works on
+     black: a live preview, emerald-on-charcoal log output, a night map. The
+     codemod could not tell them apart from a primary button — both were
+     `bg-zinc-900` — so they get a token that says what they are, and the next
+     person does not have to guess. */
+  --stage: oklch(14.1% 0.005 285.823);
+
+  /* The Analytics studio ground. It was the literal #f6f6f4 in five places and
+     is the single value that decides whether that system is light or dark, so it
+     could not stay a hex. */
+  --studio: #f6f6f4;
+
+  /* How much of the background artwork survives. The photographs were chosen
+     against a pale page; in dark they have to recede much further or they read
+     as smoke across the screen. */
+  --art-opacity: 1;
+
+  /* Machined surfaces — the theme switch's thumb, and anything else that should
+     read as a physical part rather than a filled shape. Four stops, because a
+     rim and a face are two different gradients: a single one gives you a bevel,
+     and a bevel looks like 2009. */
+  --metal-rim-a: #ffffff;
+  --metal-rim-b: #c9d2e6;
+  --metal-face-a: #ffffff;
+  --metal-face-b: #eef1f8;
+}
+
+[data-theme="dark"] {
+  /* Not grey. Slightly blue-black, so the brand accents read as light rather
+     than as stickers — the same choice the borrower app makes. */
+  --paper: oklch(19.5% 0.012 265);
+
+  --ash-50: oklch(15% 0.011 265);
+  --ash-100: oklch(23% 0.013 265);
+  --ash-200: oklch(30% 0.015 265);
+  --ash-300: oklch(42% 0.018 265);
+  --ash-400: oklch(56% 0.021 265);
+  --ash-500: oklch(66% 0.022 265);
+  --ash-600: oklch(75% 0.02 265);
+  --ash-700: oklch(83% 0.016 265);
+  --ash-800: oklch(90% 0.011 265);
+  --ash-900: oklch(96% 0.006 265);
+  --ash-950: oklch(99% 0.002 265);
+
+  --invert: oklch(96% 0.006 265);
+  --invert-2: oklch(88% 0.011 265);
+  --invert-fg: oklch(19.5% 0.012 265);
+
+  --art-opacity: 0.35;
+  --studio: oklch(13% 0.012 265);
+
+  --metal-rim-a: #545e79;
+  --metal-rim-b: #212838;
+  --metal-face-a: #2a3245;
+  --metal-face-b: #171d29;
+
+  /* ── The pre-existing token set, given its dark half ──────────────────────
+     These already existed and already drove .glass / .canvas / .panel and the
+     ink scale. Only their values change here; no call site moves. */
+  --background: oklch(13% 0.012 265);
+  --foreground: oklch(96% 0.006 265);
+
+  --glass-bg: oklch(100% 0 0 / 0.05);
+  --glass-border: oklch(100% 0 0 / 0.1);
+  --glass-shadow: 0 8px 30px oklch(0% 0 0 / 0.5);
+
+  --ink: oklch(97% 0.005 265);
+  --ink-body: oklch(89% 0.009 265);
+  --ink-muted: oklch(74% 0.018 265);
+  --ink-faint: oklch(62% 0.021 265);
+
+  --canvas-bg: oklch(100% 0 0 / 0.04);
+  --canvas-border: oklch(100% 0 0 / 0.08);
+  --panel-bg: oklch(100% 0 0 / 0.06);
+  --panel-border: oklch(100% 0 0 / 0.11);
+  --raise: 0 10px 34px -12px oklch(0% 0 0 / 0.7), 0 2px 8px -2px oklch(0% 0 0 / 0.4);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-ash-50: var(--ash-50);
+  --color-ash-100: var(--ash-100);
+  --color-ash-200: var(--ash-200);
+  --color-ash-300: var(--ash-300);
+  --color-ash-400: var(--ash-400);
+  --color-ash-500: var(--ash-500);
+  --color-ash-600: var(--ash-600);
+  --color-ash-700: var(--ash-700);
+  --color-ash-800: var(--ash-800);
+  --color-ash-900: var(--ash-900);
+  --color-ash-950: var(--ash-950);
+  --color-stage: var(--stage);
+  --color-studio: var(--studio);
+  --color-invert: var(--invert);
+  --color-invert-2: var(--invert-2);
+  --color-invert-fg: var(--invert-fg);
+}
+
+/* The page ground itself. `--background` was already a token; it simply had no
+   second value until now. */
+[data-theme="dark"] body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* In dark, a "frosted white" card is a grey smear. Glass surfaces need a real
+   ground under the blur or the artwork shows through as noise behind figures. */
+[data-theme="dark"] .canvas,
+[data-theme="dark"] .panel,
+[data-theme="dark"] .glass {
+  background-color: color-mix(in oklab, var(--paper) 82%, transparent);
+}
+
+/* Form controls, scrollbars and the browser's own furniture. Without this the
+   native select arrows and autofill backgrounds stay light and give the theme
+   away instantly. */
+[data-theme="dark"] {
+  color-scheme: dark;
+}

@@ -132,14 +132,14 @@ export default function FloorBoard({
             title="Where the book is sitting"
             sub="Seven queues, ordered by severity. Colour carries the rung; the code carries the name."
             right={
-              <div className="flex rounded-lg bg-zinc-900/[0.045] p-0.5">
+              <div className="flex rounded-lg bg-ash-900/[0.045] p-0.5">
                 {(["olb", "loans", "recovered"] as const).map((v) => (
                   <button
                     key={v}
                     type="button"
                     onClick={() => setBandView(v)}
                     className={`rounded-md px-2 py-1 text-[10.5px] font-semibold transition-colors ${
-                      bandView === v ? "bg-white text-zinc-800 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+                      bandView === v ? "bg-paper text-ash-800 shadow-sm" : "text-ash-500 hover:text-ash-700"
                     }`}
                   >
                     {v === "olb" ? "Balance" : v === "loans" ? "Loans" : "Today"}
@@ -164,8 +164,8 @@ export default function FloorBoard({
               );
             })}
           </div>
-          <footer className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-900/[0.06] pt-2.5">
-            <p className="text-[10.5px] text-zinc-400">
+          <footer className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-ash-900/[0.06] pt-2.5">
+            <p className="text-[10.5px] text-ash-400">
               Tracker last written {ago(trackerLastWrite)} · {N(totals.actioned)} of {N(totals.loans)} cases actioned
             </p>
             <Link href="/desk/queue" className="inline-flex items-center gap-1 text-[11px] font-semibold text-[color:var(--accent)] hover:underline">
@@ -216,7 +216,7 @@ export default function FloorBoard({
             <div className="-mx-1 overflow-x-auto">
               <table className="w-full min-w-[520px] text-left">
                 <thead>
-                  <tr className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-zinc-400">
+                  <tr className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-ash-400">
                     <th className="px-1 pb-1.5 font-bold">Agent</th>
                     <th className="px-1 pb-1.5 text-right font-bold">Recovered</th>
                     <th className="px-1 pb-1.5 text-right font-bold">Pmts</th>
@@ -229,15 +229,15 @@ export default function FloorBoard({
                   {agents.map((a, i) => {
                     const top = agents[0]?.recovered || 1;
                     return (
-                      <tr key={a.agentId} className="group border-t border-zinc-900/[0.05]">
+                      <tr key={a.agentId} className="group border-t border-ash-900/[0.05]">
                         <td className="px-1 py-1.5">
                           <span className="flex min-w-0 items-center gap-2">
-                            <span className="w-4 shrink-0 text-right text-[10px] font-bold tabular-nums text-zinc-300">{i + 1}</span>
+                            <span className="w-4 shrink-0 text-right text-[10px] font-bold tabular-nums text-ash-300">{i + 1}</span>
                             <span className="min-w-0">
-                              <span className="block truncate text-[12px] font-medium text-zinc-800">{a.name}</span>
+                              <span className="block truncate text-[12px] font-medium text-ash-800">{a.name}</span>
                               {/* The bar is the comparison; the number beside it is the value.
                                   Both, because a bar alone cannot be read off a projector. */}
-                              <span className="mt-0.5 block h-1 w-24 overflow-hidden rounded-full bg-zinc-900/[0.06]">
+                              <span className="mt-0.5 block h-1 w-24 overflow-hidden rounded-full bg-ash-900/[0.06]">
                                 <span
                                   className="block h-full rounded-full"
                                   style={{ width: `${(a.recovered / top) * 100}%`, backgroundColor: "var(--accent)" }}
@@ -246,11 +246,11 @@ export default function FloorBoard({
                             </span>
                           </span>
                         </td>
-                        <td className="px-1 py-1.5 text-right text-[12px] font-semibold tabular-nums text-zinc-800">{KES(a.recovered)}</td>
-                        <td className="px-1 py-1.5 text-right text-[11.5px] tabular-nums text-zinc-500">{N(a.payments)}</td>
-                        <td className="px-1 py-1.5 text-right text-[11.5px] tabular-nums text-zinc-500">{N(a.assigned)}</td>
-                        <td className="px-1 py-1.5 text-right text-[11.5px] tabular-nums text-zinc-500">{KES(a.commission)}</td>
-                        <td className="px-1 py-1.5 text-right text-[10.5px] tabular-nums text-zinc-400">{ago(a.lastActivityAt)}</td>
+                        <td className="px-1 py-1.5 text-right text-[12px] font-semibold tabular-nums text-ash-800">{KES(a.recovered)}</td>
+                        <td className="px-1 py-1.5 text-right text-[11.5px] tabular-nums text-ash-500">{N(a.payments)}</td>
+                        <td className="px-1 py-1.5 text-right text-[11.5px] tabular-nums text-ash-500">{N(a.assigned)}</td>
+                        <td className="px-1 py-1.5 text-right text-[11.5px] tabular-nums text-ash-500">{KES(a.commission)}</td>
+                        <td className="px-1 py-1.5 text-right text-[10.5px] tabular-nums text-ash-400">{ago(a.lastActivityAt)}</td>
                       </tr>
                     );
                   })}
@@ -275,7 +275,7 @@ export default function FloorBoard({
               <li key={f.id}>
                 <Link
                   href={`/desk/case/${f.loanId}`}
-                  className="flex items-start gap-2.5 rounded-lg px-1.5 py-2 transition-colors hover:bg-zinc-900/[0.03]"
+                  className="flex items-start gap-2.5 rounded-lg px-1.5 py-2 transition-colors hover:bg-ash-900/[0.03]"
                 >
                   <span
                     aria-hidden
@@ -287,12 +287,12 @@ export default function FloorBoard({
                   />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-2">
-                      <span className="truncate text-[12px] font-medium text-zinc-800">{f.headline}</span>
-                      <span className="shrink-0 text-[10px] tabular-nums text-zinc-400">{shortTime(f.at)}</span>
+                      <span className="truncate text-[12px] font-medium text-ash-800">{f.headline}</span>
+                      <span className="shrink-0 text-[10px] tabular-nums text-ash-400">{shortTime(f.at)}</span>
                     </span>
-                    <span className="mt-0.5 flex items-center gap-1.5 truncate text-[10.5px] text-zinc-500">
+                    <span className="mt-0.5 flex items-center gap-1.5 truncate text-[10.5px] text-ash-500">
                       <span className="truncate">{f.subject}</span>
-                      {f.actor && <span className="truncate text-zinc-400">· {f.actor}</span>}
+                      {f.actor && <span className="truncate text-ash-400">· {f.actor}</span>}
                     </span>
                     <span className="mt-1 flex flex-wrap gap-1">
                       <Tag tone={f.system === "Call Centre" ? "info" : f.system === "Fintech Pipeline" ? "good" : "neutral"}>{f.system}</Tag>
@@ -309,7 +309,7 @@ export default function FloorBoard({
       </div>
 
       {/* ── The provenance line ───────────────────────────────────────────── */}
-      <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-zinc-400">
+      <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10.5px] text-ash-400">
         <span className="inline-flex items-center gap-1"><TrendingUp className="h-3 w-3" /> CollectBox.PayedAmount · PaymentHistory</span>
         <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> CollectBox.CallLogs · CollectionTracker</span>
         <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> CollectBox.UserMaster · Serviceconnect.CollectionAgents</span>

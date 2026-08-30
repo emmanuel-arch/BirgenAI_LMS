@@ -77,7 +77,7 @@ function PdGauge({ pd, from, to, ink }: { pd: number; from: string; to: string; 
         <p className="text-xl font-bold leading-none tabular-nums" style={{ color: ink }}>
           {(pd * 100).toFixed(pd < 0.1 ? 1 : 0)}%
         </p>
-        <p className="text-[9px] font-semibold uppercase tracking-wide text-zinc-400">default risk</p>
+        <p className="text-[9px] font-semibold uppercase tracking-wide text-ash-400">default risk</p>
       </div>
     </div>
   );
@@ -93,10 +93,10 @@ export function RiskBandCard({ view, graduation }: {
   if (!b) {
     return (
       <div className="glass p-4">
-        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+        <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-ash-400">
           <Circle className="h-3 w-3" /> Risk band
         </p>
-        <p className="mt-2 text-sm text-zinc-500">
+        <p className="mt-2 text-sm text-ash-500">
           Not scored yet. Crunch their M-Pesa statement and they will be placed in a band.
         </p>
       </div>
@@ -120,7 +120,7 @@ export function RiskBandCard({ view, graduation }: {
         {view.pd && <PdGauge pd={view.pd.pd} from={b.from} to={b.to} ink={b.ink} />}
 
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] leading-relaxed text-zinc-700">{b.meaning}</p>
+          <p className="text-[13px] leading-relaxed text-ash-700">{b.meaning}</p>
 
           <div className="mt-2.5 flex flex-wrap gap-2">
             {view.score != null && (
@@ -133,7 +133,7 @@ export function RiskBandCard({ view, graduation }: {
           </div>
 
           {view.pd && (
-            <p className="mt-2 text-[10px] text-zinc-400">
+            <p className="mt-2 text-[10px] text-ash-400">
               {view.pd.source === "model"
                 ? "Probability computed from their own statement — not an average of people like them."
                 : "Estimated from their band — no model has scored this customer yet."}
@@ -154,7 +154,7 @@ export function RiskBandCard({ view, graduation }: {
               Due to graduate — their limit rises to KES {graduation.newLimit.toLocaleString()} on the next run. {graduation.reason}
             </span>
           ) : (
-            <span className="text-zinc-600">{graduation.reason}</span>
+            <span className="text-ash-600">{graduation.reason}</span>
           )}
         </div>
       )}

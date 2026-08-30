@@ -76,7 +76,7 @@ export default async function FunnelPage({ searchParams }: { searchParams: Promi
 
       {/* ── The funnel itself ─────────────────────────────────────────────── */}
       <Band label="The funnel" hint="Survivors, and the drop at each step" />
-      <div className="rounded-2xl border border-zinc-900/10 bg-white p-4 sm:p-5">
+      <div className="rounded-2xl border border-ash-900/10 bg-paper p-4 sm:p-5">
         <div className="space-y-2.5">
           {stages.map((s, i) => {
             const width = (s.value / top) * 100;
@@ -89,10 +89,10 @@ export default async function FunnelPage({ searchParams }: { searchParams: Promi
             return (
               <div key={s.label}>
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-[12.5px] font-medium text-zinc-800">{s.label}</span>
-                  <span className="text-[12.5px] font-bold tabular-nums text-zinc-900">{s.value.toLocaleString()}</span>
+                  <span className="text-[12.5px] font-medium text-ash-800">{s.label}</span>
+                  <span className="text-[12.5px] font-bold tabular-nums text-ash-900">{s.value.toLocaleString()}</span>
                 </div>
-                <div className="mt-1 flex h-7 items-center overflow-hidden rounded-lg bg-zinc-900/[0.04]">
+                <div className="mt-1 flex h-7 items-center overflow-hidden rounded-lg bg-ash-900/[0.04]">
                   <div
                     className="flex h-full items-center rounded-r-[4px] px-2 transition-all duration-500"
                     style={{ width: `${Math.max(width, 4)}%`, backgroundColor: fill }}
@@ -106,7 +106,7 @@ export default async function FunnelPage({ searchParams }: { searchParams: Promi
                     )}
                   </div>
                 </div>
-                <p className="mt-0.5 flex flex-wrap gap-x-2 text-[10.5px] text-zinc-500">
+                <p className="mt-0.5 flex flex-wrap gap-x-2 text-[10.5px] text-ash-500">
                   <span>{s.note}</span>
                   {prevValue != null && dropped > 0 && (
                     <span className="font-semibold" style={{ color: dropPct > 40 ? STATUS.critical : STATUS.warning }}>
@@ -157,7 +157,7 @@ export default async function FunnelPage({ searchParams }: { searchParams: Promi
         />
       </div>
 
-      <p className="mt-6 text-[11px] leading-snug text-zinc-400">
+      <p className="mt-6 text-[11px] leading-snug text-ash-400">
         Approval rate excludes applications still in the queue. Including them makes the rate fall every time a busy week
         arrives, which is a property of the calendar rather than of the credit policy —{" "}
         {undecided.toLocaleString()} application{undecided === 1 ? " is" : "s are"} undecided in this cut.

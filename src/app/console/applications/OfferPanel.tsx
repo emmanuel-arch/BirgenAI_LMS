@@ -59,16 +59,16 @@ export function OfferPanel({ applicationId, onChanged }: { applicationId: string
     } catch { setError("That didn't work."); return false; } finally { setBusy(false); }
   };
 
-  if (!loaded) return <div className="py-3"><Loader2 className="h-4 w-4 animate-spin text-zinc-400" /></div>;
+  if (!loaded) return <div className="py-3"><Loader2 className="h-4 w-4 animate-spin text-ash-400" /></div>;
 
   if (!offer) {
     return (
-      <div className="mt-3 rounded-xl border border-zinc-900/10 bg-white/60 p-3">
-        <p className="text-xs text-zinc-500">
+      <div className="mt-3 rounded-xl border border-ash-900/10 bg-paper/60 p-3">
+        <p className="text-xs text-ash-500">
           No offer has been made. A loan cannot be booked until the borrower agrees to its terms.
         </p>
         <button onClick={() => post({ action: "issue" })} disabled={busy}
-          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-50">
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-invert px-3 py-1.5 text-xs font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-50">
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Issue offer
         </button>
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
@@ -80,10 +80,10 @@ export function OfferPanel({ applicationId, onChanged }: { applicationId: string
   const Icon = tone.icon;
 
   return (
-    <div className="mt-3 rounded-xl border border-zinc-900/10 bg-white/60 p-3">
+    <div className="mt-3 rounded-xl border border-ash-900/10 bg-paper/60 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 text-xs font-semibold">
-          <FileText className="h-3.5 w-3.5 text-zinc-400" /> Credit agreement
+          <FileText className="h-3.5 w-3.5 text-ash-400" /> Credit agreement
         </p>
         <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold ${tone.cls}`}>
           <Icon className="h-3 w-3" /> {tone.label}
@@ -98,7 +98,7 @@ export function OfferPanel({ applicationId, onChanged }: { applicationId: string
       </dl>
 
       {offer.status === "ACCEPTED" && (
-        <p className="mt-2 text-[11px] text-zinc-500">
+        <p className="mt-2 text-[11px] text-ash-500">
           Signed {offer.acceptedAt ? day(offer.acceptedAt) : ""} {offer.channel === "PORTAL" ? "by the borrower, with a code sent to their phone" : "in person, recorded by staff"}
           {offer.branchNote ? ` — “${offer.branchNote}”` : ""}. Reference <span className="font-mono">{offer.termsHash.slice(0, 12)}</span>.
         </p>
@@ -106,9 +106,9 @@ export function OfferPanel({ applicationId, onChanged }: { applicationId: string
 
       {offer.status === "OFFERED" && (
         <>
-          <p className="mt-2 text-[11px] text-zinc-500">Valid until {day(offer.expiresAt)}. The borrower signs it in the portal.</p>
+          <p className="mt-2 text-[11px] text-ash-500">Valid until {day(offer.expiresAt)}. The borrower signs it in the portal.</p>
           {!recording ? (
-            <button onClick={() => setRecording(true)} className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white">
+            <button onClick={() => setRecording(true)} className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-1.5 text-xs font-semibold text-ash-700 hover:bg-paper">
               <Store className="h-3.5 w-3.5" /> They signed in branch
             </button>
           ) : (
@@ -117,17 +117,17 @@ export function OfferPanel({ applicationId, onChanged }: { applicationId: string
                 value={branchNote}
                 onChange={(e) => setBranchNote(e.target.value)}
                 placeholder="Where they signed, and what identification you saw"
-                className="w-full rounded-lg border border-zinc-900/15 bg-white px-3 py-2 text-xs outline-none focus:border-zinc-400"
+                className="w-full rounded-lg border border-ash-900/15 bg-paper px-3 py-2 text-xs outline-none focus:border-ash-400"
               />
-              <p className="mt-1 text-[10px] text-zinc-400">This note is the evidence. It is recorded against your name.</p>
+              <p className="mt-1 text-[10px] text-ash-400">This note is the evidence. It is recorded against your name.</p>
               <div className="mt-2 flex gap-2">
                 <button
                   disabled={busy || branchNote.trim().length < 8}
                   onClick={async () => { if (await post({ action: "record-branch-acceptance", note: branchNote })) setRecording(false); }}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-40">
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-3 py-1.5 text-xs font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-40">
                   {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Record acceptance
                 </button>
-                <button onClick={() => setRecording(false)} className="rounded-lg px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-800">Cancel</button>
+                <button onClick={() => setRecording(false)} className="rounded-lg px-3 py-1.5 text-xs text-ash-500 hover:text-ash-800">Cancel</button>
               </div>
             </div>
           )}
@@ -136,7 +136,7 @@ export function OfferPanel({ applicationId, onChanged }: { applicationId: string
 
       {(offer.status === "EXPIRED" || offer.status === "DECLINED") && (
         <button onClick={() => post({ action: "issue" })} disabled={busy}
-          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-50">
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-invert px-3 py-1.5 text-xs font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-50">
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Issue a new offer
         </button>
       )}
@@ -149,8 +149,8 @@ export function OfferPanel({ applicationId, onChanged }: { applicationId: string
 function Item({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-zinc-400">{label}</dt>
-      <dd className="font-medium text-zinc-800">{value}</dd>
+      <dt className="text-ash-400">{label}</dt>
+      <dd className="font-medium text-ash-800">{value}</dd>
     </div>
   );
 }

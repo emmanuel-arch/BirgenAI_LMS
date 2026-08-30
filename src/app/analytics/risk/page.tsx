@@ -75,7 +75,7 @@ export default async function RiskPage({ searchParams }: { searchParams: Promise
 
       {totalPar > 0 && worst.length > 2 && topTwoShare > 60 && (
         <div className="mt-3 rounded-2xl border p-4" style={{ borderColor: `${STATUS.serious}55`, backgroundColor: `${STATUS.serious}0d` }}>
-          <p className="text-[13px] leading-snug text-zinc-800">
+          <p className="text-[13px] leading-snug text-ash-800">
             {topTwoShare.toFixed(0)}% of all arrears sits in <strong>{worst[0].label}</strong> and{" "}
             <strong>{worst[1].label}</strong> — {formatValue((worst[0]?.par30Amount ?? 0) + (worst[1]?.par30Amount ?? 0), "money")} of{" "}
             {formatValue(totalPar, "money")}. The portfolio does not have a PAR problem; two offices do.

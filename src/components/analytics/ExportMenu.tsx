@@ -131,14 +131,14 @@ function Item({ icon: Icon, label, hint, onClick, id, busy }: {
       type="button"
       onClick={onClick}
       disabled={busy !== null}
-      className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-zinc-900/[0.04] disabled:opacity-50"
+      className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-ash-900/[0.04] disabled:opacity-50"
     >
       {busy === id
-        ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-zinc-400" />
-        : <Icon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />}
+        ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-ash-400" />
+        : <Icon className="mt-0.5 h-4 w-4 shrink-0 text-ash-500" />}
       <span className="min-w-0">
-        <span className="block text-[12px] font-semibold text-zinc-800">{label}</span>
-        <span className="block text-[11px] leading-snug text-zinc-500">{hint}</span>
+        <span className="block text-[12px] font-semibold text-ash-800">{label}</span>
+        <span className="block text-[11px] leading-snug text-ash-500">{hint}</span>
       </span>
     </button>
   );
@@ -226,19 +226,19 @@ export default function ExportMenu({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/10 bg-white font-semibold text-zinc-700 transition-colors hover:bg-zinc-900/[0.03] ${
+        className={`inline-flex items-center gap-1.5 rounded-lg border border-ash-900/10 bg-paper font-semibold text-ash-700 transition-colors hover:bg-ash-900/[0.03] ${
           compact ? "px-2 py-1.5 text-[11px]" : "px-3 py-2 text-[12px]"
         }`}
       >
         <Download className="h-3.5 w-3.5" />
         {compact ? "" : "Export"}
-        <ChevronDown className="h-3 w-3 text-zinc-400" />
+        <ChevronDown className="h-3 w-3 text-ash-400" />
       </button>
 
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-40 mt-1.5 w-[19rem] rounded-xl border border-zinc-900/10 bg-white p-1.5 shadow-xl"
+          className="absolute right-0 z-40 mt-1.5 w-[19rem] rounded-xl border border-ash-900/10 bg-paper p-1.5 shadow-xl"
         >
           {kind === "table" && (
             <>
@@ -259,15 +259,15 @@ export default function ExportMenu({
               onClick={png} />
           )}
 
-          <div className="my-1 h-px bg-zinc-900/[0.07]" aria-hidden />
+          <div className="my-1 h-px bg-ash-900/[0.07]" aria-hidden />
           <Item busy={busy} id="link" icon={copied ? Check : Link2}
             label={copied ? "Link copied" : "Copy a link to this view"}
             hint="Every filter is in the address, so whoever opens it sees exactly this."
             onClick={copyLink} />
 
-          <p className="mt-1 px-2.5 py-1.5 text-[10px] leading-snug text-zinc-400">
+          <p className="mt-1 px-2.5 py-1.5 text-[10px] leading-snug text-ash-400">
             Files are named{" "}
-            <span className="font-mono text-[9.5px] text-zinc-500">Lender_Book_Report_Period_When</span>
+            <span className="font-mono text-[9.5px] text-ash-500">Lender_Book_Report_Period_When</span>
             {" "}so they still make sense in six months.
           </p>
           {error && <p className="px-2.5 pb-1.5 text-[11px] font-medium text-rose-600">{error}</p>}

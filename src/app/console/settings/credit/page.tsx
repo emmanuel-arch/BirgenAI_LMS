@@ -371,7 +371,7 @@ export default function CreditPolicyScreen() {
         <button
           type="button"
           onClick={() => setSheet(true)}
-          className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-3 border-t border-[color:var(--ink)]/[0.08] bg-white/95 px-4 py-3 backdrop-blur"
+          className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-3 border-t border-[color:var(--ink)]/[0.08] bg-paper/95 px-4 py-3 backdrop-blur"
         >
           <span className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-[color:var(--brand)]" />
@@ -396,7 +396,7 @@ export default function CreditPolicyScreen() {
               onClick={() => setSheet(false)}
             >
               <motion.div
-                className="max-h-[85vh] w-full overflow-hidden rounded-t-2xl bg-white"
+                className="max-h-[85vh] w-full overflow-hidden rounded-t-2xl bg-paper"
                 initial={reduce ? false : { y: 40 }}
                 animate={{ y: 0 }}
                 exit={reduce ? undefined : { y: 40 }}
@@ -450,7 +450,7 @@ function CeilingsSection({ cfg, set }: { cfg: CreditPolicy; set: SetFn }) {
               type="number" inputMode="numeric" min={0} step={500}
               value={cfg.scoreCeilings[band]}
               onChange={(e) => set("scoreCeilings", { ...cfg.scoreCeilings, [band]: Number(e.target.value) || 0 } as Record<ScoreBand, number>)}
-              className="w-full rounded-lg border border-[color:var(--ink)]/12 bg-white px-2.5 py-2 text-sm tabular-nums outline-none focus:border-[color:var(--brand)]"
+              className="w-full rounded-lg border border-[color:var(--ink)]/12 bg-paper px-2.5 py-2 text-sm tabular-nums outline-none focus:border-[color:var(--brand)]"
             />
           </div>
         ))}

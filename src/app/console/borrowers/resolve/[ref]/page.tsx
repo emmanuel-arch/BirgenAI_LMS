@@ -45,11 +45,11 @@ function Problem({ title, detail }: { title: string; detail: string }) {
             <ShieldAlert className="h-4.5 w-4.5" aria-hidden />
           </span>
           <div className="min-w-0">
-            <h1 className="text-base font-semibold text-zinc-900">{title}</h1>
-            <p className="mt-1 text-sm leading-relaxed text-zinc-600">{detail}</p>
+            <h1 className="text-base font-semibold text-ash-900">{title}</h1>
+            <p className="mt-1 text-sm leading-relaxed text-ash-600">{detail}</p>
             <Link
               href="/console/borrowers"
-              className="mt-4 inline-flex items-center rounded-lg bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
+              className="mt-4 inline-flex items-center rounded-lg bg-invert px-3.5 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2"
             >
               Back to the customer book
             </Link>

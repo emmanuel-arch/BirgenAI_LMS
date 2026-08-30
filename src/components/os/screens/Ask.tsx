@@ -128,10 +128,10 @@ export function AskScreen({
           >
             <div className="mb-1.5 flex items-center gap-1.5 rounded-lg px-2 py-1.5" style={{ backgroundColor: "var(--brand-soft)" }}>
               <Pin className="h-3 w-3 shrink-0" style={{ color: "var(--brand)" }} />
-              <p className="min-w-0 flex-1 truncate text-[11px] font-semibold text-zinc-700">
+              <p className="min-w-0 flex-1 truncate text-[11px] font-semibold text-ash-700">
                 Every question is about {pinned.name}
               </p>
-              <button onClick={onUnpin} className="shrink-0 rounded px-1 text-[10px] font-semibold text-zinc-500 hover:text-zinc-800">
+              <button onClick={onUnpin} className="shrink-0 rounded px-1 text-[10px] font-semibold text-ash-500 hover:text-ash-800">
                 Unpin
               </button>
             </div>
@@ -143,8 +143,8 @@ export function AskScreen({
         {turns.length === 0 ? (
           <div className="space-y-3.5">
             <div>
-              <p className="text-[12.5px] font-semibold leading-tight text-zinc-800">What do you need?</p>
-              <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
+              <p className="text-[12.5px] font-semibold leading-tight text-ash-800">What do you need?</p>
+              <p className="mt-0.5 text-[11px] leading-snug text-ash-500">
                 One place for all three — how the platform works, what your numbers say, and what you should do about it.
                 I&apos;ll work out which is which.
               </p>
@@ -155,16 +155,16 @@ export function AskScreen({
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: gi * 0.06, duration: 0.3 }}
               >
-                <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-zinc-400">{g.label}</p>
+                <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-ash-400">{g.label}</p>
                 <div className="mt-1.5 space-y-1">
                   {g.prompts.map((p) => (
                     <button
                       key={p}
                       onClick={() => onAsk(p)}
-                      className="group flex w-full items-center gap-2 rounded-xl border border-zinc-900/[0.07] bg-white/75 px-2.5 py-2 text-left text-[11.5px] leading-snug text-zinc-700 transition-colors hover:border-[color:var(--brand)] hover:bg-white hover:text-zinc-900"
+                      className="group flex w-full items-center gap-2 rounded-xl border border-ash-900/[0.07] bg-paper/75 px-2.5 py-2 text-left text-[11.5px] leading-snug text-ash-700 transition-colors hover:border-[color:var(--brand)] hover:bg-paper hover:text-ash-900"
                     >
                       <span className="min-w-0 flex-1">{p}</span>
-                      <ArrowRight className="h-3 w-3 shrink-0 text-zinc-300 transition-colors group-hover:text-[color:var(--brand)]" />
+                      <ArrowRight className="h-3 w-3 shrink-0 text-ash-300 transition-colors group-hover:text-[color:var(--brand)]" />
                     </button>
                   ))}
                 </div>
@@ -188,9 +188,9 @@ export function AskScreen({
                     <div className="mt-0.5 h-6 w-6 shrink-0 overflow-hidden rounded-full ring-1 ring-white">
                       <RiriAvatar size={24} state={t.loading ? "thinking" : "idle"} animated={t.loading} />
                     </div>
-                    <div className="min-w-0 flex-1 rounded-2xl rounded-bl-sm border border-zinc-900/10 bg-white/75 px-3.5 py-3">
+                    <div className="min-w-0 flex-1 rounded-2xl rounded-bl-sm border border-ash-900/10 bg-paper/75 px-3.5 py-3">
                       {t.loading ? (
-                        <span className="flex items-center gap-2 text-[13px] text-zinc-400">
+                        <span className="flex items-center gap-2 text-[13px] text-ash-400">
                           <Loader2 className="h-3.5 w-3.5 animate-spin" /> Working out where to look…
                         </span>
                       ) : t.error ? (
@@ -231,7 +231,7 @@ export function AskScreen({
                                 <button
                                   key={sg}
                                   onClick={() => onAsk(sg)}
-                                  className="rounded-full border border-zinc-900/[0.12] bg-white/70 px-2 py-0.5 text-[10px] text-zinc-500 hover:border-[color:var(--brand)] hover:text-zinc-900"
+                                  className="rounded-full border border-ash-900/[0.12] bg-paper/70 px-2 py-0.5 text-[10px] text-ash-500 hover:border-[color:var(--brand)] hover:text-ash-900"
                                 >
                                   {sg}
                                 </button>
@@ -246,10 +246,10 @@ export function AskScreen({
                                 <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ring-inset ${ENGINE_TINT[t.engine]}`}>
                                   <Glyph className="h-2.5 w-2.5" /> {t.engineLabel}
                                 </span>
-                                <span className="text-[9px] text-zinc-400">{t.evidence}</span>
+                                <span className="text-[9px] text-ash-400">{t.evidence}</span>
                               </div>
                               {t.engineWhy && t.routed && (
-                                <p className="text-[9.5px] leading-snug text-zinc-400">{t.engineWhy}</p>
+                                <p className="text-[9.5px] leading-snug text-ash-400">{t.engineWhy}</p>
                               )}
                               {/* THE RECOVERY. One tap re-asks the same words of the
                                   other engine — offered only when the router said it
@@ -257,7 +257,7 @@ export function AskScreen({
                               {t.alternative && t.confidence === "unsure" && (
                                 <button
                                   onClick={() => onReask(t.question, t.alternative!.engine)}
-                                  className="inline-flex items-center gap-1 rounded-full border border-zinc-900/[0.12] bg-white px-2 py-0.5 text-[10px] font-semibold text-zinc-600 hover:border-[color:var(--brand)] hover:text-zinc-900"
+                                  className="inline-flex items-center gap-1 rounded-full border border-ash-900/[0.12] bg-paper px-2 py-0.5 text-[10px] font-semibold text-ash-600 hover:border-[color:var(--brand)] hover:text-ash-900"
                                 >
                                   <Repeat2 className="h-2.5 w-2.5" /> {t.alternative.label}
                                 </button>
@@ -307,15 +307,15 @@ export function AskComposer({
   onAsk: (q: string) => void;
 }) {
   return (
-    <div className="shrink-0 border-t border-zinc-900/10 bg-white/70 p-2.5">
-      <div className="flex items-center gap-1.5 rounded-2xl border border-zinc-900/15 bg-white px-2 focus-within:border-[color:var(--brand)]">
+    <div className="shrink-0 border-t border-ash-900/10 bg-paper/70 p-2.5">
+      <div className="flex items-center gap-1.5 rounded-2xl border border-ash-900/15 bg-paper px-2 focus-within:border-[color:var(--brand)]">
         {voice.supported && (
           <button
             onClick={voice.listen}
             title={voice.listening ? "Stop listening" : `Talk to ${ASSISTANT_NAME}`}
             aria-label={voice.listening ? "Stop listening" : `Talk to ${ASSISTANT_NAME}`}
             className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-              voice.listening ? "text-white" : "text-zinc-400 hover:bg-zinc-900/5 hover:text-zinc-700"
+              voice.listening ? "text-white" : "text-ash-400 hover:bg-ash-900/5 hover:text-ash-700"
             }`}
             style={voice.listening ? { backgroundColor: "var(--brand)" } : undefined}
           >
@@ -330,7 +330,7 @@ export function AskComposer({
             if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onAsk(input); }
           }}
           placeholder={voice.listening ? "Listening…" : placeholder}
-          className="flex-1 bg-transparent py-2.5 text-[13px] outline-none placeholder:text-zinc-400"
+          className="flex-1 bg-transparent py-2.5 text-[13px] outline-none placeholder:text-ash-400"
         />
         <button
           onClick={() => onAsk(input)}
@@ -342,7 +342,7 @@ export function AskComposer({
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
         </button>
       </div>
-      <p className="mt-1 text-center text-[9px] text-zinc-400">
+      <p className="mt-1 text-center text-[9px] text-ash-400">
         {voice.speaking ? "Speaking… · " : ""}
         {autoGo ? "Autopilot on — I'll move the screen · " : ""}
         Powered by BirgenAI

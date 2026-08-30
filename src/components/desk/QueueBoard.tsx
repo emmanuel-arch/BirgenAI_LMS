@@ -96,18 +96,18 @@ export default function QueueBoard({
         right={
           <form
             onSubmit={(e) => { e.preventDefault(); set({ q: q.trim() || null }); }}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-900/10 bg-white px-2 py-1.5"
+            className="flex items-center gap-1.5 rounded-lg border border-ash-900/10 bg-paper px-2 py-1.5"
           >
-            <Search className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+            <Search className="h-3.5 w-3.5 shrink-0 text-ash-400" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Name, phone, ID or loan number"
-              className="w-56 bg-transparent text-[12px] outline-none placeholder:text-zinc-400"
+              className="w-56 bg-transparent text-[12px] outline-none placeholder:text-ash-400"
             />
             {q && (
               <button type="button" onClick={() => { setQ(""); set({ q: null }); }} aria-label="Clear">
-                <X className="h-3.5 w-3.5 text-zinc-400 hover:text-zinc-700" />
+                <X className="h-3.5 w-3.5 text-ash-400 hover:text-ash-700" />
               </button>
             )}
           </form>
@@ -125,7 +125,7 @@ export default function QueueBoard({
               onClick={() => toggleBand(b.id)}
               title={`${b.posture}${b.commission ? `\n\nCommission on recovery: ${b.commission}%` : ""}`}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors ${
-                on ? "border-transparent text-white" : "border-zinc-900/10 bg-white text-zinc-600 hover:bg-zinc-900/[0.03]"
+                on ? "border-transparent text-white" : "border-ash-900/10 bg-paper text-ash-600 hover:bg-ash-900/[0.03]"
               }`}
               style={on ? { backgroundColor: b.accent } : undefined}
             >
@@ -135,13 +135,13 @@ export default function QueueBoard({
           );
         })}
 
-        <span className="mx-1 h-4 w-px bg-zinc-900/10" aria-hidden />
+        <span className="mx-1 h-4 w-px bg-ash-900/10" aria-hidden />
 
         <button
           type="button"
           onClick={() => set({ untouched: untouched ? null : "1" })}
           className={`rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors ${
-            untouched ? "border-transparent bg-zinc-900 text-white" : "border-zinc-900/10 bg-white text-zinc-600 hover:bg-zinc-900/[0.03]"
+            untouched ? "border-transparent bg-invert text-invert-fg" : "border-ash-900/10 bg-paper text-ash-600 hover:bg-ash-900/[0.03]"
           }`}
         >
           Untouched today
@@ -150,7 +150,7 @@ export default function QueueBoard({
           type="button"
           onClick={() => set({ promise: promise ? null : "1" })}
           className={`rounded-lg border px-2 py-1 text-[11px] font-semibold transition-colors ${
-            promise ? "border-transparent bg-zinc-900 text-white" : "border-zinc-900/10 bg-white text-zinc-600 hover:bg-zinc-900/[0.03]"
+            promise ? "border-transparent bg-invert text-invert-fg" : "border-ash-900/10 bg-paper text-ash-600 hover:bg-ash-900/[0.03]"
           }`}
         >
           Has a promise
@@ -159,7 +159,7 @@ export default function QueueBoard({
         <select
           value={branch}
           onChange={(e) => set({ branch: e.target.value || null })}
-          className="rounded-lg border border-zinc-900/10 bg-white px-2 py-1 text-[11px] font-medium text-zinc-600 outline-none"
+          className="rounded-lg border border-ash-900/10 bg-paper px-2 py-1 text-[11px] font-medium text-ash-600 outline-none"
         >
           <option value="">All branches</option>
           {branches.map((b) => <option key={b.name} value={b.name}>{b.name} ({N(b.loans)})</option>)}
@@ -168,7 +168,7 @@ export default function QueueBoard({
         <select
           value={agent}
           onChange={(e) => set({ agent: e.target.value || null })}
-          className="rounded-lg border border-zinc-900/10 bg-white px-2 py-1 text-[11px] font-medium text-zinc-600 outline-none"
+          className="rounded-lg border border-ash-900/10 bg-paper px-2 py-1 text-[11px] font-medium text-ash-600 outline-none"
         >
           <option value="">All agents</option>
           {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -178,7 +178,7 @@ export default function QueueBoard({
           <button
             type="button"
             onClick={() => start(() => router.push(pathname))}
-            className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-500 hover:text-zinc-800"
+            className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-ash-500 hover:text-ash-800"
           >
             <X className="h-3 w-3" /> Clear
           </button>
@@ -187,7 +187,7 @@ export default function QueueBoard({
 
       {/* ── Sorts ─────────────────────────────────────────────────────────── */}
       <div className="mb-3 flex flex-wrap items-center gap-1">
-        <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-400">Order</span>
+        <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.1em] text-ash-400">Order</span>
         {SORTS.map((s) => (
           <button
             key={s.key}
@@ -195,7 +195,7 @@ export default function QueueBoard({
             title={s.hint}
             onClick={() => set({ sort: s.key })}
             className={`rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${
-              sort === s.key ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-900/[0.05] hover:text-zinc-800"
+              sort === s.key ? "bg-invert text-invert-fg" : "text-ash-500 hover:bg-ash-900/[0.05] hover:text-ash-800"
             }`}
           >
             {s.label}
@@ -215,7 +215,7 @@ export default function QueueBoard({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1120px] text-left">
               <thead>
-                <tr className="border-b border-zinc-900/[0.07] text-[9.5px] font-bold uppercase tracking-[0.1em] text-zinc-400">
+                <tr className="border-b border-ash-900/[0.07] text-[9.5px] font-bold uppercase tracking-[0.1em] text-ash-400">
                   <th className="px-3 py-2">Customer</th>
                   <th className="px-3 py-2">Band</th>
                   <th className="px-3 py-2 text-right">Balance</th>
@@ -228,13 +228,13 @@ export default function QueueBoard({
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.trackerId} className="group border-b border-zinc-900/[0.045] transition-colors last:border-0 hover:bg-zinc-900/[0.022]">
+                  <tr key={r.trackerId} className="group border-b border-ash-900/[0.045] transition-colors last:border-0 hover:bg-ash-900/[0.022]">
                     <td className="px-3 py-2.5">
                       <Link href={`/desk/case/${r.loanId}`} className="block min-w-0">
-                        <span className="block truncate text-[12.5px] font-semibold text-zinc-800 group-hover:text-[color:var(--accent)]">
+                        <span className="block truncate text-[12.5px] font-semibold text-ash-800 group-hover:text-[color:var(--accent)]">
                           {r.name}
                         </span>
-                        <span className="mt-0.5 flex items-center gap-1.5 text-[10.5px] text-zinc-400">
+                        <span className="mt-0.5 flex items-center gap-1.5 text-[10.5px] text-ash-400">
                           <span className="tabular-nums">{r.phone || "no number"}</span>
                           <span aria-hidden>·</span>
                           <span className="truncate">{r.product}</span>
@@ -247,14 +247,14 @@ export default function QueueBoard({
                     <td className="px-3 py-2.5">
                       <span className="flex items-center gap-1.5">
                         <Chip label={r.band.short} accent={r.band.accent} title={r.band.name} />
-                        <span className="text-[10.5px] tabular-nums text-zinc-500">{r.dpd}d</span>
+                        <span className="text-[10.5px] tabular-nums text-ash-500">{r.dpd}d</span>
                       </span>
                     </td>
 
                     <td className="px-3 py-2.5 text-right">
-                      <span className="block text-[12.5px] font-semibold tabular-nums text-zinc-800">{KES(r.olb)}</span>
+                      <span className="block text-[12.5px] font-semibold tabular-nums text-ash-800">{KES(r.olb)}</span>
                       {r.amountDue > 0 && (
-                        <span className="block text-[10px] tabular-nums text-zinc-400">due {KES(r.amountDue)}</span>
+                        <span className="block text-[10px] tabular-nums text-ash-400">due {KES(r.amountDue)}</span>
                       )}
                     </td>
 
@@ -262,15 +262,15 @@ export default function QueueBoard({
                       {r.recovered30d > 0 ? (
                         <span className="text-[12px] font-semibold tabular-nums text-emerald-700">{KES(r.recovered30d)}</span>
                       ) : (
-                        <span className="text-[12px] tabular-nums text-zinc-300">—</span>
+                        <span className="text-[12px] tabular-nums text-ash-300">—</span>
                       )}
                     </td>
 
                     <td className="px-3 py-2.5">
                       {r.lastCallAt || r.lastActionAt ? (
                         <span className="block">
-                          <span className="block text-[11.5px] text-zinc-600">{ago(r.lastCallAt ?? r.lastActionAt)}</span>
-                          <span className="block text-[10px] text-zinc-400">
+                          <span className="block text-[11.5px] text-ash-600">{ago(r.lastCallAt ?? r.lastActionAt)}</span>
+                          <span className="block text-[10px] text-ash-400">
                             {r.callCount > 0 ? `${N(r.callCount)} call${r.callCount === 1 ? "" : "s"} on file` : "no calls logged"}
                           </span>
                         </span>
@@ -282,19 +282,19 @@ export default function QueueBoard({
                     <td className="px-3 py-2.5">
                       {r.ptpDate ? (
                         <span className="block">
-                          <span className="block text-[11.5px] font-medium tabular-nums text-zinc-700">{KES(r.ptpAmount)}</span>
-                          <span className="block text-[10px] tabular-nums text-zinc-400">
+                          <span className="block text-[11.5px] font-medium tabular-nums text-ash-700">{KES(r.ptpAmount)}</span>
+                          <span className="block text-[10px] tabular-nums text-ash-400">
                             {new Date(r.ptpDate).toLocaleDateString("en-KE", { day: "numeric", month: "short" })}
                           </span>
                         </span>
                       ) : (
-                        <span className="text-[12px] text-zinc-300">—</span>
+                        <span className="text-[12px] text-ash-300">—</span>
                       )}
                     </td>
 
                     <td className="px-3 py-2.5">
-                      <span className="block truncate text-[11.5px] text-zinc-600">{r.agentName ?? "Unassigned"}</span>
-                      {r.officer && <span className="block truncate text-[10px] text-zinc-400">RO {r.officer}</span>}
+                      <span className="block truncate text-[11.5px] text-ash-600">{r.agentName ?? "Unassigned"}</span>
+                      {r.officer && <span className="block truncate text-[10px] text-ash-400">RO {r.officer}</span>}
                     </td>
 
                     <td className="px-3 py-2.5 text-right">
@@ -316,14 +316,14 @@ export default function QueueBoard({
 
       {pages > 1 && (
         <nav className="mt-3 flex items-center justify-between" aria-label="Pagination">
-          <p className="text-[11px] text-zinc-500">
+          <p className="text-[11px] text-ash-500">
             {N((page - 1) * pageSize + 1)}–{N(Math.min(page * pageSize, total))} of {N(total)}
           </p>
           <div className="flex items-center gap-1">
             <Btn variant="outline" size="sm" disabled={page <= 1} onClick={() => set({ p: String(page - 1) })}>
               <ChevronLeft className="h-3 w-3" /> Previous
             </Btn>
-            <span className="px-2 text-[11px] tabular-nums text-zinc-500">{page} / {N(pages)}</span>
+            <span className="px-2 text-[11px] tabular-nums text-ash-500">{page} / {N(pages)}</span>
             <Btn variant="outline" size="sm" disabled={page >= pages} onClick={() => set({ p: String(page + 1) })}>
               Next <ChevronRight className="h-3 w-3" />
             </Btn>

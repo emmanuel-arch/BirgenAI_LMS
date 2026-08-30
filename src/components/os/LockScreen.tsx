@@ -147,7 +147,7 @@ export function LockScreen({
       <div className="relative flex h-full min-h-0 flex-col px-4 pb-3 pt-2">
         {/* STATUS ROW. The carrier is the lender, because on this device that is
             who is providing service. */}
-        <div className="flex shrink-0 items-center justify-between text-[10px] font-semibold text-zinc-600">
+        <div className="flex shrink-0 items-center justify-between text-[10px] font-semibold text-ash-600">
           <span className="max-w-[60%] truncate">{orgName}</span>
           <span className="flex items-center gap-1">
             <SignalIcon className="h-2.5 w-2.5" />
@@ -158,9 +158,9 @@ export function LockScreen({
 
         {/* THE CLOCK. The one piece of type on this device allowed to be large. */}
         <div className="mt-3 shrink-0 text-center">
-          <p className="text-[12px] font-semibold tracking-wide text-zinc-600">{dateLine}</p>
+          <p className="text-[12px] font-semibold tracking-wide text-ash-600">{dateLine}</p>
           <p
-            className="mt-0.5 tabular-nums text-zinc-900"
+            className="mt-0.5 tabular-nums text-ash-900"
             style={{
               fontFamily: '"SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Inter, system-ui, sans-serif',
               fontSize: "66px",
@@ -171,8 +171,8 @@ export function LockScreen({
           >
             {clock}
           </p>
-          <p className="mt-1.5 flex items-center justify-center gap-1.5 text-[11px] font-medium text-zinc-600">
-            <Lock className="h-3 w-3 text-zinc-400" />
+          <p className="mt-1.5 flex items-center justify-center gap-1.5 text-[11px] font-medium text-ash-600">
+            <Lock className="h-3 w-3 text-ash-400" />
             {salutation}{first ? `, ${first}` : ""}
           </p>
         </div>
@@ -189,16 +189,16 @@ export function LockScreen({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 + i * 0.05, type: "spring", stiffness: 400, damping: 30 }}
                 onClick={() => !dragging && onOpen({ name: t.key } as Route)}
-                className="rounded-2xl border border-white/70 bg-white/55 px-2 py-2 text-left shadow-sm backdrop-blur-xl transition-all hover:bg-white/80 active:scale-[0.97]"
+                className="rounded-2xl border border-white/70 bg-paper/55 px-2 py-2 text-left shadow-sm backdrop-blur-xl transition-all hover:bg-paper/80 active:scale-[0.97]"
               >
                 <span className={`flex items-center gap-1 text-[8.5px] font-bold uppercase tracking-[0.1em] ${t.tint}`}>
                   <t.icon className="h-2.5 w-2.5 shrink-0" />
                   <span className="truncate">{t.label}</span>
                 </span>
-                <span className="mt-0.5 block truncate text-[12.5px] font-bold leading-tight tabular-nums text-zinc-900">
+                <span className="mt-0.5 block truncate text-[12.5px] font-bold leading-tight tabular-nums text-ash-900">
                   {t.value.replace("KES ", "")}
                 </span>
-                <span className="block truncate text-[8.5px] leading-tight text-zinc-500">{t.sub}</span>
+                <span className="block truncate text-[8.5px] leading-tight text-ash-500">{t.sub}</span>
               </motion.button>
             ))}
           </div>
@@ -219,7 +219,7 @@ export function LockScreen({
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
                 transition={{ delay: 0.12 + i * 0.05, type: "spring", stiffness: 400, damping: 30 }}
-                className="rounded-2xl border border-white/70 bg-white/60 px-3 py-2 shadow-sm backdrop-blur-xl"
+                className="rounded-2xl border border-white/70 bg-paper/60 px-3 py-2 shadow-sm backdrop-blur-xl"
               >
                 <div className="flex items-start gap-2">
                   <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-lg ${
@@ -229,14 +229,14 @@ export function LockScreen({
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start gap-1.5">
-                      <p className="min-w-0 flex-1 text-[11.5px] font-semibold leading-tight text-zinc-900">{s.title}</p>
-                      {s.amount && <p className="shrink-0 text-[10px] font-bold tabular-nums text-zinc-700">{s.amount}</p>}
+                      <p className="min-w-0 flex-1 text-[11.5px] font-semibold leading-tight text-ash-900">{s.title}</p>
+                      {s.amount && <p className="shrink-0 text-[10px] font-bold tabular-nums text-ash-700">{s.amount}</p>}
                     </div>
-                    <p className="mt-0.5 line-clamp-2 text-[9.5px] leading-snug text-zinc-600">{s.body}</p>
+                    <p className="mt-0.5 line-clamp-2 text-[9.5px] leading-snug text-ash-600">{s.body}</p>
                   </div>
                   <button
                     onClick={() => !dragging && onSignal(s)}
-                    className="shrink-0 self-center rounded-full bg-zinc-900/85 px-2.5 py-1 text-[9.5px] font-bold text-white transition-colors hover:bg-zinc-900"
+                    className="shrink-0 self-center rounded-full bg-zinc-900/85 px-2.5 py-1 text-[9.5px] font-bold text-invert-fg transition-colors hover:bg-invert"
                   >
                     Open
                   </button>
@@ -246,18 +246,18 @@ export function LockScreen({
           </AnimatePresence>
 
           {!urgent.length && !loading && (
-            <div className="rounded-2xl border border-white/70 bg-white/55 px-3 py-2.5 text-center shadow-sm backdrop-blur-xl">
-              <p className="flex items-center justify-center gap-1.5 text-[11.5px] font-semibold text-zinc-800">
+            <div className="rounded-2xl border border-white/70 bg-paper/55 px-3 py-2.5 text-center shadow-sm backdrop-blur-xl">
+              <p className="flex items-center justify-center gap-1.5 text-[11.5px] font-semibold text-ash-800">
                 <TrendingUp className="h-3.5 w-3.5 text-emerald-600" /> Nothing needs you first
               </p>
-              <p className="mt-0.5 text-[9.5px] leading-snug text-zinc-600">
+              <p className="mt-0.5 text-[9.5px] leading-snug text-ash-600">
                 No arrears spike, no unmatched money, no queue backing up.
               </p>
             </div>
           )}
 
           {lead && urgent.length > 0 && (
-            <p className="px-1 text-center text-[9px] leading-snug text-zinc-500">
+            <p className="px-1 text-center text-[9px] leading-snug text-ash-500">
               First thing today: {lead.actionLabel.toLowerCase()}.
               {scope ? ` ${SCOPE_NOTE[scope] ?? ""}.` : ""}
             </p>
@@ -274,14 +274,14 @@ export function LockScreen({
           <motion.span
             animate={{ y: [0, -4, 0], opacity: [0.45, 0.95, 0.45] }}
             transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut" }}
-            className="text-zinc-500"
+            className="text-ash-500"
           >
             <ChevronsUp className="h-4 w-4" />
           </motion.span>
-          <span className="text-[9.5px] font-semibold tracking-wide text-zinc-500 transition-colors group-hover:text-zinc-800">
+          <span className="text-[9.5px] font-semibold tracking-wide text-ash-500 transition-colors group-hover:text-ash-800">
             Swipe or double-tap to open
           </span>
-          <span aria-hidden className="mt-1 h-1 w-24 rounded-full bg-zinc-900/25 transition-colors group-hover:bg-zinc-900/45" />
+          <span aria-hidden className="mt-1 h-1 w-24 rounded-full bg-ash-900/25 transition-colors group-hover:bg-zinc-900/45" />
         </button>
       </div>
     </motion.div>

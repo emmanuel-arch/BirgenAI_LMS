@@ -61,20 +61,20 @@ export default function OnboardOrg() {
     } catch { setError("Could not create the organization."); } finally { setLoading(false); }
   };
 
-  const field = "flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3";
-  const input = "flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-zinc-400 min-w-0";
-  const caption = "mt-1 text-[11px] text-zinc-500";
+  const field = "flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3";
+  const input = "flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-ash-400 min-w-0";
+  const caption = "mt-1 text-[11px] text-ash-500";
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
+    <div className="min-h-screen relative text-ash-900">
       <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
       <div className="relative z-10 min-h-screen flex items-start sm:items-center justify-center px-4 py-8">
-        <div className="glass w-full max-w-xl rounded-3xl bg-white/65 p-6 sm:p-8">
+        <div className="glass w-full max-w-xl rounded-3xl bg-paper/65 p-6 sm:p-8">
           {created ? (
             <div className="text-center py-6">
               <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
               <h1 className="mt-4 text-2xl font-bold">Organization created</h1>
-              <p className="mt-2 text-sm text-zinc-600">
+              <p className="mt-2 text-sm text-ash-600">
                 <span className="font-semibold">{created.slug}.birgenai.com</span> is reserved and your branding is
                 already applied. Sign in to set up products, workflows and your team — BirgenAI will review and
                 activate live lending.
@@ -82,7 +82,7 @@ export default function OnboardOrg() {
               {created.logoWarning && (
                 <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50/90 px-3 py-2 text-xs text-amber-700">{created.logoWarning}</p>
               )}
-              <Link href="/login" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800">
+              <Link href="/login" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-invert px-5 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2">
                 Go to sign in <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -91,7 +91,7 @@ export default function OnboardOrg() {
               <div className="text-center">
                 <Building2 className="mx-auto h-10 w-10" style={{ color: "var(--brand)" }} />
                 <h1 className="mt-3 text-2xl font-bold">Create your lending organization</h1>
-                <p className="mt-1.5 text-sm text-zinc-500">Your own branded portal, products, workflows and team — powered by BirgenAI.</p>
+                <p className="mt-1.5 text-sm text-ash-500">Your own branded portal, products, workflows and team — powered by BirgenAI.</p>
               </div>
 
               {/* Step rail */}
@@ -102,7 +102,7 @@ export default function OnboardOrg() {
                     type="button"
                     onClick={() => i < step && setStep(i)}
                     className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold ${
-                      i === step ? "text-white" : i < step ? "bg-emerald-100 text-emerald-700" : "bg-zinc-900/5 text-zinc-400"
+                      i === step ? "text-white" : i < step ? "bg-emerald-100 text-emerald-700" : "bg-ash-900/5 text-ash-400"
                     }`}
                     style={i === step ? { backgroundColor: "var(--brand)" } : undefined}
                   >
@@ -129,7 +129,7 @@ export default function OnboardOrg() {
                     <div className={field}>
                       <input className={input} placeholder="subdomain" value={effectiveSlug}
                         onChange={(e) => { setSlugTouched(true); setSlug(slugify(e.target.value)); }} />
-                      <span className="text-xs text-zinc-400 shrink-0">.birgenai.com</span>
+                      <span className="text-xs text-ash-400 shrink-0">.birgenai.com</span>
                     </div>
                     <p className={caption}>Your borrower portal&apos;s address. Choose carefully — it&apos;s on your posters.</p>
                   </div>
@@ -162,7 +162,7 @@ export default function OnboardOrg() {
               {step === 2 && (
                 <div className="mt-5">
                   <BrandStudio orgName={name || "Your organization"} initial={{ accent: "#F97316" }} onDraft={setBrand} />
-                  <p className="mt-3 text-center text-[11px] text-zinc-400">
+                  <p className="mt-3 text-center text-[11px] text-ash-400">
                     No logo yet? Skip this — sensible defaults apply, and everything here lives under Organization → Branding later.
                   </p>
                 </div>
@@ -180,9 +180,9 @@ export default function OnboardOrg() {
                     ["Starter roles", "Org Admin (everything) · Loan Officer · Branch Manager · Finance — edit them under Access → Roles"],
                     ["Status", "PENDING — you can configure everything; BirgenAI reviews and activates live lending"],
                   ].map(([k, v]) => (
-                    <div key={k} className="flex gap-3 rounded-lg bg-white/70 border border-zinc-900/10 px-3 py-2">
-                      <span className="w-28 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 pt-0.5">{k}</span>
-                      <span className="text-[13px] text-zinc-700">{v}</span>
+                    <div key={k} className="flex gap-3 rounded-lg bg-paper/70 border border-ash-900/10 px-3 py-2">
+                      <span className="w-28 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-ash-400 pt-0.5">{k}</span>
+                      <span className="text-[13px] text-ash-700">{v}</span>
                     </div>
                   ))}
                 </div>
@@ -190,24 +190,24 @@ export default function OnboardOrg() {
 
               <div className="mt-6 flex items-center gap-2">
                 {step > 0 && (
-                  <button onClick={() => setStep((s) => s - 1)} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-3 text-sm font-medium text-zinc-600">
+                  <button onClick={() => setStep((s) => s - 1)} className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-3 text-sm font-medium text-ash-600">
                     <ArrowLeft className="h-4 w-4" /> Back
                   </button>
                 )}
                 {step < STEPS.length - 1 ? (
                   <button onClick={() => setStep((s) => s + 1)} disabled={!stepValid}
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50">
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-invert px-5 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-50">
                     Continue <ArrowRight className="h-4 w-4" />
                   </button>
                 ) : (
                   <button onClick={submit} disabled={loading}
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-invert px-5 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Create organization <ArrowRight className="h-4 w-4" />
                   </button>
                 )}
               </div>
 
-              <p className="mt-4 text-center text-xs text-zinc-400">
+              <p className="mt-4 text-center text-xs text-ash-400">
                 Already onboarded? <Link href="/login" className="font-semibold" style={{ color: "var(--brand)" }}>Sign in</Link>
               </p>
             </>

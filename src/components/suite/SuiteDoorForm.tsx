@@ -129,12 +129,12 @@ export default function SuiteDoorForm({
     }
   };
 
-  const field = "flex items-center gap-2.5 rounded-xl border border-white/[0.12] bg-white/[0.06] px-3.5 transition-colors focus-within:border-[color:var(--brand)] focus-within:bg-white/[0.09]";
+  const field = "flex items-center gap-2.5 rounded-xl border border-white/[0.12] bg-paper/[0.06] px-3.5 transition-colors focus-within:border-[color:var(--brand)] focus-within:bg-paper/[0.09]";
   const input = "flex-1 bg-transparent py-3 text-[14px] text-white outline-none placeholder:text-white/35";
   const primary = "flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:hover:scale-100";
 
   return (
-    <div style={vars} className="rounded-2xl border border-white/[0.10] bg-white/[0.05] p-4 backdrop-blur-xl">
+    <div style={vars} className="rounded-2xl border border-white/[0.10] bg-paper/[0.05] p-4 backdrop-blur-xl">
       {/* ── Already signed in: one button, their own name on it ───────────── */}
       {mode === "sso" && who && (
         <>
@@ -156,15 +156,15 @@ export default function SuiteDoorForm({
           </p>
 
           <div className="mt-3.5 flex items-center gap-3">
-            <span className="h-px flex-1 bg-white/[0.09]" />
+            <span className="h-px flex-1 bg-paper/[0.09]" />
             <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/25">or</span>
-            <span className="h-px flex-1 bg-white/[0.09]" />
+            <span className="h-px flex-1 bg-paper/[0.09]" />
           </div>
 
           <button
             type="button"
             onClick={() => { setMode("credentials"); setError(null); setNotice(null); }}
-            className="mt-3 w-full rounded-xl border border-white/[0.12] bg-white/[0.04] px-4 py-2.5 text-[12.5px] font-semibold text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white"
+            className="mt-3 w-full rounded-xl border border-white/[0.12] bg-paper/[0.04] px-4 py-2.5 text-[12.5px] font-semibold text-white/70 transition-colors hover:bg-paper/[0.08] hover:text-white"
           >
             Sign in as someone else
           </button>

@@ -95,8 +95,8 @@ export default function CodeInput({
           aria-label={`Digit ${i + 1}`}
           className={
             tone === "dark"
-              ? "h-13 w-full min-w-0 rounded-xl border border-white/12 bg-white/[0.06] text-center text-xl font-bold text-white outline-none transition-all duration-150 focus:border-[var(--brand)] focus:bg-white/[0.10] focus:shadow-[0_0_0_3px_var(--brand-soft)] disabled:opacity-50"
-              : "h-14 w-full min-w-0 rounded-2xl border border-zinc-900/12 bg-white/85 text-center text-2xl font-bold text-zinc-900 outline-none transition-all duration-150 focus:border-[var(--brand)] focus:bg-white focus:shadow-[0_0_0_4px_var(--brand-soft),0_8px_24px_-8px_var(--brand-soft)] disabled:opacity-50"
+              ? "h-13 w-full min-w-0 rounded-xl border border-white/12 bg-paper/[0.06] text-center text-xl font-bold text-white outline-none transition-all duration-150 focus:border-[var(--brand)] focus:bg-paper/[0.10] focus:shadow-[0_0_0_3px_var(--brand-soft)] disabled:opacity-50"
+              : "h-14 w-full min-w-0 rounded-2xl border border-ash-900/12 bg-paper/85 text-center text-2xl font-bold text-ash-900 outline-none transition-all duration-150 focus:border-[var(--brand)] focus:bg-paper focus:shadow-[0_0_0_4px_var(--brand-soft),0_8px_24px_-8px_var(--brand-soft)] disabled:opacity-50"
           }
         />
       ))}

@@ -37,7 +37,7 @@ const KIND_LABEL: Record<string, string> = {
 const SEV_TONE: Record<string, string> = {
   HIGH: "bg-red-100 text-red-700",
   MEDIUM: "bg-amber-100 text-amber-700",
-  LOW: "bg-zinc-900/5 text-zinc-500",
+  LOW: "bg-ash-900/5 text-ash-500",
 };
 
 const kes = (n: number) => `KES ${Math.round(Math.abs(n)).toLocaleString()}`;
@@ -93,7 +93,7 @@ export default function ReconciliationPage() {
 
   if (!data) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-zinc-500">
+      <div className="min-h-screen flex items-center justify-center text-ash-500">
         {error ? <span className="text-red-600">{error}</span> : <Loader2 className="h-5 w-5 animate-spin" />}
       </div>
     );
@@ -107,12 +107,12 @@ export default function ReconciliationPage() {
             <h1 className="text-xl font-bold flex items-center gap-2">
               <Scale className="h-5 w-5" style={{ color: "var(--brand)" }} /> Reconciliation
             </h1>
-            <p className="mt-1 text-sm text-zinc-500">
+            <p className="mt-1 text-sm text-ash-500">
               Every shilling M-Pesa moved, checked against the book. Checked nightly — or right now.
             </p>
           </div>
           <button onClick={() => post({ action: "sweep" }, "sweep")} disabled={busy !== null}
-            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+            className="inline-flex items-center gap-2 rounded-lg bg-invert px-4 py-2.5 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
             {busy === "sweep" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Check now
           </button>
@@ -127,14 +127,14 @@ export default function ReconciliationPage() {
           <Tile label="At issue" value={kes(data.tiles.atIssueKes)} alarm={data.tiles.atIssueKes > 0} />
         </div>
         {data.lastCheckedAt && (
-          <p className="mt-2 text-[11px] text-zinc-400">Last checked {new Date(data.lastCheckedAt).toLocaleString("en-GB")}</p>
+          <p className="mt-2 text-[11px] text-ash-400">Last checked {new Date(data.lastCheckedAt).toLocaleString("en-GB")}</p>
         )}
 
         {data.open.length === 0 ? (
           <div className="mt-6 glass p-8 text-center">
             <ShieldCheck className="mx-auto h-8 w-8 text-emerald-600" />
             <p className="mt-2 text-sm font-semibold">The money and the book agree.</p>
-            <p className="mt-1 text-xs text-zinc-500">Nothing is waiting on Finance.</p>
+            <p className="mt-1 text-xs text-ash-500">Nothing is waiting on Finance.</p>
           </div>
         ) : (
           <div className="mt-5 space-y-3">
@@ -147,12 +147,12 @@ export default function ReconciliationPage() {
                   </div>
                   {e.amountKes !== null && (
                     <span className="inline-flex items-center gap-1 text-sm font-bold tabular-nums">
-                      <Banknote className="h-3.5 w-3.5 text-zinc-400" /> {kes(e.amountKes)}
+                      <Banknote className="h-3.5 w-3.5 text-ash-400" /> {kes(e.amountKes)}
                     </span>
                   )}
                 </div>
-                <p className="mt-2 text-sm text-zinc-600">{e.message}</p>
-                <p className="mt-1.5 text-[11px] text-zinc-400">
+                <p className="mt-2 text-sm text-ash-600">{e.message}</p>
+                <p className="mt-1.5 text-[11px] text-ash-400">
                   Detected {day(e.detectedAt)} · last seen {day(e.lastSeenAt)}
                 </p>
 
@@ -168,18 +168,18 @@ export default function ReconciliationPage() {
                   ) : null}
                   {e.kind === "C2B_UNALLOCATED" && (
                     <button onClick={() => setReconciling(reconciling === e.id ? null : e.id)}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-3 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
                       <Banknote className="h-3.5 w-3.5" /> {reconciling === e.id ? "Close" : "Reconcile to a customer"}
                     </button>
                   )}
                   <button onClick={() => { setNoteFor({ id: e.id, mode: "resolve" }); setNote(""); }}
                     disabled={busy !== null}
-                    className="rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-white disabled:opacity-60">
+                    className="rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-2 text-xs font-semibold text-ash-700 hover:bg-paper disabled:opacity-60">
                     Resolve…
                   </button>
                   <button onClick={() => { setNoteFor({ id: e.id, mode: "ignore" }); setNote(""); }}
                     disabled={busy !== null}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-2 text-xs text-zinc-500 hover:bg-white disabled:opacity-60">
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-2 text-xs text-ash-500 hover:bg-paper disabled:opacity-60">
                     <EyeOff className="h-3.5 w-3.5" /> Ignore…
                   </button>
                 </div>
@@ -188,14 +188,14 @@ export default function ReconciliationPage() {
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
                     <input value={note} onChange={(ev) => setNote(ev.target.value)} autoFocus
                       placeholder={noteFor.mode === "resolve" ? "What was done? — this note is the record" : "Why is this fine? — this note is the record"}
-                      className="min-w-52 flex-1 rounded-lg border border-zinc-900/15 bg-white px-3 py-2 text-xs outline-none" />
+                      className="min-w-52 flex-1 rounded-lg border border-ash-900/15 bg-paper px-3 py-2 text-xs outline-none" />
                     <button disabled={!note.trim() || busy !== null}
                       onClick={() => post({ action: noteFor.mode, id: e.id, note: note.trim() }, e.id + noteFor.mode,
                         noteFor.mode === "resolve" ? "Resolved." : "Ignored — it will stay quiet even if re-detected.")}
-                      className="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                      className="rounded-lg bg-invert px-3 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
                       {busy === e.id + noteFor.mode ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : noteFor.mode === "resolve" ? "Mark resolved" : "Ignore"}
                     </button>
-                    <button onClick={() => setNoteFor(null)} className="text-xs text-zinc-400 hover:text-zinc-600">Cancel</button>
+                    <button onClick={() => setNoteFor(null)} className="text-xs text-ash-400 hover:text-ash-600">Cancel</button>
                   </div>
                 )}
 
@@ -210,25 +210,25 @@ export default function ReconciliationPage() {
 
         {data.closed.length > 0 && (
           <div className="mt-6">
-            <button onClick={() => setShowClosed(!showClosed)} className="text-xs font-semibold text-zinc-500 hover:text-zinc-800">
+            <button onClick={() => setShowClosed(!showClosed)} className="text-xs font-semibold text-ash-500 hover:text-ash-800">
               {showClosed ? "Hide" : "Show"} recently closed ({data.closed.length})
             </button>
             {showClosed && (
               <div className="mt-2 space-y-1.5">
                 {data.closed.map((e) => (
-                  <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2 text-xs">
+                  <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-paper/70 px-3 py-2 text-xs">
                     <div className="min-w-0">
-                      <span className={`mr-2 rounded px-1.5 py-0.5 text-[10px] font-semibold ${e.status === "IGNORED" ? "bg-zinc-900/5 text-zinc-500" : "bg-emerald-100 text-emerald-700"}`}>
+                      <span className={`mr-2 rounded px-1.5 py-0.5 text-[10px] font-semibold ${e.status === "IGNORED" ? "bg-ash-900/5 text-ash-500" : "bg-emerald-100 text-emerald-700"}`}>
                         {e.status.toLowerCase()}
                       </span>
                       <span className="font-medium">{KIND_LABEL[e.kind] ?? e.kind}</span>
-                      {e.resolution && <span className="text-zinc-400"> — {e.resolution}</span>}
+                      {e.resolution && <span className="text-ash-400"> — {e.resolution}</span>}
                     </div>
-                    <div className="flex shrink-0 items-center gap-2 text-zinc-400">
+                    <div className="flex shrink-0 items-center gap-2 text-ash-400">
                       {e.resolvedAt ? day(e.resolvedAt) : ""}
                       <button onClick={() => post({ action: "reopen", id: e.id }, e.id + "reopen", "Reopened.")}
                         disabled={busy !== null} title="Reopen"
-                        className="inline-flex items-center gap-1 text-zinc-400 hover:text-zinc-700 disabled:opacity-60">
+                        className="inline-flex items-center gap-1 text-ash-400 hover:text-ash-700 disabled:opacity-60">
                         <Undo2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -239,7 +239,7 @@ export default function ReconciliationPage() {
           </div>
         )}
 
-        <p className="mt-6 text-[11px] text-zinc-400">
+        <p className="mt-6 text-[11px] text-ash-400">
           Exceptions are raised the moment a payment fails to post, and every check is re-run nightly. A condition that
           stops reproducing closes itself; anything resolved that comes back is reopened.
         </p>
@@ -250,7 +250,7 @@ export default function ReconciliationPage() {
 function Tile({ label, value, alarm }: { label: string; value: string; alarm: boolean }) {
   return (
     <div className="glass p-3.5">
-      <p className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="text-[10px] uppercase tracking-wide text-ash-500">{label}</p>
       <p className={`mt-1 text-lg font-bold tabular-nums ${alarm ? "text-red-600" : "text-emerald-700"}`}>{value}</p>
     </div>
   );

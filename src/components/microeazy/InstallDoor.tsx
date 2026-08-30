@@ -197,7 +197,7 @@ export default function InstallDoor({ lenderName }: { lenderName?: string | null
             its result are the same picture. */}
         <motion.div {...fade} className="flex flex-1 flex-col items-center justify-center text-center">
           <div
-            className="relative grid h-[92px] w-[92px] place-items-center rounded-[22px] bg-white"
+            className="relative grid h-[92px] w-[92px] place-items-center rounded-[22px] bg-paper"
             style={{ boxShadow: "0 22px 50px -12px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.14)" }}
           >
             <Image

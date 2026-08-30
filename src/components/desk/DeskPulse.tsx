@@ -61,7 +61,7 @@ export default function DeskPulse() {
   }
 
   if (!p) {
-    return <span className="hidden h-[26px] w-40 animate-pulse rounded-full bg-zinc-900/[0.05] sm:block" aria-hidden />;
+    return <span className="hidden h-[26px] w-40 animate-pulse rounded-full bg-ash-900/[0.05] sm:block" aria-hidden />;
   }
 
   return (

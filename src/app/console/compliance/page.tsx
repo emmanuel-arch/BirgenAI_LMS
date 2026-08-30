@@ -43,7 +43,7 @@ const STATUS_TONE: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-700",
   APPROVED: "bg-sky-100 text-sky-700",
   COMPLETED: "bg-emerald-100 text-emerald-700",
-  REJECTED: "bg-zinc-200 text-zinc-600",
+  REJECTED: "bg-ash-200 text-ash-600",
   FAILED: "bg-rose-100 text-rose-700",
 };
 const DISPOSAL_LABEL: Record<string, string> = {
@@ -125,11 +125,11 @@ export default function CompliancePage() {
       {/* Tabs */}
       <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
         <button onClick={() => setTab("policy")}
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 ${tab === "policy" ? "border-zinc-900 bg-zinc-900 font-semibold text-white" : "border-zinc-900/15 bg-white/70 text-zinc-600"}`}>
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 ${tab === "policy" ? "border-ash-900 bg-invert font-semibold text-invert-fg" : "border-ash-900/15 bg-paper/70 text-ash-600"}`}>
           <Scale className="h-3.5 w-3.5" /> Retention schedule
         </button>
         <button onClick={() => setTab("register")}
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 ${tab === "register" ? "border-zinc-900 bg-zinc-900 font-semibold text-white" : "border-zinc-900/15 bg-white/70 text-zinc-600"}`}>
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 ${tab === "register" ? "border-ash-900 bg-invert font-semibold text-invert-fg" : "border-ash-900/15 bg-paper/70 text-ash-600"}`}>
           <ShieldCheck className="h-3.5 w-3.5" /> Requests
           {pending.length > 0 && <span className="rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-amber-950">{pending.length}</span>}
         </button>
@@ -138,7 +138,7 @@ export default function CompliancePage() {
       {tab === "policy" && (
         <>
           <div className="glass mt-3 p-4">
-            <p className="text-[13px] leading-relaxed text-zinc-600">
+            <p className="text-[13px] leading-relaxed text-ash-600">
               Two laws pull in opposite directions here, and both are right. The <strong>Data Protection Act 2019</strong> says
               do not keep personal data longer than you need it, and delete it when the person asks.{" "}
               <strong>POCAMLA s.46</strong> says keep every transaction and customer due-diligence record for{" "}
@@ -153,7 +153,7 @@ export default function CompliancePage() {
               <div key={p.key} className={`glass p-4 ${p.floor ? "border-l-4 border-l-amber-400" : ""}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2 font-bold text-zinc-800">
+                    <p className="flex flex-wrap items-center gap-2 font-bold text-ash-800">
                       {p.label}
                       {p.floor && (
                         <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
@@ -161,12 +161,12 @@ export default function CompliancePage() {
                         </span>
                       )}
                     </p>
-                    <p className="mt-0.5 text-[13px] text-zinc-600">{p.what}</p>
-                    <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">{p.basis}</p>
+                    <p className="mt-0.5 text-[13px] text-ash-600">{p.what}</p>
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-ash-500">{p.basis}</p>
                   </div>
                   <div className="w-full shrink-0 text-left sm:w-40 sm:text-right">
-                    <p className="text-lg font-bold text-zinc-800">{windowOf(p)}</p>
-                    <p className="text-[10px] text-zinc-400">{p.floor ? "for as long as the law requires" : DISPOSAL_LABEL[p.disposal]}</p>
+                    <p className="text-lg font-bold text-ash-800">{windowOf(p)}</p>
+                    <p className="text-[10px] text-ash-400">{p.floor ? "for as long as the law requires" : DISPOSAL_LABEL[p.disposal]}</p>
                     {!p.floor && due[p.key] > 0 && (
                       <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
                         <Clock className="h-3 w-3" /> {due[p.key].toLocaleString()} due tonight
@@ -180,8 +180,8 @@ export default function CompliancePage() {
 
           {/* Export lives under the policy: it is the other half of "it's their data". */}
           <div className="glass mt-4 p-4">
-            <p className="flex items-center gap-1.5 font-bold text-zinc-800"><Download className="h-4 w-4" /> Take your data with you</p>
-            <p className="mt-0.5 text-[13px] text-zinc-600">
+            <p className="flex items-center gap-1.5 font-bold text-ash-800"><Download className="h-4 w-4" /> Take your data with you</p>
+            <p className="mt-0.5 text-[13px] text-ash-600">
               Your whole book, machine-readable, whenever you want it. Credentials and staff passwords are never included.
               Every export is written to the register below.
             </p>
@@ -189,12 +189,12 @@ export default function CompliancePage() {
                 register below — and it is served as a download, not a page. */}
             <div className="mt-3 flex flex-wrap gap-2">
               <button onClick={() => download("/api/console/compliance/export?scope=org")}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+                className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
                 <Download className="h-3.5 w-3.5" /> Everything (JSON)
               </button>
               {ORG_TABLES.map((t) => (
                 <button key={t} onClick={() => download(`/api/console/compliance/export?scope=org&format=csv&table=${t}`)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-2 text-xs font-medium text-zinc-600 hover:bg-white">
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-2 text-xs font-medium text-ash-600 hover:bg-paper">
                   <FileSpreadsheet className="h-3.5 w-3.5" /> {t}
                 </button>
               ))}
@@ -206,7 +206,7 @@ export default function CompliancePage() {
       {tab === "register" && (
         <>
           {solo && (
-            <div className="glass mt-3 flex items-start gap-2 p-3 text-[12px] text-zinc-600">
+            <div className="glass mt-3 flex items-start gap-2 p-3 text-[12px] text-ash-600">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
               You are the only active member of staff, so you may approve your own requests. Add a colleague and erasures will
               need a second pair of eyes — which is what you want, once there is somebody to ask.
@@ -214,7 +214,7 @@ export default function CompliancePage() {
           )}
 
           {requests.length === 0 && (
-            <div className="glass mt-3 p-8 text-center text-sm text-zinc-500">
+            <div className="glass mt-3 p-8 text-center text-sm text-ash-500">
               Nothing yet. Requests appear here when a customer asks for a copy of their data, or asks to be erased —
               start one from their profile.
             </div>
@@ -225,16 +225,16 @@ export default function CompliancePage() {
               <div key={r.id} className="glass p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="flex flex-wrap items-center gap-2 font-bold text-zinc-800">
-                      {r.kind === "BORROWER_ERASURE" ? <Trash2 className="h-3.5 w-3.5 text-rose-500" /> : <Download className="h-3.5 w-3.5 text-zinc-400" />}
+                    <p className="flex flex-wrap items-center gap-2 font-bold text-ash-800">
+                      {r.kind === "BORROWER_ERASURE" ? <Trash2 className="h-3.5 w-3.5 text-rose-500" /> : <Download className="h-3.5 w-3.5 text-ash-400" />}
                       {KIND_LABEL[r.kind] ?? r.kind}
-                      {r.subjectLabel && <span className="font-mono text-[11px] font-normal text-zinc-500">{r.subjectLabel}</span>}
+                      {r.subjectLabel && <span className="font-mono text-[11px] font-normal text-ash-500">{r.subjectLabel}</span>}
                       <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${STATUS_TONE[r.status] ?? ""}`}>
                         {r.status}
                       </span>
                     </p>
-                    <p className="mt-1 text-[13px] text-zinc-600">{r.reason}</p>
-                    <p className="mt-1 text-[11px] text-zinc-400">
+                    <p className="mt-1 text-[13px] text-ash-600">{r.reason}</p>
+                    <p className="mt-1 text-[11px] text-ash-400">
                       Raised by {r.requestedBy} · {new Date(r.createdAt).toLocaleString("en-KE")}
                       {r.decidedBy && ` · decided by ${r.decidedBy}`}
                     </p>
@@ -248,7 +248,7 @@ export default function CompliancePage() {
                         {busy === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} Approve & erase
                       </button>
                       <button disabled={busy === r.id} onClick={() => decide(r.id, "reject")}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-2 text-xs font-medium text-zinc-600 hover:bg-white disabled:opacity-50">
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-2 text-xs font-medium text-ash-600 hover:bg-paper disabled:opacity-50">
                         <XCircle className="h-3.5 w-3.5" /> Refuse
                       </button>
                     </div>
@@ -279,12 +279,12 @@ function Outcome({ result }: { result: unknown }) {
 
   return (
     <div className="mt-2 space-y-1.5">
-      {r.note && <p className="text-[12px] italic text-zinc-500">{r.note}</p>}
-      {r.summary && !r.outcome && <p className="rounded-lg bg-zinc-900/5 px-2.5 py-1.5 text-[12px] leading-relaxed text-zinc-600">{r.summary}</p>}
-      {r.rejectedBecause && <p className="text-[12px] text-zinc-500">Refused: {r.rejectedBecause}</p>}
+      {r.note && <p className="text-[12px] italic text-ash-500">{r.note}</p>}
+      {r.summary && !r.outcome && <p className="rounded-lg bg-ash-900/5 px-2.5 py-1.5 text-[12px] leading-relaxed text-ash-600">{r.summary}</p>}
+      {r.rejectedBecause && <p className="text-[12px] text-ash-500">Refused: {r.rejectedBecause}</p>}
       {r.error && <p className="text-[12px] text-rose-600">{r.error}</p>}
       {r.outcome && (
-        <p className="text-[12px] text-zinc-600">
+        <p className="text-[12px] text-ash-600">
           <strong>{r.outcome.mode === "HARD_DELETE" ? "Deleted completely" : "Anonymised"}</strong>
           {" — "}
           {sum(r.outcome.rowsDeleted)} record{sum(r.outcome.rowsDeleted) === 1 ? "" : "s"} destroyed,{" "}
@@ -293,7 +293,7 @@ function Outcome({ result }: { result: unknown }) {
         </p>
       )}
       {r.retains && r.retains.length > 0 && !r.outcome && (
-        <ul className="space-y-0.5 text-[11px] text-zinc-500">
+        <ul className="space-y-0.5 text-[11px] text-ash-500">
           {r.retains.map((x, i) => <li key={i}>• Kept: {x.what} — <span className="italic">{x.basis}</span></li>)}
         </ul>
       )}

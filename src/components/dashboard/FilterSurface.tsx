@@ -144,7 +144,7 @@ export default function FilterSurface({ capability, value, onChange, accent }: P
           <SlidersHorizontal className="h-3.5 w-3.5" />
           Filter
           {n > 0 && (
-            <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-white/25 px-1 text-[10px] font-bold">
+            <span className="ml-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-paper/25 px-1 text-[10px] font-bold">
               {n}
             </span>
           )}
@@ -159,7 +159,7 @@ export default function FilterSurface({ capability, value, onChange, accent }: P
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={reduce ? undefined : { opacity: 0, y: -6, scale: 0.985 }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute right-0 top-full z-50 mt-2 w-[min(30rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-2xl border border-[color:var(--ink)]/10 bg-white text-left shadow-2xl"
+              className="absolute right-0 top-full z-50 mt-2 w-[min(30rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-2xl border border-[color:var(--ink)]/10 bg-paper text-left shadow-2xl"
             >
               {/* Header — states the widest cut this person is entitled to, so the
                   "no filters" state is never ambiguous between "everything" and
@@ -356,7 +356,7 @@ function AxisPicker({
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={`Search ${axis.label.toLowerCase()}…`}
-                className="w-full rounded-lg border border-[color:var(--ink)]/10 bg-white py-1.5 pl-8 pr-2.5 text-[12px] outline-none placeholder:text-[color:var(--ink-faint)] focus:border-transparent focus:ring-2"
+                className="w-full rounded-lg border border-[color:var(--ink)]/10 bg-paper py-1.5 pl-8 pr-2.5 text-[12px] outline-none placeholder:text-[color:var(--ink-faint)] focus:border-transparent focus:ring-2"
                 style={{ ["--tw-ring-color" as never]: `${accent}55` }}
               />
             </div>

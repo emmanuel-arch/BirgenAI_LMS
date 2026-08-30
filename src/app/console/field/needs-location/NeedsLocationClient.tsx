@@ -173,7 +173,7 @@ function CoverageHero({ stats, live, entityId }: { stats: Stats; live: boolean; 
       </div>
 
       {live && (
-        <p className="t-meta flex items-center gap-1.5 border-t border-zinc-900/[0.06] px-5 py-2">
+        <p className="t-meta flex items-center gap-1.5 border-t border-ash-900/[0.06] px-5 py-2">
           <RadioTower className="h-3.5 w-3.5" style={{ color: "var(--brand)" }} aria-hidden />
           Live connection{entityId != null ? ` · entity ${entityId}` : ""} · coverage checked against every location column on their schema
         </p>
@@ -199,7 +199,7 @@ function TierTabs({
           onClick={() => onTier("")}
           aria-pressed={tier === ""}
           className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-            tier === "" ? "text-white" : "border border-zinc-900/10 bg-white/70 text-zinc-600 hover:bg-white"
+            tier === "" ? "text-white" : "border border-ash-900/10 bg-paper/70 text-ash-600 hover:bg-paper"
           }`}
           style={tier === "" ? { backgroundColor: "var(--brand)" } : undefined}
         >
@@ -300,7 +300,7 @@ function CampaignPlanner({ stats, backlog }: { stats: Stats; backlog: number }) 
             <p className="t-body mt-2.5 text-[13px] font-semibold" style={{ color: "var(--brand)" }}>
               by {finish}
             </p>
-            <p className="t-meta mt-2 border-t border-zinc-900/[0.07] pt-2 text-[11px] leading-tight">
+            <p className="t-meta mt-2 border-t border-ash-900/[0.07] pt-2 text-[11px] leading-tight">
               <span className="t-num font-semibold">{fmtNum(plan.perOfficer)}</span> customers each ·{" "}
               <span className="t-num font-semibold">{fmtNum(Math.round(plan.perDay))}</span> pins a day as a team
             </p>
@@ -309,12 +309,12 @@ function CampaignPlanner({ stats, backlog }: { stats: Stats; backlog: number }) 
       </div>
 
       {/* Coverage over the first twelve weeks — real percentages of a real backlog. */}
-      <div className="mt-4 border-t border-zinc-900/[0.06] pt-3.5">
+      <div className="mt-4 border-t border-ash-900/[0.06] pt-3.5">
         <p className="t-label">Coverage by week</p>
         <div className="mt-2 flex items-end gap-2">
           {plan.curve.map((p) => (
             <div key={p.week} className="flex min-w-0 flex-1 flex-col items-center gap-1">
-              <div className="flex h-14 w-full items-end overflow-hidden rounded-md bg-zinc-900/[0.05]">
+              <div className="flex h-14 w-full items-end overflow-hidden rounded-md bg-ash-900/[0.05]">
                 <div
                   className="w-full rounded-md transition-[height] duration-500"
                   style={{ height: `${Math.max(p.pct, 1.5)}%`, backgroundColor: p.pct >= 99.5 ? "#059669" : "var(--brand)" }}
@@ -332,7 +332,7 @@ function CampaignPlanner({ stats, backlog }: { stats: Stats; backlog: number }) 
       {/* The do-nothing option, stated plainly. It is the honest comparison, and on
           a quiet book it is the argument FOR the campaign rather than against it. */}
       {stats.returning12m > 0 && (
-        <p className="t-meta mt-3.5 border-t border-zinc-900/[0.06] pt-3 leading-relaxed">
+        <p className="t-meta mt-3.5 border-t border-ash-900/[0.06] pt-3 leading-relaxed">
           <span className="font-semibold" style={{ color: "var(--ink)" }}>Or wait for them.</span>{" "}
           <span className="t-num">{fmtNum(stats.returning12m)}</span> of these customers came back to borrow in the last
           twelve months{stats.activeMonths12m > 0 && stats.activeMonths12m < 12 ? ` (across ${stats.activeMonths12m} months of lending)` : ""} —
@@ -399,13 +399,13 @@ function QueuePanel({
       </div>
 
       {selected && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-900/10 bg-white/70 px-3 py-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-ash-900/10 bg-paper/70 px-3 py-2">
           <p className="t-body min-w-0 flex-1 text-[13px]">
             Showing <span className="font-semibold">{selected.agentName ?? `officer ${selected.agentId}`}</span>&rsquo;s
             queue — <span className="t-num">{fmtNum(selected.customers)}</span> customers,{" "}
             <span className="t-num">{fmtNum(selected.moneyOut)}</span> with money out
           </p>
-          <button onClick={() => onAgent(0)} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-zinc-900/10 px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-white">
+          <button onClick={() => onAgent(0)} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-ash-900/10 px-2 py-1 text-xs font-semibold text-ash-600 hover:bg-paper">
             <X className="h-3 w-3" aria-hidden /> Clear
           </button>
         </div>
@@ -420,7 +420,7 @@ function QueuePanel({
                 onClick={() => onAgent(on ? 0 : qq.agentId)}
                 aria-pressed={on}
                 className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${
-                  on ? "border-zinc-900/20 bg-white" : "border-zinc-900/[0.08] bg-white/60 hover:bg-white/90"
+                  on ? "border-ash-900/20 bg-paper" : "border-ash-900/[0.08] bg-paper/60 hover:bg-paper/90"
                 }`}
               >
                 <div className="min-w-0 flex-1">
@@ -461,12 +461,12 @@ function SkeletonRows() {
     <div className="mt-3 space-y-2" aria-hidden>
       {Array.from({ length: 5 }, (_, i) => (
         <div key={i} className="glass flex items-center gap-3 p-3.5">
-          <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-zinc-900/10" />
+          <div className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-ash-900/10" />
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-3 animate-pulse rounded bg-zinc-900/10" style={{ width: `${34 + ((i * 13) % 28)}%` }} />
-            <div className="h-2.5 animate-pulse rounded bg-zinc-900/[0.07]" style={{ width: `${50 + ((i * 9) % 24)}%` }} />
+            <div className="h-3 animate-pulse rounded bg-ash-900/10" style={{ width: `${34 + ((i * 13) % 28)}%` }} />
+            <div className="h-2.5 animate-pulse rounded bg-ash-900/[0.07]" style={{ width: `${50 + ((i * 9) % 24)}%` }} />
           </div>
-          <div className="h-8 w-24 shrink-0 animate-pulse rounded-lg bg-zinc-900/[0.07]" />
+          <div className="h-8 w-24 shrink-0 animate-pulse rounded-lg bg-ash-900/[0.07]" />
         </div>
       ))}
     </div>
@@ -485,7 +485,7 @@ function CustomerRow({ c }: { c: Customer }) {
 
   return (
     <li>
-      <Link href={href} className="glass block p-3.5 transition-colors hover:bg-white/85">
+      <Link href={href} className="glass block p-3.5 transition-colors hover:bg-paper/85">
         <div className="flex flex-wrap items-center gap-3">
           <span className="relative shrink-0">
             <BorrowerAvatar name={c.name} portraitUrl={c.portraitUrl} verified={c.verified} size="sm" />
@@ -629,7 +629,7 @@ export function NeedsLocationClient() {
         title="Needs location"
         subtitle="Every customer with no pin on file — missing from your routes, and blocked from disbursement until an officer drops it. Worked worst first."
       >
-        <Link href="/console/field" className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3.5 py-2 text-xs font-semibold text-zinc-700 hover:bg-white">
+        <Link href="/console/field" className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3.5 py-2 text-xs font-semibold text-ash-700 hover:bg-paper">
           <Users className="h-3.5 w-3.5" aria-hidden /> Visits &amp; routes
         </Link>
       </PageHeader>
@@ -664,17 +664,17 @@ export function NeedsLocationClient() {
 
       {!done && (
         <>
-          <div className="mt-3 flex max-w-md items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3">
-            <Search className={`h-4 w-4 shrink-0 ${busy ? "animate-pulse text-zinc-500" : "text-zinc-400"}`} aria-hidden />
+          <div className="mt-3 flex max-w-md items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3">
+            <Search className={`h-4 w-4 shrink-0 ${busy ? "animate-pulse text-ash-500" : "text-ash-400"}`} aria-hidden />
             <input
               value={q}
               onChange={(e) => onSearch(e.target.value)}
               placeholder="Search phone, ID or name…"
               aria-label="Search customers needing a location"
-              className="flex-1 bg-transparent py-2.5 text-sm outline-none placeholder:text-zinc-400"
+              className="flex-1 bg-transparent py-2.5 text-sm outline-none placeholder:text-ash-400"
             />
             {q && (
-              <button onClick={() => onSearch("")} aria-label="Clear search" className="shrink-0 rounded p-1 text-zinc-400 hover:text-zinc-700">
+              <button onClick={() => onSearch("")} aria-label="Clear search" className="shrink-0 rounded p-1 text-ash-400 hover:text-ash-700">
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
@@ -712,7 +712,7 @@ export function NeedsLocationClient() {
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0 || busy}
                   aria-label="Previous page"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-900/10 bg-white/70 text-zinc-600 hover:bg-white disabled:opacity-35"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-ash-900/10 bg-paper/70 text-ash-600 hover:bg-paper disabled:opacity-35"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -724,7 +724,7 @@ export function NeedsLocationClient() {
                     aria-label={`Page ${i + 1}`}
                     aria-current={i === page ? "page" : undefined}
                     className={`t-num h-8 min-w-8 rounded-lg px-2 text-xs font-semibold transition-colors ${
-                      i === page ? "text-white" : "border border-zinc-900/10 bg-white/70 text-zinc-600 hover:bg-white"
+                      i === page ? "text-white" : "border border-ash-900/10 bg-paper/70 text-ash-600 hover:bg-paper"
                     }`}
                     style={i === page ? { backgroundColor: "var(--brand)" } : undefined}
                   >
@@ -735,7 +735,7 @@ export function NeedsLocationClient() {
                   onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
                   disabled={page >= pageCount - 1 || busy}
                   aria-label="Next page"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-900/10 bg-white/70 text-zinc-600 hover:bg-white disabled:opacity-35"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-ash-900/10 bg-paper/70 text-ash-600 hover:bg-paper disabled:opacity-35"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>

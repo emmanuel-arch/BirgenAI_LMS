@@ -89,9 +89,9 @@ export default async function CollectionsPage({ searchParams }: { searchParams: 
             tone={now.onTimeRate != null && now.onTimeRate >= 85 ? STATUS.good : now.onTimeRate != null && now.onTimeRate >= 65 ? STATUS.warning : STATUS.critical}
             caption="Installments paid on or before the due date, rather than eventually."
           />
-          <div className="rounded-2xl border border-zinc-900/10 bg-white p-4">
-            <p className="text-[10px] uppercase tracking-wide text-zinc-500">How this is counted</p>
-            <p className="mt-1 text-[11px] leading-snug text-zinc-600">
+          <div className="rounded-2xl border border-ash-900/10 bg-paper p-4">
+            <p className="text-[10px] uppercase tracking-wide text-ash-500">How this is counted</p>
+            <p className="mt-1 text-[11px] leading-snug text-ash-600">
               Collections are deduplicated across STK and C2B on the M-Pesa receipt number. An STK payment also lands as a
               paybill confirmation, and counting both is the reconciliation error this platform exists to catch — so the
               figure above is a receipt-level union, not a sum of two ledgers.

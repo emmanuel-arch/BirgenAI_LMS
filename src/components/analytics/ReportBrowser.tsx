@@ -140,22 +140,22 @@ export default function ReportBrowser({
     <div className="grid gap-4 lg:grid-cols-[19rem_minmax(0,1fr)]">
       {/* ── The catalogue ─────────────────────────────────────────────────── */}
       <aside className="lg:sticky lg:top-[4.5rem] lg:self-start">
-        <div className="rounded-2xl border border-zinc-900/10 bg-white p-2.5">
+        <div className="rounded-2xl border border-ash-900/10 bg-paper p-2.5">
           <label className="relative mb-2 block">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ash-400" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Find a report"
-              className="w-full rounded-lg border border-zinc-900/10 bg-zinc-900/[0.02] py-2 pl-8 pr-2.5 text-[12px] text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-zinc-900/25"
+              className="w-full rounded-lg border border-ash-900/10 bg-ash-900/[0.02] py-2 pl-8 pr-2.5 text-[12px] text-ash-800 outline-none placeholder:text-ash-400 focus:border-ash-900/25"
             />
           </label>
 
           <div className="max-h-[calc(100vh-13rem)] space-y-3 overflow-y-auto pr-0.5">
             {grouped.map(([cat, items]) => (
               <div key={cat}>
-                <p className="px-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">{cat}</p>
-                <p className="mb-1 px-1.5 text-[10.5px] leading-snug text-zinc-400">{CATEGORY_BLURB[cat] ?? ""}</p>
+                <p className="px-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-ash-400">{cat}</p>
+                <p className="mb-1 px-1.5 text-[10.5px] leading-snug text-ash-400">{CATEGORY_BLURB[cat] ?? ""}</p>
                 {items.map((c) => {
                   const on = c.id === selectedId;
                   return (
@@ -164,20 +164,20 @@ export default function ReportBrowser({
                       type="button"
                       onClick={() => select(c.id)}
                       className={`mb-0.5 flex w-full items-start gap-1.5 rounded-lg px-2 py-1.5 text-left transition-colors ${
-                        on ? "bg-zinc-900 text-white" : "hover:bg-zinc-900/[0.045]"
+                        on ? "bg-invert text-invert-fg" : "hover:bg-ash-900/[0.045]"
                       }`}
                     >
-                      <ChevronRight className={`mt-0.5 h-3 w-3 shrink-0 ${on ? "text-white/60" : "text-zinc-300"}`} />
+                      <ChevronRight className={`mt-0.5 h-3 w-3 shrink-0 ${on ? "text-white/60" : "text-ash-300"}`} />
                       <span className="min-w-0">
-                        <span className={`block text-[12px] font-semibold ${on ? "text-white" : "text-zinc-800"}`}>{c.name}</span>
-                        <span className={`block text-[10.5px] leading-snug ${on ? "text-white/60" : "text-zinc-500"}`}>{c.purpose}</span>
+                        <span className={`block text-[12px] font-semibold ${on ? "text-white" : "text-ash-800"}`}>{c.name}</span>
+                        <span className={`block text-[10.5px] leading-snug ${on ? "text-white/60" : "text-ash-500"}`}>{c.purpose}</span>
                       </span>
                     </button>
                   );
                 })}
               </div>
             ))}
-            {!grouped.length && <p className="px-1.5 py-4 text-[12px] text-zinc-500">No report matches “{q}”.</p>}
+            {!grouped.length && <p className="px-1.5 py-4 text-[12px] text-ash-500">No report matches “{q}”.</p>}
           </div>
         </div>
       </aside>
@@ -185,20 +185,20 @@ export default function ReportBrowser({
       {/* ── The report ────────────────────────────────────────────────────── */}
       <section className="min-w-0">
         {!selectedId ? (
-          <div className="rounded-2xl border border-dashed border-zinc-900/15 bg-white/60 p-8 text-center">
-            <p className="text-[13px] font-semibold text-zinc-700">Pick a report on the left.</p>
-            <p className="mx-auto mt-1 max-w-md text-[12px] leading-snug text-zinc-500">
+          <div className="rounded-2xl border border-dashed border-ash-900/15 bg-paper/60 p-8 text-center">
+            <p className="text-[13px] font-semibold text-ash-700">Pick a report on the left.</p>
+            <p className="mx-auto mt-1 max-w-md text-[12px] leading-snug text-ash-500">
               It runs on screen against {books.map((b) => b.label).join(" + ") || "this book"} before you export
               anything, so you can change the cut without downloading it twice.
             </p>
           </div>
         ) : (
-          <div className="rounded-2xl border border-zinc-900/10 bg-white">
-            <header className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-900/[0.07] p-4">
+          <div className="rounded-2xl border border-ash-900/10 bg-paper">
+            <header className="flex flex-wrap items-start justify-between gap-3 border-b border-ash-900/[0.07] p-4">
               <div className="min-w-0">
-                <h2 className="text-[15px] font-bold text-zinc-900">{meta?.name ?? "Report"}</h2>
-                <p className="mt-0.5 max-w-2xl text-[12px] leading-snug text-zinc-500">{meta?.purpose}</p>
-                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+                <h2 className="text-[15px] font-bold text-ash-900">{meta?.name ?? "Report"}</h2>
+                <p className="mt-0.5 max-w-2xl text-[12px] leading-snug text-ash-500">{meta?.purpose}</p>
+                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-ash-400">
                   <span>{books.map((b) => `${b.label} · entity ${b.id}`).join("   |   ")}</span>
                   {meta?.ranged
                     ? <span>{from} to {to}</span>
@@ -211,7 +211,7 @@ export default function ReportBrowser({
                   <button
                     type="button"
                     onClick={() => setShowAll((v) => !v)}
-                    className="rounded-lg border border-zinc-900/10 bg-white px-2.5 py-2 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-900/[0.03]"
+                    className="rounded-lg border border-ash-900/10 bg-paper px-2.5 py-2 text-[11px] font-semibold text-ash-600 hover:bg-ash-900/[0.03]"
                   >
                     {showAll ? "Fewer columns" : `All ${cols.length} columns`}
                   </button>
@@ -228,11 +228,11 @@ export default function ReportBrowser({
             </header>
 
             {meta?.mirrors && (
-              <div className="flex items-start gap-2 border-b border-zinc-900/[0.07] bg-zinc-900/[0.02] px-4 py-2.5">
-                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                <p className="text-[11px] leading-snug text-zinc-600">
-                  Stands in for ServiceSuite&apos;s <span className="font-mono text-[10.5px] text-zinc-700">{meta.mirrors}</span>.
-                  {meta.divergence && <> <span className="font-semibold text-zinc-700">Where it differs:</span> {meta.divergence}</>}
+              <div className="flex items-start gap-2 border-b border-ash-900/[0.07] bg-ash-900/[0.02] px-4 py-2.5">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ash-400" />
+                <p className="text-[11px] leading-snug text-ash-600">
+                  Stands in for ServiceSuite&apos;s <span className="font-mono text-[10.5px] text-ash-700">{meta.mirrors}</span>.
+                  {meta.divergence && <> <span className="font-semibold text-ash-700">Where it differs:</span> {meta.divergence}</>}
                 </p>
               </div>
             )}
@@ -245,13 +245,13 @@ export default function ReportBrowser({
             )}
 
             {state === "loading" && (
-              <div className="flex items-center justify-center gap-2 py-16 text-[12px] text-zinc-500">
+              <div className="flex items-center justify-center gap-2 py-16 text-[12px] text-ash-500">
                 <Loader2 className="h-4 w-4 animate-spin" /> Running against the live book…
               </div>
             )}
 
             {state === "idle" && rows.length === 0 && (
-              <p className="px-4 py-12 text-center text-[12px] text-zinc-500">
+              <p className="px-4 py-12 text-center text-[12px] text-ash-500">
                 This report returned nothing for the current cut. Widen the range or clear a filter.
               </p>
             )}
@@ -261,11 +261,11 @@ export default function ReportBrowser({
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[42rem] border-collapse text-[12px]">
                     <thead>
-                      <tr className="border-b border-zinc-900/[0.09]">
+                      <tr className="border-b border-ash-900/[0.09]">
                         {shown.map((c) => (
                           <th
                             key={c.key}
-                            className={`whitespace-nowrap px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-zinc-500 ${
+                            className={`whitespace-nowrap px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-ash-500 ${
                               numeric(c.format) ? "text-right" : "text-left"
                             }`}
                           >
@@ -276,12 +276,12 @@ export default function ReportBrowser({
                     </thead>
                     <tbody>
                       {rows.map((r, i) => (
-                        <tr key={i} className="border-b border-zinc-900/[0.045] last:border-0 hover:bg-zinc-900/[0.02]">
+                        <tr key={i} className="border-b border-ash-900/[0.045] last:border-0 hover:bg-ash-900/[0.02]">
                           {shown.map((c) => (
                             <td
                               key={c.key}
                               className={`whitespace-nowrap px-3 py-1.5 ${
-                                numeric(c.format) ? "text-right font-mono tabular-nums text-zinc-700" : "text-zinc-700"
+                                numeric(c.format) ? "text-right font-mono tabular-nums text-ash-700" : "text-ash-700"
                               }`}
                             >
                               {fmt(r[c.key], c.format)}
@@ -292,7 +292,7 @@ export default function ReportBrowser({
                     </tbody>
                     {Object.keys(totals).length > 0 && (
                       <tfoot>
-                        <tr className="border-t-2 border-zinc-900/20 bg-zinc-900/[0.02] font-semibold">
+                        <tr className="border-t-2 border-ash-900/20 bg-ash-900/[0.02] font-semibold">
                           {shown.map((c, i) => (
                             <td key={c.key} className={`px-3 py-2 ${numeric(c.format) ? "text-right font-mono tabular-nums" : ""}`}>
                               {i === 0 ? "Total" : c.total ? fmt(totals[c.key], c.format) : ""}
@@ -304,7 +304,7 @@ export default function ReportBrowser({
                   </table>
                 </div>
 
-                <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-900/[0.07] px-4 py-2.5 text-[11px] text-zinc-500">
+                <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-ash-900/[0.07] px-4 py-2.5 text-[11px] text-ash-500">
                   <span>
                     {rows.length.toLocaleString()} rows
                     {/* Said out loud, because a total under a capped table is the

@@ -515,18 +515,18 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
             transition={{ type: "spring", stiffness: 400, damping: 28 }}
             onClick={() => { setOpen(true); dismissGreet(); }}
             style={{ ...sideStyle, bottom: panelBottom }}
-            className="no-print glass fixed z-[9998] max-w-[248px] rounded-2xl bg-white/85 px-3.5 py-2.5 text-left shadow-xl"
+            className="no-print glass fixed z-[9998] max-w-[248px] rounded-2xl bg-paper/85 px-3.5 py-2.5 text-left shadow-xl"
           >
-            <p className="text-[13px] font-semibold text-zinc-900">
+            <p className="text-[13px] font-semibold text-ash-900">
               Hi{userName ? `, ${userName.split(" ")[0]}` : ""} 👋 I&apos;m {ASSISTANT_NAME}
             </p>
-            <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
+            <p className="mt-0.5 text-[11px] leading-snug text-ash-500">
               Ask me anything about {orgName} — how it works, what your numbers say, or what to do next.
               One place, and I&apos;ll work out which is which.
             </p>
             <span
               onClick={(e) => { e.stopPropagation(); dismissGreet(); }}
-              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-zinc-900 text-white"
+              className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-invert text-invert-fg"
               aria-label="Dismiss"
             >
               <X className="h-3 w-3" />
@@ -590,7 +590,7 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
                       title={autoGo ? "Autopilot on — I move the screen when I answer" : "Autopilot off — I offer a button, you tap it"}
                       aria-pressed={autoGo}
                       className={`flex h-7 items-center gap-1 rounded-full px-2 text-[10px] font-bold transition-colors ${
-                        autoGo ? "text-white shadow-sm" : "bg-zinc-900/5 text-zinc-500 hover:text-zinc-800"
+                        autoGo ? "text-white shadow-sm" : "bg-ash-900/5 text-ash-500 hover:text-ash-800"
                       }`}
                       style={autoGo ? { backgroundColor: "var(--brand)" } : undefined}
                     >
@@ -601,7 +601,7 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
                         onClick={newConversation}
                         title="Start a new conversation"
                         aria-label="Start a new conversation"
-                        className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-900/5 hover:text-zinc-900"
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-ash-400 hover:bg-ash-900/5 hover:text-ash-900"
                       >
                         <PenLine className="h-3.5 w-3.5" />
                       </button>
@@ -610,7 +610,7 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
                 ) : nav.route.name === "home" ? (
                   <button
                     onClick={() => nav.push({ name: "settings" })}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-900/5 hover:text-zinc-900"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-ash-500 transition-colors hover:bg-ash-900/5 hover:text-ash-900"
                     aria-label="Account and settings"
                   >
                     <UserRound className="h-4 w-4" />
@@ -753,7 +753,7 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
             <RiriAvatar size={SIZE} state={busy ? "thinking" : "idle"} />
           </div>
           {open ? (
-            <span className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-white ring-2 ring-white">
+            <span className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full bg-invert text-invert-fg ring-2 ring-white">
               <X className="h-3.5 w-3.5" />
             </span>
           ) : badge > 0 ? (

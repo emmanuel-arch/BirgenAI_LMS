@@ -65,7 +65,7 @@ export default function TaskBoard({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[940px] text-left">
               <thead>
-                <tr className="border-y border-zinc-900/[0.07] text-[9.5px] font-bold uppercase tracking-[0.1em] text-zinc-400">
+                <tr className="border-y border-ash-900/[0.07] text-[9.5px] font-bold uppercase tracking-[0.1em] text-ash-400">
                   <th className="px-4 py-2">Task</th>
                   <th className="px-3 py-2">Customer</th>
                   <th className="px-3 py-2">Band</th>
@@ -79,30 +79,30 @@ export default function TaskBoard({
                 {rows.map((r) => {
                   const Icon = ICON[r.action] ?? PhoneCall;
                   return (
-                    <tr key={r.id} className="border-b border-zinc-900/[0.045] last:border-0 hover:bg-zinc-900/[0.022]">
+                    <tr key={r.id} className="border-b border-ash-900/[0.045] last:border-0 hover:bg-ash-900/[0.022]">
                       <td className="px-4 py-2">
-                        <span className="flex items-center gap-1.5 text-[12px] font-medium text-zinc-700">
-                          <Icon className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                        <span className="flex items-center gap-1.5 text-[12px] font-medium text-ash-700">
+                          <Icon className="h-3.5 w-3.5 shrink-0 text-ash-400" />
                           {r.actionName}
                         </span>
                       </td>
                       <td className="px-3 py-2">
                         <Link href={`/desk/case/${r.loanId}`} className="block min-w-0">
-                          <span className="block truncate text-[12px] font-semibold text-zinc-800 hover:text-[color:var(--accent)]">{r.name}</span>
-                          <span className="block truncate text-[10px] tabular-nums text-zinc-400">{r.phone || `loan #${r.loanId}`}</span>
+                          <span className="block truncate text-[12px] font-semibold text-ash-800 hover:text-[color:var(--accent)]">{r.name}</span>
+                          <span className="block truncate text-[10px] tabular-nums text-ash-400">{r.phone || `loan #${r.loanId}`}</span>
                         </Link>
                       </td>
                       <td className="px-3 py-2">
-                        {r.band ? <Chip label={r.band.short} accent={r.band.accent} title={r.band.name} /> : <span className="text-zinc-300">—</span>}
+                        {r.band ? <Chip label={r.band.short} accent={r.band.accent} title={r.band.name} /> : <span className="text-ash-300">—</span>}
                       </td>
-                      <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-zinc-600">{r.olb > 0 ? KES(r.olb) : "—"}</td>
+                      <td className="px-3 py-2 text-right text-[11.5px] tabular-nums text-ash-600">{r.olb > 0 ? KES(r.olb) : "—"}</td>
                       <td className="px-3 py-2">
-                        <span className="block text-[11.5px] tabular-nums text-zinc-600">{shortDate(r.dueAt)}</span>
+                        <span className="block text-[11.5px] tabular-nums text-ash-600">{shortDate(r.dueAt)}</span>
                         {r.overdue && <Tag tone="bad">Overdue</Tag>}
                       </td>
-                      <td className="px-3 py-2 truncate text-[11.5px] text-zinc-600">{r.agentName ?? "—"}</td>
+                      <td className="px-3 py-2 truncate text-[11.5px] text-ash-600">{r.agentName ?? "—"}</td>
                       <td className="max-w-[240px] px-3 py-2">
-                        <span className="block truncate text-[11px] italic text-zinc-500">{r.note || "—"}</span>
+                        <span className="block truncate text-[11px] italic text-ash-500">{r.note || "—"}</span>
                       </td>
                     </tr>
                   );

@@ -71,52 +71,52 @@ export function ReconcileToCustomer({ receiptId, amount, source, onDone }: {
   }
 
   return (
-    <div className="mt-3 rounded-xl border border-zinc-900/10 bg-white/70 p-3">
+    <div className="mt-3 rounded-xl border border-ash-900/10 bg-paper/70 p-3">
       {/* The money, and where it came from */}
-      <div className="flex items-center gap-2 rounded-lg bg-zinc-900/[0.03] px-3 py-2">
-        <Banknote className="h-4 w-4 shrink-0 text-zinc-400" />
+      <div className="flex items-center gap-2 rounded-lg bg-ash-900/[0.03] px-3 py-2">
+        <Banknote className="h-4 w-4 shrink-0 text-ash-400" />
         <div className="min-w-0">
           <p className="text-sm font-bold">{amount != null ? `KES ${Math.round(amount).toLocaleString()}` : "Payment"}</p>
-          <p className="truncate text-[11px] text-zinc-500">{source}</p>
+          <p className="truncate text-[11px] text-ash-500">{source}</p>
         </div>
       </div>
 
       {!picked ? (
         <>
           <div className="mt-2.5 flex gap-1.5">
-            <div className="flex flex-1 items-center gap-2 rounded-lg border border-zinc-900/15 bg-white px-2.5">
-              <Search className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+            <div className="flex flex-1 items-center gap-2 rounded-lg border border-ash-900/15 bg-paper px-2.5">
+              <Search className="h-3.5 w-3.5 shrink-0 text-ash-400" />
               <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()}
                 placeholder="Find the customer — name, phone or ID" className="flex-1 bg-transparent py-2 text-xs outline-none" autoFocus />
             </div>
-            <button onClick={search} className="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white">Search</button>
+            <button onClick={search} className="rounded-lg bg-invert px-3 py-2 text-xs font-semibold text-invert-fg">Search</button>
           </div>
           <div className="mt-1.5 space-y-1">
             {results.map((b) => (
               <button key={b.id} onClick={() => pick(b)}
-                className="flex w-full items-center justify-between rounded-lg border border-zinc-900/10 bg-white px-3 py-2 text-left text-xs hover:bg-zinc-50">
-                <span className="font-medium">{b.name ?? "Borrower"}</span><span className="text-zinc-400">{b.phone}</span>
+                className="flex w-full items-center justify-between rounded-lg border border-ash-900/10 bg-paper px-3 py-2 text-left text-xs hover:bg-ash-50">
+                <span className="font-medium">{b.name ?? "Borrower"}</span><span className="text-ash-400">{b.phone}</span>
               </button>
             ))}
           </div>
         </>
       ) : (
         <>
-          <p className="mt-2.5 text-xs text-zinc-600">
+          <p className="mt-2.5 text-xs text-ash-600">
             Reconcile to <span className="font-semibold">{picked.name ?? picked.phone}</span>{" "}
-            <button className="text-zinc-400 underline" onClick={() => { setPicked(null); setLoans(null); }}>change</button>
+            <button className="text-ash-400 underline" onClick={() => { setPicked(null); setLoans(null); }}>change</button>
           </p>
-          {busy && !loans && <div className="mt-2 flex justify-center"><Loader2 className="h-4 w-4 animate-spin text-zinc-400" /></div>}
+          {busy && !loans && <div className="mt-2 flex justify-center"><Loader2 className="h-4 w-4 animate-spin text-ash-400" /></div>}
           {loans && loans.length === 0 && <p className="mt-2 text-xs text-amber-700">No active loan for this customer — pick another, or record it as savings from Repayments.</p>}
           <div className="mt-1.5 space-y-1">
             {loans?.map((l) => (
               <button key={l.id} onClick={() => allocate(l.id)} disabled={busy}
-                className="flex w-full items-center justify-between rounded-lg border border-zinc-900/10 bg-white px-3 py-2 text-left text-xs hover:bg-zinc-50 disabled:opacity-50">
+                className="flex w-full items-center justify-between rounded-lg border border-ash-900/10 bg-paper px-3 py-2 text-left text-xs hover:bg-ash-50 disabled:opacity-50">
                 <span>
-                  <span className="font-medium">{l.product}</span> <span className="text-zinc-400">· {l.ref}</span>
-                  <span className="block text-[10px] text-zinc-400">balance KES {Math.round(l.balance).toLocaleString()}{l.nextDue ? ` · next due ${l.nextDue.date}` : ""}</span>
+                  <span className="font-medium">{l.product}</span> <span className="text-ash-400">· {l.ref}</span>
+                  <span className="block text-[10px] text-ash-400">balance KES {Math.round(l.balance).toLocaleString()}{l.nextDue ? ` · next due ${l.nextDue.date}` : ""}</span>
                 </span>
-                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-400" /> : <ArrowRight className="h-3.5 w-3.5 text-zinc-400" />}
+                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin text-ash-400" /> : <ArrowRight className="h-3.5 w-3.5 text-ash-400" />}
               </button>
             ))}
           </div>

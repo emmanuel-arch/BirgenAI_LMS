@@ -62,7 +62,7 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
             backgroundColor: drift > 0 ? `${STATUS.critical}0d` : `${STATUS.good}0a`,
           }}
         >
-          <p className="text-[13px] leading-snug text-zinc-800">
+          <p className="text-[13px] leading-snug text-ash-800">
             {drift > 0 ? (
               <>
                 Recent vintages are performing <strong>{drift.toFixed(1)} points worse</strong> than earlier ones
@@ -119,10 +119,10 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
 
       {/* ── The matrix ───────────────────────────────────────────────────── */}
       <Band label="The vintage table" hint="Every month, every number" />
-      <div className="overflow-x-auto rounded-2xl border border-zinc-900/10 bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-ash-900/10 bg-paper">
         <table className="w-full min-w-[760px] text-[12px]">
           <thead>
-            <tr className="border-b border-zinc-900/[0.07] text-left text-[10px] uppercase tracking-wide text-zinc-400">
+            <tr className="border-b border-ash-900/[0.07] text-left text-[10px] uppercase tracking-wide text-ash-400">
               <th className="px-4 py-2.5 font-semibold">Vintage</th>
               <th className="px-3 py-2.5 text-right font-semibold">Age</th>
               <th className="px-3 py-2.5 text-right font-semibold">Loans</th>
@@ -141,22 +141,22 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
               // magnitude, not identity, so it must never be a categorical hue.
               const fill = r.openBalance > 0 ? seqAt(r.par30Pct / worstPar) : "transparent";
               return (
-                <tr key={r.cohort} className={`border-b border-zinc-900/[0.04] last:border-0 ${immature ? "opacity-55" : ""}`}>
-                  <td className="px-4 py-2 font-medium text-zinc-800">
+                <tr key={r.cohort} className={`border-b border-ash-900/[0.04] last:border-0 ${immature ? "opacity-55" : ""}`}>
+                  <td className="px-4 py-2 font-medium text-ash-800">
                     {r.label}
                     {immature && (
-                      <span className="ml-1.5 rounded bg-zinc-900/[0.07] px-1 py-0.5 text-[8px] font-bold uppercase text-zinc-500" title="Too young for its arrears figure to mean anything">
+                      <span className="ml-1.5 rounded bg-ash-900/[0.07] px-1 py-0.5 text-[8px] font-bold uppercase text-ash-500" title="Too young for its arrears figure to mean anything">
                         immature
                       </span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-500">{r.ageMonths}mo</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-700">{r.loans.toLocaleString()}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-700">{r.newBorrowers.toLocaleString()}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-700">{formatValue(r.disbursed, "money", { compact: true })}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-700">{formatValue(r.avgLoanSize, "money", { compact: true })}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-700">{r.clearedPct.toFixed(0)}%</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-700">{formatValue(r.openBalance, "money", { compact: true })}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ash-500">{r.ageMonths}mo</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ash-700">{r.loans.toLocaleString()}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ash-700">{r.newBorrowers.toLocaleString()}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ash-700">{formatValue(r.disbursed, "money", { compact: true })}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ash-700">{formatValue(r.avgLoanSize, "money", { compact: true })}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ash-700">{r.clearedPct.toFixed(0)}%</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ash-700">{formatValue(r.openBalance, "money", { compact: true })}</td>
                   <td className="px-3 py-2 text-right">
                     {r.openBalance > 0 ? (
                       <span
@@ -166,7 +166,7 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
                         {r.par30Pct.toFixed(1)}%
                       </span>
                     ) : (
-                      <span className="text-zinc-300">—</span>
+                      <span className="text-ash-300">—</span>
                     )}
                   </td>
                 </tr>
@@ -174,7 +174,7 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-zinc-500">
+                <td colSpan={9} className="px-4 py-8 text-center text-ash-500">
                   No lending in the last 18 months to build vintages from.
                 </td>
               </tr>
@@ -183,7 +183,7 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
         </table>
       </div>
 
-      <p className="mt-3 text-[11px] leading-snug text-zinc-400">
+      <p className="mt-3 text-[11px] leading-snug text-ash-400">
         Vintages under {MATURE_MONTHS} months old are dimmed and marked. Their arrears figure is not wrong, it is just too
         early to mean anything — a loan written six weeks ago has not had the opportunity to be ninety days late, and a
         chart that ranks it against a year-old vintage makes recent lending look brilliant every single month.

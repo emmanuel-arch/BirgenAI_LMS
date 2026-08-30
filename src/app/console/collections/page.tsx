@@ -56,7 +56,7 @@ const PTP_TONE: Record<string, string> = {
   KEPT: "bg-emerald-100 text-emerald-700",
   PARTIAL: "bg-amber-100 text-amber-700",
   BROKEN: "bg-red-100 text-red-700",
-  CANCELLED: "bg-zinc-900/5 text-zinc-500",
+  CANCELLED: "bg-ash-900/5 text-ash-500",
 };
 const BUCKET_TONE: Record<string, string> = {
   "1-7": "bg-amber-100 text-amber-700",
@@ -68,7 +68,7 @@ const TICKET_TONE: Record<string, string> = {
   OPEN: "bg-amber-100 text-amber-700",
   IN_PROGRESS: "bg-sky-100 text-sky-700",
   RESOLVED: "bg-emerald-100 text-emerald-700",
-  CLOSED: "bg-zinc-900/5 text-zinc-500",
+  CLOSED: "bg-ash-900/5 text-ash-500",
 };
 const KINDS = ["DISPUTE", "HARDSHIP", "FRAUD", "COMPLAINT", "LEGAL", "OTHER"];
 
@@ -120,7 +120,7 @@ function Collections() {
       <h1 className="text-xl font-bold flex items-center gap-2">
         <PhoneCall className="h-5 w-5" style={{ color: "var(--brand)" }} /> Collections
       </h1>
-      <p className="mt-1 text-sm text-zinc-500 max-w-2xl">
+      <p className="mt-1 text-sm text-ash-500 max-w-2xl">
         The arrears work queue, live from the book — freshest first, because day-one borrowers still answer their phones.
         Promises resolve against the money that actually lands, never a checkbox.
       </p>
@@ -132,7 +132,7 @@ function Collections() {
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {TILES.map((t) => (
             <div key={t.label} className="glass p-3.5">
-              <p className="text-[10px] uppercase tracking-wide text-zinc-500">{t.label}</p>
+              <p className="text-[10px] uppercase tracking-wide text-ash-500">{t.label}</p>
               <p className="mt-1 text-base font-bold leading-tight" style={{ color: "var(--brand)" }}>{t.value}</p>
             </div>
           ))}
@@ -146,7 +146,7 @@ function Collections() {
           { key: "tickets", label: "Tickets", icon: TicketIcon },
         ].map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold ${tab === t.key ? "text-white" : "bg-white/70 text-zinc-600 border border-zinc-900/10 hover:bg-white"}`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold ${tab === t.key ? "text-white" : "bg-paper/70 text-ash-600 border border-ash-900/10 hover:bg-paper"}`}
             style={tab === t.key ? { backgroundColor: "var(--brand)" } : undefined}>
             <t.icon className="h-3.5 w-3.5" /> {t.label}
           </button>
@@ -186,16 +186,16 @@ function QueueTab({ onChanged, setNotice, setError }: { onChanged: () => void; s
       <div className="flex flex-wrap gap-1.5">
         {["all", "1-7", "8-30", "31-60", "60+", "promised"].map((b) => (
           <button key={b} onClick={() => setBucket(b)}
-            className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize ${bucket === b ? "bg-zinc-900 text-white" : "bg-white/70 text-zinc-600 border border-zinc-900/10 hover:bg-white"}`}>
+            className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize ${bucket === b ? "bg-invert text-invert-fg" : "bg-paper/70 text-ash-600 border border-ash-900/10 hover:bg-paper"}`}>
             {b === "all" ? "All" : b === "promised" ? "Has a promise" : `${b} days`}
           </button>
         ))}
       </div>
 
       {rows === null ? (
-        <div className="glass mt-4 p-5 text-sm text-zinc-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading the book…</div>
+        <div className="glass mt-4 p-5 text-sm text-ash-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Reading the book…</div>
       ) : visible.length === 0 ? (
-        <div className="glass mt-4 p-8 text-center text-sm text-zinc-500">
+        <div className="glass mt-4 p-8 text-center text-sm text-ash-500">
           {rows.length === 0 ? "Nothing overdue — the book is clean." : "Nothing in this bucket."}
         </div>
       ) : (
@@ -209,7 +209,7 @@ function QueueTab({ onChanged, setNotice, setError }: { onChanged: () => void; s
                     <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${BUCKET_TONE[r.bucket]}`}>{r.dpd}d overdue</span>
                     {r.openTickets > 0 && <span className="rounded-md bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">{r.openTickets} ticket{r.openTickets > 1 ? "s" : ""}</span>}
                   </div>
-                  <p className="mt-0.5 text-xs text-zinc-500">{r.product} · owes {kes(r.amountOverdue)} of {kes(r.balance)} balance</p>
+                  <p className="mt-0.5 text-xs text-ash-500">{r.product} · owes {kes(r.amountOverdue)} of {kes(r.balance)} balance</p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px]">
                     {r.ptp && (
                       <span className={`rounded-md px-2 py-0.5 font-semibold ${r.ptp.overdue ? "bg-red-100 text-red-700" : "bg-sky-100 text-sky-700"}`}>
@@ -217,7 +217,7 @@ function QueueTab({ onChanged, setNotice, setError }: { onChanged: () => void; s
                       </span>
                     )}
                     {r.lastCall && (
-                      <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-zinc-500">
+                      <span className="rounded-md bg-ash-900/5 px-2 py-0.5 text-ash-500">
                         Last call: {OUTCOME_LABEL[r.lastCall.outcome] ?? r.lastCall.outcome} · {day(r.lastCall.at)}{r.lastCall.by ? ` · ${r.lastCall.by}` : ""}
                       </span>
                     )}
@@ -227,7 +227,7 @@ function QueueTab({ onChanged, setNotice, setError }: { onChanged: () => void; s
                   <a href={`tel:${r.phone}`} className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold text-white" style={{ backgroundColor: "var(--brand)" }}>
                     <Phone className="h-3.5 w-3.5" /> Call
                   </a>
-                  <button onClick={() => setLogFor(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-white">
+                  <button onClick={() => setLogFor(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-2 text-xs font-semibold text-ash-700 hover:bg-paper">
                     <ClipboardList className="h-3.5 w-3.5" /> Log call
                   </button>
                   {/* The SAME component the Customer-360, the counter and Field Ops use.
@@ -289,7 +289,7 @@ function LogCallSheet({ row, onClose, onLogged, setError }: {
         <div className="mt-3 grid grid-cols-2 gap-2">
           {OUTCOMES.map((o) => (
             <button key={o.key} onClick={() => setOutcome(o.key)}
-              className={`rounded-lg border px-2.5 py-2 text-[12px] font-medium text-left ${outcome === o.key ? "border-transparent text-white" : "border-zinc-900/15 bg-white text-zinc-700 hover:bg-zinc-50"}`}
+              className={`rounded-lg border px-2.5 py-2 text-[12px] font-medium text-left ${outcome === o.key ? "border-transparent text-white" : "border-ash-900/15 bg-paper text-ash-700 hover:bg-ash-50"}`}
               style={outcome === o.key ? { backgroundColor: "var(--brand)" } : undefined}>
               {o.label}
             </button>
@@ -298,19 +298,19 @@ function LogCallSheet({ row, onClose, onLogged, setError }: {
         {outcome === "PROMISE_TO_PAY" && (
           <div className="mt-3 grid grid-cols-2 gap-2">
             <label className="block">
-              <span className="text-[11px] font-semibold text-zinc-600">Amount (KES)</span>
+              <span className="text-[11px] font-semibold text-ash-600">Amount (KES)</span>
               <input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-zinc-900/15 px-2.5 py-2 text-sm tabular-nums" />
+                className="mt-1 w-full rounded-lg border border-ash-900/15 px-2.5 py-2 text-sm tabular-nums" />
             </label>
             <label className="block">
-              <span className="text-[11px] font-semibold text-zinc-600">By when</span>
+              <span className="text-[11px] font-semibold text-ash-600">By when</span>
               <input type="date" value={dueDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setDueDate(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-zinc-900/15 px-2.5 py-2 text-sm" />
+                className="mt-1 w-full rounded-lg border border-ash-900/15 px-2.5 py-2 text-sm" />
             </label>
           </div>
         )}
         <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Notes (what they said, context for the next caller)"
-          className="mt-3 w-full rounded-lg border border-zinc-900/15 px-3 py-2 text-sm" rows={2} />
+          className="mt-3 w-full rounded-lg border border-ash-900/15 px-3 py-2 text-sm" rows={2} />
         <button onClick={submit} disabled={busy || !outcome || (outcome === "PROMISE_TO_PAY" && !(Number(amount) > 0))}
           className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
           style={{ backgroundColor: "var(--brand)" }}>
@@ -352,15 +352,15 @@ function PtpTab({ setNotice, setError }: { setNotice: (s: string | null) => void
       <div className="flex flex-wrap gap-1.5">
         {["pending", "due-today", "broken", "kept", "all"].map((f) => (
           <button key={f} onClick={() => setFilter(f)}
-            className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize ${filter === f ? "bg-zinc-900 text-white" : "bg-white/70 text-zinc-600 border border-zinc-900/10 hover:bg-white"}`}>
+            className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize ${filter === f ? "bg-invert text-invert-fg" : "bg-paper/70 text-ash-600 border border-ash-900/10 hover:bg-paper"}`}>
             {f.replace("-", " ")}
           </button>
         ))}
       </div>
       {ptps === null ? (
-        <div className="glass mt-4 p-5 text-sm text-zinc-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+        <div className="glass mt-4 p-5 text-sm text-ash-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
       ) : ptps.length === 0 ? (
-        <div className="glass mt-4 p-8 text-center text-sm text-zinc-500">No promises here.</div>
+        <div className="glass mt-4 p-8 text-center text-sm text-ash-500">No promises here.</div>
       ) : (
         <div className="mt-4 space-y-2">
           {ptps.map((p) => (
@@ -370,14 +370,14 @@ function PtpTab({ setNotice, setError }: { setNotice: (s: string | null) => void
                   <Link href={`/console/borrowers/${p.borrowerId}`} className="text-sm font-semibold hover:underline">{p.borrower.name}</Link>
                   <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${PTP_TONE[p.status]}`}>{p.status.toLowerCase()}</span>
                 </div>
-                <p className="mt-0.5 text-xs text-zinc-500">
+                <p className="mt-0.5 text-xs text-ash-500">
                   {kes(p.amount)} by {day(p.dueDate)} · taken by {p.takenBy} on {day(p.createdAt)}
                   {p.status !== "PENDING" && p.status !== "CANCELLED" ? ` · paid ${kes(p.paidAmount)}` : ""}
                 </p>
-                {p.note && <p className="mt-0.5 text-[11px] text-zinc-400">&ldquo;{p.note}&rdquo;</p>}
+                {p.note && <p className="mt-0.5 text-[11px] text-ash-400">&ldquo;{p.note}&rdquo;</p>}
               </div>
               {p.status === "PENDING" && (
-                <button onClick={() => cancel(p)} className="rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-zinc-600 hover:bg-white">
+                <button onClick={() => cancel(p)} className="rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-1.5 text-[11px] font-semibold text-ash-600 hover:bg-paper">
                   Cancel
                 </button>
               )}
@@ -427,20 +427,20 @@ function TicketsTab({ setNotice, setError }: { setNotice: (s: string | null) => 
         <div className="flex gap-1.5">
           {(["open", "all"] as const).map((s) => (
             <button key={s} onClick={() => setStatus(s)}
-              className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize ${status === s ? "bg-zinc-900 text-white" : "bg-white/70 text-zinc-600 border border-zinc-900/10 hover:bg-white"}`}>
+              className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize ${status === s ? "bg-invert text-invert-fg" : "bg-paper/70 text-ash-600 border border-ash-900/10 hover:bg-paper"}`}>
               {s}
             </button>
           ))}
         </div>
-        <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3.5 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+        <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-3.5 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
           <Plus className="h-3.5 w-3.5" /> New ticket
         </button>
       </div>
 
       {tickets === null ? (
-        <div className="glass mt-4 p-5 text-sm text-zinc-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+        <div className="glass mt-4 p-5 text-sm text-ash-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
       ) : tickets.length === 0 ? (
-        <div className="glass mt-4 p-8 text-center text-sm text-zinc-500">No {status === "open" ? "open " : ""}tickets.</div>
+        <div className="glass mt-4 p-8 text-center text-sm text-ash-500">No {status === "open" ? "open " : ""}tickets.</div>
       ) : (
         <div className="mt-4 space-y-2">
           {tickets.map((t) => (
@@ -449,15 +449,15 @@ function TicketsTab({ setNotice, setError }: { setNotice: (s: string | null) => 
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold">{t.title}</p>
-                    <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">{t.kind}</span>
+                    <span className="rounded-md bg-ash-900/5 px-2 py-0.5 text-[10px] font-semibold text-ash-500">{t.kind}</span>
                     <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${TICKET_TONE[t.status]}`}>{t.status.replace("_", " ").toLowerCase()}</span>
                   </div>
-                  <p className="mt-0.5 text-xs text-zinc-500">
+                  <p className="mt-0.5 text-xs text-ash-500">
                     <UserRound className="inline h-3 w-3 -mt-0.5" />{" "}
                     <Link href={`/console/borrowers/${t.borrowerId}`} className="hover:underline">{t.borrower.name}</Link>
                     {" · "}opened by {t.createdBy} · {day(t.createdAt)}
                   </p>
-                  {t.detail && <p className="mt-1 text-[12px] text-zinc-600">{t.detail}</p>}
+                  {t.detail && <p className="mt-1 text-[12px] text-ash-600">{t.detail}</p>}
                   {t.resolution && <p className="mt-1 text-[11px] text-emerald-700">Resolved: {t.resolution}</p>}
                 </div>
                 {(t.status === "OPEN" || t.status === "IN_PROGRESS") && (
@@ -465,7 +465,7 @@ function TicketsTab({ setNotice, setError }: { setNotice: (s: string | null) => 
                     <select
                       value={t.assignedTo?.id ?? ""}
                       onChange={(e) => update({ id: t.id, assignedToId: e.target.value || null, ...(e.target.value ? { status: "IN_PROGRESS" } : {}) }, "Assignment updated.")}
-                      className="rounded-lg border border-zinc-900/15 bg-white px-2 py-1.5 text-[11px] font-medium outline-none">
+                      className="rounded-lg border border-ash-900/15 bg-paper px-2 py-1.5 text-[11px] font-medium outline-none">
                       <option value="">Unassigned</option>
                       {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
@@ -532,29 +532,29 @@ function NewTicketSheet({ staff, onClose, onCreated, setError }: {
             <div className="mt-3 flex gap-2">
               <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && searchBorrowers()}
                 placeholder="Find the borrower — name, phone or ID"
-                className="flex-1 rounded-lg border border-zinc-900/15 px-3 py-2 text-sm" />
-              <button onClick={searchBorrowers} className="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white"><Search className="h-4 w-4" /></button>
+                className="flex-1 rounded-lg border border-ash-900/15 px-3 py-2 text-sm" />
+              <button onClick={searchBorrowers} className="rounded-lg bg-invert px-3 py-2 text-xs font-semibold text-invert-fg"><Search className="h-4 w-4" /></button>
             </div>
             <div className="mt-2 space-y-1">
               {results.map((b) => (
-                <button key={b.id} onClick={() => setBorrower(b)} className="flex w-full items-center justify-between rounded-lg border border-zinc-900/10 px-3 py-2 text-left text-sm hover:bg-zinc-50">
+                <button key={b.id} onClick={() => setBorrower(b)} className="flex w-full items-center justify-between rounded-lg border border-ash-900/10 px-3 py-2 text-left text-sm hover:bg-ash-50">
                   <span className="font-medium">{b.name ?? "Borrower"}</span>
-                  <span className="text-xs text-zinc-500">{b.phone}</span>
+                  <span className="text-xs text-ash-500">{b.phone}</span>
                 </button>
               ))}
             </div>
           </>
         ) : (
           <>
-            <p className="mt-3 text-xs text-zinc-500">For <span className="font-semibold text-zinc-800">{borrower.name ?? borrower.phone}</span> <button className="underline" onClick={() => setBorrower(null)}>change</button></p>
-            <select value={kind} onChange={(e) => setKind(e.target.value)} className="mt-3 w-full rounded-lg border border-zinc-900/15 px-3 py-2 text-sm">
+            <p className="mt-3 text-xs text-ash-500">For <span className="font-semibold text-ash-800">{borrower.name ?? borrower.phone}</span> <button className="underline" onClick={() => setBorrower(null)}>change</button></p>
+            <select value={kind} onChange={(e) => setKind(e.target.value)} className="mt-3 w-full rounded-lg border border-ash-900/15 px-3 py-2 text-sm">
               {KINDS.map((k) => <option key={k} value={k}>{k.charAt(0) + k.slice(1).toLowerCase()}</option>)}
             </select>
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short title"
-              className="mt-2 w-full rounded-lg border border-zinc-900/15 px-3 py-2 text-sm" />
+              className="mt-2 w-full rounded-lg border border-ash-900/15 px-3 py-2 text-sm" />
             <textarea value={detail} onChange={(e) => setDetail(e.target.value)} placeholder="What happened?"
-              className="mt-2 w-full rounded-lg border border-zinc-900/15 px-3 py-2 text-sm" rows={3} />
-            <select value={assignedToId} onChange={(e) => setAssignedToId(e.target.value)} className="mt-2 w-full rounded-lg border border-zinc-900/15 px-3 py-2 text-sm">
+              className="mt-2 w-full rounded-lg border border-ash-900/15 px-3 py-2 text-sm" rows={3} />
+            <select value={assignedToId} onChange={(e) => setAssignedToId(e.target.value)} className="mt-2 w-full rounded-lg border border-ash-900/15 px-3 py-2 text-sm">
               <option value="">Assign later</option>
               {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>

@@ -113,7 +113,7 @@ export default function ProductsPage() {
       <div className="mt-3 flex items-center justify-between gap-3">
         <h1 className="text-xl font-bold flex items-center gap-2"><Package className="h-5 w-5" style={{ color: "var(--brand)" }} /> Products</h1>
         <button onClick={() => { setPicking(true); setNotice(null); setError(null); }}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+          className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
           <Plus className="h-3.5 w-3.5" /> New product
         </button>
       </div>
@@ -121,8 +121,8 @@ export default function ProductsPage() {
       {notice && <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50/90 px-3 py-2.5 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> {notice}</div>}
       {error && <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
 
-      {!products && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>}
-      {products?.length === 0 && !editing && <p className="mt-10 text-center text-sm text-zinc-500">No products yet — create your first.</p>}
+      {!products && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>}
+      {products?.length === 0 && !editing && <p className="mt-10 text-center text-sm text-ash-500">No products yet — create your first.</p>}
 
       <div className="mt-5 space-y-3">
         {products?.map((p) => (
@@ -133,7 +133,7 @@ export default function ProductsPage() {
                 {p.guarantorRequired && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">GUARANTOR</span>}
                 {p.securityRequired && <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold text-sky-700">SECURED</span>}
               </p>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-ash-500">
                 {fmtKES(p.minPrincipal)}–{fmtKES(p.maxPrincipal)} · {Number(p.interestRate)}% {p.interestMethod} · {p.repaymentPeriod} × {p.repaymentPeriodUnit} · {p.disbursementMode.replace(/_/g, " ")}
               </p>
             </div>
@@ -141,16 +141,16 @@ export default function ProductsPage() {
               {/* The version is the product's most load-bearing fact once loans are
                   booked against it, so it sits on the card rather than two clicks in. */}
               <button onClick={() => setHistoryFor(p)}
-                className="rounded-md bg-zinc-900/5 px-2 py-1 text-[10px] font-bold text-zinc-500 hover:text-zinc-800"
+                className="rounded-md bg-ash-900/5 px-2 py-1 text-[10px] font-bold text-ash-500 hover:text-ash-800"
                 aria-label={`Version history for ${p.name}`}>
                 {p.version && p.version > 0 ? `v${p.version}` : "UNVERSIONED"}
               </button>
               <button onClick={() => { setEditing(fromProduct(p)); setBaseDef(null); setNotice(null); setError(null); }}
-                className="rounded-md border border-zinc-900/10 bg-white/70 p-1.5 text-zinc-500 hover:text-zinc-800" aria-label={`Edit ${p.name}`}>
+                className="rounded-md border border-ash-900/10 bg-paper/70 p-1.5 text-ash-500 hover:text-ash-800" aria-label={`Edit ${p.name}`}>
                 <Pencil className="h-3.5 w-3.5" />
               </button>
               <button onClick={() => toggle(p)}
-                className={`rounded-md px-2 py-1 text-[11px] font-semibold ${p.isActive ? "bg-emerald-100 text-emerald-700" : "bg-zinc-900/5 text-zinc-500"}`}>
+                className={`rounded-md px-2 py-1 text-[11px] font-semibold ${p.isActive ? "bg-emerald-100 text-emerald-700" : "bg-ash-900/5 text-ash-500"}`}>
                 {p.isActive ? "ACTIVE" : "INACTIVE"}
               </button>
             </div>
@@ -199,8 +199,8 @@ export default function ProductsPage() {
 
 // ── The wizard ───────────────────────────────────────────────────────────────
 
-const FIELD = "w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400";
-const LABEL = "text-xs font-semibold text-zinc-600";
+const FIELD = "w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none placeholder:text-ash-400";
+const LABEL = "text-xs font-semibold text-ash-600";
 
 function ProductWizard({ initial, baseDefinition, workflows, onClose, onSaved }: {
   initial: Form;
@@ -284,9 +284,9 @@ function ProductWizard({ initial, baseDefinition, workflows, onClose, onSaved }:
             const active = i === step; const done = i < step;
             return (
               <div key={s.key} className="flex items-center">
-                {i > 0 && <span className={`mx-1.5 h-px w-4 ${done ? "bg-emerald-400" : "bg-zinc-900/15"}`} />}
+                {i > 0 && <span className={`mx-1.5 h-px w-4 ${done ? "bg-emerald-400" : "bg-ash-900/15"}`} />}
                 <button onClick={() => i < step && setStep(i)} disabled={i > step}
-                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${active ? "text-white" : done ? "text-emerald-700" : "text-zinc-400"}`}
+                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${active ? "text-white" : done ? "text-emerald-700" : "text-ash-400"}`}
                   style={active ? { backgroundColor: "var(--brand)" } : done ? { backgroundColor: "rgb(209 250 229)" } : undefined}>
                   <Icon className="h-3 w-3" /> {s.label}
                 </button>
@@ -297,7 +297,7 @@ function ProductWizard({ initial, baseDefinition, workflows, onClose, onSaved }:
       }
       footer={
         <div className="flex items-center justify-between gap-2">
-          <button onClick={step === 0 ? onClose : back} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2.5 text-sm text-zinc-600">
+          <button onClick={step === 0 ? onClose : back} className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2.5 text-sm text-ash-600">
             {step === 0 ? "Cancel" : <><ArrowLeft className="h-4 w-4" /> Back</>}
           </button>
           {stepKey !== "review" ? (
@@ -305,7 +305,7 @@ function ProductWizard({ initial, baseDefinition, workflows, onClose, onSaved }:
               Next <ArrowRight className="h-4 w-4" />
             </button>
           ) : (
-            <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+            <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-invert px-5 py-2.5 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} {isEdit ? "Save changes" : "Create product"}
             </button>
           )}
@@ -334,7 +334,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
   return (
     <label className="block">
       <span className={LABEL}>{label}</span>
-      {hint && <span className="ml-1 text-[10px] text-zinc-400">{hint}</span>}
+      {hint && <span className="ml-1 text-[10px] text-ash-400">{hint}</span>}
       <div className="mt-1">{children}</div>
     </label>
   );
@@ -343,13 +343,13 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
 function Toggle({ label, hint, value, onChange }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <button type="button" onClick={() => onChange(!value)}
-      className="flex w-full items-center justify-between gap-3 rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-left">
+      className="flex w-full items-center justify-between gap-3 rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-left">
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-zinc-800">{label}</span>
-        {hint && <span className="block text-[11px] text-zinc-500">{hint}</span>}
+        <span className="block text-sm font-medium text-ash-800">{label}</span>
+        {hint && <span className="block text-[11px] text-ash-500">{hint}</span>}
       </span>
-      <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${value ? "" : "bg-zinc-300"}`} style={value ? { backgroundColor: "var(--brand)" } : undefined}>
-        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${value ? "left-[18px]" : "left-0.5"}`} />
+      <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${value ? "" : "bg-ash-300"}`} style={value ? { backgroundColor: "var(--brand)" } : undefined}>
+        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-paper transition-all ${value ? "left-[18px]" : "left-0.5"}`} />
       </span>
     </button>
   );
@@ -359,10 +359,10 @@ const Pills = <T extends string>({ options, value, onChange }: { options: { v: T
   <div className="grid gap-2 sm:grid-cols-2">
     {options.map((o) => (
       <button key={o.v} type="button" onClick={() => onChange(o.v)}
-        className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${value === o.v ? "border-transparent text-white" : "border-zinc-900/15 bg-white/80 text-zinc-700 hover:bg-white"}`}
+        className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${value === o.v ? "border-transparent text-white" : "border-ash-900/15 bg-paper/80 text-ash-700 hover:bg-paper"}`}
         style={value === o.v ? { backgroundColor: "var(--brand)" } : undefined}>
         <span className="block font-semibold">{o.label}</span>
-        {o.sub && <span className={`block text-[11px] ${value === o.v ? "text-white/80" : "text-zinc-500"}`}>{o.sub}</span>}
+        {o.sub && <span className={`block text-[11px] ${value === o.v ? "text-white/80" : "text-ash-500"}`}>{o.sub}</span>}
       </button>
     ))}
   </div>
@@ -382,11 +382,11 @@ function BasicsStep({ f, set }: { f: Form; set: SetFn }) {
           ]} />
       </Row>
       <div className="grid gap-3 sm:grid-cols-3">
-        <Row label="Min principal"><div className="flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/80 px-3"><span className="text-xs text-zinc-400">KES</span><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="numeric" value={f.minPrincipal} onChange={(e) => set("minPrincipal")(e.target.value.replace(/\D/g, ""))} /></div></Row>
-        <Row label="Max principal"><div className="flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/80 px-3"><span className="text-xs text-zinc-400">KES</span><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="numeric" value={f.maxPrincipal} onChange={(e) => set("maxPrincipal")(e.target.value.replace(/\D/g, ""))} /></div></Row>
-        <Row label="Min loan limit" hint="floor"><div className="flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/80 px-3"><span className="text-xs text-zinc-400">KES</span><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="numeric" placeholder="none" value={f.minLoanLimit} onChange={(e) => set("minLoanLimit")(e.target.value.replace(/\D/g, ""))} /></div></Row>
+        <Row label="Min principal"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><span className="text-xs text-ash-400">KES</span><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="numeric" value={f.minPrincipal} onChange={(e) => set("minPrincipal")(e.target.value.replace(/\D/g, ""))} /></div></Row>
+        <Row label="Max principal"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><span className="text-xs text-ash-400">KES</span><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="numeric" value={f.maxPrincipal} onChange={(e) => set("maxPrincipal")(e.target.value.replace(/\D/g, ""))} /></div></Row>
+        <Row label="Min loan limit" hint="floor"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><span className="text-xs text-ash-400">KES</span><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="numeric" placeholder="none" value={f.minLoanLimit} onChange={(e) => set("minLoanLimit")(e.target.value.replace(/\D/g, ""))} /></div></Row>
       </div>
-      <p className="text-[11px] text-zinc-400">The limit engine will not book below the minimum loan limit even when a thin cashflow supports less — below it, there is no loan.</p>
+      <p className="text-[11px] text-ash-400">The limit engine will not book below the minimum loan limit even when a thin cashflow supports less — below it, there is no loan.</p>
     </>
   );
 }
@@ -409,7 +409,7 @@ function InterestStep({ f, set }: { f: Form; set: SetFn }) {
           ]} />
       </Row>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Row label="Interest rate" hint="% for the whole term"><div className="flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/80 px-3"><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="decimal" value={f.interestRate} onChange={(e) => set("interestRate")(e.target.value.replace(/[^0-9.]/g, ""))} /><span className="text-xs text-zinc-400">%</span></div></Row>
+        <Row label="Interest rate" hint="% for the whole term"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="decimal" value={f.interestRate} onChange={(e) => set("interestRate")(e.target.value.replace(/[^0-9.]/g, ""))} /><span className="text-xs text-ash-400">%</span></div></Row>
         <Row label="Rate is quoted per">
           <select className={`${FIELD} appearance-none`} value={f.interestPeriodUnit} onChange={(e) => set("interestPeriodUnit")(e.target.value)}>
             <option value="term">Whole term</option><option value="month">Month</option><option value="week">Week</option><option value="day">Day</option>
@@ -420,7 +420,7 @@ function InterestStep({ f, set }: { f: Form; set: SetFn }) {
       {f.earlySettlementEnabled && (
         <div className="grid gap-3 sm:grid-cols-2">
           <Row label="Within (days of disbursement)"><input className={FIELD} inputMode="numeric" placeholder="e.g. 30" value={f.earlySettlementDays} onChange={(e) => set("earlySettlementDays")(e.target.value.replace(/\D/g, ""))} /></Row>
-          <Row label="Interest waived" hint="% of outstanding interest"><div className="flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/80 px-3"><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="decimal" placeholder="e.g. 50" value={f.earlySettlementRate} onChange={(e) => set("earlySettlementRate")(e.target.value.replace(/[^0-9.]/g, ""))} /><span className="text-xs text-zinc-400">%</span></div></Row>
+          <Row label="Interest waived" hint="% of outstanding interest"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="decimal" placeholder="e.g. 50" value={f.earlySettlementRate} onChange={(e) => set("earlySettlementRate")(e.target.value.replace(/[^0-9.]/g, ""))} /><span className="text-xs text-ash-400">%</span></div></Row>
         </div>
       )}
     </>
@@ -445,7 +445,7 @@ function RepaymentStep({ f, set }: { f: Form; set: SetFn }) {
         </Row>
         <Row label="Grace days"><input className={FIELD} inputMode="numeric" value={f.gracePeriodDays} onChange={(e) => set("gracePeriodDays")(e.target.value.replace(/\D/g, ""))} /></Row>
       </div>
-      <Row label="Penalty rate" hint="% on an overdue installment"><div className="flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/80 px-3"><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="decimal" placeholder="e.g. 5" value={f.penaltyRate} onChange={(e) => set("penaltyRate")(e.target.value.replace(/[^0-9.]/g, ""))} /><span className="text-xs text-zinc-400">%</span></div></Row>
+      <Row label="Penalty rate" hint="% on an overdue installment"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="decimal" placeholder="e.g. 5" value={f.penaltyRate} onChange={(e) => set("penaltyRate")(e.target.value.replace(/[^0-9.]/g, ""))} /><span className="text-xs text-ash-400">%</span></div></Row>
       <Row label="Repayment order" hint="how a payment is applied, most-senior first">
         <select className={`${FIELD} appearance-none`} value={f.repaymentOrder} onChange={(e) => set("repaymentOrder")(e.target.value)}>
           {orders.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
@@ -465,7 +465,7 @@ function RequirementsStep({ f, set }: { f: Form; set: SetFn }) {
       )}
       <Toggle label="Security required" hint="Collateral must be pledged and verified before booking" value={f.securityRequired} onChange={set("securityRequired")} />
       {f.securityRequired && (
-        <Row label="Security cover" hint="% of principal the collateral must cover"><div className="flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/80 px-3"><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="numeric" value={f.securityCoverPct} onChange={(e) => set("securityCoverPct")(e.target.value.replace(/\D/g, ""))} /><span className="text-xs text-zinc-400">%</span></div></Row>
+        <Row label="Security cover" hint="% of principal the collateral must cover"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="numeric" value={f.securityCoverPct} onChange={(e) => set("securityCoverPct")(e.target.value.replace(/\D/g, ""))} /><span className="text-xs text-ash-400">%</span></div></Row>
       )}
     </>
   );
@@ -493,7 +493,7 @@ function WorkflowStep({ f, set, workflows }: { f: Form; set: SetFn; workflows: {
           {workflows.map((w) => <option key={w.id} value={w.id}>{w.title}</option>)}
         </select>
       </Row>
-      <p className="text-[11px] text-zinc-400">Choosing the workflow here — per product, not per organisation — is what lets a small top-up run a light approval while a large secured loan runs the full chain.</p>
+      <p className="text-[11px] text-ash-400">Choosing the workflow here — per product, not per organisation — is what lets a small top-up run a light approval while a large secured loan runs the full chain.</p>
     </>
   );
 }
@@ -502,12 +502,12 @@ function ReviewStep({ f, workflows }: { f: Form; workflows: { id: string; title:
   const wf = (id: string) => workflows.find((w) => w.id === id)?.title ?? "Default two-tier";
   const line = (label: string, value: string) => (
     <div className="flex items-start justify-between gap-3 py-1.5 text-sm">
-      <span className="text-zinc-500">{label}</span>
-      <span className="text-right font-medium text-zinc-800">{value}</span>
+      <span className="text-ash-500">{label}</span>
+      <span className="text-right font-medium text-ash-800">{value}</span>
     </div>
   );
   return (
-    <div className="rounded-xl border border-zinc-900/10 bg-white/60 px-4 divide-y divide-zinc-900/5">
+    <div className="rounded-xl border border-ash-900/10 bg-paper/60 px-4 divide-y divide-ash-900/5">
       {line("Name", f.name || "—")}
       {line("Amount", `${fmtKES(f.minPrincipal)} – ${fmtKES(f.maxPrincipal)}${f.minLoanLimit ? ` · floor ${fmtKES(f.minLoanLimit)}` : ""}`)}
       {line("Interest", `${f.interestRate}% ${f.interestMethod} · ${f.interestType} · per ${f.interestPeriodUnit}`)}
@@ -516,9 +516,9 @@ function ReviewStep({ f, workflows }: { f: Form; workflows: { id: string; title:
       {line("Requirements", [f.guarantorRequired && "Guarantor", f.securityRequired && `Security ${f.securityCoverPct}%`, f.minCreditScore && `Score ≥ ${f.minCreditScore}`].filter(Boolean).join(" · ") || "None")}
       {line("Disbursement", f.disbursementMode.replace(/_/g, " "))}
       <div className="py-1.5 text-sm">
-        <div className="flex items-center gap-1.5 text-zinc-500"><GitBranch className="h-3.5 w-3.5" /> Workflows</div>
-        <div className="mt-1 flex items-center gap-1.5 text-[13px] text-zinc-700"><span className="rounded bg-zinc-900/5 px-1.5 py-0.5 text-[10px] font-semibold">NEW</span> {wf(f.newWorkflowId)} <ChevronRight className="h-3 w-3 text-zinc-300" /> <Coins className="h-3 w-3 text-zinc-400" /></div>
-        <div className="mt-1 flex items-center gap-1.5 text-[13px] text-zinc-700"><span className="rounded bg-zinc-900/5 px-1.5 py-0.5 text-[10px] font-semibold">REPEAT</span> {f.repeatWorkflowId ? wf(f.repeatWorkflowId) : wf(f.newWorkflowId)}</div>
+        <div className="flex items-center gap-1.5 text-ash-500"><GitBranch className="h-3.5 w-3.5" /> Workflows</div>
+        <div className="mt-1 flex items-center gap-1.5 text-[13px] text-ash-700"><span className="rounded bg-ash-900/5 px-1.5 py-0.5 text-[10px] font-semibold">NEW</span> {wf(f.newWorkflowId)} <ChevronRight className="h-3 w-3 text-ash-300" /> <Coins className="h-3 w-3 text-ash-400" /></div>
+        <div className="mt-1 flex items-center gap-1.5 text-[13px] text-ash-700"><span className="rounded bg-ash-900/5 px-1.5 py-0.5 text-[10px] font-semibold">REPEAT</span> {f.repeatWorkflowId ? wf(f.repeatWorkflowId) : wf(f.newWorkflowId)}</div>
       </div>
     </div>
   );

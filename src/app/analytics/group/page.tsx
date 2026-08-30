@@ -81,7 +81,7 @@ export default async function GroupPage({ searchParams }: { searchParams: Promis
         <GroupBoard book={data.book} trend={data.trend} orgName={orgName} />
       ) : null}
 
-      <p className="mt-6 text-[11px] leading-snug text-zinc-400">
+      <p className="mt-6 text-[11px] leading-snug text-ash-400">
         Read live from your ServiceSuite instance. Active loans, OLB, arrears, PQS and NPL are computed exactly as the
         MainDashboard procedure computes them, including the 90-day performing-book boundary — so the figures here
         reconcile against the screen your branch managers already use, entity by entity.

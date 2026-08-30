@@ -157,19 +157,19 @@ export function BorrowerMenu(props: Props) {
   const item = (icon: React.ReactNode, label: string, sub: string, onClick: () => void) => (
     <button
       onClick={onClick}
-      className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-zinc-900/[0.05]"
+      className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-ash-900/[0.05]"
     >
       <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "var(--brand-soft)" }}>
         {icon}
       </span>
       <span className="min-w-0">
-        <span className="block text-[13px] font-semibold text-zinc-800">{label}</span>
-        <span className="block text-[11px] leading-snug text-zinc-500">{sub}</span>
+        <span className="block text-[13px] font-semibold text-ash-800">{label}</span>
+        <span className="block text-[11px] leading-snug text-ash-500">{sub}</span>
       </span>
     </button>
   );
   const groupLabel = (s: string) => (
-    <p className="px-3 pb-1 pt-2.5 text-[9px] font-bold uppercase tracking-[0.14em] text-zinc-400">{s}</p>
+    <p className="px-3 pb-1 pt-2.5 text-[9px] font-bold uppercase tracking-[0.14em] text-ash-400">{s}</p>
   );
   const ic = { className: "h-3.5 w-3.5", style: { color: "var(--brand)" } as React.CSSProperties };
 
@@ -182,7 +182,7 @@ export function BorrowerMenu(props: Props) {
         onClick={openDrawer}
         aria-label="Open the borrower menu"
         aria-expanded={mounted}
-        className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-900/10 bg-white/70 text-zinc-500 transition-colors hover:bg-white hover:text-zinc-800"
+        className="flex h-9 w-9 items-center justify-center rounded-lg border border-ash-900/10 bg-paper/70 text-ash-500 transition-colors hover:bg-paper hover:text-ash-800"
       >
         <MoreVertical className="h-4.5 w-4.5" />
       </button>
@@ -201,7 +201,7 @@ export function BorrowerMenu(props: Props) {
               the drawer looked pasted on, and nothing told the eye where to go.
               Click anywhere on it to close. */}
           <div
-            className={`absolute inset-0 bg-zinc-900/25 backdrop-blur-md backdrop-saturate-[0.85] transition-opacity duration-300 ${shown ? "opacity-100" : "opacity-0"}`}
+            className={`absolute inset-0 bg-ash-900/25 backdrop-blur-md backdrop-saturate-[0.85] transition-opacity duration-300 ${shown ? "opacity-100" : "opacity-0"}`}
             onClick={() => closeDrawer()}
           />
           {/* The drawer. SOLID white — .glass's translucent background beats bg-* in the
@@ -209,17 +209,17 @@ export function BorrowerMenu(props: Props) {
               A three-part column: the header and footer never move, only the middle
               scrolls, so the way out is always on screen. */}
           <div
-            className={`absolute inset-y-0 right-0 flex w-[min(380px,92vw)] flex-col bg-white shadow-[0_0_80px_rgba(0,0,0,0.35)] transition-transform duration-300 ease-out ${shown ? "translate-x-0" : "translate-x-full"}`}
+            className={`absolute inset-y-0 right-0 flex w-[min(380px,92vw)] flex-col bg-paper shadow-[0_0_80px_rgba(0,0,0,0.35)] transition-transform duration-300 ease-out ${shown ? "translate-x-0" : "translate-x-full"}`}
             role="dialog"
             aria-modal="true"
             aria-label={`Manage ${props.name}`}
           >
-            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-900/10 px-4 py-3.5">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-ash-900/10 px-4 py-3.5">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">Borrower menu</p>
-                <p className="truncate text-sm font-bold text-zinc-800">{props.name}</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ash-400">Borrower menu</p>
+                <p className="truncate text-sm font-bold text-ash-800">{props.name}</p>
               </div>
-              <button onClick={() => closeDrawer()} className="shrink-0 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-900/5 hover:text-zinc-700" aria-label="Close the borrower menu">
+              <button onClick={() => closeDrawer()} className="shrink-0 rounded-lg p-1.5 text-ash-400 hover:bg-ash-900/5 hover:text-ash-700" aria-label="Close the borrower menu">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -276,7 +276,7 @@ export function BorrowerMenu(props: Props) {
       )}
 
       {toast && createPortal(
-        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold text-white shadow-lg">
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-invert px-4 py-2 text-xs font-semibold text-invert-fg shadow-lg">
           {toast}
         </div>,
         document.body,
@@ -352,12 +352,12 @@ function EraseModal(p: Props & { onClose: () => void; onDone: (m: string) => voi
   return (
     <Modal title="Erase this customer" sub="What the law lets you delete — and what it makes you keep." onClose={p.onClose}>
       {!assessment && !error && (
-        <p className="mt-4 flex items-center gap-2 text-sm text-zinc-500"><Loader2 className="h-4 w-4 animate-spin" /> Working out what may be erased…</p>
+        <p className="mt-4 flex items-center gap-2 text-sm text-ash-500"><Loader2 className="h-4 w-4 animate-spin" /> Working out what may be erased…</p>
       )}
       <Err error={error} />
 
       {assessment?.alreadyErased && (
-        <p className="mt-4 rounded-lg bg-zinc-900/5 px-3 py-2.5 text-sm text-zinc-600">This customer has already been erased.</p>
+        <p className="mt-4 rounded-lg bg-ash-900/5 px-3 py-2.5 text-sm text-ash-600">This customer has already been erased.</p>
       )}
 
       {assessment && !assessment.alreadyErased && (
@@ -367,33 +367,33 @@ function EraseModal(p: Props & { onClose: () => void; onDone: (m: string) => voi
               <Scale className="h-3.5 w-3.5" />
               {assessment.mode === "HARD_DELETE" ? "Everything can go" : "Anonymise — the loan record must stay"}
             </p>
-            <p className="mt-1 text-[12px] leading-relaxed text-zinc-700">{assessment.summary}</p>
+            <p className="mt-1 text-[12px] leading-relaxed text-ash-700">{assessment.summary}</p>
           </div>
 
           <div className="mt-3">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Destroyed, permanently</p>
-            <ul className="mt-1 space-y-0.5 text-[12px] text-zinc-600">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-ash-400">Destroyed, permanently</p>
+            <ul className="mt-1 space-y-0.5 text-[12px] text-ash-600">
               {assessment.destroys.map((d, i) => <li key={i}>• {d}</li>)}
             </ul>
           </div>
 
           {assessment.retains.length > 0 && (
             <div className="mt-3">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Kept — the law requires it</p>
-              <ul className="mt-1 space-y-1 text-[12px] text-zinc-600">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-ash-400">Kept — the law requires it</p>
+              <ul className="mt-1 space-y-1 text-[12px] text-ash-600">
                 {assessment.retains.map((r, i) => (
-                  <li key={i}>• {r.what}<span className="block pl-2 text-[10px] italic text-zinc-400">{r.basis}</span></li>
+                  <li key={i}>• {r.what}<span className="block pl-2 text-[10px] italic text-ash-400">{r.basis}</span></li>
                 ))}
               </ul>
             </div>
           )}
 
           <label className="mt-4 block">
-            <span className="text-xs font-semibold text-zinc-600">Why is this being erased?</span>
+            <span className="text-xs font-semibold text-ash-600">Why is this being erased?</span>
             <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2}
               placeholder="The customer asked us to delete their data on 14 July, by phone."
               className={`${FIELD} mt-1`} />
-            <span className="text-[10px] text-zinc-400">Goes on the record. An ODPC inspector reads this.</span>
+            <span className="text-[10px] text-ash-400">Goes on the record. An ODPC inspector reads this.</span>
           </label>
 
           <div className="mt-4 flex items-center gap-2">
@@ -401,9 +401,9 @@ function EraseModal(p: Props & { onClose: () => void; onDone: (m: string) => voi
               className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Request erasure
             </button>
-            <button onClick={p.onClose} className="rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2.5 text-sm text-zinc-600">Cancel</button>
+            <button onClick={p.onClose} className="rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2.5 text-sm text-ash-600">Cancel</button>
           </div>
-          <p className="mt-2 text-[10px] text-zinc-400">Nothing is deleted yet — this goes to Compliance for a second pair of eyes.</p>
+          <p className="mt-2 text-[10px] text-ash-400">Nothing is deleted yet — this goes to Compliance for a second pair of eyes.</p>
         </>
       )}
     </Modal>
@@ -423,7 +423,7 @@ function Modal({ title, sub, children, onClose, wide }: { title: string; sub?: s
   );
 }
 
-const FIELD = "w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400";
+const FIELD = "w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none placeholder:text-ash-400";
 
 function useAction(onDone: (msg: string) => void) {
   const [busy, setBusy] = useState(false);
@@ -449,7 +449,7 @@ function SaveRow({ busy, onSave, onClose, label = "Save" }: { busy: boolean; onS
         className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: "var(--brand)" }}>
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} {label}
       </button>
-      <button onClick={onClose} className="rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2.5 text-sm text-zinc-600">Cancel</button>
+      <button onClick={onClose} className="rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2.5 text-sm text-ash-600">Cancel</button>
     </div>
   );
 }
@@ -470,15 +470,15 @@ type Profile = {
 function PField({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-wide text-zinc-400">{label}</p>
-      <p className="text-[13px] font-medium text-zinc-800">{value ?? "—"}</p>
+      <p className="text-[10px] uppercase tracking-wide text-ash-400">{label}</p>
+      <p className="text-[13px] font-medium text-ash-800">{value ?? "—"}</p>
     </div>
   );
 }
 function PSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mt-4">
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">{title}</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-ash-400">{title}</p>
       <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-2.5">{children}</div>
     </div>
   );
@@ -501,7 +501,7 @@ function ProfileModal({ borrowerId, onClose }: { borrowerId: string; onClose: ()
 
   return (
     <Modal wide title="Profile" sub={p ? p.name : "The whole customer, in one look."} onClose={onClose}>
-      {!p && !error && <p className="mt-4 flex items-center gap-2 text-sm text-zinc-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</p>}
+      {!p && !error && <p className="mt-4 flex items-center gap-2 text-sm text-ash-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</p>}
       <Err error={error} />
       {p && (
         <>
@@ -589,22 +589,22 @@ function LimitCheckModal({ borrowerId, onClose }: { borrowerId: string; onClose:
 
   return (
     <Modal wide title="Check limit" sub="What they qualify for right now — before anyone applies." onClose={onClose}>
-      {!data && !error && <p className="mt-4 flex items-center gap-2 text-sm text-zinc-500"><Loader2 className="h-4 w-4 animate-spin" /> Sizing against their statement…</p>}
+      {!data && !error && <p className="mt-4 flex items-center gap-2 text-sm text-ash-500"><Loader2 className="h-4 w-4 animate-spin" /> Sizing against their statement…</p>}
       <Err error={error} />
       {data && (
         <>
-          <div className="mt-4 rounded-xl border border-zinc-900/10 bg-zinc-900/[0.02] px-3 py-2.5">
+          <div className="mt-4 rounded-xl border border-ash-900/10 bg-ash-900/[0.02] px-3 py-2.5">
             {data.basis.hasStatement ? (
-              <p className="text-[12px] text-zinc-600">
-                Sized from a crunched statement — about <span className="font-semibold text-zinc-800">KES {Math.round(data.basis.avgMonthlyNet ?? 0).toLocaleString()}</span> net a month
+              <p className="text-[12px] text-ash-600">
+                Sized from a crunched statement — about <span className="font-semibold text-ash-800">KES {Math.round(data.basis.avgMonthlyNet ?? 0).toLocaleString()}</span> net a month
                 {data.basis.statementScore != null && <> · score <span className="font-semibold">{data.basis.statementScore}</span></>}.
               </p>
             ) : (
-              <p className="text-[12px] text-amber-700">No crunched statement on file — limits rest on history alone. <span className="text-zinc-500">Crunch a statement for a sharper number.</span></p>
+              <p className="text-[12px] text-amber-700">No crunched statement on file — limits rest on history alone. <span className="text-ash-500">Crunch a statement for a sharper number.</span></p>
             )}
-            <p className="mt-1 text-[11px] text-zinc-500">
+            <p className="mt-1 text-[11px] text-ash-500">
               {data.basis.borrowerClass === "NEW" ? "First cycle with this lender — capped on the new-borrower ladder." : data.basis.borrowerClass === "GRADUATED" ? "Graduated — the upper tiers are unlocked." : `Returning · ${data.basis.priorLoanCount} repaid.`}
-              {" "}Qualifies for <span className="font-semibold text-zinc-700">{qualifies}</span> of {rows.length} products.
+              {" "}Qualifies for <span className="font-semibold text-ash-700">{qualifies}</span> of {rows.length} products.
             </p>
           </div>
 
@@ -612,29 +612,29 @@ function LimitCheckModal({ borrowerId, onClose }: { borrowerId: string; onClose:
             {rows.map((r) => {
               const ok = r.approvedLimit > 0;
               return (
-                <div key={r.productId} className={`rounded-xl border px-3 py-2.5 ${ok ? "border-emerald-200 bg-emerald-50/40" : "border-zinc-900/10 bg-zinc-900/[0.02] opacity-70"}`}>
+                <div key={r.productId} className={`rounded-xl border px-3 py-2.5 ${ok ? "border-emerald-200 bg-emerald-50/40" : "border-ash-900/10 bg-ash-900/[0.02] opacity-70"}`}>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-zinc-800 flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-ash-800 flex items-center gap-1.5">
                       {r.productName}
                       {r.guarantorRequired && <ShieldCheck className="h-3 w-3 text-amber-500" />}
                     </p>
                     {ok ? (
                       <span className="text-sm font-bold" style={{ color: "var(--brand)" }}>KES {r.approvedLimit.toLocaleString()}</span>
                     ) : (
-                      <span className="text-[11px] font-semibold text-zinc-400">Does not qualify</span>
+                      <span className="text-[11px] font-semibold text-ash-400">Does not qualify</span>
                     )}
                   </div>
-                  <p className="mt-0.5 text-[11px] text-zinc-500">
+                  <p className="mt-0.5 text-[11px] text-ash-500">
                     {Number(r.interestRate)}% {r.interestMethod}
                     {ok && r.affordableInstallment != null && (
-                      <> · about <span className="font-medium text-zinc-700">KES {r.affordableInstallment.toLocaleString()}</span>/{(r.installmentUnit ?? "month").replace(/s$/, "")} × {r.installmentCount}</>
+                      <> · about <span className="font-medium text-ash-700">KES {r.affordableInstallment.toLocaleString()}</span>/{(r.installmentUnit ?? "month").replace(/s$/, "")} × {r.installmentCount}</>
                     )}
                   </p>
                 </div>
               );
             })}
           </div>
-          <p className="mt-3 text-[10px] text-zinc-400 flex items-center gap-1">
+          <p className="mt-3 text-[10px] text-ash-400 flex items-center gap-1">
             <ChevronRight className="h-3 w-3" /> The engine recomputes this at apply time and enforces it — this preview cannot flatter.
           </p>
         </>
@@ -702,10 +702,10 @@ function LocationsModal(p: Props & { onClose: () => void; onPin: () => void }) {
   return (
     <Modal title="Locations" sub={`Where ${p.name} can be found`} onClose={p.onClose}>
       {places.length === 0 ? (
-        <div className="mt-4 rounded-2xl border border-dashed border-zinc-900/15 bg-zinc-50/60 p-5 text-center">
-          <MapPin className="mx-auto h-6 w-6 text-zinc-300" />
-          <p className="mt-2 text-sm font-semibold text-zinc-700">No location on file</p>
-          <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-zinc-500">
+        <div className="mt-4 rounded-2xl border border-dashed border-ash-900/15 bg-ash-50/60 p-5 text-center">
+          <MapPin className="mx-auto h-6 w-6 text-ash-300" />
+          <p className="mt-2 text-sm font-semibold text-ash-700">No location on file</p>
+          <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-ash-500">
             Nobody can be routed to them, and a disbursement will be refused while this lender
             requires a pin. Drop one while you are with them — the map reads their GPS.
           </p>
@@ -720,19 +720,19 @@ function LocationsModal(p: Props & { onClose: () => void; onPin: () => void }) {
       ) : (
         <div className="mt-4 space-y-2">
           {places.map((place) => (
-            <div key={place.kind} className="rounded-2xl border border-zinc-900/10 bg-white/70 p-3.5">
+            <div key={place.kind} className="rounded-2xl border border-ash-900/10 bg-paper/70 p-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="flex items-center gap-1.5 text-[13px] font-bold text-zinc-800">
+                  <p className="flex items-center gap-1.5 text-[13px] font-bold text-ash-800">
                     <span className="flex h-6 w-6 items-center justify-center rounded-lg" style={{ backgroundColor: "var(--brand-soft)" }}>
                       {place.kind === "business" ? <Building2 className="h-3.5 w-3.5" style={{ color: "var(--brand)" }} /> : <Home className="h-3.5 w-3.5" style={{ color: "var(--brand)" }} />}
                     </span>
                     {place.kind === "business" ? "Business" : "Home"}
                   </p>
-                  <p className="mt-1.5 text-xs leading-snug text-zinc-600">
-                    {place.address ?? <span className="text-zinc-400">Pin dropped, no address written down</span>}
+                  <p className="mt-1.5 text-xs leading-snug text-ash-600">
+                    {place.address ?? <span className="text-ash-400">Pin dropped, no address written down</span>}
                   </p>
-                  <p className="mt-1 font-mono text-[10px] text-zinc-400">
+                  <p className="mt-1 font-mono text-[10px] text-ash-400">
                     {place.lat.toFixed(5)}, {place.lng.toFixed(5)}
                   </p>
                 </div>
@@ -748,7 +748,7 @@ function LocationsModal(p: Props & { onClose: () => void; onPin: () => void }) {
           ))}
           <button
             onClick={() => { p.onClose(); p.onPin(); }}
-            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-zinc-900/15 py-2.5 text-xs font-semibold text-zinc-500 hover:bg-zinc-900/[0.03] hover:text-zinc-700"
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-ash-900/15 py-2.5 text-xs font-semibold text-ash-500 hover:bg-ash-900/[0.03] hover:text-ash-700"
           >
             <MapPin className="h-3.5 w-3.5" />
             {places.length === 1 ? `Add their ${places[0].kind === "business" ? "home" : "business"}` : "Update a pin"}
@@ -790,10 +790,10 @@ function LocationModal(p: Props & { onClose: () => void; onDone: (m: string) => 
       onClose={p.onClose}
     >
       <div className="mt-4">
-        <div className="inline-flex rounded-lg border border-zinc-900/12 bg-zinc-900/[0.03] p-0.5 text-xs font-semibold">
+        <div className="inline-flex rounded-lg border border-ash-900/12 bg-ash-900/[0.03] p-0.5 text-xs font-semibold">
           {(["business", "home"] as const).map((w) => (
             <button key={w} onClick={() => pick(w)}
-              className={`rounded-md px-3 py-1.5 capitalize transition-colors ${which === w ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500"}`}>
+              className={`rounded-md px-3 py-1.5 capitalize transition-colors ${which === w ? "bg-paper text-ash-900 shadow-sm" : "text-ash-500"}`}>
               {w}
             </button>
           ))}
@@ -865,8 +865,8 @@ function LimitModal(p: Props & { onClose: () => void; onDone: (m: string) => voi
   return (
     <Modal title="Loan limit" sub="Overrides what the limit engine derived. The note is mandatory — this is a credit decision." onClose={p.onClose}>
       <div className="mt-4 space-y-3">
-        <div className="flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3">
-          <span className="text-sm text-zinc-500">KES</span>
+        <div className="flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3">
+          <span className="text-sm text-ash-500">KES</span>
           <input className="flex-1 bg-transparent py-2.5 text-sm outline-none" inputMode="numeric"
             placeholder="Leave empty to clear the override"
             value={limit ? Number(limit).toLocaleString() : ""}
@@ -892,11 +892,11 @@ function ScoreModal(p: Props & { onClose: () => void; onDone: (m: string) => voi
       onClose={p.onClose}
     >
       <div className="mt-4 space-y-3">
-        <div className="flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3">
+        <div className="flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3">
           <input className="flex-1 bg-transparent py-2.5 text-sm outline-none" inputMode="numeric"
             placeholder="300 – 900 (empty to clear)" value={score}
             onChange={(e) => setScore(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))} />
-          <span className="text-xs text-zinc-400">/ 900</span>
+          <span className="text-xs text-ash-400">/ 900</span>
         </div>
         <textarea className={`${FIELD} min-h-20`} placeholder="Why? (required — lands in the audit trail and the score history)" value={note} onChange={(e) => setNote(e.target.value)} />
       </div>
@@ -939,7 +939,7 @@ function AssignModal(p: Props & { onClose: () => void; onDone: (m: string) => vo
   return (
     <Modal title="Officer & branch" sub="Whose book this customer sits on — visibility scopes follow it." onClose={p.onClose}>
       {!staff || !branches ? (
-        <div className="mt-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>
+        <div className="mt-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>
       ) : (
         <div className="mt-4 space-y-3">
           <select className={select} value={officerId} onChange={(e) => setOfficerId(e.target.value)}>
@@ -1007,11 +1007,11 @@ function AttachmentsModal(p: Props & { onClose: () => void }) {
   return (
     <Modal title="Attachments" sub="Uploaded documents are parsed, stored privately, and attached to this record." onClose={p.onClose}>
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <select className="rounded-lg border border-zinc-900/15 bg-white/80 px-2.5 py-2 text-xs outline-none" value={kind} onChange={(e) => setKind(e.target.value)}>
+        <select className="rounded-lg border border-ash-900/15 bg-paper/80 px-2.5 py-2 text-xs outline-none" value={kind} onChange={(e) => setKind(e.target.value)}>
           {["NATIONAL_ID", "BANK_STATEMENT", "FEE_STRUCTURE", "INVOICE", "PERMIT", "OTHER"].map((k) => <option key={k} value={k}>{k.replace(/_/g, " ")}</option>)}
         </select>
         {needsPassword && (
-          <input className="rounded-lg border border-zinc-900/15 bg-white/80 px-2.5 py-2 text-xs outline-none" placeholder="PDF password"
+          <input className="rounded-lg border border-ash-900/15 bg-paper/80 px-2.5 py-2 text-xs outline-none" placeholder="PDF password"
             value={password} onChange={(e) => setPassword(e.target.value)} />
         )}
         <button onClick={() => fileRef.current?.click()} disabled={busy}
@@ -1023,17 +1023,17 @@ function AttachmentsModal(p: Props & { onClose: () => void }) {
       </div>
       <Err error={error} />
       <div className="mt-3 max-h-64 space-y-1.5 overflow-y-auto">
-        {docs == null && <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-zinc-400" /></div>}
-        {docs?.length === 0 && <p className="py-3 text-center text-xs text-zinc-500">Nothing on file yet.</p>}
+        {docs == null && <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-ash-400" /></div>}
+        {docs?.length === 0 && <p className="py-3 text-center text-xs text-ash-500">Nothing on file yet.</p>}
         {docs?.map((d) => (
-          <div key={d.id} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-900/10 bg-white/60 px-3 py-2">
+          <div key={d.id} className="flex items-center justify-between gap-2 rounded-lg border border-ash-900/10 bg-paper/60 px-3 py-2">
             <span className="flex min-w-0 items-center gap-2 text-xs">
-              <FileText className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-              <span className="truncate font-medium text-zinc-700">{d.filename}</span>
+              <FileText className="h-3.5 w-3.5 shrink-0 text-ash-400" />
+              <span className="truncate font-medium text-ash-700">{d.filename}</span>
             </span>
             <span className="flex shrink-0 items-center gap-1.5 text-[10px]">
-              <span className="rounded bg-zinc-900/5 px-1.5 py-0.5 font-semibold text-zinc-500">{d.kind.replace(/_/g, " ")}</span>
-              <span className={`rounded px-1.5 py-0.5 font-bold ${d.status === "PARSED" ? "bg-emerald-100 text-emerald-700" : d.status === "REVIEW" ? "bg-amber-100 text-amber-700" : "bg-zinc-900/5 text-zinc-500"}`}>{d.status}</span>
+              <span className="rounded bg-ash-900/5 px-1.5 py-0.5 font-semibold text-ash-500">{d.kind.replace(/_/g, " ")}</span>
+              <span className={`rounded px-1.5 py-0.5 font-bold ${d.status === "PARSED" ? "bg-emerald-100 text-emerald-700" : d.status === "REVIEW" ? "bg-amber-100 text-amber-700" : "bg-ash-900/5 text-ash-500"}`}>{d.status}</span>
             </span>
           </div>
         ))}

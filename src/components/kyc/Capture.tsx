@@ -161,7 +161,7 @@ export function Capture({
 
   return (
     <div>
-      <div className={`relative ${aspect} w-full overflow-hidden rounded-2xl bg-zinc-900 ring-2 transition-colors`} style={{ ["--tw-ring-color" as never]: ringColor }}>
+      <div className={`relative ${aspect} w-full overflow-hidden rounded-2xl bg-stage ring-2 transition-colors`} style={{ ["--tw-ring-color" as never]: ringColor }}>
         {!camError ? (
           <video ref={videoRef} playsInline muted className="h-full w-full object-cover" />
         ) : (
@@ -187,7 +187,7 @@ export function Capture({
               {ready ? (<><CheckCircle2 className="h-3.5 w-3.5" /> {t.capture.looksGood}</>) : (coach.hint ? t.capture[coach.hint] : t.capture.reading)}
             </span>
             {/* Readiness meter */}
-            <span className="flex h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-white/25">
+            <span className="flex h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-paper/25">
               <span className="h-full rounded-full transition-all duration-300" style={{ width: `${coach.readiness}%`, backgroundColor: ringColor }} />
             </span>
           </div>
@@ -206,12 +206,12 @@ export function Capture({
       <div className="mt-3 flex gap-2">
         {!camError && (
           <button onClick={shoot} disabled={busy}
-            className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+            className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-invert px-4 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />} {t.capture.capture}
           </button>
         )}
         <button onClick={() => fileRef.current?.click()} disabled={busy}
-          className={`${camError ? "flex-1" : ""} inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-3 text-sm font-semibold text-zinc-700 hover:bg-white disabled:opacity-60`}>
+          className={`${camError ? "flex-1" : ""} inline-flex items-center justify-center gap-2 rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-3 text-sm font-semibold text-ash-700 hover:bg-paper disabled:opacity-60`}>
           <Upload className="h-4 w-4" /> {t.capture.upload}
         </button>
         <input ref={fileRef} type="file" accept="image/*" capture={frame === "face" ? "user" : "environment"} onChange={onFile} className="hidden" />
@@ -239,7 +239,7 @@ function analyzeCanvas(canvas: HTMLCanvasElement): { brightness: number; blurVar
 export function RetakeButton({ onClick }: { onClick: () => void }) {
   const { t } = useLang();
   return (
-    <button onClick={onClick} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-white">
+    <button onClick={onClick} className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2 text-xs font-semibold text-ash-700 hover:bg-paper">
       <RefreshCw className="h-3.5 w-3.5" /> {t.capture.retake}
     </button>
   );

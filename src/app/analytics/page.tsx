@@ -71,7 +71,7 @@ export default async function AnalyticsOverview({ searchParams }: { searchParams
       actions={
         <Link
           href="/analytics/explorer"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3.5 py-2 text-[12px] font-semibold text-white hover:bg-zinc-800"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-3.5 py-2 text-[12px] font-semibold text-invert-fg hover:bg-invert-2"
         >
           Build your own chart <ArrowRight className="h-3.5 w-3.5" />
         </Link>
@@ -225,7 +225,7 @@ export default async function AnalyticsOverview({ searchParams }: { searchParams
         />
       </div>
 
-      <p className="mt-6 text-[11px] leading-snug text-zinc-400">
+      <p className="mt-6 text-[11px] leading-snug text-ash-400">
         Every figure on this page is aggregated in the database from the live tables, under the filters shown above, using
         the definitions in the metric catalogue — the same ones the lending console&apos;s tiles read. Where a number here
         and a number there disagree, one of them is a bug; there is no second arithmetic.

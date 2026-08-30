@@ -36,6 +36,7 @@ import type { ShellOrg, ShellUser } from "./types";
 import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 import Sidebar from "./Sidebar";
 import IdentityMenu from "./IdentityMenu";
+import ThemeSwitch from "./ThemeSwitch";
 import ImpersonationBanner from "./ImpersonationBanner";
 import RealmSwitch, { type SwitchRealm } from "./RealmSwitch";
 
@@ -136,6 +137,7 @@ export default function Shell({
                 {/* ONE control, far right: the grip and the person are the same
                     button now, because the systems it opens are opened BY that
                     identity. See IdentityMenu. */}
+                <ThemeSwitch />
                 <IdentityMenu
                   name={user.name}
                   email={user.email}
@@ -158,14 +160,14 @@ export default function Shell({
       {drawer && (
         <div className="no-print fixed inset-0 z-50 lg:hidden">
           <div aria-hidden className="absolute inset-0 bg-zinc-950/40 backdrop-blur-sm" onClick={() => setDrawer(false)} />
-          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-white shadow-2xl">
+          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-paper shadow-2xl">
             {/* The brand card at the head of the Sidebar is the drawer's header;
                 the close button floats over its corner. */}
             <button
               type="button"
               onClick={() => setDrawer(false)}
               aria-label="Close navigation"
-              className="absolute right-2 top-2 z-10 rounded-lg bg-white/80 p-2 text-zinc-500 shadow-sm hover:bg-zinc-900/5"
+              className="absolute right-2 top-2 z-10 rounded-lg bg-paper/80 p-2 text-ash-500 shadow-sm hover:bg-ash-900/5"
             >
               <X className="h-4 w-4" />
             </button>

@@ -125,8 +125,8 @@ export function CallsScreen({ onOpenCustomer }: { onOpenCustomer: (id: string, n
       <div className="min-h-0 flex-1 overflow-y-auto px-3.5 pb-2">
         {/* THE NUMBER */}
         <div className="pt-2 text-center">
-          <p className={`font-semibold tabular-nums tracking-tight text-zinc-900 ${digits.length > 10 ? "text-[22px]" : "text-[27px]"}`}>
-            {digits ? pretty(digits) : <span className="text-zinc-300">Enter a number</span>}
+          <p className={`font-semibold tabular-nums tracking-tight text-ash-900 ${digits.length > 10 ? "text-[22px]" : "text-[27px]"}`}>
+            {digits ? pretty(digits) : <span className="text-ash-300">Enter a number</span>}
           </p>
         </div>
 
@@ -135,7 +135,7 @@ export function CallsScreen({ onOpenCustomer }: { onOpenCustomer: (id: string, n
           <AnimatePresence mode="wait">
             {looking && (
               <motion.p key="l" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="flex items-center justify-center gap-1.5 pt-4 text-[11px] text-zinc-400">
+                className="flex items-center justify-center gap-1.5 pt-4 text-[11px] text-ash-400">
                 <Loader2 className="h-3 w-3 animate-spin" /> Checking your book…
               </motion.p>
             )}
@@ -145,14 +145,14 @@ export function CallsScreen({ onOpenCustomer }: { onOpenCustomer: (id: string, n
                 key="k"
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                 onClick={() => onOpenCustomer(match.borrowerId, match.name)}
-                className="w-full rounded-2xl border border-zinc-900/[0.07] bg-white/80 px-3 py-2.5 text-left transition-colors hover:border-[color:var(--brand)]"
+                className="w-full rounded-2xl border border-ash-900/[0.07] bg-paper/80 px-3 py-2.5 text-left transition-colors hover:border-[color:var(--brand)]"
               >
                 <div className="flex items-center gap-2">
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white" style={{ backgroundColor: "var(--brand)" }}>
                     {match.name.slice(0, 1).toUpperCase()}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-bold leading-tight text-zinc-900">{match.name}</span>
+                    <span className="block truncate text-[13px] font-bold leading-tight text-ash-900">{match.name}</span>
                     <span className="mt-0.5 flex flex-wrap items-center gap-1">
                       {match.riskBand && (
                         <span className={`rounded px-1.5 py-px text-[9px] font-bold ${
@@ -163,11 +163,11 @@ export function CallsScreen({ onOpenCustomer }: { onOpenCustomer: (id: string, n
                           {match.riskBand}{match.creditScore ? ` ${match.creditScore}` : ""}
                         </span>
                       )}
-                      {match.balance && <span className="text-[9.5px] text-zinc-500">{match.balance} out</span>}
-                      {match.branch && <span className="text-[9.5px] text-zinc-400">· {match.branch}</span>}
+                      {match.balance && <span className="text-[9.5px] text-ash-500">{match.balance} out</span>}
+                      {match.branch && <span className="text-[9.5px] text-ash-400">· {match.branch}</span>}
                     </span>
                   </span>
-                  <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300" />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-ash-300" />
                 </div>
 
                 {/* The three lines that change the conversation. */}
@@ -185,13 +185,13 @@ export function CallsScreen({ onOpenCustomer }: { onOpenCustomer: (id: string, n
                     </p>
                   )}
                   {match.lastContact && (
-                    <p className="flex items-center gap-1.5 text-[10.5px] text-zinc-500">
+                    <p className="flex items-center gap-1.5 text-[10.5px] text-ash-500">
                       <MessageSquare className="h-3 w-3 shrink-0" />
                       Last spoken to {ago(match.lastContact.at)} — {match.lastContact.what}
                     </p>
                   )}
                   {match.kycStatus !== "VERIFIED" && (
-                    <p className="text-[10.5px] text-zinc-500">KYC {match.kycStatus.toLowerCase().replace(/_/g, " ")}</p>
+                    <p className="text-[10.5px] text-ash-500">KYC {match.kycStatus.toLowerCase().replace(/_/g, " ")}</p>
                   )}
                 </div>
               </motion.button>
@@ -199,9 +199,9 @@ export function CallsScreen({ onOpenCustomer }: { onOpenCustomer: (id: string, n
 
             {!looking && state === "unknown" && (
               <motion.div key="u" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="rounded-2xl border border-dashed border-zinc-300 bg-white/50 px-3 py-2.5 text-center">
-                <p className="text-[11.5px] font-semibold text-zinc-600">Not on your book</p>
-                <p className="mt-0.5 text-[10px] leading-snug text-zinc-500">
+                className="rounded-2xl border border-dashed border-ash-300 bg-paper/50 px-3 py-2.5 text-center">
+                <p className="text-[11.5px] font-semibold text-ash-600">Not on your book</p>
+                <p className="mt-0.5 text-[10px] leading-snug text-ash-500">
                   {scope === "OWN" ? "Nobody you registered has this number — it may belong to a colleague's customer."
                     : scope === "BRANCH" || scope === "BRANCH_TREE" ? "Nobody in your branch has this number."
                       : "No customer on this book has this number."}
@@ -218,10 +218,10 @@ export function CallsScreen({ onOpenCustomer }: { onOpenCustomer: (id: string, n
             <button
               key={k}
               onClick={() => tap(k)}
-              className="os-key flex aspect-[1.5/1] flex-col items-center justify-center rounded-2xl border border-zinc-900/[0.07] bg-white/80 transition-all hover:bg-white active:scale-95"
+              className="os-key flex aspect-[1.5/1] flex-col items-center justify-center rounded-2xl border border-ash-900/[0.07] bg-paper/80 transition-all hover:bg-paper active:scale-95"
             >
-              <span className="text-[19px] font-semibold leading-none text-zinc-800">{k}</span>
-              {sub && <span className="mt-0.5 text-[7.5px] font-bold tracking-[0.16em] text-zinc-400">{sub}</span>}
+              <span className="text-[19px] font-semibold leading-none text-ash-800">{k}</span>
+              {sub && <span className="mt-0.5 text-[7.5px] font-bold tracking-[0.16em] text-ash-400">{sub}</span>}
             </button>
           ))}
         </div>
@@ -242,7 +242,7 @@ export function CallsScreen({ onOpenCustomer }: { onOpenCustomer: (id: string, n
           <button
             onClick={back}
             disabled={!digits}
-            className="flex h-11 w-11 items-center justify-center rounded-full text-zinc-400 transition-colors hover:text-zinc-800 disabled:opacity-0"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-ash-400 transition-colors hover:text-ash-800 disabled:opacity-0"
             aria-label="Delete a digit"
           >
             <Delete className="h-5 w-5" />
@@ -255,10 +255,10 @@ export function CallsScreen({ onOpenCustomer }: { onOpenCustomer: (id: string, n
             <SectionLabel className="flex items-center gap-1.5"><History className="h-3 w-3" /> Recent</SectionLabel>
             <div className="mt-1.5 space-y-1">
               {recents.map((r) => (
-                <div key={`${r.borrowerId}-${r.at}`} className="flex items-center gap-2 rounded-xl border border-zinc-900/[0.06] bg-white/70 px-2.5 py-1.5">
+                <div key={`${r.borrowerId}-${r.at}`} className="flex items-center gap-2 rounded-xl border border-ash-900/[0.06] bg-paper/70 px-2.5 py-1.5">
                   <button onClick={() => onOpenCustomer(r.borrowerId, r.name)} className="min-w-0 flex-1 text-left">
-                    <span className="block truncate text-[11.5px] font-semibold leading-tight text-zinc-800">{r.name}</span>
-                    <span className="block truncate text-[9.5px] leading-tight text-zinc-500">{r.outcome} · {ago(r.at)}</span>
+                    <span className="block truncate text-[11.5px] font-semibold leading-tight text-ash-800">{r.name}</span>
+                    <span className="block truncate text-[9.5px] leading-tight text-ash-500">{r.outcome} · {ago(r.at)}</span>
                   </button>
                   <button
                     onClick={() => setDigits(r.phone)}
@@ -322,17 +322,17 @@ function LogSheet({ name, borrowerId, onClose }: { name: string; borrowerId: str
     <motion.div
       initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
       transition={{ type: "spring", stiffness: 380, damping: 34 }}
-      className="absolute inset-x-0 bottom-0 z-30 rounded-t-3xl border-t border-zinc-900/10 bg-white p-3.5 shadow-2xl"
+      className="absolute inset-x-0 bottom-0 z-30 rounded-t-3xl border-t border-ash-900/10 bg-paper p-3.5 shadow-2xl"
     >
-      <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-zinc-200" />
+      <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-ash-200" />
       {done ? (
         <p className="flex items-center justify-center gap-2 py-4 text-[13px] font-semibold text-emerald-600">
           <Check className="h-4 w-4" /> Logged on {name}&apos;s timeline
         </p>
       ) : (
         <>
-          <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-zinc-900">
-            <UserRound className="h-3.5 w-3.5 text-zinc-400" /> How did the call with {name} go?
+          <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-ash-900">
+            <UserRound className="h-3.5 w-3.5 text-ash-400" /> How did the call with {name} go?
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {DISPOSITIONS.map((d) => (
@@ -342,7 +342,7 @@ function LogSheet({ name, borrowerId, onClose }: { name: string; borrowerId: str
                 className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors ${
                   disposition === d
                     ? "border-transparent text-white"
-                    : "border-zinc-900/[0.12] bg-white text-zinc-600 hover:border-[color:var(--brand)]"
+                    : "border-ash-900/[0.12] bg-paper text-ash-600 hover:border-[color:var(--brand)]"
                 }`}
                 style={disposition === d ? { backgroundColor: "var(--brand)" } : undefined}
               >
@@ -354,11 +354,11 @@ function LogSheet({ name, borrowerId, onClose }: { name: string; borrowerId: str
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Anything worth remembering (optional)"
-            className="mt-2 w-full rounded-xl border border-zinc-900/[0.12] bg-white px-2.5 py-2 text-[12px] outline-none placeholder:text-zinc-400 focus:border-[color:var(--brand)]"
+            className="mt-2 w-full rounded-xl border border-ash-900/[0.12] bg-paper px-2.5 py-2 text-[12px] outline-none placeholder:text-ash-400 focus:border-[color:var(--brand)]"
           />
           {error && <p className="mt-1.5 text-[10.5px] text-rose-600">{error}</p>}
           <div className="mt-2.5 flex gap-2">
-            <button onClick={onClose} className="flex-1 rounded-xl border border-zinc-900/10 py-2 text-[12px] font-semibold text-zinc-600 hover:text-zinc-900">
+            <button onClick={onClose} className="flex-1 rounded-xl border border-ash-900/10 py-2 text-[12px] font-semibold text-ash-600 hover:text-ash-900">
               Skip
             </button>
             <button

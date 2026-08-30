@@ -78,7 +78,7 @@ export default function FlowsBoard({
                 type="button"
                 onClick={() => setWindow(d)}
                 className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
-                  windowDays === d ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-900/[0.05]"
+                  windowDays === d ? "bg-invert text-invert-fg" : "text-ash-500 hover:bg-ash-900/[0.05]"
                 }`}
               >
                 {d === 365 ? "1 year" : `${d} days`}
@@ -123,7 +123,7 @@ export default function FlowsBoard({
           right={
             active ? (
               <div className="text-right">
-                <p className="text-[11px] font-semibold text-zinc-700">{shortDate(active.day)}</p>
+                <p className="text-[11px] font-semibold text-ash-700">{shortDate(active.day)}</p>
                 <p className="text-[10.5px] tabular-nums" style={{ color: OUT }}>
                   out {KES(active.disbursed, { compact: true })} ({N(active.disbursedN)})
                 </p>
@@ -132,7 +132,7 @@ export default function FlowsBoard({
                 </p>
               </div>
             ) : (
-              <p className="text-[10.5px] text-zinc-400">Hover a day</p>
+              <p className="text-[10.5px] text-ash-400">Hover a day</p>
             )
           }
         />
@@ -150,7 +150,7 @@ export default function FlowsBoard({
                   onFocus={() => setHover(i)}
                   aria-label={`${d.day}: out ${Math.round(d.disbursed)}, in ${Math.round(d.collected)}`}
                   className={`group relative flex min-w-0 flex-1 flex-col justify-center rounded-sm transition-colors ${
-                    hover === i ? "bg-zinc-900/[0.04]" : ""
+                    hover === i ? "bg-ash-900/[0.04]" : ""
                   }`}
                 >
                   {/* out — grows upward from the centre line */}
@@ -160,7 +160,7 @@ export default function FlowsBoard({
                       style={{ height: `${(d.disbursed / max) * 100}%`, backgroundColor: OUT, opacity: hover == null || hover === i ? 0.9 : 0.4 }}
                     />
                   </span>
-                  <span aria-hidden className="h-px w-full bg-zinc-900/15" />
+                  <span aria-hidden className="h-px w-full bg-ash-900/15" />
                   {/* in — grows downward */}
                   <span className="flex h-1/2 w-full items-start justify-center">
                     <span
@@ -171,7 +171,7 @@ export default function FlowsBoard({
                 </button>
               ))}
             </div>
-            <div className="mt-2 flex items-center justify-between text-[10.5px] text-zinc-400">
+            <div className="mt-2 flex items-center justify-between text-[10.5px] text-ash-400">
               <span>{shortDate(days[0]?.day)}</span>
               <span className="flex items-center gap-3">
                 <span className="inline-flex items-center gap-1">
@@ -206,15 +206,15 @@ export default function FlowsBoard({
 
         <Card>
           <CardHead title="Why these two sources" accent={IN} />
-          <p className="text-[11.5px] leading-relaxed text-zinc-500">
+          <p className="text-[11.5px] leading-relaxed text-ash-500">
             Disbursement is read from <code className="text-[10px]">Loans.BorrowDate</code> and{" "}
             <code className="text-[10px]">Loans.LoanAmount</code>, collection from{" "}
             <code className="text-[10px]">PayedAmount.DatePaid</code> — not from the journal. The posting that represents a
             disbursement is not reliably typed across three years of data, whereas both of these are unambiguous. So this screen
             compares two authoritative sources rather than one inferred one.
           </p>
-          <p className="mt-2 text-[11.5px] leading-relaxed text-zinc-500">
-            They also live in <strong className="font-semibold text-zinc-700">different databases</strong>. Nobody has ever
+          <p className="mt-2 text-[11.5px] leading-relaxed text-ash-500">
+            They also live in <strong className="font-semibold text-ash-700">different databases</strong>. Nobody has ever
             reconciled them, because nothing has ever read both. That they track each other day for day is the finding, not the
             assumption.
           </p>
@@ -226,9 +226,9 @@ export default function FlowsBoard({
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-zinc-900/[0.05] pb-1.5 last:border-0">
-      <dt className="text-zinc-500">{label}</dt>
-      <dd className="shrink-0 font-semibold tabular-nums text-zinc-800">{value}</dd>
+    <div className="flex items-baseline justify-between gap-3 border-b border-ash-900/[0.05] pb-1.5 last:border-0">
+      <dt className="text-ash-500">{label}</dt>
+      <dd className="shrink-0 font-semibold tabular-nums text-ash-800">{value}</dd>
     </div>
   );
 }

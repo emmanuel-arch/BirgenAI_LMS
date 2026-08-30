@@ -47,7 +47,7 @@ type Row = {
 };
 
 const STATUS: Record<Row["kycStatus"], { label: string; cls: string }> = {
-  NONE: { label: "Not started", cls: "bg-zinc-900/5 text-zinc-600" },
+  NONE: { label: "Not started", cls: "bg-ash-900/5 text-ash-600" },
   IN_PROGRESS: { label: "Half-finished", cls: "bg-amber-100 text-amber-700" },
   PENDING_REVIEW: { label: "Needs a human look", cls: "bg-sky-100 text-sky-700" },
   FAILED: { label: "Failed", cls: "bg-rose-100 text-rose-700" },
@@ -130,7 +130,7 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
   if (loading) {
     return (
       <main className="mx-auto max-w-5xl px-4 sm:px-6 py-10">
-        <p className="flex items-center gap-2 text-sm text-zinc-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading the queue…</p>
+        <p className="flex items-center gap-2 text-sm text-ash-500"><Loader2 className="h-4 w-4 animate-spin" /> Loading the queue…</p>
       </main>
     );
   }
@@ -147,7 +147,7 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
       />
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
-        <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-zinc-900/12 bg-white/80 px-3">
+        <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-xl border border-ash-900/12 bg-paper/80 px-3">
           <Search className="h-4 w-4 shrink-0 text-[color:var(--ink-faint)]" />
           <input
             value={q}
@@ -157,7 +157,7 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
           />
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-zinc-900/5 px-2.5 py-1 text-[12px] font-semibold text-[color:var(--ink-muted)]">{rows.length} waiting</span>
+          <span className="rounded-full bg-ash-900/5 px-2.5 py-1 text-[12px] font-semibold text-[color:var(--ink-muted)]">{rows.length} waiting</span>
           {blocked > 0 && (
             <span className="rounded-full bg-rose-100 px-2.5 py-1 text-[12px] font-bold text-rose-700">{blocked} blocked from disbursement</span>
           )}
@@ -192,7 +192,7 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
             return (
               <div
                 key={r.id}
-                className={`rounded-xl border bg-white/70 px-4 py-3 ${isFocus ? "border-[color:var(--brand)] ring-2 ring-[color:var(--brand)]/20" : "border-zinc-900/10"}`}
+                className={`rounded-xl border bg-paper/70 px-4 py-3 ${isFocus ? "border-[color:var(--brand)] ring-2 ring-[color:var(--brand)]/20" : "border-ash-900/10"}`}
               >
                 <div className="flex flex-wrap items-start gap-3">
                   {/* Everyone here is unverified by definition, so every frame is dashed.
@@ -238,7 +238,7 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
                         <button
                           disabled={busy === r.id}
                           onClick={() => sendLink(r)}
-                          className="flex items-center gap-1.5 rounded-lg border border-zinc-900/12 bg-white px-2.5 py-1.5 text-[12px] font-medium text-zinc-600 hover:text-zinc-900 disabled:opacity-50"
+                          className="flex items-center gap-1.5 rounded-lg border border-ash-900/12 bg-paper px-2.5 py-1.5 text-[12px] font-medium text-ash-600 hover:text-ash-900 disabled:opacity-50"
                         >
                           {busy === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Send link
                         </button>
@@ -257,7 +257,7 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
                         <button
                           onClick={() => setConfirming(r.id)}
                           title="Remove this unverified customer"
-                          className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:bg-rose-50 hover:text-rose-600"
+                          className="flex h-7 w-7 items-center justify-center rounded-lg text-ash-400 hover:bg-rose-50 hover:text-rose-600"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -282,13 +282,13 @@ export function KycQueueClient({ focusId }: { focusId: string | null }) {
         </div>
       )}
 
-      <p className="mt-6 text-[12px] leading-relaxed text-zinc-400">
+      <p className="mt-6 text-[12px] leading-relaxed text-ash-400">
         Cases marked &ldquo;needs a human look&rdquo; or &ldquo;failed&rdquo; carry the machine&rsquo;s scores right on the card. A worn
         fifteen-year-old ID photo will fail an honest face-match on an honest customer — that is what
         &ldquo;vouch&rdquo; is for: someone senior compares the two faces themselves and puts their name on the
         override. A vouch can never clear an ID the national registry does not recognise.
       </p>
-      <p className="mt-2 text-[12px] leading-relaxed text-zinc-400">
+      <p className="mt-2 text-[12px] leading-relaxed text-ash-400">
         &ldquo;Verify at the counter&rdquo; runs the wizard here, in the console, for a customer standing in front of you —
         their ID and face are captured, and your name goes on the record as the person who vouched for the match.
         &ldquo;Send link&rdquo; texts them a link so they can do it themselves, where an SMS code proves the phone is theirs.
@@ -356,7 +356,7 @@ function ReviewPanel({ row, canVouch, onVouched, onError }: {
   };
 
   const score = (label: string, value: number | null, good: boolean | null) => (
-    <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold ring-1 ring-zinc-900/10">
+    <span className="inline-flex items-center gap-1 rounded-full bg-paper px-2 py-0.5 text-[11px] font-semibold ring-1 ring-ash-900/10">
       <span className="text-[color:var(--ink-muted)]">{label}</span>
       <span className={`tabular-nums ${good === false ? "text-rose-600" : good ? "text-emerald-600" : "text-[color:var(--ink)]"}`}>
         {value != null ? `${value}%` : "—"}
@@ -377,7 +377,7 @@ function ReviewPanel({ row, canVouch, onVouched, onError }: {
         ))}
         <span className="flex-1" />
         {(r.idFrontKey || r.selfieKey) && (
-          <button onClick={compare} className="inline-flex items-center gap-1 rounded-lg border border-zinc-900/12 bg-white px-2 py-1 text-[11px] font-semibold text-zinc-600 hover:text-zinc-900">
+          <button onClick={compare} className="inline-flex items-center gap-1 rounded-lg border border-ash-900/12 bg-paper px-2 py-1 text-[11px] font-semibold text-ash-600 hover:text-ash-900">
             <Eye className="h-3 w-3" /> {comparing ? "Hide the evidence" : "Compare the faces"}
           </button>
         )}
@@ -393,14 +393,14 @@ function ReviewPanel({ row, canVouch, onVouched, onError }: {
           {[{ src: images?.id, label: "ID front" }, { src: images?.selfie, label: "Selfie" }].map((f) => (
             <div key={f.label}>
               <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[color:var(--ink-faint)]">{f.label}</p>
-              <div className="relative aspect-square overflow-hidden rounded-lg bg-zinc-900/10">
+              <div className="relative aspect-square overflow-hidden rounded-lg bg-ash-900/10">
                 {f.src ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={f.src} alt={f.label} className="h-full w-full object-cover" />
                 ) : images ? (
                   <span className="absolute inset-0 flex items-center justify-center px-2 text-center text-[10px] text-[color:var(--ink-faint)]">not stored</span>
                 ) : (
-                  <span className="absolute inset-0 flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-zinc-400" /></span>
+                  <span className="absolute inset-0 flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-ash-400" /></span>
                 )}
               </div>
             </div>
@@ -418,7 +418,7 @@ function ReviewPanel({ row, canVouch, onVouched, onError }: {
             onChange={(e) => setNote(e.target.value)}
             rows={2}
             placeholder="Why you are sure it's them — e.g. “ID photo is 15 years old; scars and features match, customer known to the Gikomba branch since 2021.”"
-            className="mt-1.5 w-full rounded-lg border border-sky-300 bg-white px-2.5 py-2 text-[12px] outline-none placeholder:text-zinc-400"
+            className="mt-1.5 w-full rounded-lg border border-sky-300 bg-paper px-2.5 py-2 text-[12px] outline-none placeholder:text-ash-400"
           />
           <div className="mt-1.5 flex items-center gap-2">
             <button
@@ -428,7 +428,7 @@ function ReviewPanel({ row, canVouch, onVouched, onError }: {
             >
               {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserCheck className="h-3 w-3" />} Verify on my word
             </button>
-            <button onClick={() => setVouching(false)} className="text-[11px] font-semibold text-zinc-500 hover:text-zinc-800">Cancel</button>
+            <button onClick={() => setVouching(false)} className="text-[11px] font-semibold text-ash-500 hover:text-ash-800">Cancel</button>
           </div>
         </div>
       )}

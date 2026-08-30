@@ -142,9 +142,9 @@ export default async function Console() {
       {isAdmin && (
         <section className="mt-8">
           <div className="mb-3 flex items-center gap-2">
-            <LayoutGrid className="h-4 w-4 text-zinc-400" />
+            <LayoutGrid className="h-4 w-4 text-ash-400" />
             <h2 className="text-sm font-semibold">All modules</h2>
-            <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">ADMIN</span>
+            <span className="rounded-md bg-ash-900/5 px-2 py-0.5 text-[10px] font-semibold text-ash-500">ADMIN</span>
           </div>
           <ModuleLauncher rights={rights} features={ent.features as ReadonlySet<string>} />
         </section>

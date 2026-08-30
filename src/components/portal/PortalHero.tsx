@@ -105,7 +105,7 @@ export default function PortalHero({
 
       {/* Header — logo on a white chip (legible for dark wordmarks) + language */}
       <header className="relative z-20 flex items-center justify-between px-4 py-4 sm:px-8 sm:py-5">
-        <div className="inline-flex items-center rounded-xl bg-white/95 px-3 py-1.5 shadow-sm ring-1 ring-black/5">
+        <div className="inline-flex items-center rounded-xl bg-paper/95 px-3 py-1.5 shadow-sm ring-1 ring-black/5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={brand.logo} alt={brand.name} className="h-7 w-auto max-w-[150px] object-contain sm:h-8"
             onError={(e) => ((e.target as HTMLImageElement).src = brand.fallbackLogo)} />
@@ -143,13 +143,13 @@ export default function PortalHero({
           initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.2 }}
           className="mt-7 w-full max-w-md"
         >
-          <div className="flex rounded-xl border border-white/20 bg-white/10 p-1 backdrop-blur-md">
+          <div className="flex rounded-xl border border-white/20 bg-paper/10 p-1 backdrop-blur-md">
             {([["new", t.landing.doorNew], ["returning", t.landing.doorReturning]] as const).map(([k, label]) => (
               <button
                 key={k}
                 onClick={() => setDoor(k)}
                 className={`flex-1 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
-                  door === k ? "bg-white shadow-sm" : "text-white/75 hover:text-white"
+                  door === k ? "bg-paper shadow-sm" : "text-white/75 hover:text-white"
                 }`}
                 style={door === k ? { color: accent } : undefined}
               >
@@ -167,7 +167,7 @@ export default function PortalHero({
                 onSubmit={(e) => { e.preventDefault(); if (!loading) onContinue(); }}
                 className="mt-3 flex w-full flex-col gap-2.5 sm:flex-row"
               >
-                <div className="flex flex-1 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-3.5 backdrop-blur-md focus-within:border-white/60">
+                <div className="flex flex-1 items-center gap-2 rounded-xl border border-white/25 bg-paper/10 px-3.5 backdrop-blur-md focus-within:border-white/60">
                   <Phone className="h-4 w-4 shrink-0 text-white/60" />
                   <input
                     value={phone}
@@ -181,7 +181,7 @@ export default function PortalHero({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="inline-flex h-14 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-6 py-3.5 text-base font-semibold shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.99] disabled:opacity-70"
+                  className="inline-flex h-14 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-paper px-6 py-3.5 text-base font-semibold shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.99] disabled:opacity-70"
                   style={{ color: accent }}>
                   {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                   {t.common.continue}
@@ -303,9 +303,9 @@ function PortalSignIn({
     } catch { say(t.errors.couldNotRunCheck); } finally { setBusy(false); }
   };
 
-  const field = "flex flex-1 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-3.5 backdrop-blur-md focus-within:border-white/60";
+  const field = "flex flex-1 items-center gap-2 rounded-xl border border-white/25 bg-paper/10 px-3.5 backdrop-blur-md focus-within:border-white/60";
   const inputCls = "h-14 w-full min-w-0 bg-transparent py-3.5 text-base text-white outline-none placeholder:text-white/50";
-  const go = "inline-flex h-14 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-white px-6 py-3.5 text-base font-semibold shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.99] disabled:opacity-70";
+  const go = "inline-flex h-14 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-paper px-6 py-3.5 text-base font-semibold shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.99] disabled:opacity-70";
 
   return (
     <div>
@@ -367,7 +367,7 @@ function PortalSignIn({
 
       {msg && (
         <div className={`mt-3 flex items-start gap-2 rounded-lg border px-3 py-2.5 text-left text-[13px] backdrop-blur-sm ${
-          tone === "error" ? "border-white/30 bg-black/25 text-white" : "border-white/25 bg-white/10 text-white/90"
+          tone === "error" ? "border-white/30 bg-black/25 text-white" : "border-white/25 bg-paper/10 text-white/90"
         }`}>
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {msg}
         </div>

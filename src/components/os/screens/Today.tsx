@@ -114,7 +114,7 @@ export function TodayScreen({
     return (
       <Screen>
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-zinc-300" />
+          <Loader2 className="h-5 w-5 animate-spin text-ash-300" />
         </div>
       </Screen>
     );
@@ -127,7 +127,7 @@ export function TodayScreen({
           title="Couldn't read your book"
           detail="The figures come off the live database and it did not answer. Nothing here is cached, on purpose."
           action={
-            <button onClick={onRefresh} className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-900/10 bg-white px-3 py-1.5 text-[11.5px] font-semibold text-zinc-600 hover:text-zinc-900">
+            <button onClick={onRefresh} className="inline-flex items-center gap-1.5 rounded-xl border border-ash-900/10 bg-paper px-3 py-1.5 text-[11.5px] font-semibold text-ash-600 hover:text-ash-900">
               <RefreshCw className="h-3 w-3" /> Try again
             </button>
           }
@@ -168,10 +168,10 @@ export function TodayScreen({
           <p className={`mt-1 text-[26px] font-bold leading-none tracking-tight tabular-nums ${face.tint}`}>
             {section.amount}
           </p>
-          <p className="mt-1.5 text-[10.5px] leading-snug text-zinc-600">{face.caption(data)}</p>
+          <p className="mt-1.5 text-[10.5px] leading-snug text-ash-600">{face.caption(data)}</p>
 
           {kind === "promises" && data.promises.broken > 0 && (
-            <p className="mt-1.5 text-[10px] leading-snug text-zinc-500">
+            <p className="mt-1.5 text-[10px] leading-snug text-ash-500">
               <span className="font-semibold text-rose-600">{data.promises.broken} broken</span> in the last 30 days —
               a promise nobody follows up on is one the customer learns they can break.
             </p>
@@ -192,10 +192,10 @@ export function TodayScreen({
             <SectionLabel>How old it is</SectionLabel>
             <div className="mt-1.5 grid grid-cols-2 gap-1.5">
               {data.arrears.buckets.map((b) => (
-                <div key={b.key} className="rounded-xl border border-zinc-900/[0.07] bg-white/75 px-2.5 py-2">
-                  <p className="text-[9.5px] font-medium uppercase tracking-wide text-zinc-500">{b.label}</p>
-                  <p className="mt-0.5 text-[13px] font-bold leading-tight tabular-nums text-zinc-900">{b.amount}</p>
-                  <p className="text-[9.5px] leading-tight text-zinc-400">
+                <div key={b.key} className="rounded-xl border border-ash-900/[0.07] bg-paper/75 px-2.5 py-2">
+                  <p className="text-[9.5px] font-medium uppercase tracking-wide text-ash-500">{b.label}</p>
+                  <p className="mt-0.5 text-[13px] font-bold leading-tight tabular-nums text-ash-900">{b.amount}</p>
+                  <p className="text-[9.5px] leading-tight text-ash-400">
                     {b.count} installment{b.count === 1 ? "" : "s"}
                   </p>
                 </div>
@@ -225,9 +225,9 @@ export function TodayScreen({
             </div>
           </div>
         ) : (
-          <div className="rounded-2xl border border-zinc-900/[0.07] bg-white/75 px-3.5 py-6 text-center">
-            <p className="text-[12.5px] font-semibold text-zinc-700">{face.emptyTitle}</p>
-            <p className="mx-auto mt-1 max-w-[250px] text-[10.5px] leading-snug text-zinc-500">{face.emptyDetail}</p>
+          <div className="rounded-2xl border border-ash-900/[0.07] bg-paper/75 px-3.5 py-6 text-center">
+            <p className="text-[12.5px] font-semibold text-ash-700">{face.emptyTitle}</p>
+            <p className="mx-auto mt-1 max-w-[250px] text-[10.5px] leading-snug text-ash-500">{face.emptyDetail}</p>
           </div>
         )}
 
@@ -235,24 +235,24 @@ export function TodayScreen({
             where you record what you did about it. */}
         <button
           onClick={() => onNavigate(face.href)}
-          className="flex w-full items-center justify-between gap-2 rounded-2xl border border-zinc-900/[0.07] bg-white/75 px-3.5 py-2.5 text-left transition-all hover:border-[color:var(--brand)] active:scale-[0.985]"
+          className="flex w-full items-center justify-between gap-2 rounded-2xl border border-ash-900/[0.07] bg-paper/75 px-3.5 py-2.5 text-left transition-all hover:border-[color:var(--brand)] active:scale-[0.985]"
         >
           <span className="min-w-0">
-            <span className="block text-[12px] font-semibold leading-tight text-zinc-800">{face.hrefLabel}</span>
-            <span className="mt-0.5 block text-[10px] leading-tight text-zinc-500">
+            <span className="block text-[12px] font-semibold leading-tight text-ash-800">{face.hrefLabel}</span>
+            <span className="mt-0.5 block text-[10px] leading-tight text-ash-500">
               Log a call, take a promise, allocate a payment.
             </span>
           </span>
-          <ArrowRight className="h-4 w-4 shrink-0 text-zinc-300" />
+          <ArrowRight className="h-4 w-4 shrink-0 text-ash-300" />
         </button>
 
-        <div className="rounded-xl border border-zinc-900/[0.06] bg-white/60 px-3 py-2">
-          <p className="text-[9.5px] leading-snug text-zinc-500">
+        <div className="rounded-xl border border-ash-900/[0.06] bg-paper/60 px-3 py-2">
+          <p className="text-[9.5px] leading-snug text-ash-500">
             Counted off your live book at the moment you opened this — nothing here is a projection.
           </p>
           <button
             onClick={onRefresh}
-            className="mt-1 inline-flex items-center gap-1 text-[9.5px] font-semibold text-zinc-400 hover:text-zinc-700"
+            className="mt-1 inline-flex items-center gap-1 text-[9.5px] font-semibold text-ash-400 hover:text-ash-700"
           >
             <RefreshCw className={`h-2.5 w-2.5 ${loading ? "animate-spin" : ""}`} /> Read it again
           </button>
@@ -285,14 +285,14 @@ function TodayRowCard({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index, 8) * 0.03 }}
-      className="flex items-center gap-2 rounded-2xl border border-zinc-900/[0.07] bg-white/75 pl-3 pr-2 transition-all hover:border-[color:var(--brand)] hover:bg-white"
+      className="flex items-center gap-2 rounded-2xl border border-ash-900/[0.07] bg-paper/75 pl-3 pr-2 transition-all hover:border-[color:var(--brand)] hover:bg-paper"
     >
       <button onClick={onOpen} className="min-w-0 flex-1 py-2.5 text-left" title={`Open ${row.name}`}>
         <span className="flex items-baseline gap-2">
-          <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold leading-tight text-zinc-800">{row.name}</span>
+          <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold leading-tight text-ash-800">{row.name}</span>
           <span className={`shrink-0 text-[12px] font-bold tabular-nums ${tint}`}>{row.amount}</span>
         </span>
-        <span className="mt-0.5 block truncate text-[10.5px] leading-tight text-zinc-500">{meta}</span>
+        <span className="mt-0.5 block truncate text-[10.5px] leading-tight text-ash-500">{meta}</span>
       </button>
       {/* The handset, not a dialler. We hand the OS a tel: URI and stay out of the
           path of somebody's voice call — the same rule the Calls app follows. */}

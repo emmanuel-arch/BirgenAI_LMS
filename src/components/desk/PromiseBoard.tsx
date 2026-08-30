@@ -96,8 +96,8 @@ export default function PromiseBoard({
             onClick={() => set(f.key)}
             className={`rounded-lg border px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
               filter === f.key
-                ? "border-transparent bg-zinc-900 text-white"
-                : "border-zinc-900/10 bg-white text-zinc-600 hover:bg-zinc-900/[0.03]"
+                ? "border-transparent bg-invert text-invert-fg"
+                : "border-ash-900/10 bg-paper text-ash-600 hover:bg-ash-900/[0.03]"
             }`}
           >
             {f.label}
@@ -112,7 +112,7 @@ export default function PromiseBoard({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left">
               <thead>
-                <tr className="border-b border-zinc-900/[0.07] text-[9.5px] font-bold uppercase tracking-[0.1em] text-zinc-400">
+                <tr className="border-b border-ash-900/[0.07] text-[9.5px] font-bold uppercase tracking-[0.1em] text-ash-400">
                   <th className="px-4 py-2">Customer</th>
                   <th className="px-3 py-2">Band</th>
                   <th className="px-3 py-2 text-right">Promised</th>
@@ -124,23 +124,23 @@ export default function PromiseBoard({
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-zinc-900/[0.045] last:border-0 hover:bg-zinc-900/[0.022]">
+                  <tr key={r.id} className="border-b border-ash-900/[0.045] last:border-0 hover:bg-ash-900/[0.022]">
                     <td className="px-4 py-2">
                       <Link href={`/desk/case/${r.loanId}`} className="block min-w-0">
-                        <span className="block truncate text-[12.5px] font-semibold text-zinc-800 hover:text-[color:var(--accent)]">{r.name}</span>
-                        <span className="block truncate text-[10.5px] tabular-nums text-zinc-400">{r.phone} · loan #{r.loanId}</span>
+                        <span className="block truncate text-[12.5px] font-semibold text-ash-800 hover:text-[color:var(--accent)]">{r.name}</span>
+                        <span className="block truncate text-[10.5px] tabular-nums text-ash-400">{r.phone} · loan #{r.loanId}</span>
                       </Link>
                     </td>
                     <td className="px-3 py-2">
-                      {r.band ? <Chip label={r.band.short} accent={r.band.accent} title={r.band.name} /> : <span className="text-zinc-300">—</span>}
+                      {r.band ? <Chip label={r.band.short} accent={r.band.accent} title={r.band.name} /> : <span className="text-ash-300">—</span>}
                     </td>
-                    <td className="px-3 py-2 text-right text-[12.5px] font-semibold tabular-nums text-zinc-800">{KES(r.amount)}</td>
+                    <td className="px-3 py-2 text-right text-[12.5px] font-semibold tabular-nums text-ash-800">{KES(r.amount)}</td>
                     <td className="px-3 py-2 text-right">
                       {r.paid > 0
                         ? <span className="text-[12px] font-semibold tabular-nums text-emerald-700">{KES(r.paid)}</span>
-                        : <span className="text-[12px] tabular-nums text-zinc-300">—</span>}
+                        : <span className="text-[12px] tabular-nums text-ash-300">—</span>}
                     </td>
-                    <td className="px-3 py-2 text-[11.5px] tabular-nums text-zinc-500">{shortDate(r.dueAt)}</td>
+                    <td className="px-3 py-2 text-[11.5px] tabular-nums text-ash-500">{shortDate(r.dueAt)}</td>
                     <td className="px-3 py-2">
                       <span
                         className="inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white"
@@ -149,7 +149,7 @@ export default function PromiseBoard({
                         {r.state.label}
                       </span>
                     </td>
-                    <td className="px-3 py-2 truncate text-[11.5px] text-zinc-600">{r.agentName ?? "—"}</td>
+                    <td className="px-3 py-2 truncate text-[11.5px] text-ash-600">{r.agentName ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -158,7 +158,7 @@ export default function PromiseBoard({
         )}
       </Card>
 
-      <p className="mt-3 text-[10.5px] text-zinc-400">
+      <p className="mt-3 text-[10.5px] text-ash-400">
         CollectBox.PromisedToPay, settled against CollectBox.PayedAmount. &ldquo;Arrived&rdquo; counts money that landed on
         the loan, not the promise row&rsquo;s own paid column — which their reconciler fills in only sometimes.
       </p>

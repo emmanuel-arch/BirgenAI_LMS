@@ -57,28 +57,28 @@ export default async function IntelligencePage() {
         <div className="mt-3 flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2"><Gauge className="h-5 w-5" style={{ color: "var(--brand)" }} /> Credit Intelligence</h1>
-            <p className="mt-1 text-sm text-zinc-500 max-w-2xl">Portfolio early-warning. Every active loan is scored on live repayment behaviour, the origination model&apos;s PD, and structural risk — so you recover the money before it walks.</p>
+            <p className="mt-1 text-sm text-ash-500 max-w-2xl">Portfolio early-warning. Every active loan is scored on live repayment behaviour, the origination model&apos;s PD, and structural risk — so you recover the money before it walks.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {tuneEntitled && (
               <Link href="/console/intelligence/tuning"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-white">
+                className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-1.5 text-xs font-semibold text-ash-700 hover:bg-paper">
                 <SlidersHorizontal className="h-3.5 w-3.5" /> {isTuned ? "Your risk policy" : "Tune the policy"}
               </Link>
             )}
-            <span className="rounded-full bg-white/70 px-3 py-1 text-[11px] font-medium text-zinc-500 border border-zinc-900/10">Closed ML loop · updated just now</span>
+            <span className="rounded-full bg-paper/70 px-3 py-1 text-[11px] font-medium text-ash-500 border border-ash-900/10">Closed ML loop · updated just now</span>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-zinc-400">
+        <p className="mt-2 text-[11px] text-ash-400">
           {isTuned ? "Scored with your own risk policy." : "Scored with the BirgenAI default risk policy."} Anyone in arrears is shown, whatever they score.
         </p>
 
         <div className="mt-5 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           {TILES.map((t) => (
             <div key={t.label} className="glass p-3.5">
-              <p className="text-[10px] uppercase tracking-wide text-zinc-500">{t.label}</p>
+              <p className="text-[10px] uppercase tracking-wide text-ash-500">{t.label}</p>
               <p className="mt-1 text-base font-bold leading-tight" style={{ color: toneColor(t.tone) }}>{t.value}</p>
-              {t.sub && <p className="mt-0.5 text-[10px] text-zinc-500">{t.sub}</p>}
+              {t.sub && <p className="mt-0.5 text-[10px] text-ash-500">{t.sub}</p>}
             </div>
           ))}
         </div>
@@ -92,11 +92,11 @@ export default async function IntelligencePage() {
           <div className="mt-8 glass p-10 text-center">
             <ShieldAlert className="mx-auto h-9 w-9 text-emerald-500" />
             <p className="mt-3 text-sm font-semibold">Your book is clean</p>
-            <p className="mt-1 text-sm text-zinc-500">No active loan is showing early-warning signals. ServiceSuite AI is watching — the instant one starts to slip, it lands here with a recommended action.</p>
+            <p className="mt-1 text-sm text-ash-500">No active loan is showing early-warning signals. ServiceSuite AI is watching — the instant one starts to slip, it lands here with a recommended action.</p>
           </div>
         ) : (
           <div className="mt-7">
-            <h2 className="text-sm font-semibold flex items-center gap-2"><ShieldAlert className="h-4 w-4" style={{ color: "var(--brand)" }} /> Watchlist <span className="text-zinc-400 font-normal">· ranked by risk</span></h2>
+            <h2 className="text-sm font-semibold flex items-center gap-2"><ShieldAlert className="h-4 w-4" style={{ color: "var(--brand)" }} /> Watchlist <span className="text-ash-400 font-normal">· ranked by risk</span></h2>
             <div className="mt-3"><Watchlist rows={ew.rows} /></div>
           </div>
         )}

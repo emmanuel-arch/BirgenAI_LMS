@@ -27,7 +27,7 @@ const TRIGGER_LABEL: Record<string, string> = {
   ON_APPLICATION: "When they apply for a loan",
 };
 
-const field = "w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400";
+const field = "w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none placeholder:text-ash-400";
 
 export default function ChargesPage() {
   const [charges, setCharges] = useState<Charge[] | null>(null);
@@ -96,7 +96,7 @@ export default function ChargesPage() {
         subtitle="What you charge, and when. Every fee here appears on the Request payment button — at the counter, on a collections call, or out in the field."
       >
         <button onClick={() => setAdding((v) => !v)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+          className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
           <Plus className="h-3.5 w-3.5" /> New charge
         </button>
       </PageHeader>
@@ -118,7 +118,7 @@ export default function ChargesPage() {
               <button
                 onClick={() => setForm((f) => ({ ...f, isPercent: !f.isPercent }))}
                 title="Charge a percentage of the loan principal instead of a flat amount"
-                className={`shrink-0 rounded-lg border px-3 text-xs font-semibold ${form.isPercent ? "border-transparent bg-zinc-900 text-white" : "border-zinc-900/15 bg-white/70 text-zinc-600"}`}
+                className={`shrink-0 rounded-lg border px-3 text-xs font-semibold ${form.isPercent ? "border-transparent bg-invert text-invert-fg" : "border-ash-900/15 bg-paper/70 text-ash-600"}`}
               >
                 <Percent className="h-3.5 w-3.5" />
               </button>
@@ -129,7 +129,7 @@ export default function ChargesPage() {
             <input className={`${field} sm:col-span-2`} placeholder="What is it for? (shown to your staff)" value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           </div>
-          <p className="mt-2 text-[11px] text-zinc-400">
+          <p className="mt-2 text-[11px] text-ash-400">
             The short code is what the customer sees on their M-Pesa prompt — keep it recognisable.
           </p>
           <div className="mt-3 flex items-center gap-2">
@@ -137,14 +137,14 @@ export default function ChargesPage() {
               className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: "var(--brand)" }}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add it
             </button>
-            <button onClick={() => setAdding(false)} className="rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2.5 text-sm text-zinc-600">Cancel</button>
+            <button onClick={() => setAdding(false)} className="rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2.5 text-sm text-ash-600">Cancel</button>
           </div>
         </div>
       )}
 
       <div className="mt-4 space-y-2">
         {charges?.length === 0 && !adding && (
-          <div className="glass p-8 text-center text-sm text-zinc-500">
+          <div className="glass p-8 text-center text-sm text-ash-500">
             No charges yet. Add one and it appears on the Request payment button everywhere in the console.
           </div>
         )}
@@ -153,24 +153,24 @@ export default function ChargesPage() {
           <div key={c.id} className={`glass p-4 ${!c.isActive ? "opacity-60" : ""}`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <p className="flex flex-wrap items-center gap-2 font-bold text-zinc-800">
+                <p className="flex flex-wrap items-center gap-2 font-bold text-ash-800">
                   {c.name}
-                  <span className="rounded bg-zinc-900/5 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500">{c.code}</span>
+                  <span className="rounded bg-ash-900/5 px-1.5 py-0.5 font-mono text-[10px] text-ash-500">{c.code}</span>
                   {c.locked && (
                     <span className="inline-flex items-center gap-1 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-violet-700">
                       <Lock className="h-2.5 w-2.5" /> BirgenAI fee
                     </span>
                   )}
-                  {!c.isActive && <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-600">OFF</span>}
+                  {!c.isActive && <span className="rounded bg-ash-200 px-1.5 py-0.5 text-[10px] font-semibold text-ash-600">OFF</span>}
                 </p>
-                <p className="mt-0.5 text-[12px] text-zinc-500">{c.description || TRIGGER_LABEL[c.trigger]}</p>
+                <p className="mt-0.5 text-[12px] text-ash-500">{c.description || TRIGGER_LABEL[c.trigger]}</p>
                 {c.locked && (
                   <p className="mt-1 text-[11px] text-violet-700">Settles to BirgenAI, not to your paybill.</p>
                 )}
               </div>
 
               <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
-                <p className="text-lg font-bold tabular-nums text-zinc-800">
+                <p className="text-lg font-bold tabular-nums text-ash-800">
                   {c.isPercent ? `${c.amount}%` : `KES ${c.amount.toLocaleString()}`}
                 </p>
                 {!c.locked && (
@@ -178,14 +178,14 @@ export default function ChargesPage() {
                     <button
                       onClick={() => patch(c.id, { isActive: !c.isActive })}
                       disabled={busy}
-                      className="rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-2 text-xs font-medium text-zinc-600 hover:bg-white disabled:opacity-50"
+                      className="rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-2 text-xs font-medium text-ash-600 hover:bg-paper disabled:opacity-50"
                     >
                       {c.isActive ? "Switch off" : "Switch on"}
                     </button>
                     <button
                       onClick={() => remove(c)}
                       disabled={busy}
-                      className="rounded-lg p-2 text-zinc-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                      className="rounded-lg p-2 text-ash-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                       aria-label={`Delete ${c.name}`}
                     >
                       <Trash2 className="h-3.5 w-3.5" />

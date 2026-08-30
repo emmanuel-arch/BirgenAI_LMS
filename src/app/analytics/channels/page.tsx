@@ -51,8 +51,8 @@ export default async function ChannelsPage({ searchParams }: { searchParams: Pro
       </div>
 
       {best && worst && best.key !== worst.key && (
-        <div className="mt-3 rounded-2xl border border-zinc-900/10 bg-white p-4">
-          <p className="text-[13px] leading-snug text-zinc-700">
+        <div className="mt-3 rounded-2xl border border-ash-900/10 bg-paper p-4">
+          <p className="text-[13px] leading-snug text-ash-700">
             <strong>{best.label}</strong> produces the cleanest book at {best.par30.toFixed(1)}% PAR 30;{" "}
             <strong>{worst.label}</strong> the worst at {worst.par30.toFixed(1)}%. That gap of{" "}
             {(worst.par30 - best.par30).toFixed(1)} points is a credit-gate difference, an acquisition-quality difference,

@@ -26,7 +26,7 @@ export default function OfflinePage() {
         alt=""
         width={72}
         height={72}
-        className="h-[72px] w-[72px] rounded-[18px] bg-white"
+        className="h-[72px] w-[72px] rounded-[18px] bg-paper"
         style={{ boxShadow: "0 18px 40px -14px rgba(0,0,0,0.6)" }}
       />
 

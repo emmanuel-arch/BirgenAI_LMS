@@ -244,7 +244,7 @@ export function RiskMap({
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
-      <div ref={mapEl} className="h-[56dvh] min-h-[360px] w-full bg-zinc-100" />
+      <div ref={mapEl} className="h-[56dvh] min-h-[360px] w-full bg-ash-100" />
 
       {error && (
         <div className="absolute inset-x-3 top-3 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/95 px-3 py-2 text-xs text-red-700 shadow">
@@ -253,13 +253,13 @@ export function RiskMap({
       )}
 
       {/* Legend */}
-      <div className="pointer-events-none absolute left-3 bottom-3 rounded-xl bg-white/90 px-3 py-2 text-[11px] shadow-lg backdrop-blur">
-        <p className="mb-1 font-bold uppercase tracking-wide text-zinc-400">Risk on the ground</p>
+      <div className="pointer-events-none absolute left-3 bottom-3 rounded-xl bg-paper/90 px-3 py-2 text-[11px] shadow-lg backdrop-blur">
+        <p className="mb-1 font-bold uppercase tracking-wide text-ash-400">Risk on the ground</p>
         <div className="flex flex-col gap-1">
           <Legend color={RISK_TONE.green.dot} label="Current" />
           <Legend color={RISK_TONE.amber.dot} label="Slipping · 1–29 days" />
           <Legend color={RISK_TONE.red.dot} label="In default · 30+ days" />
-          <span className="mt-0.5 flex items-center gap-1.5 text-zinc-500">
+          <span className="mt-0.5 flex items-center gap-1.5 text-ash-500">
             <span className="relative flex h-2.5 w-2.5 items-center justify-center">
               <span className="absolute h-2.5 w-2.5 animate-ping rounded-full bg-red-500/60" />
               <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
@@ -272,7 +272,7 @@ export function RiskMap({
       {/* Recenter */}
       <button
         onClick={() => fit()}
-        className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-white/90 px-3 py-2 text-[11px] font-semibold text-zinc-700 shadow-lg backdrop-blur hover:bg-white"
+        className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-lg bg-paper/90 px-3 py-2 text-[11px] font-semibold text-ash-700 shadow-lg backdrop-blur hover:bg-paper"
       >
         {here ? <Locate className="h-3.5 w-3.5" /> : <Crosshair className="h-3.5 w-3.5" />} Fit book
       </button>
@@ -282,7 +282,7 @@ export function RiskMap({
 
 function Legend({ color, label }: { color: string; label: string }) {
   return (
-    <span className="flex items-center gap-1.5 text-zinc-600">
+    <span className="flex items-center gap-1.5 text-ash-600">
       <span className="h-2.5 w-2.5 rounded-full ring-1 ring-white" style={{ backgroundColor: color }} /> {label}
     </span>
   );

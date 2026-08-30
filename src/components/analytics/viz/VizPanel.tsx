@@ -118,17 +118,17 @@ export function VizPanel({
   const tickFmt = (v: number) => (format === "percent" ? `${Math.round(v)}%` : compactNumber(v));
 
   return (
-    <section className="rounded-2xl border border-zinc-900/10 bg-white p-4 sm:p-5">
+    <section className="rounded-2xl border border-ash-900/10 bg-paper p-4 sm:p-5">
       {/* ── Header: what this is, and how to look at it ─────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-[13px] font-bold text-zinc-800">{title}</h3>
-          {subtitle && <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{subtitle}</p>}
+          <h3 className="text-[13px] font-bold text-ash-800">{title}</h3>
+          {subtitle && <p className="mt-0.5 text-[11px] leading-snug text-ash-500">{subtitle}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {children}
           {offered.length > 1 && (
-            <div className="flex items-center gap-0.5 rounded-lg bg-zinc-900/[0.05] p-0.5">
+            <div className="flex items-center gap-0.5 rounded-lg bg-ash-900/[0.05] p-0.5">
               {offered.map((f) => {
                 const M = FORM_META[f];
                 const on = form === f;
@@ -140,7 +140,7 @@ export function VizPanel({
                     title={M.label}
                     aria-label={M.label}
                     aria-pressed={on}
-                    className={`rounded-md p-1.5 transition-colors ${on ? "bg-white text-zinc-800 shadow-sm" : "text-zinc-400 hover:text-zinc-600"}`}
+                    className={`rounded-md p-1.5 transition-colors ${on ? "bg-paper text-ash-800 shadow-sm" : "text-ash-400 hover:text-ash-600"}`}
                   >
                     <M.icon className="h-3.5 w-3.5" />
                   </button>
@@ -155,7 +155,7 @@ export function VizPanel({
       {active.length > 1 && (
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
           {active.map((s, i) => (
-            <span key={s.key} className="inline-flex items-center gap-1.5 text-[11px] text-zinc-600">
+            <span key={s.key} className="inline-flex items-center gap-1.5 text-[11px] text-ash-600">
               <span className="inline-block h-2 w-2 rounded-[3px]" style={{ backgroundColor: colorOf(s, i) }} aria-hidden />
               {s.label}
             </span>
@@ -166,8 +166,8 @@ export function VizPanel({
       {/* ── The marks ────────────────────────────────────────────────────── */}
       <div className="mt-3" style={{ height }}>
         {!hasData ? (
-          <div className="flex h-full items-center justify-center rounded-xl bg-zinc-900/[0.02] px-4 text-center">
-            <p className="text-[12px] text-zinc-500">{emptyHint ?? "Nothing in this period to draw."}</p>
+          <div className="flex h-full items-center justify-center rounded-xl bg-ash-900/[0.02] px-4 text-center">
+            <p className="text-[12px] text-ash-500">{emptyHint ?? "Nothing in this period to draw."}</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -176,7 +176,7 @@ export function VizPanel({
         )}
       </div>
 
-      {footnote && <p className="mt-2 text-[11px] leading-snug text-zinc-500">{footnote}</p>}
+      {footnote && <p className="mt-2 text-[11px] leading-snug text-ash-500">{footnote}</p>}
 
       {/* ── The numbers ──────────────────────────────────────────────────
           Not an optional extra. Three hues in the validated categorical order
@@ -184,11 +184,11 @@ export function VizPanel({
           the values must be readable without resolving a colour. This table is
           that relief, and it is also how anybody checks the chart. */}
       {hasData && (
-        <div className="mt-3 border-t border-zinc-900/[0.06] pt-2">
+        <div className="mt-3 border-t border-ash-900/[0.06] pt-2">
           <button
             type="button"
             onClick={() => setShowTable((v) => !v)}
-            className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-500 hover:text-zinc-700"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-ash-500 hover:text-ash-700"
           >
             <Table2 className="h-3 w-3" />
             The numbers behind the chart
@@ -197,8 +197,8 @@ export function VizPanel({
           {showTable && (
             <div className="mt-2 max-h-64 overflow-auto">
               <table className="w-full text-[11px]">
-                <thead className="sticky top-0 bg-white">
-                  <tr className="text-left text-zinc-400">
+                <thead className="sticky top-0 bg-paper">
+                  <tr className="text-left text-ash-400">
                     <th className="py-1 pr-3 font-medium">{/* category */}</th>
                     {active.map((s) => (
                       <th key={s.key} className="py-1 pr-3 text-right font-medium">{s.label}</th>
@@ -207,10 +207,10 @@ export function VizPanel({
                 </thead>
                 <tbody>
                   {data.map((row, i) => (
-                    <tr key={`${row.label}-${i}`} className="border-t border-zinc-900/[0.05]">
-                      <td className="py-1 pr-3 text-zinc-600">{row.label}</td>
+                    <tr key={`${row.label}-${i}`} className="border-t border-ash-900/[0.05]">
+                      <td className="py-1 pr-3 text-ash-600">{row.label}</td>
                       {active.map((s) => (
-                        <td key={s.key} className="py-1 pr-3 text-right tabular-nums text-zinc-700">
+                        <td key={s.key} className="py-1 pr-3 text-right tabular-nums text-ash-700">
                           {formatValue(Number(row[s.key] ?? 0), s.format ?? format, { compact: true })}
                         </td>
                       ))}
@@ -547,29 +547,29 @@ export function StatTile({
    */
   breakdown?: Array<{ label: string; value: number | null; color: string }>;
 }) {
-  const tone = deltaGood == null ? "text-zinc-500" : deltaGood ? "text-emerald-600" : "text-rose-600";
+  const tone = deltaGood == null ? "text-ash-500" : deltaGood ? "text-emerald-600" : "text-rose-600";
   return (
-    <div className="rounded-2xl border border-zinc-900/10 bg-white p-4" title={hint}>
-      <p className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</p>
+    <div className="rounded-2xl border border-ash-900/10 bg-paper p-4" title={hint}>
+      <p className="text-[10px] uppercase tracking-wide text-ash-500">{label}</p>
       {/* Proportional figures at display size; tabular is for columns only. */}
-      <p className={`mt-1 font-bold leading-tight text-zinc-900 ${hero ? "text-4xl" : "text-lg"}`}>
+      <p className={`mt-1 font-bold leading-tight text-ash-900 ${hero ? "text-4xl" : "text-lg"}`}>
         {formatValue(value, format, { compact: !hero })}
       </p>
       {deltaPct != null && (
         <p className={`mt-0.5 text-[11px] font-semibold ${tone}`}>
           {deltaPct >= 0 ? "▲" : "▼"} {Math.abs(deltaPct).toFixed(1)}%
-          {compareLabel && <span className="ml-1 font-normal text-zinc-400">{compareLabel}</span>}
+          {compareLabel && <span className="ml-1 font-normal text-ash-400">{compareLabel}</span>}
         </p>
       )}
       {breakdown && breakdown.length > 0 && (
-        <div className="mt-2.5 space-y-1 border-t border-zinc-900/[0.07] pt-2">
+        <div className="mt-2.5 space-y-1 border-t border-ash-900/[0.07] pt-2">
           {breakdown.map((b) => (
             <div key={b.label} className="flex items-baseline justify-between gap-2">
               <span className="flex min-w-0 items-center gap-1.5">
                 <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: b.color }} />
-                <span className="truncate text-[11px] text-zinc-500">{b.label}</span>
+                <span className="truncate text-[11px] text-ash-500">{b.label}</span>
               </span>
-              <span className="shrink-0 font-mono text-[11px] font-semibold tabular-nums text-zinc-700">
+              <span className="shrink-0 font-mono text-[11px] font-semibold tabular-nums text-ash-700">
                 {formatValue(b.value, format, { compact: true })}
               </span>
             </div>
@@ -624,15 +624,15 @@ export function Meter({
   const pct = Math.min(100, Math.max(0, (value / (max || 1)) * 100));
   const fill = tone ?? CATEGORICAL[0];
   return (
-    <div className="rounded-2xl border border-zinc-900/10 bg-white p-4">
+    <div className="rounded-2xl border border-ash-900/10 bg-paper p-4">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</p>
-        <p className="text-sm font-bold tabular-nums text-zinc-900">{formatValue(value, format)}</p>
+        <p className="text-[10px] uppercase tracking-wide text-ash-500">{label}</p>
+        <p className="text-sm font-bold tabular-nums text-ash-900">{formatValue(value, format)}</p>
       </div>
       <div className="mt-2 h-2 overflow-hidden rounded-full" style={{ backgroundColor: `${fill}22` }}>
         <div className="h-full rounded-r-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: fill }} />
       </div>
-      {caption && <p className="mt-1.5 text-[11px] leading-snug text-zinc-500">{caption}</p>}
+      {caption && <p className="mt-1.5 text-[11px] leading-snug text-ash-500">{caption}</p>}
     </div>
   );
 }

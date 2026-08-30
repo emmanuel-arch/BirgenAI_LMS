@@ -48,7 +48,7 @@ type Preview = {
   products: LimitRow[];
 };
 
-const field = "w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400";
+const field = "w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none placeholder:text-ash-400";
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 
 export default function NewApplicationPage() {
@@ -202,7 +202,7 @@ export default function NewApplicationPage() {
         title="Apply for a Borrower"
         subtitle="For a customer you're helping apply — at the counter, or one an officer signed up in the field. It joins the same queue and approval workflow; booking still needs their signed offer."
       >
-        <Link href="/console/applications" className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-2 text-xs font-medium text-zinc-600 hover:bg-white">
+        <Link href="/console/applications" className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-2 text-xs font-medium text-ash-600 hover:bg-paper">
           Applications queue <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </PageHeader>
@@ -216,7 +216,7 @@ export default function NewApplicationPage() {
             <p className="mt-3 text-base font-bold">{done}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
               <button onClick={() => router.push("/console/applications")} className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: "var(--brand)" }}>Open the queue <ArrowRight className="h-3.5 w-3.5" /></button>
-              <button onClick={reset} className="rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2.5 text-sm font-medium text-zinc-600">+ Another application</button>
+              <button onClick={reset} className="rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2.5 text-sm font-medium text-ash-600">+ Another application</button>
             </div>
           </div>
         ) : (
@@ -231,18 +231,18 @@ export default function NewApplicationPage() {
             {!borrower ? (
               <>
                 <p className="text-sm font-semibold">Search for the customer</p>
-                <p className="text-[11px] text-zinc-500">By phone number, national ID, or full name.</p>
+                <p className="text-[11px] text-ash-500">By phone number, national ID, or full name.</p>
                 <div className="mt-2 flex gap-2">
                   <input className={field} placeholder="e.g. 0712…, 12345678, or their name" value={q}
                     onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && searchBorrowers()} autoFocus />
-                  <button onClick={searchBorrowers} className="rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white"><Search className="h-4 w-4" /></button>
+                  <button onClick={searchBorrowers} className="rounded-lg bg-invert px-3 py-2 text-xs font-semibold text-invert-fg"><Search className="h-4 w-4" /></button>
                 </div>
                 <div className="mt-2 space-y-1">
                   {results.map((b) => (
                     <button key={b.id} onClick={() => selectBorrower(b)}
-                      className="flex w-full items-center justify-between rounded-lg border border-zinc-900/10 bg-white/70 px-3 py-2 text-left text-sm hover:bg-white">
+                      className="flex w-full items-center justify-between rounded-lg border border-ash-900/10 bg-paper/70 px-3 py-2 text-left text-sm hover:bg-paper">
                       <span className="font-medium">{b.name ?? "Borrower"}</span>
-                      <span className="text-xs text-zinc-500">{b.phone}{b.activeLoans > 0 ? ` · ${b.activeLoans} active` : ""}</span>
+                      <span className="text-xs text-ash-500">{b.phone}{b.activeLoans > 0 ? ` · ${b.activeLoans} active` : ""}</span>
                     </button>
                   ))}
                 </div>
@@ -251,20 +251,20 @@ export default function NewApplicationPage() {
                     under the list: a pool signal never appears without it. */}
                 {poolHits.length > 0 && (
                   <div className="mt-4">
-                    <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-ash-400">
                       <Building2 className="h-3 w-3" /> Across the group{poolMeta ? ` — ${poolMeta.name}` : ""}
                     </p>
                     <div className="mt-1.5 space-y-1">
                       {poolHits.map((h) => (
                         <div key={h.sourceBorrowerId}
-                          className="flex items-center justify-between gap-3 rounded-lg border border-zinc-900/10 bg-white/70 px-3 py-2 text-sm">
+                          className="flex items-center justify-between gap-3 rounded-lg border border-ash-900/10 bg-paper/70 px-3 py-2 text-sm">
                           <span className="min-w-0">
                             <span className="flex items-center gap-1.5 font-medium">
                               <span className="truncate">{h.name}</span>
                               {h.kycVerified && <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
-                              <span className="shrink-0 rounded bg-zinc-900/5 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">{h.sourceOrg.name}</span>
+                              <span className="shrink-0 rounded bg-ash-900/5 px-1.5 py-0.5 text-[10px] font-semibold text-ash-500">{h.sourceOrg.name}</span>
                             </span>
-                            <span className="block text-xs text-zinc-500">{h.phone}</span>
+                            <span className="block text-xs text-ash-500">{h.phone}</span>
                           </span>
                           {h.activeLoansThere > 0 ? (
                             <span className="shrink-0 rounded-md bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-700">
@@ -280,37 +280,37 @@ export default function NewApplicationPage() {
                         </div>
                       ))}
                     </div>
-                    {poolMeta && <p className="mt-1.5 text-[10px] leading-relaxed text-zinc-400">{poolMeta.legalBasis}</p>}
+                    {poolMeta && <p className="mt-1.5 text-[10px] leading-relaxed text-ash-400">{poolMeta.legalBasis}</p>}
                   </div>
                 )}
-                <p className="mt-2 text-[11px] text-zinc-400">Not registered yet? <Link href="/console/borrowers/new" className="underline hover:text-zinc-600">Add them first</Link>.</p>
+                <p className="mt-2 text-[11px] text-ash-400">Not registered yet? <Link href="/console/borrowers/new" className="underline hover:text-ash-600">Add them first</Link>.</p>
               </>
             ) : elsewhere ? (
               <div className="text-center py-4">
                 <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100"><Building2 className="h-5 w-5 text-amber-600" /></div>
                 <p className="mt-3 text-sm font-bold">{borrower.name ?? borrower.phone} has a running loan at {elsewhere.lender}.</p>
-                <p className="mt-1 text-xs text-zinc-500">{elsewhere.message}</p>
-                {elsewhere.legalBasis && <p className="mx-auto mt-2 max-w-md text-[10px] leading-relaxed text-zinc-400">{elsewhere.legalBasis}</p>}
-                <button onClick={() => { setBorrower(null); setElsewhere(null); }} className="mt-3 text-xs underline text-zinc-500 hover:text-zinc-800">Search another customer</button>
+                <p className="mt-1 text-xs text-ash-500">{elsewhere.message}</p>
+                {elsewhere.legalBasis && <p className="mx-auto mt-2 max-w-md text-[10px] leading-relaxed text-ash-400">{elsewhere.legalBasis}</p>}
+                <button onClick={() => { setBorrower(null); setElsewhere(null); }} className="mt-3 text-xs underline text-ash-500 hover:text-ash-800">Search another customer</button>
               </div>
             ) : borrower.activeLoans > 0 ? (
               <div className="text-center py-4">
                 <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100"><Landmark className="h-5 w-5 text-amber-600" /></div>
                 <p className="mt-3 text-sm font-bold">{borrower.name ?? borrower.phone} has a running loan.</p>
-                <p className="mt-1 text-xs text-zinc-500">A new application waits until the current loan clears.</p>
-                <button onClick={() => setBorrower(null)} className="mt-3 text-xs underline text-zinc-500 hover:text-zinc-800">Search another customer</button>
+                <p className="mt-1 text-xs text-ash-500">A new application waits until the current loan clears.</p>
+                <button onClick={() => setBorrower(null)} className="mt-3 text-xs underline text-ash-500 hover:text-ash-800">Search another customer</button>
               </div>
             ) : (
               <>
-                <p className="text-xs text-zinc-500">For <span className="font-semibold text-zinc-800">{borrower.name ?? borrower.phone}</span> <button className="underline" onClick={() => setBorrower(null)}>change</button></p>
+                <p className="text-xs text-ash-500">For <span className="font-semibold text-ash-800">{borrower.name ?? borrower.phone}</span> <button className="underline" onClick={() => setBorrower(null)}>change</button></p>
 
                 {/* The reveal */}
-                {loadingPreview && !preview && <div className="mt-4 flex items-center gap-2 text-sm text-zinc-500"><Loader2 className="h-4 w-4 animate-spin" /> Reading their file…</div>}
+                {loadingPreview && !preview && <div className="mt-4 flex items-center gap-2 text-sm text-ash-500"><Loader2 className="h-4 w-4 animate-spin" /> Reading their file…</div>}
                 {preview && (
                   <div className="mt-3 space-y-1.5">
                     {CHECKS.map((c, i) => (
                       <div key={i} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition-all duration-500 ${i <= reveal ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"} ${c.ok ? "border-emerald-200 bg-emerald-50/50" : "border-amber-200 bg-amber-50/50"}`}>
-                        <span className="flex items-center gap-2 text-[13px] font-medium text-zinc-700">
+                        <span className="flex items-center gap-2 text-[13px] font-medium text-ash-700">
                           <span className={c.ok ? "text-emerald-600" : "text-amber-600"}>{c.icon}</span> {c.label}
                         </span>
                         <span className={`text-[13px] font-semibold ${c.ok ? "text-emerald-700" : "text-amber-700"}`}>{c.value}</span>
@@ -321,14 +321,14 @@ export default function NewApplicationPage() {
 
                 {/* The loan form — appears once the reveal has run */}
                 {preview && reveal >= 4 && (
-                  <div className="mt-4 border-t border-zinc-900/10 pt-4">
+                  <div className="mt-4 border-t border-ash-900/10 pt-4">
                     {chargesDue ? (
                       <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
                         <p className="flex items-center gap-2 text-sm font-bold text-amber-800"><Receipt className="h-4 w-4" /> Pay all upfront charges first</p>
                         <p className="mt-1 text-[12px] text-amber-700">We deduct upfront fees before disbursement, not after. Collect these, then create the application:</p>
                         <ul className="mt-2 space-y-1">
                           {chargesDue.unpaidCharges.map((c, i) => (
-                            <li key={i} className="flex justify-between text-[13px]"><span className="text-zinc-700">{c.name}</span><span className="font-semibold">{fmtKES(c.amount)}</span></li>
+                            <li key={i} className="flex justify-between text-[13px]"><span className="text-ash-700">{c.name}</span><span className="font-semibold">{fmtKES(c.amount)}</span></li>
                           ))}
                           <li className="flex justify-between border-t border-amber-300 pt-1 text-[13px] font-bold"><span>Total</span><span>{fmtKES(chargesDue.total)}</span></li>
                         </ul>
@@ -347,14 +347,14 @@ export default function NewApplicationPage() {
                               </option>
                             ))}
                           </select>
-                          <div className="flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3">
-                            <span className="text-xs text-zinc-400">KES</span>
+                          <div className="flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3">
+                            <span className="text-xs text-ash-400">KES</span>
                             <input className="flex-1 bg-transparent py-2.5 text-sm outline-none" inputMode="numeric" placeholder="Amount"
                               value={amount ? Number(amount).toLocaleString() : ""} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} />
                           </div>
                         </div>
                         {selectedLimit && (
-                          <p className={`mt-1.5 text-[11px] ${overLimit ? "text-rose-600" : "text-zinc-500"}`}>
+                          <p className={`mt-1.5 text-[11px] ${overLimit ? "text-rose-600" : "text-ash-500"}`}>
                             {overLimit
                               ? `They qualify for up to ${fmtKES(selectedLimit.approvedLimit)} — lower the amount.`
                               : <>Qualifies up to <span className="font-semibold">{fmtKES(selectedLimit.approvedLimit)}</span>{selectedLimit.affordableInstallment != null && <> · about {fmtKES(selectedLimit.affordableInstallment)}/{(selectedLimit.installmentUnit ?? "month").replace(/s$/, "")} × {selectedLimit.installmentCount}</>}.</>}
@@ -364,7 +364,7 @@ export default function NewApplicationPage() {
                           </p>
                         )}
                         {toSchool && (
-                          <div className="mt-3 rounded-lg border border-zinc-900/10 bg-white/60 p-3">
+                          <div className="mt-3 rounded-lg border border-ash-900/10 bg-paper/60 p-3">
                             <p className="text-[12px] font-medium">Pays the institution directly (not the borrower&apos;s phone)</p>
                             <div className="mt-2 grid gap-2 sm:grid-cols-3">
                               <input className={field} placeholder="School name" value={payee.name} onChange={(e) => setPayee((p) => ({ ...p, name: e.target.value }))} />
@@ -378,7 +378,7 @@ export default function NewApplicationPage() {
                             className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: "var(--brand)" }}>
                             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <FilePlus2 className="h-4 w-4" />} Create application
                           </button>
-                          <Link href="/console/applications" className="rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2.5 text-sm font-medium text-zinc-600">Cancel</Link>
+                          <Link href="/console/applications" className="rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2.5 text-sm font-medium text-ash-600">Cancel</Link>
                         </div>
                       </>
                     )}

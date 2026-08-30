@@ -31,7 +31,7 @@ const KIND_LABEL: Record<string, string> = {
   COLLECTION_VISIT: "Collection visit", KYC_ASSIST: "KYC assist",
 };
 const STATUS_TONE: Record<string, string> = {
-  QUEUED: "bg-zinc-900/5 text-zinc-600", ALLOCATED: "bg-blue-100 text-blue-700",
+  QUEUED: "bg-ash-900/5 text-ash-600", ALLOCATED: "bg-blue-100 text-blue-700",
   EN_ROUTE: "bg-indigo-100 text-indigo-700", ARRIVED: "bg-amber-100 text-amber-700",
   VERIFIED: "bg-emerald-100 text-emerald-700", FAILED: "bg-red-100 text-red-700",
 };
@@ -78,9 +78,9 @@ export function DispatchClient() {
     <div key={v.id} className="glass p-3.5">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold truncate">{v.label}</p>
-        <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold shrink-0 ${STATUS_TONE[v.status] ?? "bg-zinc-900/5 text-zinc-500"}`}>{v.status.replace("_", " ")}</span>
+        <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold shrink-0 ${STATUS_TONE[v.status] ?? "bg-ash-900/5 text-ash-500"}`}>{v.status.replace("_", " ")}</span>
       </div>
-      <p className="mt-0.5 text-[11px] text-zinc-500 truncate">
+      <p className="mt-0.5 text-[11px] text-ash-500 truncate">
         {KIND_LABEL[v.kind] ?? v.kind}{v.address ? ` · ${v.address}` : ""}
         {v.agentName ? ` · ${v.agentName}` : ""}
         {v.distanceKm != null ? ` · ${v.distanceKm} km` : ""}
@@ -91,7 +91,7 @@ export function DispatchClient() {
 
   const btn = (label: string, onClick: () => void, busy: boolean, primary = false) => (
     <button onClick={onClick} disabled={busy}
-      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-60 ${primary ? "text-white" : "border border-zinc-900/15 bg-white/70 text-zinc-700 hover:bg-white"}`}
+      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-60 ${primary ? "text-white" : "border border-ash-900/15 bg-paper/70 text-ash-700 hover:bg-paper"}`}
       style={primary ? { backgroundColor: "var(--brand)" } : undefined}>
       {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null} {label}
     </button>
@@ -107,7 +107,7 @@ export function DispatchClient() {
 
       {notice && <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50/90 px-3 py-2.5 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> {notice}</div>}
       {error && <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
-      {!visits && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>}
+      {!visits && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>}
 
       {visits && me && !me.isFieldAgent && (
         <p className="mt-4 rounded-lg border border-amber-300 bg-amber-50/90 px-3 py-2.5 text-xs text-amber-800">
@@ -121,10 +121,10 @@ export function DispatchClient() {
           <section>
             <h2 className="flex items-center gap-1.5 text-sm font-semibold"><Inbox className="h-4 w-4" style={{ color: "var(--brand)" }} /> Open requests ({open.length})</h2>
             <div className="mt-2.5 space-y-2">
-              {open.length === 0 && <p className="text-xs text-zinc-500">Nothing waiting — every request has an agent.</p>}
+              {open.length === 0 && <p className="text-xs text-ash-500">Nothing waiting — every request has an agent.</p>}
               {open.map((v) => card(v, <>
                 {me?.isFieldAgent && btn("Yes — I'll take it", () => act(v.id, "accept"), acting === v.id + "accept", true)}
-                <Link href={routeHref(v)} className="inline-flex items-center gap-1 rounded-lg border border-zinc-900/15 bg-white/70 px-2.5 py-1.5 text-[11px] font-medium text-zinc-600 hover:bg-white">
+                <Link href={routeHref(v)} className="inline-flex items-center gap-1 rounded-lg border border-ash-900/15 bg-paper/70 px-2.5 py-1.5 text-[11px] font-medium text-ash-600 hover:bg-paper">
                   <Route className="h-3 w-3" /> See route
                 </Link>
               </>))}
@@ -135,12 +135,12 @@ export function DispatchClient() {
           <section>
             <h2 className="flex items-center gap-1.5 text-sm font-semibold"><ClipboardList className="h-4 w-4" style={{ color: "var(--brand)" }} /> My tasks ({mine.length})</h2>
             <div className="mt-2.5 space-y-2">
-              {mine.length === 0 && <p className="text-xs text-zinc-500">No visits on your plate.</p>}
+              {mine.length === 0 && <p className="text-xs text-ash-500">No visits on your plate.</p>}
               {mine.map((v) => card(v, <>
                 {v.status === "ALLOCATED" && btn("Start route", () => act(v.id, "en_route"), acting === v.id + "en_route", true)}
                 {v.status === "EN_ROUTE" && btn("Arrived", () => act(v.id, "arrived"), acting === v.id + "arrived", true)}
                 {v.status === "ARRIVED" && btn("Verify ✓", () => act(v.id, "verify"), acting === v.id + "verify", true)}
-                <Link href={routeHref(v)} className="inline-flex items-center gap-1 rounded-lg border border-zinc-900/15 bg-white/70 px-2.5 py-1.5 text-[11px] font-medium text-zinc-600 hover:bg-white">
+                <Link href={routeHref(v)} className="inline-flex items-center gap-1 rounded-lg border border-ash-900/15 bg-paper/70 px-2.5 py-1.5 text-[11px] font-medium text-ash-600 hover:bg-paper">
                   <Route className="h-3 w-3" /> Route
                 </Link>
               </>))}
@@ -148,22 +148,22 @@ export function DispatchClient() {
 
             {others.length > 0 && (
               <>
-                <h3 className="mt-5 text-[11px] font-bold uppercase tracking-wide text-zinc-400">With other agents ({others.length})</h3>
+                <h3 className="mt-5 text-[11px] font-bold uppercase tracking-wide text-ash-400">With other agents ({others.length})</h3>
                 <div className="mt-2 space-y-2">
                   {others.map((v) => card(v, me?.isFieldAgent
                     ? btn("Take it over", () => act(v.id, "accept"), acting === v.id + "accept")
-                    : <span className="text-[11px] text-zinc-400"><MapPin className="inline h-3 w-3" /> {v.agentName}</span>))}
+                    : <span className="text-[11px] text-ash-400"><MapPin className="inline h-3 w-3" /> {v.agentName}</span>))}
                 </div>
               </>
             )}
 
             {closed.length > 0 && (
               <>
-                <h3 className="mt-5 text-[11px] font-bold uppercase tracking-wide text-zinc-400">Recently closed</h3>
+                <h3 className="mt-5 text-[11px] font-bold uppercase tracking-wide text-ash-400">Recently closed</h3>
                 <div className="mt-2 space-y-1.5">
                   {closed.map((v) => (
-                    <div key={v.id} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-900/10 bg-white/60 px-3 py-2 text-xs">
-                      <span className="truncate text-zinc-600">{v.label}{v.agentName ? ` · ${v.agentName}` : ""}</span>
+                    <div key={v.id} className="flex items-center justify-between gap-2 rounded-lg border border-ash-900/10 bg-paper/60 px-3 py-2 text-xs">
+                      <span className="truncate text-ash-600">{v.label}{v.agentName ? ` · ${v.agentName}` : ""}</span>
                       <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${STATUS_TONE[v.status]}`}>{v.status}</span>
                     </div>
                   ))}

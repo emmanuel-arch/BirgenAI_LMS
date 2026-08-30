@@ -61,7 +61,7 @@ export default function LadderPage() {
       subtitle="Where your limit started, every step it has taken, and what moves it next."
       icon={<Trophy className="h-10 w-10" />}
       notFound={
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-ash-600">
           No record was found for that ID with this lender. If you borrowed under a different
           number or ID, try that one.
         </p>
@@ -75,14 +75,14 @@ export default function LadderPage() {
         return (
           <div className="mx-auto w-full max-w-lg space-y-4">
             {/* ── Where you stand ─────────────────────────────────────────── */}
-            <div className="glass rounded-3xl border border-zinc-900/10 bg-white/70 p-6">
-              <p className="text-[11px] uppercase tracking-wide text-zinc-500">Your limit today</p>
+            <div className="glass rounded-3xl border border-ash-900/10 bg-paper/70 p-6">
+              <p className="text-[11px] uppercase tracking-wide text-ash-500">Your limit today</p>
               <p className="mt-1 text-3xl font-bold" style={{ color: "var(--brand)" }}>
                 {cur?.limit != null ? kes(cur.limit) : "Not set yet"}
               </p>
 
               {data.startedAt != null && gained > 0 && (
-                <p className="mt-2 text-sm text-zinc-600">
+                <p className="mt-2 text-sm text-ash-600">
                   Started at {kes(data.startedAt)} — up {kes(gained)} across{" "}
                   {rungs.filter((r) => r.direction === "up").length} step
                   {rungs.filter((r) => r.direction === "up").length === 1 ? "" : "s"}.
@@ -91,15 +91,15 @@ export default function LadderPage() {
 
               <dl className="mt-5 grid grid-cols-3 gap-3 text-sm">
                 <div>
-                  <dt className="text-[11px] uppercase tracking-wide text-zinc-500">Cleared</dt>
+                  <dt className="text-[11px] uppercase tracking-wide text-ash-500">Cleared</dt>
                   <dd className="font-semibold">{cur?.clearedLoans ?? 0}</dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] uppercase tracking-wide text-zinc-500">Running</dt>
+                  <dt className="text-[11px] uppercase tracking-wide text-ash-500">Running</dt>
                   <dd className="font-semibold">{cur?.activeLoans ?? 0}</dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] uppercase tracking-wide text-zinc-500">Standing</dt>
+                  <dt className="text-[11px] uppercase tracking-wide text-ash-500">Standing</dt>
                   <dd className="font-semibold">{cur?.riskBand ?? "—"}</dd>
                 </div>
               </dl>
@@ -107,21 +107,21 @@ export default function LadderPage() {
 
             {/* ── What earns the next rung ────────────────────────────────── */}
             {data.next && (
-              <div className="glass rounded-3xl border border-zinc-900/10 bg-white/70 p-5">
+              <div className="glass rounded-3xl border border-ash-900/10 bg-paper/70 p-5">
                 <h2 className="flex items-center gap-2 font-semibold">
                   <CircleDot className="h-4 w-4" style={{ color: "var(--brand)" }} /> The next step
                 </h2>
-                <p className="mt-2 text-sm text-zinc-900">{data.next.action}</p>
-                <p className="mt-1.5 text-sm text-zinc-600">{data.next.rule}</p>
+                <p className="mt-2 text-sm text-ash-900">{data.next.action}</p>
+                <p className="mt-1.5 text-sm text-ash-600">{data.next.rule}</p>
               </div>
             )}
 
             {/* ── The ladder itself ───────────────────────────────────────── */}
-            <section className="glass rounded-3xl border border-zinc-900/10 bg-white/70 p-5">
+            <section className="glass rounded-3xl border border-ash-900/10 bg-paper/70 p-5">
               <h2 className="font-semibold">Every step so far</h2>
 
               {rungs.length === 0 ? (
-                <p className="mt-3 text-sm text-zinc-600">
+                <p className="mt-3 text-sm text-ash-600">
                   No steps yet. Your limit is reviewed after each loan you clear — the first
                   cleared loan starts the ladder.
                 </p>
@@ -145,13 +145,13 @@ export default function LadderPage() {
                               {up ? "+" : "−"}{kes(Math.abs(r.change))}
                             </span>
                           </div>
-                          <p className="mt-0.5 text-xs text-zinc-500">
+                          <p className="mt-0.5 text-xs text-ash-500">
                             {when(r.at)}
                             {r.clearedLoans > 0 ? ` · ${r.clearedLoans} loan${r.clearedLoans === 1 ? "" : "s"} cleared` : ""}
                             {r.provenPrincipal > 0 ? ` · ${kes(r.provenPrincipal)} repaid in full` : ""}
                           </p>
                           {r.cappedByCeiling && up && (
-                            <p className="mt-1 flex items-start gap-1.5 text-xs text-zinc-600">
+                            <p className="mt-1 flex items-start gap-1.5 text-xs text-ash-600">
                               <Info className="mt-0.5 h-3 w-3 shrink-0" />
                               You earned {Math.round(r.graduationPercent)}%, but a single step is
                               capped — the rest carries into your next review.
@@ -165,7 +165,7 @@ export default function LadderPage() {
               )}
             </section>
 
-            <p className="px-2 text-center text-[11px] text-zinc-500">
+            <p className="px-2 text-center text-[11px] text-ash-500">
               Limits are reviewed automatically. You never need to ask for an increase.
               {data.lender ? ` ${data.lender} is the lender of record.` : ""}
             </p>

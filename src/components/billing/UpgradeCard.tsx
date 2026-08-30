@@ -13,27 +13,27 @@ export function UpgradeCard({ feature, title, blurb }: { feature: Feature; title
   const plan = cheapestPlanWith(feature);
   return (
     <div className="glass p-8 text-center max-w-lg mx-auto">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900/5">
-        <Lock className="h-7 w-7 text-zinc-400" />
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-ash-900/5">
+        <Lock className="h-7 w-7 text-ash-400" />
       </div>
       <h2 className="mt-4 text-xl font-bold">{title}</h2>
-      <p className="mt-2 text-sm text-zinc-500">{blurb}</p>
+      <p className="mt-2 text-sm text-ash-500">{blurb}</p>
 
       {plan && (
-        <div className="mt-5 rounded-2xl border border-zinc-900/10 bg-white/70 p-4">
+        <div className="mt-5 rounded-2xl border border-ash-900/10 bg-paper/70 p-4">
           <p className="flex items-center justify-center gap-1.5 text-sm font-semibold">
             <Crown className="h-4 w-4" style={{ color: "var(--brand)" }} /> {plan.name}
           </p>
           <p className="mt-1 text-2xl font-bold">
             KES {plan.monthlyKes.toLocaleString()}
-            <span className="text-sm font-normal text-zinc-400">/month</span>
+            <span className="text-sm font-normal text-ash-400">/month</span>
           </p>
-          <p className="mt-1.5 text-xs text-zinc-500">{plan.blurb}</p>
+          <p className="mt-1.5 text-xs text-ash-500">{plan.blurb}</p>
         </div>
       )}
 
       <Link href="/console/billing"
-        className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800">
+        className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-invert px-5 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2">
         See packages <ArrowRight className="h-4 w-4" />
       </Link>
     </div>

@@ -94,14 +94,14 @@ export default function JournalBoard({
       <Card className="mt-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1">
-            <span className="mr-1 text-[11px] font-medium text-zinc-400">Window</span>
+            <span className="mr-1 text-[11px] font-medium text-ash-400">Window</span>
             {WINDOWS.map((d) => (
               <button
                 key={d}
                 type="button"
                 onClick={() => go({ days: d === 30 ? null : d, page: null })}
                 className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
-                  windowDays === d ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-900/[0.05]"
+                  windowDays === d ? "bg-invert text-invert-fg" : "text-ash-500 hover:bg-ash-900/[0.05]"
                 }`}
               >
                 {d === 365 ? "1 year" : `${d} days`}
@@ -110,11 +110,11 @@ export default function JournalBoard({
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-medium text-zinc-400">Account</span>
+            <span className="text-[11px] font-medium text-ash-400">Account</span>
             <select
               value={accountId ?? 0}
               onChange={(e) => go({ account: Number(e.target.value) || null, page: null })}
-              className="rounded-lg border border-zinc-900/10 bg-white px-2 py-1.5 text-[11.5px] outline-none"
+              className="rounded-lg border border-ash-900/10 bg-paper px-2 py-1.5 text-[11.5px] outline-none"
             >
               <option value={0}>Every account</option>
               {accounts.map((a) => (
@@ -125,17 +125,17 @@ export default function JournalBoard({
             </select>
           </div>
 
-          <p className="ml-auto text-[11px] text-zinc-400">
-            An account is matched on <strong className="font-semibold text-zinc-500">either</strong> side of the posting —
+          <p className="ml-auto text-[11px] text-ash-400">
+            An account is matched on <strong className="font-semibold text-ash-500">either</strong> side of the posting —
             filtering only on the destination would hide half its activity.
           </p>
         </div>
       </Card>
 
       <Card className="mt-3" pad={false}>
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-900/[0.06] px-4 py-3">
-          <h2 className="flex items-center gap-2 text-[13px] font-semibold text-zinc-800">
-            <ScrollText className="h-4 w-4 text-zinc-400" />
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ash-900/[0.06] px-4 py-3">
+          <h2 className="flex items-center gap-2 text-[13px] font-semibold text-ash-800">
+            <ScrollText className="h-4 w-4 text-ash-400" />
             {account ? account.name : "Every posting"}
           </h2>
           <div className="flex items-center gap-1">
@@ -143,18 +143,18 @@ export default function JournalBoard({
               type="button"
               disabled={page <= 1}
               onClick={() => go({ page: page - 1 <= 1 ? null : page - 1 })}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-zinc-600 transition-colors hover:bg-zinc-900/[0.05] disabled:pointer-events-none disabled:text-zinc-300"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-ash-600 transition-colors hover:bg-ash-900/[0.05] disabled:pointer-events-none disabled:text-ash-300"
             >
               <ChevronLeft className="h-3.5 w-3.5" /> Newer
             </button>
-            <span className="px-1 text-[11px] tabular-nums text-zinc-400">
+            <span className="px-1 text-[11px] tabular-nums text-ash-400">
               {N(page)} / {N(pages)}
             </span>
             <button
               type="button"
               disabled={page >= pages}
               onClick={() => go({ page: page + 1 })}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-zinc-600 transition-colors hover:bg-zinc-900/[0.05] disabled:pointer-events-none disabled:text-zinc-300"
+              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-ash-600 transition-colors hover:bg-ash-900/[0.05] disabled:pointer-events-none disabled:text-ash-300"
             >
               Older <ChevronRight className="h-3.5 w-3.5" />
             </button>
@@ -172,7 +172,7 @@ export default function JournalBoard({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[860px] border-collapse text-[12px]">
               <thead>
-                <tr className="border-b border-zinc-900/[0.06] text-[10px] uppercase tracking-wide text-zinc-400">
+                <tr className="border-b border-ash-900/[0.06] text-[10px] uppercase tracking-wide text-ash-400">
                   <th className="px-4 py-2 text-left font-bold">Posting</th>
                   <th className="px-3 py-2 text-left font-bold">When</th>
                   <th className="px-3 py-2 text-left font-bold">From</th>
@@ -183,19 +183,19 @@ export default function JournalBoard({
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id} className="border-b border-zinc-900/[0.04] last:border-0 hover:bg-zinc-900/[0.02]">
+                  <tr key={r.id} className="border-b border-ash-900/[0.04] last:border-0 hover:bg-ash-900/[0.02]">
                     <td className="px-4 py-2">
-                      <span className="block font-mono text-[11px] text-zinc-500">#{r.id}</span>
+                      <span className="block font-mono text-[11px] text-ash-500">#{r.id}</span>
                       {r.narration !== "—" && (
-                        <span className="block max-w-[220px] truncate text-[10.5px] text-zinc-400">{r.narration}</span>
+                        <span className="block max-w-[220px] truncate text-[10.5px] text-ash-400">{r.narration}</span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-zinc-600">
-                      {shortDate(r.at)} <span className="text-zinc-400">{shortTime(r.at)}</span>
+                    <td className="whitespace-nowrap px-3 py-2 text-ash-600">
+                      {shortDate(r.at)} <span className="text-ash-400">{shortTime(r.at)}</span>
                     </td>
-                    <td className="px-3 py-2 text-zinc-600">{r.from}</td>
-                    <td className="px-3 py-2 font-medium text-zinc-800">{r.to}</td>
-                    <td className="px-3 py-2 text-right tabular-nums font-semibold text-zinc-900">{KES(r.amount)}</td>
+                    <td className="px-3 py-2 text-ash-600">{r.from}</td>
+                    <td className="px-3 py-2 font-medium text-ash-800">{r.to}</td>
+                    <td className="px-3 py-2 text-right tabular-nums font-semibold text-ash-900">{KES(r.amount)}</td>
                     <td className="px-3 py-2">
                       {r.loanId > 0 ? (
                         // The connection, made clickable. This is the same loan id
@@ -207,9 +207,9 @@ export default function JournalBoard({
                           {r.loanId}
                         </Link>
                       ) : (
-                        <span className="text-zinc-300">—</span>
+                        <span className="text-ash-300">—</span>
                       )}
-                      {r.entityId === 3005 && <span className="ml-1.5 text-[10px] text-zinc-400">Fintech</span>}
+                      {r.entityId === 3005 && <span className="ml-1.5 text-[10px] text-ash-400">Fintech</span>}
                     </td>
                   </tr>
                 ))}
@@ -221,7 +221,7 @@ export default function JournalBoard({
 
       <Card className="mt-3">
         <CardHead title="What this screen will not do" accent={ACCENT} />
-        <p className="text-[11.5px] leading-relaxed text-zinc-500">
+        <p className="text-[11.5px] leading-relaxed text-ash-500">
           It will not show you a balance sheet. The journal has no opening balances and no period closes, so any balance derived
           from it would have no defensible starting point — it would be a number that looks authoritative and cannot be defended.
           Movement over a window is what this data honestly supports, and that is what{" "}

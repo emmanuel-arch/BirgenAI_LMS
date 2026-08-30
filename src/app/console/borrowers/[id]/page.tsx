@@ -39,14 +39,14 @@ function accountAgeOf(createdAt: Date | string): string {
 
 const KYC_TONE: Record<string, string> = {
   VERIFIED: "bg-emerald-100 text-emerald-700", PENDING_REVIEW: "bg-amber-100 text-amber-700",
-  IN_PROGRESS: "bg-sky-100 text-sky-700", FAILED: "bg-rose-100 text-rose-700", NONE: "bg-zinc-900/5 text-zinc-500",
+  IN_PROGRESS: "bg-sky-100 text-sky-700", FAILED: "bg-rose-100 text-rose-700", NONE: "bg-ash-900/5 text-ash-500",
 };
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
-    <div className="rounded-lg border border-zinc-900/10 bg-white/60 px-2.5 py-2">
-      <p className="text-[9px] uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className={`text-sm font-bold leading-tight ${tone ?? "text-zinc-800"}`}>{value}</p>
+    <div className="rounded-lg border border-ash-900/10 bg-paper/60 px-2.5 py-2">
+      <p className="text-[9px] uppercase tracking-wide text-ash-500">{label}</p>
+      <p className={`text-sm font-bold leading-tight ${tone ?? "text-ash-800"}`}>{value}</p>
     </div>
   );
 }
@@ -55,9 +55,9 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: str
     prices a customer by deserve more than a 9px whisper. */
 function BigStat({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
-    <div className="min-w-[8.5rem] rounded-xl border border-zinc-900/10 bg-white/60 px-4 py-3">
-      <p className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className={`mt-0.5 text-xl font-bold leading-tight ${tone ?? "text-zinc-800"}`}>{value}</p>
+    <div className="min-w-[8.5rem] rounded-xl border border-ash-900/10 bg-paper/60 px-4 py-3">
+      <p className="text-[10px] uppercase tracking-wide text-ash-500">{label}</p>
+      <p className={`mt-0.5 text-xl font-bold leading-tight ${tone ?? "text-ash-800"}`}>{value}</p>
     </div>
   );
 }
@@ -202,7 +202,7 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
-        <Link href="/console/borrowers" className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800"><ArrowLeft className="h-4 w-4" /> Borrowers</Link>
+        <Link href="/console/borrowers" className="inline-flex items-center gap-1.5 text-sm text-ash-500 hover:text-ash-800"><ArrowLeft className="h-4 w-4" /> Borrowers</Link>
 
         {/* Identity header. The customer's FACE leads — an officer looking for a person
             is looking for a person, and the fastest fraud check anyone ever runs is
@@ -269,22 +269,22 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
                     </Link>
                   )}
                 </div>
-                <p className="mt-0.5 text-sm text-zinc-500 truncate">{b.phone}{b.nationalId ? ` · ID ${b.nationalId}` : ""}{b.locationAddress ? ` · ${b.locationAddress}` : ""}</p>
+                <p className="mt-0.5 text-sm text-ash-500 truncate">{b.phone}{b.nationalId ? ` · ID ${b.nationalId}` : ""}{b.locationAddress ? ` · ${b.locationAddress}` : ""}</p>
                 {/* Tenure and placement — how long they've banked here and whose book
                     they sit on, root-first the way the org says it. This earns the line
                     the old "identity verified" sentence held; the badge above already
                     says that in one glyph. */}
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-zinc-600">
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ash-600">
                   <span className="flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-zinc-400" />
-                    <span className="text-zinc-400">Account age</span>
-                    <span className="font-semibold text-zinc-700">{accountAge}</span>
+                    <Clock className="h-3.5 w-3.5 text-ash-400" />
+                    <span className="text-ash-400">Account age</span>
+                    <span className="font-semibold text-ash-700">{accountAge}</span>
                   </span>
                   {branchChain.map((n, i) => (
                     <span key={`${n.name}-${i}`} className="flex items-center gap-1">
-                      {i === 0 && <Building2 className="h-3.5 w-3.5 text-zinc-400" />}
-                      <span className="font-semibold text-zinc-700">{n.name}</span>
-                      {i > 0 && <span className="text-[10px] text-zinc-400">({n.levelName})</span>}
+                      {i === 0 && <Building2 className="h-3.5 w-3.5 text-ash-400" />}
+                      <span className="font-semibold text-ash-700">{n.name}</span>
+                      {i > 0 && <span className="text-[10px] text-ash-400">({n.levelName})</span>}
                     </span>
                   ))}
                 </div>
@@ -324,24 +324,24 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
 
           {/* The journey strip — which step this account is on, and a way into
               the step it is waiting for. */}
-          <div className="mt-4 border-t border-zinc-900/10 pt-3">
+          <div className="mt-4 border-t border-ash-900/10 pt-3">
             <div className="flex items-center gap-0 overflow-x-auto">
               {journey.map((s, i) => {
                 const isCurrent = i === currentStep;
                 const dot = s.done ? (
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white"><CheckCircle2 className="h-3.5 w-3.5" /></span>
                 ) : (
-                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${isCurrent ? "text-white" : "bg-zinc-900/10 text-zinc-500"}`}
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${isCurrent ? "text-white" : "bg-ash-900/10 text-ash-500"}`}
                     style={isCurrent ? { backgroundColor: "var(--brand)" } : undefined}>{i + 1}</span>
                 );
                 const label = (
-                  <span className={`ml-1.5 whitespace-nowrap text-[11px] ${s.done ? "font-medium text-zinc-600" : isCurrent ? "font-bold text-zinc-900" : "text-zinc-400"}`}>
-                    {s.label}{isCurrent && <span className="ml-1 rounded bg-zinc-900/5 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-zinc-500">current step</span>}
+                  <span className={`ml-1.5 whitespace-nowrap text-[11px] ${s.done ? "font-medium text-ash-600" : isCurrent ? "font-bold text-ash-900" : "text-ash-400"}`}>
+                    {s.label}{isCurrent && <span className="ml-1 rounded bg-ash-900/5 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-ash-500">current step</span>}
                   </span>
                 );
                 return (
                   <div key={s.label} className="flex items-center">
-                    {i > 0 && <span className={`mx-2 h-px w-4 sm:w-7 ${journey[i - 1].done ? "bg-emerald-400" : "bg-zinc-900/15"}`} />}
+                    {i > 0 && <span className={`mx-2 h-px w-4 sm:w-7 ${journey[i - 1].done ? "bg-emerald-400" : "bg-ash-900/15"}`} />}
                     {s.href && isCurrent
                       ? <Link href={s.href} className="flex items-center hover:opacity-80">{dot}{label}</Link>
                       : <span className="flex items-center">{dot}{label}</span>}
@@ -367,19 +367,19 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
             {risk ? (
               <div className="mt-3">
                 <div className="flex items-center gap-2.5">
-                  <span className={`rounded-md px-2 py-0.5 text-xs font-bold ${risk.band === "HIGH" ? "bg-rose-100 text-rose-700" : risk.band === "ELEVATED" ? "bg-amber-100 text-amber-700" : "bg-zinc-900/5 text-zinc-600"}`}>{risk.band}</span>
-                  <div className="flex-1 h-2 rounded-full bg-zinc-900/8 overflow-hidden">
+                  <span className={`rounded-md px-2 py-0.5 text-xs font-bold ${risk.band === "HIGH" ? "bg-rose-100 text-rose-700" : risk.band === "ELEVATED" ? "bg-amber-100 text-amber-700" : "bg-ash-900/5 text-ash-600"}`}>{risk.band}</span>
+                  <div className="flex-1 h-2 rounded-full bg-ash-900/8 overflow-hidden">
                     <div className="h-full rounded-full" style={{ width: `${risk.riskScore}%`, backgroundColor: risk.band === "HIGH" ? "#e11d48" : risk.band === "ELEVATED" ? "#d97706" : "#a1a1aa" }} />
                   </div>
                   <span className="text-xs font-bold tabular-nums">{risk.riskScore}</span>
                 </div>
                 <div className="mt-2.5 flex flex-wrap gap-1.5">
-                  {risk.reasons.map((r, i) => <span key={i} className="rounded-full border border-zinc-900/10 bg-white/60 px-2 py-0.5 text-[10px] text-zinc-600">{r}</span>)}
+                  {risk.reasons.map((r, i) => <span key={i} className="rounded-full border border-ash-900/10 bg-paper/60 px-2 py-0.5 text-[10px] text-ash-600">{r}</span>)}
                 </div>
-                <p className="mt-2.5 text-xs text-zinc-500">Recommended: <span className="font-semibold text-zinc-700">{risk.action.label}</span> · projected loss {fmtKES(risk.expectedLoss)}</p>
+                <p className="mt-2.5 text-xs text-ash-500">Recommended: <span className="font-semibold text-ash-700">{risk.action.label}</span> · projected loss {fmtKES(risk.expectedLoss)}</p>
               </div>
             ) : (
-              <p className="mt-3 text-sm text-zinc-500 flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> No early-warning signals — performing to schedule.</p>
+              <p className="mt-3 text-sm text-ash-500 flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> No early-warning signals — performing to schedule.</p>
             )}
           </div>
 
@@ -392,7 +392,7 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
                 <Stat label="Liveness" value={kyc.livenessScore != null ? `${kyc.livenessScore}` : "—"} tone={kyc.livenessPassed ? "text-emerald-600" : undefined} />
                 <Stat label="Face match" value={kyc.faceMatchScore != null ? `${kyc.faceMatchScore}` : "—"} />
                 <Stat label="IPRS" value={kyc.iprsMatched ? "Matched" : "—"} tone={kyc.iprsMatched ? "text-emerald-600" : undefined} />
-                <div className="col-span-2 sm:col-span-4 text-xs text-zinc-500">
+                <div className="col-span-2 sm:col-span-4 text-xs text-ash-500">
                   Session <span className="font-semibold">{kyc.status}</span> · {kyc.provider} · {dateFmt(kyc.createdAt)}
                   {kyc.iprsName ? ` · registry: ${kyc.iprsName}` : ""}
                 </div>
@@ -406,7 +406,7 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
                 </div>
               </div>
             ) : (
-              <p className="mt-3 text-sm text-zinc-500">
+              <p className="mt-3 text-sm text-ash-500">
                 No KYC session on file.{" "}
                 <Link href={`/console/kyc/${b.id}?from=360`} className="font-semibold" style={{ color: "var(--brand)" }}>Start verification</Link>
               </p>
@@ -415,19 +415,19 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
 
           {/* Loans */}
           <div className="glass p-5">
-            <h2 className="text-sm font-semibold flex items-center gap-2"><Landmark className="h-4 w-4" style={{ color: "var(--brand)" }} /> Loans <span className="text-zinc-400 font-normal">· {clearedCount} cleared</span></h2>
+            <h2 className="text-sm font-semibold flex items-center gap-2"><Landmark className="h-4 w-4" style={{ color: "var(--brand)" }} /> Loans <span className="text-ash-400 font-normal">· {clearedCount} cleared</span></h2>
             <div className="mt-3 space-y-2">
-              {b.loans.length === 0 && <p className="text-sm text-zinc-500">No loans yet.</p>}
+              {b.loans.length === 0 && <p className="text-sm text-ash-500">No loans yet.</p>}
               {b.loans.slice(0, 6).map((l) => {
                 const total = l.installments.length;
                 const paid = l.installments.filter((i) => i.status === "PAID").length;
                 return (
-                  <div key={l.id} className="rounded-lg border border-zinc-900/10 bg-white/60 px-3 py-2">
+                  <div key={l.id} className="rounded-lg border border-ash-900/10 bg-paper/60 px-3 py-2">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium truncate">{l.product.name}</p>
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${l.status === "ACTIVE" ? "bg-sky-100 text-sky-700" : l.status === "CLEARED" ? "bg-emerald-100 text-emerald-700" : "bg-zinc-900/5 text-zinc-600"}`}>{l.status}</span>
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${l.status === "ACTIVE" ? "bg-sky-100 text-sky-700" : l.status === "CLEARED" ? "bg-emerald-100 text-emerald-700" : "bg-ash-900/5 text-ash-600"}`}>{l.status}</span>
                     </div>
-                    <div className="mt-1 flex items-center justify-between text-xs text-zinc-500">
+                    <div className="mt-1 flex items-center justify-between text-xs text-ash-500">
                       <span>{fmtKES(num(l.loanAmount))} · {paid}/{total} paid</span>
                       <span className="font-semibold" style={{ color: "var(--brand)" }}>{fmtKES(num(l.balance))}</span>
                     </div>
@@ -445,16 +445,16 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
 
           {/* Score history (closed ML loop) */}
           <div className="glass p-5">
-            <h2 className="text-sm font-semibold flex items-center gap-2"><History className="h-4 w-4" style={{ color: "var(--brand)" }} /> Score history <span className="text-zinc-400 font-normal">· closed ML loop</span></h2>
+            <h2 className="text-sm font-semibold flex items-center gap-2"><History className="h-4 w-4" style={{ color: "var(--brand)" }} /> Score history <span className="text-ash-400 font-normal">· closed ML loop</span></h2>
             <div className="mt-3 space-y-1.5">
-              {scores.length === 0 && <p className="text-sm text-zinc-500">No scores recorded.</p>}
+              {scores.length === 0 && <p className="text-sm text-ash-500">No scores recorded.</p>}
               {scores.map((s) => (
                 <div key={s.id} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="text-zinc-500 truncate">{s.modelKind} <span className="text-zinc-400">{s.modelVersion}</span></span>
+                  <span className="text-ash-500 truncate">{s.modelKind} <span className="text-ash-400">{s.modelVersion}</span></span>
                   <span className="flex items-center gap-2 shrink-0">
-                    {s.score != null && <span className="font-semibold text-zinc-700">{s.score}</span>}
-                    {s.pd != null && <span className="text-zinc-400">PD {Number(s.pd).toFixed(2)}</span>}
-                    <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${s.outcome === "REPAID" ? "bg-emerald-100 text-emerald-700" : s.outcome === "DEFAULTED" ? "bg-rose-100 text-rose-700" : "bg-zinc-900/5 text-zinc-500"}`}>{s.outcome}</span>
+                    {s.score != null && <span className="font-semibold text-ash-700">{s.score}</span>}
+                    {s.pd != null && <span className="text-ash-400">PD {Number(s.pd).toFixed(2)}</span>}
+                    <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${s.outcome === "REPAID" ? "bg-emerald-100 text-emerald-700" : s.outcome === "DEFAULTED" ? "bg-rose-100 text-rose-700" : "bg-ash-900/5 text-ash-500"}`}>{s.outcome}</span>
                   </span>
                 </div>
               ))}
@@ -468,8 +468,8 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
               <div className="mt-3 space-y-1.5">
                 {b.fieldVisits.map((v) => (
                   <div key={v.id} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="text-zinc-600 truncate">{v.label}{v.agent ? ` · ${v.agent.firstName}` : ""}</span>
-                    <span className="flex items-center gap-1.5 shrink-0 text-zinc-500">
+                    <span className="text-ash-600 truncate">{v.label}{v.agent ? ` · ${v.agent.firstName}` : ""}</span>
+                    <span className="flex items-center gap-1.5 shrink-0 text-ash-500">
                       {v.status === "VERIFIED" ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : v.status === "FAILED" ? <XCircle className="h-3.5 w-3.5 text-rose-500" /> : <Clock className="h-3.5 w-3.5 text-amber-500" />}
                       {v.status}
                     </span>

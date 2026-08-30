@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 const STATUS_TONE: Record<string, string> = {
   ACTIVE: "bg-emerald-100 text-emerald-700",
   PENDING_DISBURSEMENT: "bg-amber-100 text-amber-700",
-  CLEARED: "bg-zinc-900/5 text-zinc-500",
+  CLEARED: "bg-ash-900/5 text-ash-500",
   RESTRUCTURED: "bg-sky-100 text-sky-700",
   WRITTEN_OFF: "bg-red-100 text-red-700",
 };
@@ -70,7 +70,7 @@ export default async function LoansPage({ searchParams }: { searchParams: Promis
             <Link
               key={f.label}
               href={f.value ? `/console/loans?status=${f.value}` : "/console/loans"}
-              className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize ${active ? "text-white" : "border border-zinc-900/10 bg-white/70 text-[color:var(--ink-muted)] hover:bg-white"}`}
+              className={`rounded-full px-3 py-1 text-[11px] font-semibold capitalize ${active ? "text-white" : "border border-ash-900/10 bg-paper/70 text-[color:var(--ink-muted)] hover:bg-paper"}`}
               style={active ? { backgroundColor: "var(--brand)" } : undefined}
             >
               {f.label} · {f.count}
@@ -120,7 +120,7 @@ export default async function LoansPage({ searchParams }: { searchParams: Promis
                   <td className="num">{fmt(l.principal)}</td>
                   <td className="num font-semibold text-[color:var(--ink)]">{fmt(l.balance)}</td>
                   <td>
-                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold capitalize ${STATUS_TONE[l.status] ?? "bg-zinc-900/5 text-zinc-600"}`}>
+                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold capitalize ${STATUS_TONE[l.status] ?? "bg-ash-900/5 text-ash-600"}`}>
                       {l.status.replaceAll("_", " ").toLowerCase()}
                     </span>
                   </td>

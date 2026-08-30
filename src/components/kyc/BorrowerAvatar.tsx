@@ -61,10 +61,10 @@ export function BorrowerAvatar({
   return (
     <div className={`relative shrink-0 ${className}`}>
       <div
-        className={`${BOX[size]} ${RADIUS[size]} ${PAD[size]} ${verified ? "" : "border border-dashed border-zinc-900/20"}`}
+        className={`${BOX[size]} ${RADIUS[size]} ${PAD[size]} ${verified ? "" : "border border-dashed border-ash-900/20"}`}
         style={verified ? { background: "linear-gradient(140deg, var(--brand), var(--brand-soft))" } : undefined}
       >
-        <div className={`flex h-full w-full items-center justify-center overflow-hidden ${RADIUS[size]} ${showPhoto ? "bg-white" : ""}`}
+        <div className={`flex h-full w-full items-center justify-center overflow-hidden ${RADIUS[size]} ${showPhoto ? "bg-paper" : ""}`}
           style={showPhoto ? undefined : verified ? { backgroundColor: "var(--brand)" } : { backgroundColor: "rgba(24,24,27,0.05)" }}
         >
           {showPhoto ? (
@@ -79,7 +79,7 @@ export function BorrowerAvatar({
               className={`h-full w-full object-cover ${RADIUS[size]}`}
             />
           ) : (
-            <span className={`${TEXT[size]} font-bold ${verified ? "text-white" : "text-zinc-500"}`}>{initials(name)}</span>
+            <span className={`${TEXT[size]} font-bold ${verified ? "text-white" : "text-ash-500"}`}>{initials(name)}</span>
           )}
         </div>
       </div>

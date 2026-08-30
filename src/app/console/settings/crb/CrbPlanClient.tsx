@@ -215,7 +215,7 @@ export default function CrbPlanClient() {
   if (loading) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-16 text-center sm:px-6">
-        <Loader2 className="mx-auto h-5 w-5 animate-spin text-zinc-400" />
+        <Loader2 className="mx-auto h-5 w-5 animate-spin text-ash-400" />
       </main>
     );
   }
@@ -231,7 +231,7 @@ export default function CrbPlanClient() {
       >
         <Link
           href="/console/settings"
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-900/5"
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-ash-600 hover:bg-ash-900/5"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Settings
         </Link>
@@ -239,7 +239,7 @@ export default function CrbPlanClient() {
           type="button"
           onClick={save}
           disabled={!dirty || saving}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-40"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-40"
         >
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
           {dirty ? "Save plan" : "Saved"}
@@ -315,38 +315,38 @@ export default function CrbPlanClient() {
               type="button"
               onClick={() => { set("scrutinyTier", tier.key); set("reports", [...tier.reports] as number[]); }}
               className={`rounded-2xl border p-4 text-left transition-all ${
-                active ? "border-transparent shadow-lg ring-2" : "border-zinc-900/10 bg-white hover:border-zinc-900/20"
+                active ? "border-transparent shadow-lg ring-2" : "border-ash-900/10 bg-paper hover:border-ash-900/20"
               }`}
               style={active ? { backgroundColor: `${tier.accent}0d`, boxShadow: `0 0 0 2px ${tier.accent}` } : undefined}
             >
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-bold" style={{ color: tier.accent }}>{tier.name}</p>
-                <span className="shrink-0 rounded-md bg-zinc-900/[0.06] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-zinc-600">
+                <span className="shrink-0 rounded-md bg-ash-900/[0.06] px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-ash-600">
                   {tier.reports.length} rpt
                 </span>
               </div>
-              <p className="mt-1 text-[11px] leading-snug text-zinc-600">{tier.purpose}</p>
-              <p className="mt-2 text-[10px] uppercase tracking-wide text-zinc-400">{tier.suitedTo}</p>
-              <div className="mt-2 flex items-baseline justify-between border-t border-zinc-900/5 pt-2">
-                <span className="text-sm font-bold tabular-nums text-zinc-800">{kes2(perCheck)}</span>
-                <span className="text-[10px] tabular-nums text-zinc-500">{kes(monthly)}/mo</span>
+              <p className="mt-1 text-[11px] leading-snug text-ash-600">{tier.purpose}</p>
+              <p className="mt-2 text-[10px] uppercase tracking-wide text-ash-400">{tier.suitedTo}</p>
+              <div className="mt-2 flex items-baseline justify-between border-t border-ash-900/5 pt-2">
+                <span className="text-sm font-bold tabular-nums text-ash-800">{kes2(perCheck)}</span>
+                <span className="text-[10px] tabular-nums text-ash-500">{kes(monthly)}/mo</span>
               </div>
             </button>
           );
         })}
         <div
           className={`rounded-2xl border p-4 ${
-            state.scrutinyTier === "custom" ? "border-transparent bg-zinc-900/[0.04] shadow-lg ring-2 ring-zinc-900" : "border-dashed border-zinc-900/20"
+            state.scrutinyTier === "custom" ? "border-transparent bg-ash-900/[0.04] shadow-lg ring-2 ring-ash-900" : "border-dashed border-ash-900/20"
           }`}
         >
-          <p className="text-sm font-bold text-zinc-800">Custom</p>
-          <p className="mt-1 text-[11px] leading-snug text-zinc-600">
+          <p className="text-sm font-bold text-ash-800">Custom</p>
+          <p className="mt-1 text-[11px] leading-snug text-ash-600">
             Pick reports individually below. Selecting any report switches you here.
           </p>
           {state.scrutinyTier === "custom" && (
-            <div className="mt-2 flex items-baseline justify-between border-t border-zinc-900/5 pt-2">
-              <span className="text-sm font-bold tabular-nums text-zinc-800">{kes2(plan.perCheck)}</span>
-              <span className="text-[10px] tabular-nums text-zinc-500">{kes(projection.net)}/mo</span>
+            <div className="mt-2 flex items-baseline justify-between border-t border-ash-900/5 pt-2">
+              <span className="text-sm font-bold tabular-nums text-ash-800">{kes2(plan.perCheck)}</span>
+              <span className="text-[10px] tabular-nums text-ash-500">{kes(projection.net)}/mo</span>
             </div>
           )}
         </div>
@@ -354,16 +354,16 @@ export default function CrbPlanClient() {
 
       {/* ── What this plan does not buy ──────────────────────────────────────── */}
       {lostVsForensic.length > 0 && (
-        <div className="mt-3 rounded-xl bg-zinc-900/[0.03] px-3.5 py-3 ring-1 ring-zinc-900/[0.06]">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Not bought at this level</p>
+        <div className="mt-3 rounded-xl bg-ash-900/[0.03] px-3.5 py-3 ring-1 ring-ash-900/[0.06]">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ash-500">Not bought at this level</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {lostVsForensic.map((r) => (
-              <span key={r.code} className="rounded-md bg-white px-2 py-1 text-[11px] text-zinc-600 ring-1 ring-zinc-900/10" title={r.answers}>
+              <span key={r.code} className="rounded-md bg-paper px-2 py-1 text-[11px] text-ash-600 ring-1 ring-ash-900/10" title={r.answers}>
                 {r.name}
               </span>
             ))}
           </div>
-          <p className="mt-1.5 text-[11px] leading-snug text-zinc-500">
+          <p className="mt-1.5 text-[11px] leading-snug text-ash-500">
             Every officer decision made on this plan is made without the above. That is a legitimate trade — it is only a
             problem when nobody chose it.
           </p>
@@ -372,7 +372,7 @@ export default function CrbPlanClient() {
 
       {/* ── The report catalogue ─────────────────────────────────────────────── */}
       <Divider label="The report catalogue" />
-      <p className="-mt-2 mb-3 text-[12px] leading-snug text-zinc-500">
+      <p className="-mt-2 mb-3 text-[12px] leading-snug text-ash-500">
         Every report Metropol expose (Developer Guide v3.8 §5.1), what each answers, and its price. Tick to include it in
         your plan; type over the price when Metropol issue your tariff sheet.
       </p>
@@ -386,7 +386,7 @@ export default function CrbPlanClient() {
             <div
               key={r.code}
               className={`rounded-xl border p-3 transition-colors ${
-                on ? "border-[color:var(--brand)]/40 bg-[color:var(--brand-soft)]" : "border-zinc-900/10 bg-white"
+                on ? "border-[color:var(--brand)]/40 bg-[color:var(--brand-soft)]" : "border-ash-900/10 bg-paper"
               }`}
             >
               <div className="flex items-start gap-3">
@@ -399,10 +399,10 @@ export default function CrbPlanClient() {
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="rounded bg-zinc-900/[0.07] px-1.5 py-0.5 font-mono text-[10px] font-bold text-zinc-600">
+                    <span className="rounded bg-ash-900/[0.07] px-1.5 py-0.5 font-mono text-[10px] font-bold text-ash-600">
                       {r.code}
                     </span>
-                    <p className="text-[13px] font-semibold text-zinc-800">{r.name}</p>
+                    <p className="text-[13px] font-semibold text-ash-800">{r.name}</p>
                     {!r.wired && (
                       <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-700" title="Callable, but not yet merged into the borrower file">
                         raw only
@@ -414,16 +414,16 @@ export default function CrbPlanClient() {
                       </span>
                     )}
                   </div>
-                  <p className="mt-0.5 text-[12px] italic leading-snug text-zinc-600">{r.answers}</p>
-                  <p className="mt-1 text-[11px] leading-snug text-zinc-500">{r.yields.join(" · ")}</p>
-                  <p className="mt-1 font-mono text-[10px] text-zinc-400">
+                  <p className="mt-0.5 text-[12px] italic leading-snug text-ash-600">{r.answers}</p>
+                  <p className="mt-1 text-[11px] leading-snug text-ash-500">{r.yields.join(" · ")}</p>
+                  <p className="mt-1 font-mono text-[10px] text-ash-400">
                     {r.method} {r.endpoint}
                     {r.needsLoanAmount ? " · loan_amount" : ""}
                     {r.needsReportReason ? " · report_reason" : ""}
                   </p>
                 </div>
                 <div className="w-28 shrink-0 text-right">
-                  <label className="block text-[9px] uppercase tracking-wide text-zinc-400">
+                  <label className="block text-[9px] uppercase tracking-wide text-ash-400">
                     {custom ? "tariff" : "indicative"}
                   </label>
                   <input
@@ -439,7 +439,7 @@ export default function CrbPlanClient() {
                       set("tariff", next);
                     }}
                     className={`mt-0.5 w-full rounded-lg border px-2 py-1 text-right text-xs tabular-nums outline-none focus:ring-2 focus:ring-[color:var(--brand)] ${
-                      custom ? "border-emerald-300 bg-emerald-50 font-semibold text-emerald-800" : "border-zinc-900/10 bg-white text-zinc-600"
+                      custom ? "border-emerald-300 bg-emerald-50 font-semibold text-emerald-800" : "border-ash-900/10 bg-paper text-ash-600"
                     }`}
                   />
                 </div>
@@ -463,7 +463,7 @@ export default function CrbPlanClient() {
 
       {/* ── Scrutiny proportional to exposure ────────────────────────────────── */}
       <Divider label="Scrutiny proportional to exposure" />
-      <div className="rounded-2xl border border-zinc-900/10 bg-white p-4">
+      <div className="rounded-2xl border border-ash-900/10 bg-paper p-4">
         <label className="flex items-start gap-2.5">
           <input
             type="checkbox"
@@ -472,8 +472,8 @@ export default function CrbPlanClient() {
             className="mt-0.5 h-4 w-4 accent-[color:var(--brand)]"
           />
           <span>
-            <span className="text-[13px] font-semibold text-zinc-800">Vary the tier with the loan amount</span>
-            <span className="block text-[11px] leading-snug text-zinc-500">
+            <span className="text-[13px] font-semibold text-ash-800">Vary the tier with the loan amount</span>
+            <span className="block text-[11px] leading-snug text-ash-500">
               The single most common way a lender overspends at a bureau is buying the same depth of file for a KES 3,000
               loan as for a KES 300,000 one. With the ladder on, the tier above becomes the fallback for checks that carry
               no amount — an ad-hoc Customer-360 pull.
@@ -484,10 +484,10 @@ export default function CrbPlanClient() {
         {state.ladderOn && (
           <div className="mt-3 space-y-2">
             {state.ladder.map((rung, i) => (
-              <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-zinc-900/[0.03] px-3 py-2">
-                <span className="text-[11px] text-zinc-500">{i === 0 ? "Up to" : "then up to"}</span>
+              <div key={i} className="flex flex-wrap items-center gap-2 rounded-lg bg-ash-900/[0.03] px-3 py-2">
+                <span className="text-[11px] text-ash-500">{i === 0 ? "Up to" : "then up to"}</span>
                 {rung.upTo === null ? (
-                  <span className="text-[13px] font-semibold text-zinc-800">any amount above</span>
+                  <span className="text-[13px] font-semibold text-ash-800">any amount above</span>
                 ) : (
                   <input
                     type="number"
@@ -499,10 +499,10 @@ export default function CrbPlanClient() {
                       next[i] = { ...rung, upTo: Math.max(0, Number(e.target.value) || 0) };
                       set("ladder", next);
                     }}
-                    className="w-32 rounded-lg border border-zinc-900/10 bg-white px-2 py-1 text-right text-xs tabular-nums outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
+                    className="w-32 rounded-lg border border-ash-900/10 bg-paper px-2 py-1 text-right text-xs tabular-nums outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
                   />
                 )}
-                <span className="text-[11px] text-zinc-500">→</span>
+                <span className="text-[11px] text-ash-500">→</span>
                 <select
                   value={rung.tier}
                   onChange={(e) => {
@@ -510,13 +510,13 @@ export default function CrbPlanClient() {
                     next[i] = { ...rung, tier: e.target.value as LadderRung["tier"] };
                     set("ladder", next);
                   }}
-                  className="rounded-lg border border-zinc-900/10 bg-white px-2 py-1 text-xs font-semibold outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
+                  className="rounded-lg border border-ash-900/10 bg-paper px-2 py-1 text-xs font-semibold outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
                 >
                   {SCRUTINY_TIERS.map((t) => (
                     <option key={t.key} value={t.key}>{t.name}</option>
                   ))}
                 </select>
-                <span className="ml-auto text-[11px] tabular-nums text-zinc-500">
+                <span className="ml-auto text-[11px] tabular-nums text-ash-500">
                   {kes2(resolvePlan({ tier: rung.tier, tariff: state.tariff }).perCheck)} / check
                 </span>
               </div>
@@ -528,7 +528,7 @@ export default function CrbPlanClient() {
       {/* ── Volume, reuse and budget ─────────────────────────────────────────── */}
       <Divider label="Volume, freshness and budget" />
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="space-y-3 rounded-2xl border border-zinc-900/10 bg-white p-4">
+        <div className="space-y-3 rounded-2xl border border-ash-900/10 bg-paper p-4">
           <NumberField
             label="Checks per month"
             value={state.monthlyChecks}
@@ -550,14 +550,14 @@ export default function CrbPlanClient() {
                   type="button"
                   onClick={() => set("reuseHours", o.h)}
                   className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
-                    state.reuseHours === o.h ? "bg-zinc-900 text-white" : "bg-zinc-900/[0.06] text-zinc-600 hover:bg-zinc-900/10"
+                    state.reuseHours === o.h ? "bg-invert text-invert-fg" : "bg-ash-900/[0.06] text-ash-600 hover:bg-ash-900/10"
                   }`}
                 >
                   {o.label}
                 </button>
               ))}
             </div>
-            <p className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-snug text-zinc-500">
+            <p className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-snug text-ash-500">
               <Clock className="mt-0.5 h-3 w-3 shrink-0" />
               A repeat pull inside the window is served from the stored file and costs nothing. It is also what keeps you
               clear of Metropol&apos;s <strong>E409</strong> guard, which rejects an identical call inside 60 seconds. At{" "}
@@ -569,7 +569,7 @@ export default function CrbPlanClient() {
           </div>
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-zinc-900/10 bg-white p-4">
+        <div className="space-y-3 rounded-2xl border border-ash-900/10 bg-paper p-4">
           <NumberField
             label="Monthly bureau budget (KES)"
             value={state.monthlyBudget}
@@ -586,21 +586,21 @@ export default function CrbPlanClient() {
               { value: "block", label: "Stop live pulls, fall back to simulation" },
             ]}
           />
-          <p className="text-[11px] leading-snug text-zinc-500">
+          <p className="text-[11px] leading-snug text-ash-500">
             <strong>Warn</strong> is the default on purpose. Blocking bureau access mid-month does not save money, it
             moves the cost: every decision made after the block is made blind, and one bad KES 200,000 loan costs more
             than a year of reports.
           </p>
 
           {projection.budget != null && (
-            <div className="rounded-xl bg-zinc-900/[0.03] p-3">
+            <div className="rounded-xl bg-ash-900/[0.03] p-3">
               <div className="flex items-baseline justify-between text-[11px]">
-                <span className="text-zinc-500">Projected against budget</span>
+                <span className="text-ash-500">Projected against budget</span>
                 <span className={`font-bold tabular-nums ${projection.overBudget ? "text-rose-600" : "text-emerald-600"}`}>
                   {Math.round(projection.budgetUsedPct ?? 0)}%
                 </span>
               </div>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-zinc-900/[0.08]">
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-ash-900/[0.08]">
                 <div
                   className="h-full rounded-r-full transition-all"
                   style={{
@@ -619,12 +619,12 @@ export default function CrbPlanClient() {
           )}
 
           {actual && (
-            <div className="rounded-xl bg-zinc-900/[0.03] p-3">
-              <p className="text-[10px] uppercase tracking-wide text-zinc-500">Actually billed this month</p>
-              <p className="mt-0.5 text-sm font-bold tabular-nums text-zinc-800">
-                {kes(actual.spend)} <span className="text-[11px] font-normal text-zinc-500">over {actual.checks.toLocaleString()} checks</span>
+            <div className="rounded-xl bg-ash-900/[0.03] p-3">
+              <p className="text-[10px] uppercase tracking-wide text-ash-500">Actually billed this month</p>
+              <p className="mt-0.5 text-sm font-bold tabular-nums text-ash-800">
+                {kes(actual.spend)} <span className="text-[11px] font-normal text-ash-500">over {actual.checks.toLocaleString()} checks</span>
               </p>
-              <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
+              <p className="mt-0.5 text-[11px] leading-snug text-ash-500">
                 From the metering ledger — what was really charged, not a projection. If this and the figure above
                 disagree by much, the volume estimate is wrong.
               </p>
@@ -635,10 +635,10 @@ export default function CrbPlanClient() {
 
       {/* ── The cost breakdown ───────────────────────────────────────────────── */}
       <Divider label="What one check buys" />
-      <div className="overflow-hidden rounded-2xl border border-zinc-900/10 bg-white">
+      <div className="overflow-hidden rounded-2xl border border-ash-900/10 bg-paper">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-900/[0.07] text-left text-[10px] uppercase tracking-wide text-zinc-400">
+            <tr className="border-b border-ash-900/[0.07] text-left text-[10px] uppercase tracking-wide text-ash-400">
               <th className="px-4 py-2 font-semibold">Report</th>
               <th className="px-4 py-2 font-semibold">Answers</th>
               <th className="px-4 py-2 text-right font-semibold">Per check</th>
@@ -647,37 +647,37 @@ export default function CrbPlanClient() {
           </thead>
           <tbody>
             {plan.lines.map((l) => (
-              <tr key={l.code} className="border-b border-zinc-900/[0.04] last:border-0">
+              <tr key={l.code} className="border-b border-ash-900/[0.04] last:border-0">
                 <td className="px-4 py-2.5">
-                  <span className="mr-1.5 rounded bg-zinc-900/[0.07] px-1.5 py-0.5 font-mono text-[10px] font-bold text-zinc-600">{l.code}</span>
-                  <span className="text-[13px] font-medium text-zinc-800">{l.name}</span>
+                  <span className="mr-1.5 rounded bg-ash-900/[0.07] px-1.5 py-0.5 font-mono text-[10px] font-bold text-ash-600">{l.code}</span>
+                  <span className="text-[13px] font-medium text-ash-800">{l.name}</span>
                 </td>
-                <td className="px-4 py-2.5 text-[11px] italic text-zinc-500">{reportByCode(l.code)?.answers}</td>
+                <td className="px-4 py-2.5 text-[11px] italic text-ash-500">{reportByCode(l.code)?.answers}</td>
                 <td className="px-4 py-2.5 text-right tabular-nums">
-                  <span className={l.source === "metropol" ? "font-semibold text-emerald-700" : "text-zinc-600"}>{kes2(l.cost)}</span>
+                  <span className={l.source === "metropol" ? "font-semibold text-emerald-700" : "text-ash-600"}>{kes2(l.cost)}</span>
                 </td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-zinc-600">
+                <td className="px-4 py-2.5 text-right tabular-nums text-ash-600">
                   {kes(l.cost * projection.billableChecks)}
                 </td>
               </tr>
             ))}
             {plan.lines.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-sm text-zinc-500">
+                <td colSpan={4} className="px-4 py-6 text-center text-sm text-ash-500">
                   This plan buys nothing. Every borrower will read as a thin file.
                 </td>
               </tr>
             )}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-zinc-900/10 bg-zinc-900/[0.03] font-bold">
+            <tr className="border-t-2 border-ash-900/10 bg-ash-900/[0.03] font-bold">
               <td className="px-4 py-2.5 text-[13px]" colSpan={2}>
                 {plan.tierName} · {plan.reports.length} report{plan.reports.length === 1 ? "" : "s"}
               </td>
               <td className="px-4 py-2.5 text-right tabular-nums">{kes2(plan.perCheck)}</td>
               <td className="px-4 py-2.5 text-right tabular-nums">{kes(projection.net)}</td>
             </tr>
-            <tr className="text-[11px] text-zinc-500">
+            <tr className="text-[11px] text-ash-500">
               <td className="px-4 pb-3" colSpan={4}>
                 {kes(projection.annual)} a year at this volume. Without the reuse window you would pay{" "}
                 {kes(projection.gross)} a month instead of {kes(projection.net)}.
@@ -687,7 +687,7 @@ export default function CrbPlanClient() {
         </table>
       </div>
 
-      <p className="mt-6 text-[11px] leading-snug text-zinc-400">
+      <p className="mt-6 text-[11px] leading-snug text-ash-400">
         Report definitions, endpoints and parameters are taken from the Metropol MA Kenya API Developer Guide v3.8 (§4.1,
         §4.3, §5.1–§5.8). Reports 1, 2, 3, 11 and 12 plus the health check have been verified live against
         api.metropol.co.ke:5555/v2_1.
@@ -709,18 +709,18 @@ function Stat({
   indicative?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-900/10 bg-white p-4">
+    <div className="rounded-2xl border border-ash-900/10 bg-paper p-4">
       <div className="flex items-center gap-1.5">
-        <Icon className="h-3.5 w-3.5 text-zinc-400" />
-        <p className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</p>
+        <Icon className="h-3.5 w-3.5 text-ash-400" />
+        <p className="text-[10px] uppercase tracking-wide text-ash-500">{label}</p>
         {indicative && (
           <span className="ml-auto rounded bg-amber-100 px-1 py-0.5 text-[8px] font-bold uppercase text-amber-700" title="Built on placeholder prices — Metropol's tariff sheet has not been issued">
             est
           </span>
         )}
       </div>
-      <p className={`mt-1 text-lg font-bold leading-tight tabular-nums ${tone ?? "text-zinc-800"}`}>{value}</p>
-      <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{hint}</p>
+      <p className={`mt-1 text-lg font-bold leading-tight tabular-nums ${tone ?? "text-ash-800"}`}>{value}</p>
+      <p className="mt-0.5 text-[11px] leading-snug text-ash-500">{hint}</p>
     </div>
   );
 }
@@ -746,11 +746,11 @@ function ConnectionStrip({
     <div className={`mt-4 rounded-2xl border p-4 ${live ? "border-emerald-200 bg-emerald-50/60" : "border-amber-200 bg-amber-50/60"}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="flex items-center gap-1.5 text-[13px] font-bold text-zinc-800">
+          <p className="flex items-center gap-1.5 text-[13px] font-bold text-ash-800">
             <KeyRound className="h-3.5 w-3.5" />
             {live ? "Metropol connected" : "Metropol not connected"}
           </p>
-          <p className="mt-0.5 font-mono text-[11px] text-zinc-600">
+          <p className="mt-0.5 font-mono text-[11px] text-ash-600">
             {creds?.host ?? "api.metropol.co.ke"}:{creds?.port ?? "5555"}/{creds?.apiVersion ?? "—"}
             {creds?.publicKey ? ` · key ${creds.publicKey}` : ""}
           </p>
@@ -762,7 +762,7 @@ function ConnectionStrip({
           )}
         </div>
         <div className="shrink-0">
-          <label className="block text-[9px] uppercase tracking-wide text-zinc-500">Key set loaded</label>
+          <label className="block text-[9px] uppercase tracking-wide text-ash-500">Key set loaded</label>
           <div className="mt-1 flex gap-1">
             {([
               { v: "test", label: "Test", icon: FlaskConical },
@@ -773,7 +773,7 @@ function ConnectionStrip({
                 type="button"
                 onClick={() => onEnvironment(environment === o.v ? "" : o.v)}
                 className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
-                  environment === o.v ? "bg-zinc-900 text-white" : "bg-white text-zinc-600 ring-1 ring-zinc-900/10 hover:bg-zinc-900/5"
+                  environment === o.v ? "bg-invert text-invert-fg" : "bg-paper text-ash-600 ring-1 ring-ash-900/10 hover:bg-ash-900/5"
                 }`}
               >
                 <o.icon className="h-3 w-3" /> {o.label}

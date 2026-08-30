@@ -101,13 +101,13 @@ export default function PortalDoor<T extends { found?: boolean }>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endpoint, lender]);
 
-  const field = "flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3";
-  const input = "flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-zinc-400";
+  const field = "flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3";
+  const input = "flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-ash-400";
 
   // Opened, and the lender has a record — the screen inside takes over entirely.
   if (data?.found) {
     return (
-      <div className="min-h-screen relative text-zinc-900" style={{ ["--brand" as never]: brand.accent, ["--brand-soft" as never]: brand.accentSoft }}>
+      <div className="min-h-screen relative text-ash-900" style={{ ["--brand" as never]: brand.accent, ["--brand-soft" as never]: brand.accentSoft }}>
         <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
         <div className="relative z-10 min-h-screen px-4 py-8">
           {children(data, { lender, reload: () => load(nationalId) })}
@@ -117,7 +117,7 @@ export default function PortalDoor<T extends { found?: boolean }>({
   }
 
   return (
-    <div className="min-h-screen relative text-zinc-900" style={{ ["--brand" as never]: brand.accent, ["--brand-soft" as never]: brand.accentSoft }}>
+    <div className="min-h-screen relative text-ash-900" style={{ ["--brand" as never]: brand.accent, ["--brand-soft" as never]: brand.accentSoft }}>
       <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-8">
         {stage === "code" && otpIssue ? (
@@ -136,12 +136,12 @@ export default function PortalDoor<T extends { found?: boolean }>({
             />
           </div>
         ) : (
-          <div className="glass w-full max-w-md rounded-3xl bg-white/65 p-6 sm:p-8">
+          <div className="glass w-full max-w-md rounded-3xl bg-paper/65 p-6 sm:p-8">
             <div className="flex justify-end"><LangToggle /></div>
             <div className="text-center">
               <div className="mx-auto flex h-10 w-10 items-center justify-center" style={{ color: "var(--brand)" }}>{icon}</div>
               <h1 className="mt-3 text-2xl font-bold">{title}</h1>
-              <p className="mt-1.5 text-sm text-zinc-500">{subtitle}</p>
+              <p className="mt-1.5 text-sm text-ash-500">{subtitle}</p>
             </div>
 
             {error && (
@@ -153,7 +153,7 @@ export default function PortalDoor<T extends { found?: boolean }>({
             {stage === "phone" && (
               <>
                 <div className={`mt-5 ${field}`}>
-                  <Phone className="h-4 w-4 text-zinc-400 shrink-0" />
+                  <Phone className="h-4 w-4 text-ash-400 shrink-0" />
                   <input
                     className={input} inputMode="tel" autoComplete="tel"
                     placeholder={t.landing.phonePlaceholderOpen}
@@ -163,11 +163,11 @@ export default function PortalDoor<T extends { found?: boolean }>({
                 </div>
                 <button
                   onClick={requestOtp} disabled={loading}
-                  className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
+                  className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-invert px-5 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {t.common.continue} <ArrowRight className="h-4 w-4" />
                 </button>
-                <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-400">
+                <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-ash-400">
                   <Lock className="h-3 w-3" /> {t.landing.smsNote}
                 </p>
               </>
@@ -176,7 +176,7 @@ export default function PortalDoor<T extends { found?: boolean }>({
             {stage === "id" && (
               <>
                 <div className={`mt-5 ${field}`}>
-                  <CreditCard className="h-4 w-4 text-zinc-400 shrink-0" />
+                  <CreditCard className="h-4 w-4 text-ash-400 shrink-0" />
                   <input
                     className={input} inputMode="numeric" autoComplete="off"
                     placeholder={t.myloan.enterId}
@@ -186,7 +186,7 @@ export default function PortalDoor<T extends { found?: boolean }>({
                 </div>
                 <button
                   onClick={() => load(nationalId)} disabled={loading}
-                  className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
+                  className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-invert px-5 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60"
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {t.common.continue} <ArrowRight className="h-4 w-4" />
                 </button>

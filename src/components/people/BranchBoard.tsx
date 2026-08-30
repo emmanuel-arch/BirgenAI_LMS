@@ -74,17 +74,17 @@ export default function BranchBoard({
         title="Branches"
         sub="The org tree with the staff, the book and the collections floor at every node. Three numbers that have always lived in three different departments."
         right={
-          <div className="flex items-center gap-1.5 rounded-lg border border-zinc-900/10 bg-white px-2 py-1.5">
-            <Search className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+          <div className="flex items-center gap-1.5 rounded-lg border border-ash-900/10 bg-paper px-2 py-1.5">
+            <Search className="h-3.5 w-3.5 shrink-0 text-ash-400" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Branch"
-              className="w-40 bg-transparent text-[12px] outline-none placeholder:text-zinc-400"
+              className="w-40 bg-transparent text-[12px] outline-none placeholder:text-ash-400"
             />
             {q && (
               <button type="button" onClick={() => setQ("")} aria-label="Clear">
-                <X className="h-3.5 w-3.5 text-zinc-400 hover:text-zinc-700" />
+                <X className="h-3.5 w-3.5 text-ash-400 hover:text-ash-700" />
               </button>
             )}
           </div>
@@ -122,10 +122,10 @@ export default function BranchBoard({
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
         <Card pad={false}>
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-900/[0.06] px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ash-900/[0.06] px-4 py-3">
             <div>
-              <h2 className="text-[13px] font-semibold text-zinc-800">Every branch</h2>
-              <p className="mt-0.5 text-[11px] text-zinc-500">
+              <h2 className="text-[13px] font-semibold text-ash-800">Every branch</h2>
+              <p className="mt-0.5 text-[11px] text-ash-500">
                 {N(shown.length)} shown{q ? ` of ${N(branches.length)}` : ""}
               </p>
             </div>
@@ -144,7 +144,7 @@ export default function BranchBoard({
                   type="button"
                   onClick={() => setSort(k)}
                   className={`rounded-md px-2 py-1 text-[11px] font-medium transition-colors ${
-                    sort === k ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-900/[0.05]"
+                    sort === k ? "bg-invert text-invert-fg" : "text-ash-500 hover:bg-ash-900/[0.05]"
                   }`}
                 >
                   {label}
@@ -161,7 +161,7 @@ export default function BranchBoard({
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] border-collapse text-[12px]">
                 <thead>
-                  <tr className="border-b border-zinc-900/[0.06] text-[10px] uppercase tracking-wide text-zinc-400">
+                  <tr className="border-b border-ash-900/[0.06] text-[10px] uppercase tracking-wide text-ash-400">
                     <th className="px-4 py-2 text-left font-bold">Branch</th>
                     <th className="px-3 py-2 text-right font-bold">Staff</th>
                     <th className="px-3 py-2 text-right font-bold">Officers</th>
@@ -174,29 +174,29 @@ export default function BranchBoard({
                 </thead>
                 <tbody>
                   {shown.map((b) => (
-                    <tr key={b.id} className="border-b border-zinc-900/[0.04] last:border-0 hover:bg-zinc-900/[0.02]">
+                    <tr key={b.id} className="border-b border-ash-900/[0.04] last:border-0 hover:bg-ash-900/[0.02]">
                       <td className="px-4 py-2">
-                        <span className="block truncate font-medium text-zinc-800">{b.name}</span>
+                        <span className="block truncate font-medium text-ash-800">{b.name}</span>
                         {b.tracked > 0 && (
-                          <span className="block truncate text-[10.5px] text-zinc-400">
+                          <span className="block truncate text-[10.5px] text-ash-400">
                             {N(b.tracked)} on the floor · {N(b.nplLoans)} in NPL
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-zinc-600">{N(b.staff)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-zinc-600">{b.officers || "—"}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-zinc-700">{N(b.borrowers)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-zinc-500">
+                      <td className="px-3 py-2 text-right tabular-nums text-ash-600">{N(b.staff)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-ash-600">{b.officers || "—"}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-ash-700">{N(b.borrowers)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-ash-500">
                         {b.officers > 0 ? Math.round(loadOf(b)).toLocaleString("en-KE") : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums font-semibold text-zinc-800">
+                      <td className="px-3 py-2 text-right tabular-nums font-semibold text-ash-800">
                         {KES(b.olb, { compact: true })}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-zinc-600">
+                      <td className="px-3 py-2 text-right tabular-nums text-ash-600">
                         {b.arrears > 0 ? KES(b.arrears, { compact: true }) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-zinc-700">
-                        {b.recovered30d > 0 ? KES(b.recovered30d, { compact: true }) : <span className="text-zinc-300">—</span>}
+                      <td className="px-3 py-2 text-right tabular-nums text-ash-700">
+                        {b.recovered30d > 0 ? KES(b.recovered30d, { compact: true }) : <span className="text-ash-300">—</span>}
                       </td>
                     </tr>
                   ))}
@@ -237,7 +237,7 @@ export default function BranchBoard({
                 />
               ))}
             </div>
-            <p className="mt-3 border-t border-zinc-900/[0.06] pt-2 text-[10.5px] leading-relaxed text-zinc-400">
+            <p className="mt-3 border-t border-ash-900/[0.06] pt-2 text-[10.5px] leading-relaxed text-ash-400">
               The same eight branches in both charts, so the pair reads as one picture: the top bar is what is owed, the bottom
               bar is how much of it came back.
             </p>
@@ -245,8 +245,8 @@ export default function BranchBoard({
 
           <Card>
             <div className="flex items-start gap-2">
-              <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-              <p className="text-[11.5px] leading-relaxed text-zinc-500">
+              <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-ash-400" />
+              <p className="text-[11.5px] leading-relaxed text-ash-500">
                 Staff are placed by <code className="text-[10px]">UserMaster.OrganizationUnit</code> and borrowers by{" "}
                 <code className="text-[10px]">Borrowers.EntityUnit</code>. They are separate columns and they do not always
                 agree, so a branch&rsquo;s officer count and its book are two independent facts rather than one derived from the

@@ -130,15 +130,15 @@ export default function CaseFile({
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link href="/desk/queue" className="mb-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-500 hover:text-zinc-800">
+          <Link href="/desk/queue" className="mb-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-ash-500 hover:text-ash-800">
             <ArrowLeft className="h-3 w-3" /> Queue
           </Link>
-          <h1 className="flex flex-wrap items-center gap-2 text-[22px] font-bold leading-tight tracking-[-0.018em] text-zinc-900">
+          <h1 className="flex flex-wrap items-center gap-2 text-[22px] font-bold leading-tight tracking-[-0.018em] text-ash-900">
             {borrower.name}
             <Chip label={row.band.short} accent={row.band.accent} title={row.band.name} />
             {subject.entityId === 3005 && <Tag tone="good">Micromart Fintech</Tag>}
           </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11.5px] text-zinc-500">
+          <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11.5px] text-ash-500">
             <span className="tabular-nums">{borrower.phone || "no number on file"}</span>
             <span aria-hidden>·</span>
             <span>ID {borrower.nationalId || "—"}</span>
@@ -187,11 +187,11 @@ export default function CaseFile({
               <Line k="Expected clear" v={shortDate(row.expectedClearDate)} />
               <Line k="Paid last 30 days" v={row.recovered30d > 0 ? `KES ${KES(row.recovered30d)}` : "nothing"} />
             </dl>
-            <p className="mt-3 rounded-lg bg-zinc-900/[0.035] px-2.5 py-2 text-[11px] leading-relaxed text-zinc-600">
+            <p className="mt-3 rounded-lg bg-ash-900/[0.035] px-2.5 py-2 text-[11px] leading-relaxed text-ash-600">
               {row.band.posture}
             </p>
             {row.band.commission > 0 && (
-              <p className="mt-1.5 text-[10.5px] text-zinc-400">
+              <p className="mt-1.5 text-[10.5px] text-ash-400">
                 Recovery from this queue earns {row.band.commission}% commission.
               </p>
             )}
@@ -201,13 +201,13 @@ export default function CaseFile({
             <CardHead title="The relationship" sub={`${totals.loansTotal} loans · ${totals.loansCleared} cleared in full`} />
             <div className="mb-3">
               <div className="mb-1 flex items-baseline justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Lifetime repaid</span>
-                <span className="text-[11.5px] font-semibold tabular-nums text-zinc-700">{PCT(repaidPct, 0)}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide text-ash-400">Lifetime repaid</span>
+                <span className="text-[11.5px] font-semibold tabular-nums text-ash-700">{PCT(repaidPct, 0)}</span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-zinc-900/[0.06]">
+              <div className="h-1.5 overflow-hidden rounded-full bg-ash-900/[0.06]">
                 <div className="h-full rounded-full bg-emerald-600" style={{ width: `${Math.min(100, repaidPct)}%` }} />
               </div>
-              <p className="mt-1 text-[10.5px] text-zinc-400">
+              <p className="mt-1 text-[10.5px] text-ash-400">
                 KES {KES(totals.repaid)} repaid of KES {KES(totals.taken)} taken
               </p>
             </div>
@@ -247,14 +247,14 @@ export default function CaseFile({
                   }`}
                 >
                   <span className="min-w-0">
-                    <span className="block truncate text-[11.5px] font-medium text-zinc-700">{l.product}</span>
-                    <span className="block text-[10px] tabular-nums text-zinc-400">{shortDate(l.borrowedAt)}</span>
+                    <span className="block truncate text-[11.5px] font-medium text-ash-700">{l.product}</span>
+                    <span className="block text-[10px] tabular-nums text-ash-400">{shortDate(l.borrowedAt)}</span>
                   </span>
                   <span className="shrink-0 text-right">
-                    <span className="block text-[11.5px] font-semibold tabular-nums text-zinc-700">{KES(l.amount)}</span>
+                    <span className="block text-[11.5px] font-semibold tabular-nums text-ash-700">{KES(l.amount)}</span>
                     {l.cleared
                       ? <Tag tone="good">Cleared</Tag>
-                      : <span className="block text-[10px] tabular-nums text-zinc-400">{KES(l.balance)} left</span>}
+                      : <span className="block text-[10px] tabular-nums text-ash-400">{KES(l.balance)} left</span>}
                   </span>
                 </li>
               ))}
@@ -279,7 +279,7 @@ export default function CaseFile({
             <Empty title="No interactions on record" detail="Nobody has called, messaged or taken a payment against this customer yet." />
           ) : (
             <>
-              <ol className="relative space-y-0 border-l border-zinc-900/[0.08] pl-4">
+              <ol className="relative space-y-0 border-l border-ash-900/[0.08] pl-4">
                 {shown.map((t) => (
                   <li key={t.id} className="relative pb-3.5 last:pb-0">
                     <span
@@ -291,15 +291,15 @@ export default function CaseFile({
                       }}
                     />
                     <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                      <p className="text-[12.5px] font-semibold text-zinc-800">{t.headline}</p>
-                      <p className="text-[10.5px] tabular-nums text-zinc-400">
+                      <p className="text-[12.5px] font-semibold text-ash-800">{t.headline}</p>
+                      <p className="text-[10.5px] tabular-nums text-ash-400">
                         {new Date(t.at).toLocaleString("en-KE", { day: "numeric", month: "short", year: "2-digit", hour: "2-digit", minute: "2-digit" })}
                       </p>
                     </div>
-                    {t.detail && <p className="mt-0.5 text-[11.5px] leading-relaxed text-zinc-500">{t.detail}</p>}
+                    {t.detail && <p className="mt-0.5 text-[11.5px] leading-relaxed text-ash-500">{t.detail}</p>}
                     <p className="mt-1 flex flex-wrap items-center gap-1">
                       <Tag tone={t.system === "Call Centre" ? "info" : t.system === "Fintech Pipeline" ? "good" : "neutral"}>{t.system}</Tag>
-                      {t.actor && <span className="text-[10.5px] text-zinc-400">{t.actor}{t.actorRole ? ` · ${t.actorRole}` : ""}</span>}
+                      {t.actor && <span className="text-[10.5px] text-ash-400">{t.actor}{t.actorRole ? ` · ${t.actorRole}` : ""}</span>}
                       {t.tags.filter((x) => x && !["Payment", "Call"].includes(x)).slice(0, 3).map((x) => <Tag key={x}>{x}</Tag>)}
                     </p>
                   </li>
@@ -309,7 +309,7 @@ export default function CaseFile({
                 <button
                   type="button"
                   onClick={() => setShowAll(true)}
-                  className="mt-3 w-full rounded-lg border border-zinc-900/10 py-1.5 text-[11.5px] font-semibold text-zinc-600 hover:bg-zinc-900/[0.03]"
+                  className="mt-3 w-full rounded-lg border border-ash-900/10 py-1.5 text-[11.5px] font-semibold text-ash-600 hover:bg-ash-900/[0.03]"
                 >
                   Show all {N(timeline.length)} interactions
                 </button>
@@ -327,7 +327,7 @@ export default function CaseFile({
             />
 
             {!canWork ? (
-              <p className="rounded-lg bg-zinc-900/[0.035] px-3 py-2.5 text-[11.5px] leading-relaxed text-zinc-500">
+              <p className="rounded-lg bg-ash-900/[0.035] px-3 py-2.5 text-[11.5px] leading-relaxed text-ash-500">
                 You have read access to the floor but not <code className="text-[10.5px]">collections.manage</code>, so dispositions
                 cannot be recorded from this account.
               </p>
@@ -343,7 +343,7 @@ export default function CaseFile({
                         onClick={() => { setChosen(on ? null : d); setResult(null); }}
                         title={d.meaning}
                         className={`rounded-lg border px-2 py-1.5 text-left text-[11px] font-semibold transition-colors ${
-                          on ? "border-transparent text-white" : "border-zinc-900/10 bg-white text-zinc-600 hover:bg-zinc-900/[0.03]"
+                          on ? "border-transparent text-white" : "border-ash-900/10 bg-paper text-ash-600 hover:bg-ash-900/[0.03]"
                         }`}
                         style={on ? { backgroundColor: d.accent } : undefined}
                       >
@@ -362,50 +362,50 @@ export default function CaseFile({
 
                 {chosen && (
                   <div className="space-y-2.5">
-                    <p className="rounded-lg bg-zinc-900/[0.035] px-2.5 py-2 text-[11px] leading-relaxed text-zinc-600">
+                    <p className="rounded-lg bg-ash-900/[0.035] px-2.5 py-2 text-[11px] leading-relaxed text-ash-600">
                       {chosen.meaning}
                     </p>
 
                     {needsPromise && (
                       <div className="grid grid-cols-2 gap-2">
                         <label className="block">
-                          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-zinc-400">Amount (KES)</span>
+                          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ash-400">Amount (KES)</span>
                           <input
                             type="number"
                             min={1}
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
                             placeholder="0"
-                            className="w-full rounded-lg border border-zinc-900/12 px-2 py-1.5 text-[12px] tabular-nums outline-none focus:border-[color:var(--accent)]"
+                            className="w-full rounded-lg border border-ash-900/12 px-2 py-1.5 text-[12px] tabular-nums outline-none focus:border-[color:var(--accent)]"
                           />
                         </label>
                         <label className="block">
-                          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-zinc-400">By</span>
+                          <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ash-400">By</span>
                           <input
                             type="date"
                             value={due}
                             onChange={(e) => setDue(e.target.value)}
-                            className="w-full rounded-lg border border-zinc-900/12 px-2 py-1.5 text-[12px] tabular-nums outline-none focus:border-[color:var(--accent)]"
+                            className="w-full rounded-lg border border-ash-900/12 px-2 py-1.5 text-[12px] tabular-nums outline-none focus:border-[color:var(--accent)]"
                           />
                         </label>
                       </div>
                     )}
 
                     <label className="block">
-                      <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-zinc-400">What was said</span>
+                      <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-ash-400">What was said</span>
                       <textarea
                         rows={3}
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}
                         placeholder="The next agent to open this case reads this first."
-                        className="w-full resize-y rounded-lg border border-zinc-900/12 px-2 py-1.5 text-[12px] leading-relaxed outline-none focus:border-[color:var(--accent)]"
+                        className="w-full resize-y rounded-lg border border-ash-900/12 px-2 py-1.5 text-[12px] leading-relaxed outline-none focus:border-[color:var(--accent)]"
                       />
                     </label>
 
                     {/* What is about to happen, before it happens. */}
-                    <div className="rounded-lg border border-zinc-900/[0.08] bg-zinc-900/[0.02] px-2.5 py-2">
-                      <p className="mb-1 text-[9.5px] font-bold uppercase tracking-[0.1em] text-zinc-400">This will</p>
-                      <ul className="space-y-0.5 text-[11px] text-zinc-600">
+                    <div className="rounded-lg border border-ash-900/[0.08] bg-ash-900/[0.02] px-2.5 py-2">
+                      <p className="mb-1 text-[9.5px] font-bold uppercase tracking-[0.1em] text-ash-400">This will</p>
+                      <ul className="space-y-0.5 text-[11px] text-ash-600">
                         <li>· record the disposition on this case, here</li>
                         {needsPromise && <li>· create a tracked promise to pay</li>}
                         {chosen.schedulesTask && <li>· suggest a follow-up task</li>}
@@ -446,7 +446,7 @@ export default function CaseFile({
                         <summary className="cursor-pointer text-[10.5px] font-semibold text-emerald-700/80">
                           Show the statement that was composed
                         </summary>
-                        <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-zinc-900 p-2 text-[9.5px] leading-relaxed text-emerald-300">
+                        <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-stage p-2 text-[9.5px] leading-relaxed text-emerald-300">
                           {result.sql}
                         </pre>
                       </details>
@@ -462,8 +462,8 @@ export default function CaseFile({
           {row.ptpDate && (
             <Card>
               <CardHead title="Promise on file" accent="#16a34a" />
-              <p className="text-[19px] font-bold tabular-nums text-zinc-900">KES {KES(row.ptpAmount)}</p>
-              <p className="mt-0.5 text-[11.5px] text-zinc-500">
+              <p className="text-[19px] font-bold tabular-nums text-ash-900">KES {KES(row.ptpAmount)}</p>
+              <p className="mt-0.5 text-[11.5px] text-ash-500">
                 due {new Date(row.ptpDate).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}
               </p>
             </Card>
@@ -479,19 +479,19 @@ export default function CaseFile({
 function Line({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-2">
-      <dt className="shrink-0 text-[11px] text-zinc-400">{k}</dt>
-      <dd className={`min-w-0 truncate text-right tabular-nums ${strong ? "text-[13px] font-bold text-zinc-900" : "text-[12px] text-zinc-700"}`}>{v}</dd>
+      <dt className="shrink-0 text-[11px] text-ash-400">{k}</dt>
+      <dd className={`min-w-0 truncate text-right tabular-nums ${strong ? "text-[13px] font-bold text-ash-900" : "text-[12px] text-ash-700"}`}>{v}</dd>
     </div>
   );
 }
 
 function Person({ role, name, detail, note }: { role: string; name: string; detail: React.ReactNode; note?: string }) {
   return (
-    <div className="rounded-lg border border-zinc-900/[0.07] px-2.5 py-2">
-      <p className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-zinc-400">{role}</p>
-      <p className="mt-0.5 truncate text-[12.5px] font-semibold text-zinc-800">{name}</p>
-      <p className="truncate text-[10.5px] tabular-nums text-zinc-500">{detail}</p>
-      {note && <p className="mt-1 line-clamp-2 text-[10.5px] italic leading-snug text-zinc-400">“{note}”</p>}
+    <div className="rounded-lg border border-ash-900/[0.07] px-2.5 py-2">
+      <p className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-ash-400">{role}</p>
+      <p className="mt-0.5 truncate text-[12.5px] font-semibold text-ash-800">{name}</p>
+      <p className="truncate text-[10.5px] tabular-nums text-ash-500">{detail}</p>
+      {note && <p className="mt-1 line-clamp-2 text-[10.5px] italic leading-snug text-ash-400">“{note}”</p>}
     </div>
   );
 }
@@ -553,16 +553,16 @@ function QuickActions({
       </div>
 
       {open && (
-        <div className="mt-3 space-y-2 rounded-lg border border-zinc-900/[0.08] p-2.5">
+        <div className="mt-3 space-y-2 rounded-lg border border-ash-900/[0.08] p-2.5">
           {open === "task" && (
             <>
-              <select value={action} onChange={(e) => setAction(e.target.value as "1" | "2" | "3")} className="w-full rounded-lg border border-zinc-900/12 px-2 py-1.5 text-[12px] outline-none">
+              <select value={action} onChange={(e) => setAction(e.target.value as "1" | "2" | "3")} className="w-full rounded-lg border border-ash-900/12 px-2 py-1.5 text-[12px] outline-none">
                 <option value="1">Call debtor</option>
                 <option value="2">Meet debtor</option>
                 <option value="3">Field visit</option>
               </select>
-              <input type="date" value={when} onChange={(e) => setWhen(e.target.value)} className="w-full rounded-lg border border-zinc-900/12 px-2 py-1.5 text-[12px] tabular-nums outline-none" />
-              <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Why" className="w-full resize-y rounded-lg border border-zinc-900/12 px-2 py-1.5 text-[12px] outline-none" />
+              <input type="date" value={when} onChange={(e) => setWhen(e.target.value)} className="w-full rounded-lg border border-ash-900/12 px-2 py-1.5 text-[12px] tabular-nums outline-none" />
+              <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Why" className="w-full resize-y rounded-lg border border-ash-900/12 px-2 py-1.5 text-[12px] outline-none" />
               <Btn variant="solid" size="sm" disabled={busy} onClick={() => post("/api/desk/task", { action: Number(action), when, note: text })}>
                 {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Schedule
               </Btn>
@@ -570,10 +570,10 @@ function QuickActions({
           )}
           {open === "assign" && (
             <>
-              <select value={toAgent} onChange={(e) => setToAgent(e.target.value)} className="w-full rounded-lg border border-zinc-900/12 px-2 py-1.5 text-[12px] outline-none">
+              <select value={toAgent} onChange={(e) => setToAgent(e.target.value)} className="w-full rounded-lg border border-ash-900/12 px-2 py-1.5 text-[12px] outline-none">
                 {agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
-              <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Reason" className="w-full resize-y rounded-lg border border-zinc-900/12 px-2 py-1.5 text-[12px] outline-none" />
+              <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Reason" className="w-full resize-y rounded-lg border border-ash-900/12 px-2 py-1.5 text-[12px] outline-none" />
               <Btn variant="solid" size="sm" disabled={busy || !toAgent} onClick={() => post("/api/desk/assign", {
                 toAgentId: Number(toAgent),
                 toAgentName: agents.find((a) => a.id === Number(toAgent))?.name ?? "agent",
@@ -585,8 +585,8 @@ function QuickActions({
           )}
           {open === "note" && (
             <>
-              <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="A note stays on this case for whoever opens it next." className="w-full resize-y rounded-lg border border-zinc-900/12 px-2 py-1.5 text-[12px] outline-none" />
-              <p className="text-[10.5px] leading-snug text-zinc-400">
+              <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} placeholder="A note stays on this case for whoever opens it next." className="w-full resize-y rounded-lg border border-ash-900/12 px-2 py-1.5 text-[12px] outline-none" />
+              <p className="text-[10.5px] leading-snug text-ash-400">
                 Notes are recorded here only. CollectBox has no note object — inventing a call to carry one would corrupt every contact-rate figure computed from that table.
               </p>
               <Btn variant="solid" size="sm" disabled={busy || !text.trim()} onClick={() => post("/api/desk/note", { note: text })}>
@@ -596,12 +596,12 @@ function QuickActions({
           )}
           {open === "escalate" && (
             <>
-              <select value={to} onChange={(e) => setTo(e.target.value as "field" | "legal" | "supervisor")} className="w-full rounded-lg border border-zinc-900/12 px-2 py-1.5 text-[12px] outline-none">
+              <select value={to} onChange={(e) => setTo(e.target.value as "field" | "legal" | "supervisor")} className="w-full rounded-lg border border-ash-900/12 px-2 py-1.5 text-[12px] outline-none">
                 <option value="field">Field recovery</option>
                 <option value="supervisor">Supervisor</option>
                 <option value="legal">Legal</option>
               </select>
-              <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Why this needs to leave the phone floor" className="w-full resize-y rounded-lg border border-zinc-900/12 px-2 py-1.5 text-[12px] outline-none" />
+              <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Why this needs to leave the phone floor" className="w-full resize-y rounded-lg border border-ash-900/12 px-2 py-1.5 text-[12px] outline-none" />
               <Btn variant="solid" size="sm" disabled={busy || !text.trim()} onClick={() => post("/api/desk/escalate", { to, reason: text })}>
                 {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null} Escalate
               </Btn>
@@ -610,7 +610,7 @@ function QuickActions({
         </div>
       )}
 
-      {msg && <p className="mt-2 text-[11px] font-medium text-zinc-600">{msg}</p>}
+      {msg && <p className="mt-2 text-[11px] font-medium text-ash-600">{msg}</p>}
     </Card>
   );
 }

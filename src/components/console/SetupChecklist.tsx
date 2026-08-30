@@ -55,13 +55,13 @@ export default function SetupChecklist({
           <p className="text-sm font-semibold flex items-center gap-1.5">
             <Rocket className="h-4 w-4" style={{ color: "var(--brand)" }} /> Set up your lending operation
           </p>
-          <p className="mt-0.5 text-[11px] text-zinc-500">
+          <p className="mt-0.5 text-[11px] text-ash-500">
             {doneCount} of {items.length} done. Finish these and request activation — BirgenAI reviews and switches on live lending.
           </p>
         </div>
         {canAct && (
           <button type="button" onClick={() => act("dismiss")} disabled={busy} aria-label="Dismiss checklist"
-            className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-900/5 hover:text-zinc-600">
+            className="rounded-lg p-1.5 text-ash-400 hover:bg-ash-900/5 hover:text-ash-600">
             <X className="h-4 w-4" />
           </button>
         )}
@@ -71,14 +71,14 @@ export default function SetupChecklist({
         {items.map((item) => (
           <Link key={item.key} href={item.href}
             className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 transition-colors ${
-              item.done ? "border-emerald-200 bg-emerald-50/60" : "border-zinc-900/10 bg-white/70 hover:bg-white"
+              item.done ? "border-emerald-200 bg-emerald-50/60" : "border-ash-900/10 bg-paper/70 hover:bg-paper"
             }`}>
             {item.done
               ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-              : <Circle className="mt-0.5 h-4 w-4 shrink-0 text-zinc-300" />}
+              : <Circle className="mt-0.5 h-4 w-4 shrink-0 text-ash-300" />}
             <span>
-              <span className={`block text-[13px] font-medium ${item.done ? "text-emerald-800" : "text-zinc-800"}`}>{item.label}</span>
-              <span className="block text-[11px] text-zinc-500">{item.detail}</span>
+              <span className={`block text-[13px] font-medium ${item.done ? "text-emerald-800" : "text-ash-800"}`}>{item.label}</span>
+              <span className="block text-[11px] text-ash-500">{item.detail}</span>
             </span>
           </Link>
         ))}
@@ -99,10 +99,10 @@ export default function SetupChecklist({
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />}
               Request activation
             </button>
-            {!allDone && <p className="text-[11px] text-zinc-400">Complete the steps above first.</p>}
+            {!allDone && <p className="text-[11px] text-ash-400">Complete the steps above first.</p>}
           </>
         ) : (
-          <p className="text-[11px] text-zinc-400">Your administrator requests activation once setup is complete.</p>
+          <p className="text-[11px] text-ash-400">Your administrator requests activation once setup is complete.</p>
         )}
       </div>
     </div>

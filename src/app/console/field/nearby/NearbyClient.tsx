@@ -142,14 +142,14 @@ export function NearbyClient() {
         subtitle="Your whole book on one map, coloured by who needs a visit today — the worst account pulses. One consented pin per customer; snapshots, never tracking."
       >
         <button onClick={checkIn} disabled={!here || checkin !== "idle"}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-50">
+          className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-50">
           {checkin === "busy" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : checkin === "done" ? <CheckCircle2 className="h-3.5 w-3.5" /> : <LocateFixed className="h-3.5 w-3.5" />}
           {checkin === "done" ? "Checked in" : "Check in here"}
         </button>
       </PageHeader>
 
       {error && <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
-      {locating && <p className="mt-4 flex items-center gap-2 text-sm text-zinc-500"><Loader2 className="h-4 w-4 animate-spin" /> Reading your location…</p>}
+      {locating && <p className="mt-4 flex items-center gap-2 text-sm text-ash-500"><Loader2 className="h-4 w-4 animate-spin" /> Reading your location…</p>}
       {!locating && !here && (
         <p className="mt-4 rounded-lg border border-amber-300 bg-amber-50/90 px-3 py-2.5 text-xs text-amber-800">
           Location is off — the radius and distances are hidden, but the risk map still shows the whole book. Allow location access to work a circle around you.
@@ -166,10 +166,10 @@ export function NearbyClient() {
         </div>
         {here && (
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-zinc-500 mr-1">Within</span>
+            <span className="text-[11px] text-ash-500 mr-1">Within</span>
             {RADII.map((r) => (
               <button key={r} onClick={() => setRadius(r)}
-                className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${radius === r ? "text-white" : "border border-zinc-900/10 bg-white/70 text-zinc-600 hover:bg-white"}`}
+                className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${radius === r ? "text-white" : "border border-ash-900/10 bg-paper/70 text-ash-600 hover:bg-paper"}`}
                 style={radius === r ? { backgroundColor: "var(--brand)" } : undefined}>
                 {r === 0 ? "Everyone" : `${r} km`}
               </button>
@@ -181,7 +181,7 @@ export function NearbyClient() {
       {/* The map */}
       <div className="glass mt-4 p-1.5">
         {!customers && !error
-          ? <div className="flex h-[56dvh] min-h-[360px] items-center justify-center rounded-2xl bg-zinc-100"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>
+          ? <div className="flex h-[56dvh] min-h-[360px] items-center justify-center rounded-2xl bg-ash-100"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>
           : <RiskMap customers={mapCustomers} branches={branches} here={here} radius={radius} selectedId={selectedId} onSelect={(c) => setSelectedId(c.id)} />}
       </div>
 
@@ -200,18 +200,18 @@ export function NearbyClient() {
                   <p className="text-base font-bold truncate">{selected.name}</p>
                   <RiskChip level={selected.risk} dpd={selected.dpd} />
                 </div>
-                <p className="mt-0.5 text-[12px] text-zinc-500 truncate">
+                <p className="mt-0.5 text-[12px] text-ash-500 truncate">
                   {selected.locationType === "home" ? <Home className="inline h-3 w-3 -mt-0.5" /> : <Store className="inline h-3 w-3 -mt-0.5" />}{" "}
                   {selected.address ?? (selected.locationType === "home" ? "home" : "business")}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-[12px]">
-                  <span className="inline-flex items-center gap-1 font-semibold text-zinc-700"><Route className="h-3.5 w-3.5 text-zinc-400" /> {fmtDist(selected.distanceKm)}</span>
-                  <span className="inline-flex items-center gap-1 text-zinc-600"><Clock className="h-3.5 w-3.5 text-zinc-400" /> ~{fmtEtaMin(selected.etaMin)}</span>
-                  {selected.olb > 0 && <span className="inline-flex items-center gap-1 text-zinc-600"><Banknote className="h-3.5 w-3.5 text-zinc-400" /> {kes(selected.olb)} out</span>}
+                  <span className="inline-flex items-center gap-1 font-semibold text-ash-700"><Route className="h-3.5 w-3.5 text-ash-400" /> {fmtDist(selected.distanceKm)}</span>
+                  <span className="inline-flex items-center gap-1 text-ash-600"><Clock className="h-3.5 w-3.5 text-ash-400" /> ~{fmtEtaMin(selected.etaMin)}</span>
+                  {selected.olb > 0 && <span className="inline-flex items-center gap-1 text-ash-600"><Banknote className="h-3.5 w-3.5 text-ash-400" /> {kes(selected.olb)} out</span>}
                   {selected.overdue > 0 && <span className="font-bold" style={{ color: RISK_TONE.red.ink }}>{kes(selected.overdue)} overdue</span>}
                 </div>
               </div>
-              <button onClick={() => setSelectedId(null)} className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"><X className="h-4 w-4" /></button>
+              <button onClick={() => setSelectedId(null)} className="rounded-lg p-1.5 text-ash-400 hover:bg-ash-100 hover:text-ash-700"><X className="h-4 w-4" /></button>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link href={navHref(selected)}
@@ -220,7 +220,7 @@ export function NearbyClient() {
                 <Navigation className="h-3.5 w-3.5" /> Route to their door
               </Link>
               <Link href={`/console/borrowers/${selected.id}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2 text-[12px] font-semibold text-zinc-700 hover:bg-white">
+                className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2 text-[12px] font-semibold text-ash-700 hover:bg-paper">
                 <UserRound className="h-3.5 w-3.5" /> Customer 360
               </Link>
             </div>
@@ -232,7 +232,7 @@ export function NearbyClient() {
           can least afford to lose at the top — the same order the map pulses in. */}
       {visible && visible.length > 0 && (
         <div className="mt-5">
-          <h2 className="mb-2 text-sm font-semibold text-zinc-700">Work the list — most urgent first</h2>
+          <h2 className="mb-2 text-sm font-semibold text-ash-700">Work the list — most urgent first</h2>
           <div className="grid gap-2 sm:grid-cols-2">
             {[...visible].sort((a, b) => b.weight - a.weight || (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity)).map((c) => (
               <button key={c.id} onClick={() => setSelectedId(c.id)}
@@ -247,7 +247,7 @@ export function NearbyClient() {
                       <p className="text-sm font-semibold truncate">{c.name}</p>
                       <RiskChip level={c.risk} dpd={c.dpd} />
                     </div>
-                    <p className="text-[11px] text-zinc-500 truncate">
+                    <p className="text-[11px] text-ash-500 truncate">
                       {c.address ?? (c.locationType === "home" ? "home" : "business")}
                       {c.overdue > 0 && <> · <span className="font-semibold" style={{ color: RISK_TONE.red.ink }}>{kes(c.overdue)} overdue</span></>}
                       {c.overdue === 0 && c.olb > 0 && <> · {kes(c.olb)} out</>}
@@ -255,7 +255,7 @@ export function NearbyClient() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-bold tabular-nums">{fmtDist(c.distanceKm)}</p>
-                    <p className="text-[10px] text-zinc-400">~{fmtEtaMin(c.etaMin)}</p>
+                    <p className="text-[10px] text-ash-400">~{fmtEtaMin(c.etaMin)}</p>
                   </div>
                 </div>
               </button>
@@ -265,7 +265,7 @@ export function NearbyClient() {
       )}
 
       {visible?.length === 0 && (
-        <p className="mt-8 text-center text-sm text-zinc-500">
+        <p className="mt-8 text-center text-sm text-ash-500">
           {radius ? `No pinned customers within ${radius} km — widen the radius.` : "No customers have a location pin yet — capture one at onboarding or on the next visit."}
         </p>
       )}
@@ -277,7 +277,7 @@ export function NearbyClient() {
           <h2 className="flex items-center gap-2 text-sm font-semibold">
             <TriangleAlert className="h-4 w-4 text-amber-500" /> No location on file ({unpinned.length})
           </h2>
-          <p className="mt-0.5 text-[11px] text-zinc-500">
+          <p className="mt-0.5 text-[11px] text-ash-500">
             Ask for a one-time pin at their next visit or repayment — from their 360 → Update details, or re-run onboarding capture.
           </p>
           <div className="mt-2.5 grid gap-1.5 sm:grid-cols-2">
@@ -285,13 +285,13 @@ export function NearbyClient() {
               <Link key={u.id} href={`/console/borrowers/${u.id}`}
                 className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs hover:bg-amber-50">
                 <span className="min-w-0">
-                  <span className="block truncate font-medium text-zinc-800">{u.name}</span>
-                  <span className="text-[10px] text-zinc-500">{u.phone}</span>
+                  <span className="block truncate font-medium text-ash-800">{u.name}</span>
+                  <span className="text-[10px] text-ash-500">{u.phone}</span>
                 </span>
                 <span className="shrink-0 text-right">
                   {u.activeLoans > 0
                     ? <span className="font-semibold text-amber-700">{kes(u.olb)} out</span>
-                    : <span className="text-zinc-400"><MapPin className="inline h-3 w-3" /> pin missing</span>}
+                    : <span className="text-ash-400"><MapPin className="inline h-3 w-3" /> pin missing</span>}
                 </span>
               </Link>
             ))}
@@ -309,8 +309,8 @@ function Stat({ label, value, tone, wide, pulse }: { label: string; value: numbe
         {pulse && <span className="absolute h-2.5 w-2.5 animate-ping rounded-full" style={{ backgroundColor: tone, opacity: 0.5 }} />}
         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: tone }} />
       </span>
-      <span className="text-base font-black tabular-nums text-zinc-900">{value}</span>
-      <span className="text-[11px] text-zinc-500">{label}</span>
+      <span className="text-base font-black tabular-nums text-ash-900">{value}</span>
+      <span className="text-[11px] text-ash-500">{label}</span>
     </div>
   );
 }

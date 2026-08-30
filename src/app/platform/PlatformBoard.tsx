@@ -130,7 +130,7 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
     : null;
 
   return (
-    <div className="min-h-screen relative text-zinc-900">
+    <div className="min-h-screen relative text-ash-900">
       <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
       <main className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 py-10">
         <div className="flex items-center justify-between gap-3">
@@ -138,8 +138,8 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
             <ShieldCheck className="h-5 w-5" style={{ color: "var(--brand)" }} /> BirgenAI Platform — Organizations
           </h1>
           <div className="flex items-center gap-2">
-            <span className="hidden sm:block text-xs text-zinc-500">{adminName} · platform admin</span>
-            <button onClick={signOut} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-white">
+            <span className="hidden sm:block text-xs text-ash-500">{adminName} · platform admin</span>
+            <button onClick={signOut} className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-2.5 py-1.5 text-xs font-medium text-ash-700 hover:bg-paper">
               <LogOut className="h-3.5 w-3.5" /> Sign out
             </button>
           </div>
@@ -149,7 +149,7 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
         {error && <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
 
         {!sorted ? (
-          <div className="glass mt-5 p-5 text-sm text-zinc-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading the estate…</div>
+          <div className="glass mt-5 p-5 text-sm text-ash-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading the estate…</div>
         ) : (
           <>
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -176,9 +176,9 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
                         )}
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold">
-                            {o.name} <span className="font-normal text-zinc-400">· {o.slug}.birgenai.com</span>
+                            {o.name} <span className="font-normal text-ash-400">· {o.slug}.birgenai.com</span>
                           </p>
-                          <p className="text-xs text-zinc-500">
+                          <p className="text-xs text-ash-500">
                             {o.mode} · {o._count.staff} staff · {o._count.borrowers} borrowers · {o._count.loans} loans · {o._count.applications} apps
                           </p>
                         </div>
@@ -192,20 +192,20 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
                         <span className={`rounded-md px-2 py-1 text-[11px] font-semibold ${TONE[o.status] ?? TONE.PENDING}`}>{o.status}</span>
                         {o.status !== "ACTIVE" && (
                           <button disabled={!!acting} onClick={() => post({ orgId: o.id, action: "activate" }, o.id + "activate")}
-                            className="rounded-lg bg-zinc-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                            className="rounded-lg bg-invert px-3 py-1.5 text-[11px] font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
                             {acting === o.id + "activate" ? <Loader2 className="inline h-3 w-3 animate-spin" /> : "Activate"}
                           </button>
                         )}
                         {o.status === "ACTIVE" && (
                           <button disabled={!!acting} onClick={() => post({ orgId: o.id, action: "suspend" }, o.id + "suspend")}
-                            className="rounded-lg border border-red-200 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">
+                            className="rounded-lg border border-red-200 bg-paper/70 px-3 py-1.5 text-[11px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">
                             Suspend
                           </button>
                         )}
                         {o.status !== "SUSPENDED" && (
                           <button disabled={!!acting} onClick={() => impersonate(o)}
                             title="Open this lender's console as platform admin — audited, banner always on"
-                            className="inline-flex items-center gap-1 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-zinc-700 hover:bg-white disabled:opacity-60">
+                            className="inline-flex items-center gap-1 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-1.5 text-[11px] font-semibold text-ash-700 hover:bg-paper disabled:opacity-60">
                             {acting === o.id + "enter" ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRightCircle className="h-3 w-3" />} Enter console
                           </button>
                         )}
@@ -213,10 +213,10 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
                     </div>
 
                     {/* Setup completeness — can this lender actually lend if activated? */}
-                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-zinc-900/5 pt-3">
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Setup {setupDone}/6</span>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-ash-900/5 pt-3">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-ash-400">Setup {setupDone}/6</span>
                       {(Object.keys(o.setup) as (keyof Setup)[]).map((k) => (
-                        <span key={k} className={`inline-flex items-center gap-1 text-[11px] ${o.setup[k] ? "text-emerald-600" : "text-zinc-400"}`}>
+                        <span key={k} className={`inline-flex items-center gap-1 text-[11px] ${o.setup[k] ? "text-emerald-600" : "text-ash-400"}`}>
                           {o.setup[k] ? <CheckCircle2 className="h-3 w-3" /> : <Circle className="h-3 w-3" />} {SETUP_LABEL[k]}
                         </span>
                       ))}
@@ -233,41 +233,41 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
 
                     {/* Commercials: what they are on, whether it is paid for, what they last owed. */}
                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Crown className="h-3.5 w-3.5 text-zinc-400" />
+                      <Crown className="h-3.5 w-3.5 text-ash-400" />
                       <select
                         value={o.plan}
                         disabled={!!acting}
                         onChange={(e) => post({ orgId: o.id, action: "plan", plan: e.target.value }, o.id + "plan")}
-                        className="rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1 text-xs font-semibold outline-none disabled:opacity-60"
+                        className="rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1 text-xs font-semibold outline-none disabled:opacity-60"
                       >
                         {plans.map((p) => (
                           <option key={p.key} value={p.key}>{p.name} — {kes(p.monthlyKes)}/mo</option>
                         ))}
                       </select>
-                      {acting === o.id + "plan" && <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-400" />}
+                      {acting === o.id + "plan" && <Loader2 className="h-3.5 w-3.5 animate-spin text-ash-400" />}
 
                       {o.subscription ? (
-                        <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${SUB_TONE[o.subscription.status] ?? "bg-zinc-900/5 text-zinc-500"}`}>
+                        <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${SUB_TONE[o.subscription.status] ?? "bg-ash-900/5 text-ash-500"}`}>
                           {o.subscription.status.replace("_", " ").toLowerCase()}
                           {o.subscription.status === "TRIALING" && o.subscription.trialEndsAt ? ` · ends ${day(o.subscription.trialEndsAt)}` : ""}
                         </span>
                       ) : (
-                        <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">no subscription yet</span>
+                        <span className="rounded-md bg-ash-900/5 px-2 py-0.5 text-[10px] font-semibold text-ash-500">no subscription yet</span>
                       )}
 
                       {o.lastInvoice && (
-                        <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500">
+                        <span className="inline-flex items-center gap-1 text-[11px] text-ash-500">
                           <Receipt className="h-3 w-3" /> {o.lastInvoice.number} · {kes(o.lastInvoice.totalKes)} · {o.lastInvoice.status.toLowerCase()}
                         </span>
                       )}
 
                       {/* Prepaid comms: negative = we are fronting this lender's messages. */}
-                      <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold ${o.smsBalance < 0 ? "bg-red-100 text-red-700" : "bg-zinc-900/5 text-zinc-500"}`}>
+                      <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold ${o.smsBalance < 0 ? "bg-red-100 text-red-700" : "bg-ash-900/5 text-ash-500"}`}>
                         <MessageSquare className="h-3 w-3" /> {o.smsBalance.toLocaleString()} SMS
                       </span>
                       <button
                         onClick={() => { setGrantFor(grantFor === o.id ? null : o.id); setGrantUnits("500"); setGrantNote(""); }}
-                        className="inline-flex items-center gap-1 rounded-md border border-zinc-900/10 bg-white/70 px-2 py-0.5 text-[10px] font-semibold text-zinc-600 hover:bg-white"
+                        className="inline-flex items-center gap-1 rounded-md border border-ash-900/10 bg-paper/70 px-2 py-0.5 text-[10px] font-semibold text-ash-600 hover:bg-paper"
                       >
                         <Gift className="h-3 w-3" /> Grant
                       </button>
@@ -278,12 +278,12 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
                         <input
                           type="number" min={1} max={100000} value={grantUnits}
                           onChange={(e) => setGrantUnits(e.target.value)}
-                          className="w-24 rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs tabular-nums outline-none"
+                          className="w-24 rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-xs tabular-nums outline-none"
                         />
                         <input
                           value={grantNote} onChange={(e) => setGrantNote(e.target.value)}
                           placeholder="Why? — recorded in the lender's ledger"
-                          className="min-w-44 flex-1 rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none"
+                          className="min-w-44 flex-1 rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-xs outline-none"
                         />
                         <button
                           disabled={!!acting || !grantNote.trim() || !(Number(grantUnits) >= 1)}
@@ -291,7 +291,7 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
                             void post({ orgId: o.id, action: "grant-sms", units: Number(grantUnits), note: grantNote.trim() }, o.id + "grant");
                             setGrantFor(null);
                           }}
-                          className="rounded-lg bg-zinc-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
+                          className="rounded-lg bg-invert px-3 py-1.5 text-[11px] font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60"
                         >
                           {acting === o.id + "grant" ? <Loader2 className="inline h-3 w-3 animate-spin" /> : "Grant SMS"}
                         </button>
@@ -302,7 +302,7 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
               })}
             </div>
 
-            <p className="mt-5 text-[11px] text-zinc-400">
+            <p className="mt-5 text-[11px] text-ash-400">
               Assigning a package records a commercial decision. It does not collect money — the BirgenAI wallet does —
               and a past-due lender still loses its metered features whatever is set here. &quot;Enter console&quot; is audited on
               both sides and shows a permanent banner inside the org.
@@ -360,9 +360,9 @@ function SystemToggles({
   const dirty = added.length > 0 || removed.length > 0;
 
   return (
-    <div className="mt-2 border-t border-zinc-900/5 pt-3">
+    <div className="mt-2 border-t border-ash-900/5 pt-3">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-ash-400">
           <LayoutGrid className="h-3 w-3" /> Systems {draft.length}/{catalog.length}
         </span>
         {org.systemsAll && !dirty && (
@@ -376,14 +376,14 @@ function SystemToggles({
         <button
           type="button"
           onClick={() => setDraft(catalog.map((c) => c.id))}
-          className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-800"
+          className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-ash-500 hover:bg-ash-900/5 hover:text-ash-800"
         >
           All
         </button>
         <button
           type="button"
           onClick={() => setDraft([])}
-          className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-800"
+          className="rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-ash-500 hover:bg-ash-900/5 hover:text-ash-800"
         >
           None
         </button>
@@ -401,7 +401,7 @@ function SystemToggles({
               title={`${s.name} — ${s.purpose}`}
               aria-pressed={on}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-semibold transition-all disabled:opacity-60 ${
-                on ? "text-white shadow-sm" : "border-zinc-900/12 bg-white/60 text-zinc-500 hover:bg-white"
+                on ? "text-white shadow-sm" : "border-ash-900/12 bg-paper/60 text-ash-500 hover:bg-paper"
               }`}
               style={on ? { backgroundColor: s.accent, borderColor: s.accent } : undefined}
             >
@@ -410,7 +410,7 @@ function SystemToggles({
               {s.external && (
                 <span
                   title="A separate deployment with its own sign-in. Switching it on adds the tile; provisioning the lender as a member happens in the Interchange."
-                  className={`rounded px-1 text-[9px] font-bold uppercase ${on ? "bg-white/25" : "bg-zinc-900/8"}`}
+                  className={`rounded px-1 text-[9px] font-bold uppercase ${on ? "bg-paper/25" : "bg-ash-900/8"}`}
                 >
                   ext
                 </span>
@@ -426,14 +426,14 @@ function SystemToggles({
             type="button"
             disabled={disabled}
             onClick={() => onSave(draft)}
-            className="rounded-lg bg-zinc-900 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="rounded-lg bg-invert px-3 py-1.5 text-[11px] font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60"
           >
             {busy ? <Loader2 className="inline h-3 w-3 animate-spin" /> : "Save systems"}
           </button>
           <button
             type="button"
             onClick={() => setDraft(org.systems)}
-            className="rounded-lg border border-zinc-900/12 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-zinc-600 hover:bg-white"
+            className="rounded-lg border border-ash-900/12 bg-paper/70 px-3 py-1.5 text-[11px] font-semibold text-ash-600 hover:bg-paper"
           >
             Cancel
           </button>
@@ -465,7 +465,7 @@ function SystemToggles({
 function Tile({ label, value }: { label: string; value: string }) {
   return (
     <div className="glass p-3.5">
-      <p className="text-[10px] uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="text-[10px] uppercase tracking-wide text-ash-500">{label}</p>
       <p className="mt-1 text-lg font-bold tabular-nums">{value}</p>
     </div>
   );

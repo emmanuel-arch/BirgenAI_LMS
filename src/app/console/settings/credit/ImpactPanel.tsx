@@ -127,7 +127,7 @@ function BorrowerLookup({ search, onPick }: { search: BorrowerSearch; onPick: (i
           onChange={(e) => search.onQ(e.target.value)}
           placeholder="Try it on one customer — name, phone or ID"
           aria-label="Find a customer to preview against"
-          className="w-full rounded-lg border border-[color:var(--ink)]/12 bg-white py-2 pl-8 pr-2.5 text-[12px] outline-none focus:border-[color:var(--brand)]"
+          className="w-full rounded-lg border border-[color:var(--ink)]/12 bg-paper py-2 pl-8 pr-2.5 text-[12px] outline-none focus:border-[color:var(--brand)]"
         />
       </label>
       {search.results.length > 0 && (

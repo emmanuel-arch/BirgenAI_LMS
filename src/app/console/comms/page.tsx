@@ -60,7 +60,7 @@ function Comms() {
       <h1 className="text-xl font-bold flex items-center gap-2">
         <MessageSquare className="h-5 w-5" style={{ color: "var(--brand)" }} /> SMS & Comms
       </h1>
-      <p className="mt-1 text-sm text-zinc-500 max-w-2xl">
+      <p className="mt-1 text-sm text-ash-500 max-w-2xl">
         Campaign blasts to live borrower segments, the wording of every SMS the platform sends, and the outbound
         email log. Campaigns ride your SMS credits — they queue when credits run out, never overdraw.
       </p>
@@ -75,7 +75,7 @@ function Comms() {
           { key: "email", label: "Email Log", icon: Mail },
         ].map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold ${tab === t.key ? "text-white" : "bg-white/70 text-zinc-600 border border-zinc-900/10 hover:bg-white"}`}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold ${tab === t.key ? "text-white" : "bg-paper/70 text-ash-600 border border-ash-900/10 hover:bg-paper"}`}
             style={tab === t.key ? { backgroundColor: "var(--brand)" } : undefined}>
             <t.icon className="h-3.5 w-3.5" /> {t.label}
           </button>
@@ -144,36 +144,36 @@ function CampaignsTab({ setNotice, setError }: { setNotice: (s: string | null) =
         <p className="text-sm font-semibold">New campaign</p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="text-[11px] font-semibold text-zinc-600">Name</span>
-            <span className="block text-[11px] text-zinc-500">For your history — say what this was.</span>
+            <span className="text-[11px] font-semibold text-ash-600">Name</span>
+            <span className="block text-[11px] text-ash-500">For your history — say what this was.</span>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Easter repayment drive"
-              className="mt-1.5 w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none" />
+              className="mt-1.5 w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none" />
           </label>
           <label className="block">
-            <span className="text-[11px] font-semibold text-zinc-600">Who gets it</span>
-            <span className="block text-[11px] text-zinc-500">Counted live from your book when you send.</span>
+            <span className="text-[11px] font-semibold text-ash-600">Who gets it</span>
+            <span className="block text-[11px] text-ash-500">Counted live from your book when you send.</span>
             <select value={audience} onChange={(e) => { setAudience(e.target.value); setEstimate(null); }}
-              className="mt-1.5 w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none">
+              className="mt-1.5 w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none">
               {AUDIENCES.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
             </select>
           </label>
         </div>
         <label className="mt-3 block">
-          <span className="text-[11px] font-semibold text-zinc-600">Message</span>
-          <span className="block text-[11px] text-zinc-500">{"{name}"} becomes each borrower&apos;s first name.</span>
+          <span className="text-[11px] font-semibold text-ash-600">Message</span>
+          <span className="block text-[11px] text-ash-500">{"{name}"} becomes each borrower&apos;s first name.</span>
           <textarea value={message} onChange={(e) => { setMessage(e.target.value.slice(0, 480)); setEstimate(null); }} rows={3}
             placeholder="Hi {name}, pay your loan early this month and grow your limit! Dial your paybill or use Pay Now."
-            className="mt-1.5 w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none" />
+            className="mt-1.5 w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none" />
           <SegmentMeter body={message} />
         </label>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <button onClick={dryRun} disabled={busy !== null || message.trim().length < 10}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 bg-white/70 px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-white disabled:opacity-50">
+            className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2 text-xs font-semibold text-ash-700 hover:bg-paper disabled:opacity-50">
             {busy === "estimate" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Users className="h-3.5 w-3.5" />} Count the audience
           </button>
           {estimate && (
             <>
-              <span className="text-xs text-zinc-600">
+              <span className="text-xs text-ash-600">
                 <strong>{estimate.recipients}</strong> recipient{estimate.recipients === 1 ? "" : "s"} · ~<strong>{estimate.recipients * estimate.segments}</strong> SMS{estimate.capped ? " (capped at 5,000)" : ""}
               </span>
               <button onClick={send} disabled={busy !== null || name.trim().length < 3 || estimate.recipients === 0}
@@ -181,27 +181,27 @@ function CampaignsTab({ setNotice, setError }: { setNotice: (s: string | null) =
                 style={{ backgroundColor: "var(--brand)" }}>
                 {busy === "send" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Send campaign
               </button>
-              {estimate.recipients === 0 && <span className="text-[11px] text-zinc-400">Nobody matches this audience yet.</span>}
-              {name.trim().length < 3 && estimate.recipients > 0 && <span className="text-[11px] text-zinc-400">Name the campaign to send.</span>}
+              {estimate.recipients === 0 && <span className="text-[11px] text-ash-400">Nobody matches this audience yet.</span>}
+              {name.trim().length < 3 && estimate.recipients > 0 && <span className="text-[11px] text-ash-400">Name the campaign to send.</span>}
             </>
           )}
         </div>
       </div>
 
       {campaigns === null ? (
-        <div className="glass p-5 text-sm text-zinc-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading history…</div>
+        <div className="glass p-5 text-sm text-ash-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading history…</div>
       ) : campaigns.length === 0 ? (
-        <div className="glass p-8 text-center text-sm text-zinc-500">No campaigns yet.</div>
+        <div className="glass p-8 text-center text-sm text-ash-500">No campaigns yet.</div>
       ) : (
         <div className="space-y-2">
           {campaigns.map((c) => (
             <div key={c.id} className="glass p-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold">{c.name} <span className="ml-1 rounded-md bg-zinc-900/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">{AUDIENCES.find((a) => a.key === c.audience)?.label ?? c.audience}</span></p>
-                  <p className="mt-0.5 text-[12px] text-zinc-600">&ldquo;{c.message}&rdquo;</p>
+                  <p className="text-sm font-semibold">{c.name} <span className="ml-1 rounded-md bg-ash-900/5 px-2 py-0.5 text-[10px] font-semibold text-ash-500">{AUDIENCES.find((a) => a.key === c.audience)?.label ?? c.audience}</span></p>
+                  <p className="mt-0.5 text-[12px] text-ash-600">&ldquo;{c.message}&rdquo;</p>
                 </div>
-                <div className="shrink-0 text-right text-[11px] text-zinc-500">
+                <div className="shrink-0 text-right text-[11px] text-ash-500">
                   <p>{c.sentAt ? day(c.sentAt) : day(c.createdAt)} · {c.recipients} recipients</p>
                   <p className="mt-0.5">
                     <span className="text-emerald-600 font-semibold">{c.delivery.sent} sent</span>
@@ -238,12 +238,12 @@ function SegmentMeter({ body }: { body: string }) {
 
   return (
     <div className="mt-1.5">
-      <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-900/[0.07]">
+      <div className="h-1 w-full overflow-hidden rounded-full bg-ash-900/[0.07]">
         <div className="h-full rounded-full transition-[width] duration-200" style={{ width: `${pct}%`, backgroundColor: fill }} />
       </div>
       <p className="mt-1 text-[10px] leading-tight" style={{ color: ink }}>
         <span className="font-semibold">{smsCostLabel(cost)}</span>
-        <span className="text-zinc-400">
+        <span className="text-ash-400">
           {" · "}{cost.units} of {cost.segments * cost.perSegment} used, with placeholders at their longest
         </span>
         {cost.segments > 1 && (
@@ -297,46 +297,46 @@ function TemplatesTab({ setNotice, setError }: { setNotice: (s: string | null) =
 
   return (
     <div className="mt-4">
-      <p className="text-[11px] text-zinc-500">
+      <p className="text-[11px] text-ash-500">
         The wording of every SMS the platform sends on your behalf. Placeholders in braces are filled at send time —
         an override must keep them, or the message loses its meaning.
       </p>
       {templates === null ? (
-        <div className="glass mt-3 p-5 text-sm text-zinc-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+        <div className="glass mt-3 p-5 text-sm text-ash-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
       ) : (
         <div className="mt-3 space-y-2">
           {templates.map((t) => (
             <div key={t.key} className="glass p-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold">
-                  <code className="rounded bg-zinc-900/5 px-1.5 py-0.5 text-[11px]">{t.key}</code>
+                  <code className="rounded bg-ash-900/5 px-1.5 py-0.5 text-[11px]">{t.key}</code>
                   {t.override && <span className="ml-2 rounded-md px-2 py-0.5 text-[10px] font-semibold text-white" style={{ backgroundColor: "var(--brand)" }}>customized</span>}
                 </p>
                 <div className="flex items-center gap-2">
                   {t.override && (
                     <button onClick={() => save(t.key, null)} disabled={busy}
-                      className="inline-flex items-center gap-1 rounded-lg border border-zinc-900/15 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-zinc-600 hover:bg-white">
+                      className="inline-flex items-center gap-1 rounded-lg border border-ash-900/15 bg-paper/70 px-2.5 py-1 text-[11px] font-semibold text-ash-600 hover:bg-paper">
                       <RotateCcw className="h-3 w-3" /> Restore default
                     </button>
                   )}
                   <button onClick={() => { setEditing(editing === t.key ? null : t.key); setDraft(t.override?.body ?? t.defaultBody); }}
-                    className="rounded-lg border border-zinc-900/15 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-zinc-600 hover:bg-white">
+                    className="rounded-lg border border-ash-900/15 bg-paper/70 px-2.5 py-1 text-[11px] font-semibold text-ash-600 hover:bg-paper">
                     {editing === t.key ? "Close" : "Edit"}
                   </button>
                 </div>
               </div>
-              <p className="mt-1.5 text-[12px] text-zinc-600">{t.override?.body ?? t.defaultBody}</p>
+              <p className="mt-1.5 text-[12px] text-ash-600">{t.override?.body ?? t.defaultBody}</p>
               {editing === t.key && (
                 <div className="mt-2">
                   <textarea value={draft} onChange={(e) => setDraft(e.target.value.slice(0, 480))} rows={3}
-                    className="w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2 text-sm outline-none" />
+                    className="w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2 text-sm outline-none" />
                   <SegmentMeter body={draft} />
                   <div className="mt-1.5 flex items-center gap-2">
                     <button onClick={() => save(t.key, draft)} disabled={busy || draft.trim().length < 10}
                       className="rounded-lg px-3.5 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50" style={{ backgroundColor: "var(--brand)" }}>
                       {busy ? <Loader2 className="inline h-3 w-3 animate-spin" /> : "Save"}
                     </button>
-                    <span className="text-[10px] text-zinc-400">Must keep: {t.placeholders.map((p) => `{${p}}`).join(" ")}</span>
+                    <span className="text-[10px] text-ash-400">Must keep: {t.placeholders.map((p) => `{${p}}`).join(" ")}</span>
                   </div>
                 </div>
               )}
@@ -363,14 +363,14 @@ function EmailTab({ setError }: { setError: (s: string | null) => void }) {
   return (
     <div className="mt-4">
       {emails === null ? (
-        <div className="glass p-5 text-sm text-zinc-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+        <div className="glass p-5 text-sm text-ash-500 flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
       ) : emails.length === 0 ? (
-        <div className="glass p-8 text-center text-sm text-zinc-500">No emails sent yet.</div>
+        <div className="glass p-8 text-center text-sm text-ash-500">No emails sent yet.</div>
       ) : (
         <div className="glass overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-zinc-900/10 text-[10px] uppercase tracking-wide text-zinc-500">
+              <tr className="border-b border-ash-900/10 text-[10px] uppercase tracking-wide text-ash-500">
                 <th className="px-4 py-3">To</th>
                 <th className="px-4 py-3">Subject</th>
                 <th className="px-4 py-3">Kind</th>
@@ -380,17 +380,17 @@ function EmailTab({ setError }: { setError: (s: string | null) => void }) {
             </thead>
             <tbody>
               {emails.map((e) => (
-                <tr key={e.id} className="border-b border-zinc-900/5 last:border-0">
-                  <td className="px-4 py-2.5 text-zinc-700">{e.to}</td>
-                  <td className="px-4 py-2.5 text-zinc-600 max-w-[280px] truncate">{e.subject}</td>
-                  <td className="px-4 py-2.5"><code className="rounded bg-zinc-900/5 px-1.5 py-0.5 text-[10px] text-zinc-500">{e.template ?? "raw"}</code></td>
+                <tr key={e.id} className="border-b border-ash-900/5 last:border-0">
+                  <td className="px-4 py-2.5 text-ash-700">{e.to}</td>
+                  <td className="px-4 py-2.5 text-ash-600 max-w-[280px] truncate">{e.subject}</td>
+                  <td className="px-4 py-2.5"><code className="rounded bg-ash-900/5 px-1.5 py-0.5 text-[10px] text-ash-500">{e.template ?? "raw"}</code></td>
                   <td className="px-4 py-2.5">
                     {e.state === "SENT"
                       ? <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">sent</span>
                       : <span className="rounded-md bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700" title={e.error ?? undefined}>failed</span>}
-                    {e.state !== "SENT" && e.error && <span className="ml-1.5 text-[10px] text-zinc-400">{e.error.slice(0, 60)}</span>}
+                    {e.state !== "SENT" && e.error && <span className="ml-1.5 text-[10px] text-ash-400">{e.error.slice(0, 60)}</span>}
                   </td>
-                  <td className="px-4 py-2.5 text-[11px] text-zinc-500">{when(e.createdAt)}</td>
+                  <td className="px-4 py-2.5 text-[11px] text-ash-500">{when(e.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

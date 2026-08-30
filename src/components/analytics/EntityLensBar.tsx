@@ -103,7 +103,7 @@ export default function EntityLensBar({
   return (
     <div className="mb-3">
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="mr-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">Book</span>
+        <span className="mr-0.5 text-[11px] font-bold uppercase tracking-[0.12em] text-ash-400">Book</span>
 
         {lenses.map((l) => {
           const sel = on.has(l.id);
@@ -116,8 +116,8 @@ export default function EntityLensBar({
               title={`${l.name} — ServiceSuite entity ${l.id}${sel ? "" : "  ·  ⌘-click to add to the comparison"}`}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${
                 sel
-                  ? "border-zinc-900/15 bg-white text-zinc-900 shadow-sm"
-                  : "border-transparent text-zinc-500 hover:bg-zinc-900/[0.04] hover:text-zinc-800"
+                  ? "border-ash-900/15 bg-paper text-ash-900 shadow-sm"
+                  : "border-transparent text-ash-500 hover:bg-ash-900/[0.04] hover:text-ash-800"
               }`}
             >
               <span
@@ -130,7 +130,7 @@ export default function EntityLensBar({
           );
         })}
 
-        <span className="mx-1 h-4 w-px bg-zinc-900/10" aria-hidden />
+        <span className="mx-1 h-4 w-px bg-ash-900/10" aria-hidden />
 
         <button
           type="button"
@@ -138,8 +138,8 @@ export default function EntityLensBar({
           aria-pressed={bothOn && !split}
           className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${
             bothOn && !split
-              ? "border-zinc-900/15 bg-white text-zinc-900 shadow-sm"
-              : "border-transparent text-zinc-500 hover:bg-zinc-900/[0.04] hover:text-zinc-800"
+              ? "border-ash-900/15 bg-paper text-ash-900 shadow-sm"
+              : "border-transparent text-ash-500 hover:bg-ash-900/[0.04] hover:text-ash-800"
           }`}
           title="Both books summed into one figure"
         >
@@ -154,8 +154,8 @@ export default function EntityLensBar({
           aria-pressed={split}
           className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${
             split
-              ? "border-zinc-900/15 bg-white text-zinc-900 shadow-sm"
-              : "border-transparent text-zinc-500 hover:bg-zinc-900/[0.04] hover:text-zinc-800"
+              ? "border-ash-900/15 bg-paper text-ash-900 shadow-sm"
+              : "border-transparent text-ash-500 hover:bg-ash-900/[0.04] hover:text-ash-800"
           }`}
           title="Every measure broken out per book, drawn beside each other"
         >
@@ -164,14 +164,14 @@ export default function EntityLensBar({
         </button>
         )}
 
-        {pending && <Loader2 className="ml-1 h-3.5 w-3.5 animate-spin text-zinc-400" />}
+        {pending && <Loader2 className="ml-1 h-3.5 w-3.5 animate-spin text-ash-400" />}
       </div>
 
       {/* The one caveat that must never be buried. Two books whose arrears are
           measured differently can be compared — but only by somebody who knows
           that is what they are doing. */}
       {mixedBasis && (
-        <p className="mt-1.5 text-[11px] leading-snug text-zinc-500">
+        <p className="mt-1.5 text-[11px] leading-snug text-ash-500">
           These books measure arrears differently: one from the CollectBox tracker&apos;s own days-in-arrears, the other
           derived from the loan&apos;s expected clear date. PAR is comparable in direction, not to the decimal.
         </p>

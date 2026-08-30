@@ -89,11 +89,11 @@ export default function VerifyPage() {
     } catch { setError(t.errors.couldNotSendCode); } finally { setBusy(false); }
   };
 
-  const startStyle = "flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3";
-  const input = "flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-zinc-400";
+  const startStyle = "flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3";
+  const input = "flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-ash-400";
 
   return (
-    <div className="relative min-h-screen text-zinc-900" style={brandStyle}>
+    <div className="relative min-h-screen text-ash-900" style={brandStyle}>
       <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
       <div className="relative z-10 mx-auto max-w-3xl px-4 py-8">
         <div className="flex items-center justify-between gap-2">
@@ -111,30 +111,30 @@ export default function VerifyPage() {
         )}
 
         {gate === "resolving" && (
-          <div className="mt-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>
+          <div className="mt-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>
         )}
 
         {/* The honest stop. We will not guess whose customer this is. */}
         {gate === "no-lender" && (
-          <div className="glass mt-5 rounded-3xl bg-white/65 p-6 text-center">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900/5">
-              <Building2 className="h-7 w-7 text-zinc-400" />
+          <div className="glass mt-5 rounded-3xl bg-paper/65 p-6 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-ash-900/5">
+              <Building2 className="h-7 w-7 text-ash-400" />
             </div>
             <h1 className="mt-4 text-xl font-bold">{t.verify.noLenderTitle}</h1>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-500">
-              {t.verify.noLenderBody} <span className="font-semibold text-zinc-700">yourlender.birgenai.com</span>.
+            <p className="mt-2 text-sm leading-relaxed text-ash-500">
+              {t.verify.noLenderBody} <span className="font-semibold text-ash-700">yourlender.birgenai.com</span>.
             </p>
           </div>
         )}
 
         {gate === "intro" && (
-          <div className="glass mt-5 rounded-3xl bg-white/65 p-6">
+          <div className="glass mt-5 rounded-3xl bg-paper/65 p-6">
             <div className="text-center">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl" style={{ backgroundColor: "var(--brand-soft)" }}>
                 <ScanFace className="h-7 w-7" style={{ color: "var(--brand)" }} />
               </div>
               <h1 className="mt-4 text-2xl font-bold">{t.verify.introTitle}</h1>
-              <p className="mt-2 text-sm text-zinc-500">
+              <p className="mt-2 text-sm text-ash-500">
                 {fmt(t.verify.introSub, { name: brand.name })}
               </p>
             </div>
@@ -146,7 +146,7 @@ export default function VerifyPage() {
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg px-5 py-3 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: "var(--brand)" }}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {t.verify.start} <ArrowRight className="h-4 w-4" />
             </button>
-            <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-400"><Lock className="h-3 w-3" /> {t.verify.dpaNote}</p>
+            <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-ash-400"><Lock className="h-3 w-3" /> {t.verify.dpaNote}</p>
           </div>
         )}
 
@@ -184,7 +184,7 @@ function DoneCard({ outcome, brandName, lender, t }: { outcome: FlowOutcome; bra
   const iprs = (outcome.results.iprs as { iprs?: { matched: boolean } })?.iprs;
 
   return (
-    <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="glass mt-5 rounded-3xl bg-white/70 p-6 text-center">
+    <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="glass mt-5 rounded-3xl bg-paper/70 p-6 text-center">
       <motion.div
         initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", delay: 0.1 }}
         className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${verified ? "bg-emerald-100" : review ? "bg-amber-100" : "bg-red-100"}`}
@@ -192,16 +192,16 @@ function DoneCard({ outcome, brandName, lender, t }: { outcome: FlowOutcome; bra
         {verified ? <PartyPopper className="h-8 w-8 text-emerald-600" /> : review ? <UserCheck className="h-8 w-8 text-amber-600" /> : <AlertTriangle className="h-8 w-8 text-red-600" />}
       </motion.div>
       <h1 className="mt-4 text-2xl font-bold">{verified ? t.verify.doneVerified : review ? t.verify.doneReview : t.verify.doneFailed}</h1>
-      <p className="mt-2 text-sm text-zinc-500">
+      <p className="mt-2 text-sm text-ash-500">
         {verified ? fmt(t.verify.doneVerifiedSub, { name: brandName })
           : review ? t.verify.doneReviewSub
           : t.verify.doneFailedSub}
       </p>
       <div className="mt-5 grid grid-cols-3 gap-2 text-center">
         {([[t.verify.liveness, live?.score], [t.verify.face, fm?.score], [t.verify.registry, iprs?.matched ? 100 : 0]] as const).map(([k, v]) => (
-          <div key={k} className="rounded-xl border border-zinc-900/10 bg-white/70 p-2.5">
+          <div key={k} className="rounded-xl border border-ash-900/10 bg-paper/70 p-2.5">
             <p className="text-lg font-bold" style={{ color: "var(--brand)" }}>{v != null ? `${v}%` : "—"}</p>
-            <p className="text-[10px] uppercase tracking-wide text-zinc-500">{k}</p>
+            <p className="text-[10px] uppercase tracking-wide text-ash-500">{k}</p>
           </div>
         ))}
       </div>

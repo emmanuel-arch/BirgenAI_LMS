@@ -51,7 +51,7 @@ export default async function BranchesPage({ searchParams }: { searchParams: Pro
           className="mb-3 rounded-2xl border p-4"
           style={{ borderColor: `${STATUS.warning}55`, backgroundColor: `${STATUS.warning}0d` }}
         >
-          <p className="text-[13px] leading-snug text-zinc-800">
+          <p className="text-[13px] leading-snug text-ash-800">
             <strong>{biggest.label}</strong> holds {concentration.toFixed(0)}% of the entire outstanding book (
             {formatValue(biggest.olb, "money")} of {formatValue(totalOlb, "money")}). Concentration at that level means
             one office&apos;s bad quarter is the lender&apos;s bad quarter.

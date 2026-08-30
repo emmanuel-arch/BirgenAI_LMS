@@ -89,9 +89,9 @@ export function IdentityLookup({
     );
   }
 
-  const inputCls = "w-full rounded-lg border border-zinc-900/15 bg-white px-2.5 py-1.5 text-xs outline-none placeholder:text-zinc-400 focus:border-[var(--brand)]";
+  const inputCls = "w-full rounded-lg border border-ash-900/15 bg-paper px-2.5 py-1.5 text-xs outline-none placeholder:text-ash-400 focus:border-[var(--brand)]";
   return (
-    <div className={compact ? "" : "rounded-xl border border-zinc-900/10 bg-white/60 p-3"}>
+    <div className={compact ? "" : "rounded-xl border border-ash-900/10 bg-paper/60 p-3"}>
       <div className="flex gap-1.5">
         <input className={inputCls} inputMode="numeric" placeholder={`${role} national ID`}
           value={nid} onChange={(e) => setNid(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
@@ -102,14 +102,14 @@ export function IdentityLookup({
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />} Fetch
         </button>
       </div>
-      <label className="mt-1.5 flex items-start gap-2 text-[10px] text-zinc-500 cursor-pointer">
+      <label className="mt-1.5 flex items-start gap-2 text-[10px] text-ash-500 cursor-pointer">
         <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 h-3.5 w-3.5" style={{ accentColor: "var(--brand)" }} />
         <span>The {role} consents to an identity check against the national registry. Your name goes on the lookup.</span>
       </label>
       {error && <p className="mt-1.5 flex items-start gap-1 text-[11px] text-red-600"><AlertTriangle className="mt-px h-3 w-3 shrink-0" /> {error}</p>}
       {note && <p className="mt-1.5 text-[11px] text-amber-700">{note}</p>}
       {onManual && (
-        <button onClick={onManual} className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-zinc-500 hover:text-zinc-800">
+        <button onClick={onManual} className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-ash-500 hover:text-ash-800">
           <PenLine className="h-3 w-3" /> Enter manually instead
         </button>
       )}

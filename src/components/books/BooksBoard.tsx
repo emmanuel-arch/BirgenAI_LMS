@@ -76,14 +76,14 @@ export default function BooksBoard({
         title="The books"
         sub={<>Read live from Serviceconnect&rsquo;s own journal — {N(journalRows)} double-entry postings across entities {entityIds.join(" and ")}, last written <TimeAgo at={lastEntryAt} />.</>}
         right={
-          <div className="flex rounded-lg bg-zinc-900/[0.045] p-0.5">
+          <div className="flex rounded-lg bg-ash-900/[0.045] p-0.5">
             {[7, 30, 90, 365].map((d) => (
               <button
                 key={d}
                 type="button"
                 onClick={() => setDays(d)}
                 className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                  days === d ? "bg-white text-zinc-800 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+                  days === d ? "bg-paper text-ash-800 shadow-sm" : "text-ash-500 hover:text-ash-700"
                 }`}
               >
                 {d === 365 ? "1y" : `${d}d`}
@@ -129,7 +129,7 @@ export default function BooksBoard({
           <div className="space-y-3">
             {grouped.map((g) => (
               <div key={g.type}>
-                <p className="mb-1 flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-zinc-400">
+                <p className="mb-1 flex items-center gap-1.5 text-[9.5px] font-bold uppercase tracking-[0.14em] text-ash-400">
                   <span aria-hidden className="h-2 w-2 rounded-full" style={{ backgroundColor: TYPE_ACCENT[g.type] }} />
                   {g.type}
                 </p>
@@ -149,7 +149,7 @@ export default function BooksBoard({
               </div>
             ))}
           </div>
-          <p className="mt-3 border-t border-zinc-900/[0.06] pt-2.5 text-[10.5px] leading-relaxed text-zinc-400">
+          <p className="mt-3 border-t border-ash-900/[0.06] pt-2.5 text-[10.5px] leading-relaxed text-ash-400">
             This is MOVEMENT, not a balance sheet. The journal carries no opening balances, no period locks and no
             closing entries, so a balance derived from it would have no defensible starting point. What is shown is
             exactly what the data supports.
@@ -179,15 +179,15 @@ export default function BooksBoard({
                 return (
                   <span
                     key={t}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/10 px-2 py-1 text-[11px] font-semibold text-zinc-600"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/10 px-2 py-1 text-[11px] font-semibold text-ash-600"
                   >
                     <span aria-hidden className="h-2 w-2 rounded-full" style={{ backgroundColor: TYPE_ACCENT[t] }} />
-                    {t} <span className="tabular-nums text-zinc-400">{n}</span>
+                    {t} <span className="tabular-nums text-ash-400">{n}</span>
                   </span>
                 );
               })}
             </div>
-            <p className="mt-2.5 text-[10.5px] leading-relaxed text-zinc-500">
+            <p className="mt-2.5 text-[10.5px] leading-relaxed text-ash-500">
               Entity 3005 has its own Processing Fee, CRB Fee and Security Fee accounts, opened on 3 August 2026 — the
               Fintech entity was set up with its own income lines rather than sharing 3002&rsquo;s.
             </p>
@@ -208,35 +208,35 @@ export default function BooksBoard({
           <div className="max-h-[520px] overflow-auto">
             <table className="w-full min-w-[880px] text-left">
               <thead>
-                <tr className="border-y border-zinc-900/[0.07] text-[9.5px] font-bold uppercase tracking-[0.1em] text-zinc-400">
-                  <th className="sticky top-0 bg-white px-4 py-2">When</th>
-                  <th className="sticky top-0 bg-white px-3 py-2">Narration</th>
-                  <th className="sticky top-0 bg-white px-3 py-2">From → to</th>
-                  <th className="sticky top-0 bg-white px-3 py-2 text-right">Amount</th>
-                  <th className="sticky top-0 bg-white px-3 py-2">Loan</th>
+                <tr className="border-y border-ash-900/[0.07] text-[9.5px] font-bold uppercase tracking-[0.1em] text-ash-400">
+                  <th className="sticky top-0 bg-paper px-4 py-2">When</th>
+                  <th className="sticky top-0 bg-paper px-3 py-2">Narration</th>
+                  <th className="sticky top-0 bg-paper px-3 py-2">From → to</th>
+                  <th className="sticky top-0 bg-paper px-3 py-2 text-right">Amount</th>
+                  <th className="sticky top-0 bg-paper px-3 py-2">Loan</th>
                 </tr>
               </thead>
               <tbody>
                 {recent.map((e) => (
-                  <tr key={e.id} className="border-b border-zinc-900/[0.045] last:border-0 hover:bg-zinc-900/[0.022]">
-                    <td className="px-4 py-1.5 text-[10.5px] tabular-nums text-zinc-500">
+                  <tr key={e.id} className="border-b border-ash-900/[0.045] last:border-0 hover:bg-ash-900/[0.022]">
+                    <td className="px-4 py-1.5 text-[10.5px] tabular-nums text-ash-500">
                       {shortTime(e.at)}
-                      <span className="block text-[9.5px] text-zinc-400">{ago(e.at)}</span>
+                      <span className="block text-[9.5px] text-ash-400">{ago(e.at)}</span>
                     </td>
                     <td className="px-3 py-1.5">
-                      <span className="block truncate text-[12px] font-medium text-zinc-800">{e.narration}</span>
+                      <span className="block truncate text-[12px] font-medium text-ash-800">{e.narration}</span>
                       {e.entityId === 3005 && <Tag tone="good">Fintech 3005</Tag>}
                     </td>
                     <td className="px-3 py-1.5">
-                      <span className="flex items-center gap-1 text-[11px] text-zinc-600">
+                      <span className="flex items-center gap-1 text-[11px] text-ash-600">
                         <span className="truncate">{e.from}</span>
-                        <span aria-hidden className="text-zinc-300">→</span>
+                        <span aria-hidden className="text-ash-300">→</span>
                         <span className="truncate font-medium">{e.to}</span>
                       </span>
                     </td>
-                    <td className="px-3 py-1.5 text-right text-[12px] font-semibold tabular-nums text-zinc-800">{KES(e.amount)}</td>
+                    <td className="px-3 py-1.5 text-right text-[12px] font-semibold tabular-nums text-ash-800">{KES(e.amount)}</td>
                     <td className="px-3 py-1.5">
-                      <Link href={`/desk/case/${e.loanId}`} className="text-[11px] tabular-nums text-zinc-500 hover:text-[color:var(--accent)] hover:underline">
+                      <Link href={`/desk/case/${e.loanId}`} className="text-[11px] tabular-nums text-ash-500 hover:text-[color:var(--accent)] hover:underline">
                         #{e.loanId}
                       </Link>
                     </td>
@@ -248,7 +248,7 @@ export default function BooksBoard({
         )}
       </Card>
 
-      <p className="mt-3 text-[10.5px] text-zinc-400">
+      <p className="mt-3 text-[10.5px] text-ash-400">
         Serviceconnect.Journals · Serviceconnect.Accounts · Serviceconnect.AccountTypes · Serviceconnect.Loans ·
         CollectBox.PayedAmount
       </p>

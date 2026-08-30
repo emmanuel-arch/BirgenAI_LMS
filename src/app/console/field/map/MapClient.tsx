@@ -589,7 +589,7 @@ function RoutePlanner() {
           title="Route Planner"
           subtitle="Search the customer, pick the road, press start — the phone guides the ride to their door on real Nairobi streets and live traffic."
         >
-          <button onClick={locate} className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+          <button onClick={locate} className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
             <LocateFixed className="h-3.5 w-3.5" /> Start = my location
           </button>
         </PageHeader>
@@ -616,7 +616,7 @@ function RoutePlanner() {
         </div>
       )}
       {!navMode && resolving && (
-        <p className="mt-4 flex items-center gap-2 text-sm text-zinc-500"><Loader2 className="h-4 w-4 animate-spin" /> Reading the customer&apos;s pin…</p>
+        <p className="mt-4 flex items-center gap-2 text-sm text-ash-500"><Loader2 className="h-4 w-4 animate-spin" /> Reading the customer&apos;s pin…</p>
       )}
 
       {/* ── Where from / where to ─────────────────────────────────────────────── */}
@@ -626,35 +626,35 @@ function RoutePlanner() {
             {/* The dots-and-line motif every maps user already reads. */}
             <div className="flex w-4 flex-col items-center py-3">
               <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
-              <span className="my-1 w-px flex-1 border-l-2 border-dotted border-zinc-300" />
+              <span className="my-1 w-px flex-1 border-l-2 border-dotted border-ash-300" />
               <MapPin className="h-3.5 w-3.5 text-rose-500" />
             </div>
             <div className="min-w-0 flex-1 space-y-2">
               <button onClick={() => setSearchFor("start")}
-                className="flex w-full items-center gap-2 rounded-xl border border-zinc-900/10 bg-white/80 px-3 py-2.5 text-left text-sm hover:bg-white">
+                className="flex w-full items-center gap-2 rounded-xl border border-ash-900/10 bg-paper/80 px-3 py-2.5 text-left text-sm hover:bg-paper">
                 <Crosshair className="h-4 w-4 shrink-0 text-emerald-600" />
-                <span className={`truncate ${start ? "font-semibold text-zinc-800" : "text-zinc-400"}`}>{start?.label ?? "Where from? (usually: right here)"}</span>
+                <span className={`truncate ${start ? "font-semibold text-ash-800" : "text-ash-400"}`}>{start?.label ?? "Where from? (usually: right here)"}</span>
                 {start && <X className="ml-auto h-3.5 w-3.5 shrink-0 opacity-50" onClick={(e) => { e.stopPropagation(); setStart(null); }} />}
               </button>
               <button onClick={() => setSearchFor("dest")}
-                className="flex w-full items-center gap-2 rounded-xl border border-zinc-900/10 bg-white/80 px-3 py-2.5 text-left text-sm hover:bg-white">
+                className="flex w-full items-center gap-2 rounded-xl border border-ash-900/10 bg-paper/80 px-3 py-2.5 text-left text-sm hover:bg-paper">
                 <Search className="h-4 w-4 shrink-0 text-rose-500" />
-                <span className={`truncate ${dest ? "font-semibold text-zinc-800" : "text-zinc-400"}`}>{dest?.label ?? "Search a customer or any place…"}</span>
+                <span className={`truncate ${dest ? "font-semibold text-ash-800" : "text-ash-400"}`}>{dest?.label ?? "Search a customer or any place…"}</span>
                 {dest && <X className="ml-auto h-3.5 w-3.5 shrink-0 opacity-50" onClick={(e) => { e.stopPropagation(); setDest(null); }} />}
               </button>
             </div>
             <button onClick={() => { setStart(dest); setDest(start); }} title="Swap"
-              className="self-center rounded-xl border border-zinc-900/10 bg-white/70 p-2.5 text-zinc-500 hover:bg-white hover:text-zinc-800">
+              className="self-center rounded-xl border border-ash-900/10 bg-paper/70 p-2.5 text-ash-500 hover:bg-paper hover:text-ash-800">
               <ArrowUpDown className="h-4 w-4" />
             </button>
           </div>
-          {routing && <p className="mt-2 flex items-center gap-1.5 pl-7 text-[11px] text-zinc-500"><Loader2 className="h-3 w-3 animate-spin" /> Asking the roads…</p>}
+          {routing && <p className="mt-2 flex items-center gap-1.5 pl-7 text-[11px] text-ash-500"><Loader2 className="h-3 w-3 animate-spin" /> Asking the roads…</p>}
         </div>
       )}
 
       {/* ── The map (fullscreen while navigating) ─────────────────────────────── */}
-      <div className={navMode ? "fixed inset-0 z-[80] bg-zinc-950" : "glass mt-3 overflow-hidden p-1.5"}>
-        <div ref={mapEl} className={navMode ? "h-full w-full" : "h-[52dvh] min-h-[340px] w-full rounded-xl bg-zinc-100"} />
+      <div className={navMode ? "fixed inset-0 z-[80] bg-stage" : "glass mt-3 overflow-hidden p-1.5"}>
+        <div ref={mapEl} className={navMode ? "h-full w-full" : "h-[52dvh] min-h-[340px] w-full rounded-xl bg-ash-100"} />
 
         {/* Instruction banner */}
         <AnimatePresence>
@@ -698,20 +698,20 @@ function RoutePlanner() {
               style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
             >
               <div className="mx-3 mb-3 rounded-2xl bg-zinc-900/95 px-4 py-3 text-white shadow-2xl backdrop-blur">
-                <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
+                <div className="h-1 w-full overflow-hidden rounded-full bg-paper/10">
                   <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 transition-[width] duration-700"
                     style={{ width: `${Math.round((nav?.fraction ?? 0) * 100)}%` }} />
                 </div>
                 <div className="mt-2.5 flex items-center justify-between gap-3">
                   <div className="flex items-baseline gap-3 tabular-nums">
                     <span className="text-xl font-black text-emerald-300">{nav ? fmtEta(nav.remainingSecs) : "—:—"}</span>
-                    <span className="text-sm font-semibold text-zinc-300">{nav ? fmtMins(nav.remainingSecs) : "…"}</span>
-                    <span className="text-sm text-zinc-400">{nav ? fmtM(nav.remainingM) : ""}</span>
-                    {nav?.speedKmh != null && <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-200">{nav.speedKmh} km/h</span>}
+                    <span className="text-sm font-semibold text-ash-300">{nav ? fmtMins(nav.remainingSecs) : "…"}</span>
+                    <span className="text-sm text-ash-400">{nav ? fmtM(nav.remainingM) : ""}</span>
+                    {nav?.speedKmh != null && <span className="rounded-md bg-paper/10 px-1.5 py-0.5 text-[11px] font-semibold text-ash-200">{nav.speedKmh} km/h</span>}
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => setMuted((m) => !m)} title={muted ? "Unmute" : "Mute"}
-                      className="rounded-xl bg-white/10 p-2.5 text-zinc-200 hover:bg-white/20">
+                      className="rounded-xl bg-paper/10 p-2.5 text-ash-200 hover:bg-paper/20">
                       {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                     </button>
                     <button onClick={endNav}
@@ -720,7 +720,7 @@ function RoutePlanner() {
                     </button>
                   </div>
                 </div>
-                {!nav && <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-zinc-400"><Loader2 className="h-3 w-3 animate-spin" /> Waiting for the first GPS fix…</p>}
+                {!nav && <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-ash-400"><Loader2 className="h-3 w-3 animate-spin" /> Waiting for the first GPS fix…</p>}
               </div>
             </motion.div>
           )}
@@ -734,7 +734,7 @@ function RoutePlanner() {
               <motion.div
                 initial={{ scale: 0.8, y: 24, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }}
                 transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                className="mx-6 w-full max-w-sm rounded-3xl bg-white p-8 text-center shadow-2xl"
+                className="mx-6 w-full max-w-sm rounded-3xl bg-paper p-8 text-center shadow-2xl"
               >
                 <div className="relative mx-auto h-20 w-20">
                   <motion.span
@@ -746,8 +746,8 @@ function RoutePlanner() {
                     <Flag className="h-9 w-9" />
                   </span>
                 </div>
-                <h2 className="mt-5 text-xl font-black text-zinc-900">You have arrived</h2>
-                <p className="mt-1 truncate text-sm text-zinc-500">{dest?.label ?? "Destination"}</p>
+                <h2 className="mt-5 text-xl font-black text-ash-900">You have arrived</h2>
+                <p className="mt-1 truncate text-sm text-ash-500">{dest?.label ?? "Destination"}</p>
                 <button onClick={endNav}
                   className="mt-6 w-full rounded-2xl px-4 py-3 text-sm font-bold text-white shadow-md"
                   style={{ background: "linear-gradient(135deg, var(--brand), #7c3aed)" }}>
@@ -769,14 +769,14 @@ function RoutePlanner() {
               <motion.button key={i} onClick={() => setSelIdx(i)}
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
                 className={`min-w-[168px] shrink-0 rounded-2xl border px-4 py-3 text-left transition-shadow ${
-                  sel ? "border-transparent bg-white shadow-lg ring-2 ring-[var(--brand)]" : "border-zinc-900/10 bg-white/60 hover:bg-white/90"}`}>
+                  sel ? "border-transparent bg-paper shadow-lg ring-2 ring-[var(--brand)]" : "border-ash-900/10 bg-paper/60 hover:bg-paper/90"}`}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-lg font-black tabular-nums text-zinc-900">{a.trafficMins} min</span>
+                  <span className="text-lg font-black tabular-nums text-ash-900">{a.trafficMins} min</span>
                   {i === fastest
                     ? <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">Fastest</span>
-                    : <span className="text-[11px] font-semibold text-zinc-400">+{a.trafficMins - alts[fastest].trafficMins} min</span>}
+                    : <span className="text-[11px] font-semibold text-ash-400">+{a.trafficMins - alts[fastest].trafficMins} min</span>}
                 </div>
-                <p className="mt-0.5 truncate text-[11px] text-zinc-500">via {a.summary} · {a.km} km</p>
+                <p className="mt-0.5 truncate text-[11px] text-ash-500">via {a.summary} · {a.km} km</p>
               </motion.button>
             );
           })}
@@ -796,18 +796,18 @@ function RoutePlanner() {
                 </span>
               </p>
               {active.live ? (
-                <p className="text-[11px] text-zinc-500">
+                <p className="text-[11px] text-ash-500">
                   {delay > 0
-                    ? <>Live traffic. {active.mins} min on clear roads — the jam is costing you <strong className="text-zinc-700">{delay} min</strong>.</>
+                    ? <>Live traffic. {active.mins} min on clear roads — the jam is costing you <strong className="text-ash-700">{delay} min</strong>.</>
                     : <>Live traffic. The roads are running clear right now.</>}
                 </p>
               ) : (
-                <p className="text-[11px] text-zinc-500">{active.mins} min on clear roads — Google has no live traffic read for this route.</p>
+                <p className="text-[11px] text-ash-500">{active.mins} min on clear roads — Google has no live traffic read for this route.</p>
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button onClick={askRiri}
-                className="inline-flex items-center gap-2 rounded-xl border border-zinc-900/10 bg-white/80 px-4 py-2.5 text-sm font-bold text-zinc-800 hover:bg-white">
+                className="inline-flex items-center gap-2 rounded-xl border border-ash-900/10 bg-paper/80 px-4 py-2.5 text-sm font-bold text-ash-800 hover:bg-paper">
                 <Bot className="h-4 w-4" style={{ color: "var(--brand)" }} /> {ASSISTANT_NAME}, guide the ride
               </button>
               <motion.button onClick={beginNav} whileTap={{ scale: 0.96 }}
@@ -932,15 +932,15 @@ function SearchSheet({ kind, customers, unpinned, myPos, onPick, onClose }: {
         initial={{ y: 48, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 48, opacity: 0 }}
         transition={{ type: "spring", stiffness: 340, damping: 32 }}
         onClick={(e) => e.stopPropagation()}
-        className="mx-auto mt-[8dvh] flex max-h-[84dvh] w-[min(94vw,540px)] flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
+        className="mx-auto mt-[8dvh] flex max-h-[84dvh] w-[min(94vw,540px)] flex-col overflow-hidden rounded-3xl bg-paper shadow-2xl"
       >
-        <div className="flex items-center gap-2 border-b border-zinc-900/10 px-4 py-3">
-          <Search className="h-4 w-4 shrink-0 text-zinc-400" />
+        <div className="flex items-center gap-2 border-b border-ash-900/10 px-4 py-3">
+          <Search className="h-4 w-4 shrink-0 text-ash-400" />
           <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)}
             placeholder={kind === "start" ? "Search where you're starting from…" : "Customer name, phone, or any place…"}
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400" />
-          {searching && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-zinc-400" />}
-          <button onClick={onClose} className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"><X className="h-4 w-4" /></button>
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ash-400" />
+          {searching && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-ash-400" />}
+          <button onClick={onClose} className="rounded-lg p-1.5 text-ash-400 hover:bg-ash-100 hover:text-ash-700"><X className="h-4 w-4" /></button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
@@ -949,19 +949,19 @@ function SearchSheet({ kind, customers, unpinned, myPos, onPick, onClose }: {
               onClick={() => onPick({ ...myPos, label: "My location" })} />
           )}
 
-          {book.length > 0 && <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400">Your book</p>}
+          {book.length > 0 && <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-ash-400">Your book</p>}
           {book.map((c) => (
             <div key={c.id}>
               <Row
                 icon={<BorrowerAvatar name={c.name} portraitUrl={c.portraitUrl} verified={c.verified} size="sm" />}
                 title={c.name}
                 sub={[c.address ?? "business", fmtDist(c.distanceKm), c.olb > 0 ? `${kes(c.olb)} out` : null].filter(Boolean).join(" · ")}
-                trailing={<Store className="h-3.5 w-3.5 text-zinc-300" />}
+                trailing={<Store className="h-3.5 w-3.5 text-ash-300" />}
                 onClick={() => onPick({ lat: c.lat, lng: c.lng, label: c.name })}
               />
               {c.homeLat != null && c.homeLng != null && (
                 <Row
-                  icon={<span className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-zinc-100"><Home className="h-3.5 w-3.5 text-zinc-500" /></span>}
+                  icon={<span className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-ash-100"><Home className="h-3.5 w-3.5 text-ash-500" /></span>}
                   title={`${c.name} — home`}
                   sub={c.homeAddress ?? "home pin"}
                   onClick={() => onPick({ lat: c.homeLat!, lng: c.homeLng!, label: `${c.name} — home` })}
@@ -976,26 +976,26 @@ function SearchSheet({ kind, customers, unpinned, myPos, onPick, onClose }: {
               className="flex items-center gap-3 rounded-2xl px-3 py-2.5 hover:bg-amber-50">
               <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-amber-100"><MapPin className="h-3.5 w-3.5 text-amber-600" /></span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-zinc-800">{c.name}</span>
+                <span className="block truncate text-sm font-semibold text-ash-800">{c.name}</span>
                 <span className="block truncate text-[11px] text-amber-600">No location on file — drop their pin →</span>
               </span>
             </Link>
           ))}
 
-          {visibleHits.length > 0 && <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wider text-zinc-400">Places</p>}
+          {visibleHits.length > 0 && <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wider text-ash-400">Places</p>}
           {visibleHits.map((h) => (
             <Row key={h.id}
-              icon={<span className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-zinc-100"><MapPin className="h-3.5 w-3.5 text-zinc-500" /></span>}
+              icon={<span className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-ash-100"><MapPin className="h-3.5 w-3.5 text-ash-500" /></span>}
               title={h.main} sub={h.secondary}
               onClick={async () => { const p = await h.pick(); if (p) onPick(p); }}
             />
           ))}
 
           {needle && !searching && book.length === 0 && missing.length === 0 && visibleHits.length === 0 && (
-            <p className="px-3 py-6 text-center text-xs text-zinc-400">Nothing on the book or the map matches “{q.trim()}”.</p>
+            <p className="px-3 py-6 text-center text-xs text-ash-400">Nothing on the book or the map matches “{q.trim()}”.</p>
           )}
         </div>
-        <p className="border-t border-zinc-900/5 px-4 py-2 text-right text-[9px] uppercase tracking-wide text-zinc-300">Search powered by Google</p>
+        <p className="border-t border-ash-900/5 px-4 py-2 text-right text-[9px] uppercase tracking-wide text-ash-300">Search powered by Google</p>
       </motion.div>
     </motion.div>
   );
@@ -1005,11 +1005,11 @@ function Row({ icon, title, sub, trailing, onClick }: {
   icon: React.ReactNode; title: string; sub?: string; trailing?: React.ReactNode; onClick: () => void;
 }) {
   return (
-    <button onClick={onClick} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left hover:bg-zinc-50">
+    <button onClick={onClick} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left hover:bg-ash-50">
       <span className="shrink-0">{icon}</span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-zinc-800">{title}</span>
-        {sub && <span className="block truncate text-[11px] text-zinc-500">{sub}</span>}
+        <span className="block truncate text-sm font-semibold text-ash-800">{title}</span>
+        {sub && <span className="block truncate text-[11px] text-ash-500">{sub}</span>}
       </span>
       {trailing}
     </button>
@@ -1018,10 +1018,10 @@ function Row({ icon, title, sub, trailing, onClick }: {
 
 function FareTile({ icon, label, value, note }: { icon: React.ReactNode; label: string; value: string; note: string }) {
   return (
-    <div className="rounded-xl border border-zinc-900/10 bg-white/60 px-3 py-2.5">
-      <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{icon} {label}</p>
-      <p className="mt-0.5 text-base font-bold text-zinc-800">{value}</p>
-      <p className="text-[10px] text-zinc-400">{note}</p>
+    <div className="rounded-xl border border-ash-900/10 bg-paper/60 px-3 py-2.5">
+      <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-ash-500">{icon} {label}</p>
+      <p className="mt-0.5 text-base font-bold text-ash-800">{value}</p>
+      <p className="text-[10px] text-ash-400">{note}</p>
     </div>
   );
 }

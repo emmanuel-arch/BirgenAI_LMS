@@ -126,7 +126,7 @@ export default function SuiteBoard({
         {/* ── Identity ─────────────────────────────────────────────────── */}
         <motion.header {...rise(0)} className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/[0.07] ring-1 ring-white/10">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-paper/[0.07] ring-1 ring-white/10">
               <KeyRound className="h-5 w-5 text-white/85" />
             </span>
             <div>
@@ -140,7 +140,7 @@ export default function SuiteBoard({
             <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-400/12 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-300 ring-1 ring-emerald-400/20">
               <ShieldCheck className="h-3.5 w-3.5" /> {who}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/[0.06] px-2.5 py-1.5 text-[11px] font-semibold text-white/60 ring-1 ring-white/10">
+            <span className="inline-flex items-center gap-1.5 rounded-xl bg-paper/[0.06] px-2.5 py-1.5 text-[11px] font-semibold text-white/60 ring-1 ring-white/10">
               <Building2 className="h-3.5 w-3.5" /> {orgName}
             </span>
           </div>
@@ -148,7 +148,7 @@ export default function SuiteBoard({
 
         {/* ── Hero ─────────────────────────────────────────────────────── */}
         <motion.div {...rise(1)} className="mt-9 max-w-3xl sm:mt-12">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] px-3 py-1 text-[10.5px] font-bold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-paper/[0.07] px-3 py-1 text-[10.5px] font-bold uppercase tracking-[0.16em] text-white/60 ring-1 ring-white/10">
             <Layers3 className="h-3 w-3" /> The connected suite
           </span>
           <h1 className="mt-4 text-[34px] font-bold leading-[1.08] tracking-[-0.028em] sm:text-[46px]">
@@ -179,7 +179,7 @@ export default function SuiteBoard({
               </p>
             </div>
           ) : (
-            <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-white/[0.09] bg-white/[0.04] px-4 py-3 backdrop-blur">
+            <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-white/[0.09] bg-paper/[0.04] px-4 py-3 backdrop-blur">
               <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-emerald-300">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
@@ -201,7 +201,7 @@ export default function SuiteBoard({
           // every system off from the platform board. A blank page here would
           // read as an outage and generate a support call; naming the cause and
           // who can undo it turns it into a two-minute conversation.
-          <div className="mt-4 rounded-2xl border border-white/[0.09] bg-white/[0.035] px-5 py-8 text-center backdrop-blur">
+          <div className="mt-4 rounded-2xl border border-white/[0.09] bg-paper/[0.035] px-5 py-8 text-center backdrop-blur">
             <p className="text-[15px] font-semibold text-white/80">No systems are switched on for {orgName} yet.</p>
             <p className="mx-auto mt-2 max-w-md text-[12.5px] leading-relaxed text-white/45">
               Your BirgenAI ID is valid and you are signed in — there is simply nothing assigned to this organisation
@@ -238,7 +238,7 @@ export default function SuiteBoard({
                   {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
                   onMouseEnter={() => setHover(app.id)}
                   onMouseLeave={() => setHover(null)}
-                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.035] p-4 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-white/[0.16] hover:bg-white/[0.06]"
+                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.09] bg-paper/[0.035] p-4 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-white/[0.16] hover:bg-paper/[0.06]"
                 >
                   {/* The system's own colour, washing the card from the top. */}
                   <span
@@ -261,7 +261,7 @@ export default function SuiteBoard({
                         // "signed in" here would be a lie the next click exposes:
                         // BirgenAI ID does not open the Interchange, an Ed25519
                         // node certificate does.
-                        <span className="inline-flex items-center gap-1 rounded-md bg-white/[0.07] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-white/45">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-paper/[0.07] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-white/45">
                           <ArrowUpRight className="h-2.5 w-2.5" /> Separate sign-in
                         </span>
                       ) : inside ? (
@@ -269,7 +269,7 @@ export default function SuiteBoard({
                           <ShieldCheck className="h-2.5 w-2.5" /> Signed in
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-white/[0.07] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-white/40">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-paper/[0.07] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-white/40">
                           <Lock className="h-2.5 w-2.5" /> Request access
                         </span>
                       )}
@@ -309,7 +309,7 @@ export default function SuiteBoard({
 
                   <div className="relative mt-3 flex flex-wrap gap-1">
                     {app.modules.slice(0, 4).map((m) => (
-                      <span key={m} className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[9.5px] font-medium text-white/45">
+                      <span key={m} className="rounded-md bg-paper/[0.06] px-1.5 py-0.5 text-[9.5px] font-medium text-white/45">
                         {m}
                       </span>
                     ))}
@@ -331,7 +331,7 @@ export default function SuiteBoard({
         </div>
 
         {/* ── The pipelines ────────────────────────────────────────────── */}
-        <motion.section {...rise(9)} className="mt-4 rounded-2xl border border-white/[0.09] bg-white/[0.035] p-4 backdrop-blur">
+        <motion.section {...rise(9)} className="mt-4 rounded-2xl border border-white/[0.09] bg-paper/[0.035] p-4 backdrop-blur">
           <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
             <div>
               <h2 className="flex items-center gap-2 text-[14px] font-bold">
@@ -373,7 +373,7 @@ export default function SuiteBoard({
         {telemetry.fintech.borrowers != null && (
           <motion.section
             {...rise(10)}
-            className="mt-4 overflow-hidden rounded-2xl border border-white/[0.09] bg-white/[0.035] backdrop-blur"
+            className="mt-4 overflow-hidden rounded-2xl border border-white/[0.09] bg-paper/[0.035] backdrop-blur"
           >
             <div className="grid lg:grid-cols-[minmax(0,1fr)_320px]">
               <div className="p-5">

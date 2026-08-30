@@ -51,8 +51,8 @@ export function AnalysisStudioCharts({ data }: { data: AnalysisData }) {
   return (
     <section className="mt-6">
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-zinc-500">Portfolio &amp; customers</h2>
-        <span className="h-px flex-1 bg-zinc-900/10" />
+        <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-ash-500">Portfolio &amp; customers</h2>
+        <span className="h-px flex-1 bg-ash-900/10" />
       </div>
 
       {/* Headline strip */}
@@ -92,8 +92,8 @@ export function AnalysisStudioCharts({ data }: { data: AnalysisData }) {
               </PieChart>
             </Chart>
             <div className="pointer-events-none absolute inset-x-0 top-[86px] flex flex-col items-center">
-              <p className="text-[10px] uppercase tracking-wide text-zinc-400">Customers</p>
-              <p className="text-lg font-bold text-zinc-800">{nf(genderTotal)}</p>
+              <p className="text-[10px] uppercase tracking-wide text-ash-400">Customers</p>
+              <p className="text-lg font-bold text-ash-800">{nf(genderTotal)}</p>
             </div>
           </div>
           <NumbersTable rows={data.gender.map((g) => [g.label, nf(g.count), pct(g.count, genderTotal)])} cols={["Gender", "Count", "Share"]} />
@@ -171,7 +171,7 @@ const pct = (n: number, total: number) => (total > 0 ? `${Math.round((n / total)
 function Kpi({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
     <div className="glass px-3 py-2.5">
-      <p className="text-[9px] uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="text-[9px] uppercase tracking-wide text-ash-500">{label}</p>
       <p className="text-sm font-bold leading-tight" style={{ color: accent ?? INK }}>{value}</p>
     </div>
   );
@@ -181,7 +181,7 @@ function Panel({ icon: Icon, title, sub, children }: { icon: typeof Users; title
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="glass p-5">
       <h3 className="flex items-center gap-2 text-sm font-semibold"><Icon className="h-4 w-4" style={{ color: "var(--brand)" }} /> {title}</h3>
-      {sub && <p className="mt-0.5 text-[11px] text-zinc-500">{sub}</p>}
+      {sub && <p className="mt-0.5 text-[11px] text-ash-500">{sub}</p>}
       <div className="mt-3">{children}</div>
     </motion.div>
   );
@@ -191,7 +191,7 @@ function Chart({ mounted, children, height = 208 }: { mounted: boolean; children
   return (
     <div style={{ height }} className="w-full">
       {mounted ? <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
-        : <div className="h-full w-full animate-pulse rounded-xl bg-zinc-900/5" />}
+        : <div className="h-full w-full animate-pulse rounded-xl bg-ash-900/5" />}
     </div>
   );
 }
@@ -200,12 +200,12 @@ function Tip({ active, payload, label, unit }: { active?: boolean; payload?: Arr
   if (!active || !payload?.length) return null;
   const head = label ?? payload[0]?.payload?.label ?? payload[0]?.payload?.bucket ?? payload[0]?.payload?.band ?? payload[0]?.payload?.name;
   return (
-    <div className="rounded-xl border border-zinc-900/10 bg-white/95 px-3 py-2 text-xs shadow-lg backdrop-blur">
-      {head && <p className="mb-1 font-semibold text-zinc-700">{head}</p>}
+    <div className="rounded-xl border border-ash-900/10 bg-paper/95 px-3 py-2 text-xs shadow-lg backdrop-blur">
+      {head && <p className="mb-1 font-semibold text-ash-700">{head}</p>}
       {payload.map((p, i) => (
         <div key={i} className="flex items-center justify-between gap-4">
-          <span className="flex items-center gap-1.5 text-zinc-500"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />{p.name}</span>
-          <span className="font-semibold tabular-nums text-zinc-800">{(p.value ?? 0).toLocaleString()}{unit ? ` ${unit}` : ""}</span>
+          <span className="flex items-center gap-1.5 text-ash-500"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: p.color }} />{p.name}</span>
+          <span className="font-semibold tabular-nums text-ash-800">{(p.value ?? 0).toLocaleString()}{unit ? ` ${unit}` : ""}</span>
         </div>
       ))}
     </div>
@@ -215,18 +215,18 @@ function Tip({ active, payload, label, unit }: { active?: boolean; payload?: Arr
 function NumbersTable({ rows, cols }: { rows: (string | number)[][]; cols: string[] }) {
   return (
     <details className="mt-2">
-      <summary className="cursor-pointer text-[11px] text-zinc-400">The numbers behind the chart</summary>
+      <summary className="cursor-pointer text-[11px] text-ash-400">The numbers behind the chart</summary>
       <div className="mt-2 overflow-x-auto">
         <table className="w-full text-[11px]">
           <thead>
-            <tr className="text-left text-zinc-500">
+            <tr className="text-left text-ash-500">
               {cols.map((c, i) => <th key={c} className={`py-1 pr-3 font-medium ${i > 0 ? "text-right" : ""}`}>{c}</th>)}
             </tr>
           </thead>
           <tbody>
             {rows.map((r, ri) => (
-              <tr key={ri} className="border-t border-zinc-900/5">
-                {r.map((cell, ci) => <td key={ci} className={`py-1 pr-3 ${ci > 0 ? "text-right tabular-nums text-zinc-700" : "text-zinc-600"}`}>{cell}</td>)}
+              <tr key={ri} className="border-t border-ash-900/5">
+                {r.map((cell, ci) => <td key={ci} className={`py-1 pr-3 ${ci > 0 ? "text-right tabular-nums text-ash-700" : "text-ash-600"}`}>{cell}</td>)}
               </tr>
             ))}
           </tbody>

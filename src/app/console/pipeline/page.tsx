@@ -95,7 +95,7 @@ export default function PipelinePage() {
         subtitle="Every lead from first touch to money out, weighted by value — watch the funnel fill and see exactly what's stuck where."
       >
         <Link href="/console/applications/new"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">
+          className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
           <TrendingUp className="h-3.5 w-3.5" /> Add a lead
         </Link>
       </PageHeader>
@@ -110,7 +110,7 @@ export default function PipelinePage() {
         </div>
       )}
 
-      {!apps && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>}
+      {!apps && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>}
 
       {apps && (
         <div className="mt-5 flex snap-x gap-3 overflow-x-auto pb-3">
@@ -119,30 +119,30 @@ export default function PipelinePage() {
               {/* Column head */}
               <div className="rounded-t-2xl px-3 py-2.5" style={{ backgroundColor: col.soft }}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1.5 text-[13px] font-bold text-zinc-700">
+                  <span className="flex items-center gap-1.5 text-[13px] font-bold text-ash-700">
                     <span className="h-2 w-2 rounded-full" style={{ backgroundColor: col.color }} /> {col.label}
                   </span>
-                  <span className="rounded-full bg-white/70 px-2 py-0.5 text-[11px] font-bold tabular-nums" style={{ color: col.color }}>{col.items.length}</span>
+                  <span className="rounded-full bg-paper/70 px-2 py-0.5 text-[11px] font-bold tabular-nums" style={{ color: col.color }}>{col.items.length}</span>
                 </div>
                 <div className="mt-1.5 flex items-center gap-2">
-                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/50">
+                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-paper/50">
                     <div className="h-full rounded-full transition-[width] duration-700" style={{ width: `${(col.value / totals.maxColValue) * 100}%`, backgroundColor: col.color }} />
                   </div>
-                  <span className="text-[10px] font-semibold tabular-nums text-zinc-500">{kesShort(col.value)}</span>
+                  <span className="text-[10px] font-semibold tabular-nums text-ash-500">{kesShort(col.value)}</span>
                 </div>
               </div>
               {/* Cards */}
-              <div className="min-h-[120px] space-y-2 rounded-b-2xl bg-zinc-900/[0.02] p-2">
-                {col.items.length === 0 && <p className="py-6 text-center text-[11px] text-zinc-300">—</p>}
+              <div className="min-h-[120px] space-y-2 rounded-b-2xl bg-ash-900/[0.02] p-2">
+                {col.items.length === 0 && <p className="py-6 text-center text-[11px] text-ash-300">—</p>}
                 {col.items.map((a, i) => (
                   <motion.div key={a.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: (ci * 0.04) + (i * 0.02) }}>
                     <Link href={`/console/applications/${a.id}`}
-                      className="block rounded-xl border border-zinc-900/10 bg-white/90 p-2.5 transition-shadow hover:shadow-md">
+                      className="block rounded-xl border border-ash-900/10 bg-paper/90 p-2.5 transition-shadow hover:shadow-md">
                       <div className="flex items-center gap-2">
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: col.color }}>
                           {initials(a.borrowerName ?? "?")}
                         </span>
-                        <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-zinc-800">{a.borrowerName ?? "Lead"}</p>
+                        <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ash-800">{a.borrowerName ?? "Lead"}</p>
                         {a.score != null && (
                           <span className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: scoreTone(a.score) }}>
                             <Gauge className="h-2.5 w-2.5" /> {a.score}
@@ -150,10 +150,10 @@ export default function PipelinePage() {
                         )}
                       </div>
                       <div className="mt-1.5 flex items-center justify-between gap-2">
-                        <span className="text-sm font-black tabular-nums text-zinc-800">{kes(a.amountRequested)}</span>
-                        <span className="text-[10px] text-zinc-400">{relAge(a.createdAt)}</span>
+                        <span className="text-sm font-black tabular-nums text-ash-800">{kes(a.amountRequested)}</span>
+                        <span className="text-[10px] text-ash-400">{relAge(a.createdAt)}</span>
                       </div>
-                      <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] text-zinc-400">
+                      <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] text-ash-400">
                         {a.productName ?? "—"}<ChevronRight className="ml-auto h-3 w-3 shrink-0" />
                       </p>
                     </Link>
@@ -172,7 +172,7 @@ function SummaryTile({ label, value, small, accent }: { label: string; value: st
   return (
     <div className="glass px-3 py-2.5">
       <p className={`font-black tabular-nums ${small ? "text-base truncate" : "text-2xl"}`} style={accent ? { color: "var(--brand)" } : undefined}>{value}</p>
-      <p className="text-[11px] text-zinc-500">{label}</p>
+      <p className="text-[11px] text-ash-500">{label}</p>
     </div>
   );
 }

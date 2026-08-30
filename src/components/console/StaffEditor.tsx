@@ -157,12 +157,12 @@ export default function StaffEditor({ staff, catalog, roles, branches, onClose, 
     }
   };
 
-  const field = "flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3";
-  const input = "flex-1 bg-transparent outline-none text-sm py-2.5 placeholder:text-zinc-400 min-w-0";
-  const label = "text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400 mb-1 block";
+  const field = "flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3";
+  const input = "flex-1 bg-transparent outline-none text-sm py-2.5 placeholder:text-ash-400 min-w-0";
+  const label = "text-[10px] font-bold uppercase tracking-[0.12em] text-ash-400 mb-1 block";
 
   return (
-    <div className="mt-2 rounded-xl border border-zinc-900/10 bg-white/70 p-4">
+    <div className="mt-2 rounded-xl border border-ash-900/10 bg-paper/70 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1">
           {(
@@ -176,14 +176,14 @@ export default function StaffEditor({ staff, catalog, roles, branches, onClose, 
               type="button"
               onClick={() => setTab(k)}
               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-                tab === k ? "bg-zinc-900 text-white" : "text-zinc-500 hover:bg-zinc-900/[0.05]"
+                tab === k ? "bg-invert text-invert-fg" : "text-ash-500 hover:bg-ash-900/[0.05]"
               }`}
             >
               <Icon className="h-3.5 w-3.5" /> {text}
             </button>
           ))}
         </div>
-        <button type="button" onClick={onClose} className="rounded-md p-1 text-zinc-400 hover:bg-zinc-900/[0.05] hover:text-zinc-700" aria-label="Close">
+        <button type="button" onClick={onClose} className="rounded-md p-1 text-ash-400 hover:bg-ash-900/[0.05] hover:text-ash-700" aria-label="Close">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -205,7 +205,7 @@ export default function StaffEditor({ staff, catalog, roles, branches, onClose, 
           <div>
             <span className={label}>Work email</span>
             <div className={field}><input className={input} inputMode="email" value={d.email} onChange={(e) => setD({ ...d, email: e.target.value })} /></div>
-            <p className="mt-1 text-[10.5px] text-zinc-400">This is their sign-in and where the daily code is sent.</p>
+            <p className="mt-1 text-[10.5px] text-ash-400">This is their sign-in and where the daily code is sent.</p>
           </div>
           <div>
             <span className={label}>Phone</span>
@@ -244,11 +244,11 @@ export default function StaffEditor({ staff, catalog, roles, branches, onClose, 
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-[11.5px] leading-relaxed text-zinc-500">
-            A ticked box is something this person <strong className="font-semibold text-zinc-700">can see</strong>. Their role still
+          <p className="text-[11.5px] leading-relaxed text-ash-500">
+            A ticked box is something this person <strong className="font-semibold text-ash-700">can see</strong>. Their role still
             decides what they may <em>do</em> — this decides which doors and menus are on their screen at all, so two people with the
             same role can work different halves of a system.
-            <span className="ml-1 text-zinc-400">
+            <span className="ml-1 text-ash-400">
               {counts.systems} of {catalog.length} systems · {counts.on} of {counts.total} modules.
             </span>
           </p>
@@ -258,14 +258,14 @@ export default function StaffEditor({ staff, catalog, roles, branches, onClose, 
             const allOn = sys.modules.length > 0 && sys.modules.every((m) => moduleOn(sys.id, m.key));
             const noneOn = sys.modules.every((m) => !moduleOn(sys.id, m.key));
             return (
-              <div key={sys.id} className="rounded-xl border border-zinc-900/[0.08] bg-white/60">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-900/[0.06] px-3 py-2.5">
+              <div key={sys.id} className="rounded-xl border border-ash-900/[0.08] bg-paper/60">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ash-900/[0.06] px-3 py-2.5">
                   <label className="flex min-w-0 cursor-pointer items-center gap-2.5">
                     <input type="checkbox" checked={on} onChange={(e) => setSystem(sys.id, e.target.checked)} className="h-4 w-4 shrink-0" />
                     <span aria-hidden className="h-6 w-1 shrink-0 rounded-full" style={{ backgroundColor: sys.accent }} />
                     <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-semibold text-zinc-800">{sys.name}</span>
-                      <span className="block truncate text-[10.5px] text-zinc-400">{sys.blurb}</span>
+                      <span className="block truncate text-[13px] font-semibold text-ash-800">{sys.name}</span>
+                      <span className="block truncate text-[10.5px] text-ash-400">{sys.blurb}</span>
                     </span>
                   </label>
                   {sys.modules.length > 0 && (
@@ -274,7 +274,7 @@ export default function StaffEditor({ staff, catalog, roles, branches, onClose, 
                         type="button"
                         disabled={!on || allOn}
                         onClick={() => setAllModules(sys, true)}
-                        className="rounded-md px-2 py-1 text-[11px] font-semibold text-zinc-500 transition-colors hover:bg-zinc-900/[0.05] disabled:opacity-35 disabled:hover:bg-transparent"
+                        className="rounded-md px-2 py-1 text-[11px] font-semibold text-ash-500 transition-colors hover:bg-ash-900/[0.05] disabled:opacity-35 disabled:hover:bg-transparent"
                       >
                         All
                       </button>
@@ -282,7 +282,7 @@ export default function StaffEditor({ staff, catalog, roles, branches, onClose, 
                         type="button"
                         disabled={!on || noneOn}
                         onClick={() => setAllModules(sys, false)}
-                        className="rounded-md px-2 py-1 text-[11px] font-semibold text-zinc-500 transition-colors hover:bg-zinc-900/[0.05] disabled:opacity-35 disabled:hover:bg-transparent"
+                        className="rounded-md px-2 py-1 text-[11px] font-semibold text-ash-500 transition-colors hover:bg-ash-900/[0.05] disabled:opacity-35 disabled:hover:bg-transparent"
                       >
                         None
                       </button>
@@ -291,7 +291,7 @@ export default function StaffEditor({ staff, catalog, roles, branches, onClose, 
                 </div>
 
                 {sys.modules.length === 0 ? (
-                  <p className="px-3 py-2.5 text-[11.5px] text-zinc-400">No staff modules — this is a customer-facing surface.</p>
+                  <p className="px-3 py-2.5 text-[11.5px] text-ash-400">No staff modules — this is a customer-facing surface.</p>
                 ) : (
                   <div className={`grid gap-x-4 gap-y-1.5 px-3 py-2.5 sm:grid-cols-2 lg:grid-cols-3 ${on ? "" : "pointer-events-none opacity-40"}`}>
                     {sys.modules.map((m) => (
@@ -303,8 +303,8 @@ export default function StaffEditor({ staff, catalog, roles, branches, onClose, 
                           className="mt-0.5 h-3.5 w-3.5 shrink-0"
                         />
                         <span className="min-w-0">
-                          <span className="block truncate text-[12px] font-medium text-zinc-700">{m.label}</span>
-                          <span className="block truncate text-[10px] text-zinc-400">
+                          <span className="block truncate text-[12px] font-medium text-ash-700">{m.label}</span>
+                          <span className="block truncate text-[10px] text-ash-400">
                             {m.items.length} screen{m.items.length === 1 ? "" : "s"}
                           </span>
                         </span>
@@ -318,16 +318,16 @@ export default function StaffEditor({ staff, catalog, roles, branches, onClose, 
         </div>
       )}
 
-      <div className="mt-4 flex items-center gap-2 border-t border-zinc-900/[0.07] pt-3">
+      <div className="mt-4 flex items-center gap-2 border-t border-ash-900/[0.07] pt-3">
         <button
           type="button"
           onClick={save}
           disabled={saving}
-          className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-[12.5px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-lg bg-invert px-4 py-2 text-[12.5px] font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60"
         >
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save changes
         </button>
-        <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-400">
+        <span className="inline-flex items-center gap-1.5 text-[11px] text-ash-400">
           <ShieldCheck className="h-3.5 w-3.5" /> Takes effect within 30 seconds — no sign-out needed.
         </span>
       </div>

@@ -80,7 +80,7 @@ const riskTone = (cat: string | null) => {
   if (c.includes("minor") || c.includes("low")) return "text-emerald-600";
   if (c.includes("moderate") || c.includes("medium")) return "text-amber-600";
   if (c.includes("major") || c.includes("high") || c.includes("severe")) return "text-red-600";
-  return "text-zinc-700";
+  return "text-ash-700";
 };
 
 const initials = (name: string) =>
@@ -92,16 +92,16 @@ const fmtDate = (iso: string | null, locale: string) =>
 /** Stat tile for the Customer-360 card. */
 function Tile({ label, value, sub, valueClass }: { label: string; value: string; sub?: string | null; valueClass?: string }) {
   return (
-    <div className="rounded-xl border border-zinc-900/10 bg-white/70 p-3.5">
-      <p className="text-[11px] uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className={`mt-1 text-lg font-bold leading-tight ${valueClass ?? "text-zinc-900"}`}>{value}</p>
-      {sub && <p className="mt-0.5 text-[11px] text-zinc-500">{sub}</p>}
+    <div className="rounded-xl border border-ash-900/10 bg-paper/70 p-3.5">
+      <p className="text-[11px] uppercase tracking-wide text-ash-500">{label}</p>
+      <p className={`mt-1 text-lg font-bold leading-tight ${valueClass ?? "text-ash-900"}`}>{value}</p>
+      {sub && <p className="mt-0.5 text-[11px] text-ash-500">{sub}</p>}
     </div>
   );
 }
 
 // White glass panel — the portal's core surface over the white background image.
-const GLASS = "rounded-2xl border border-white/70 bg-white/60 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)]";
+const GLASS = "rounded-2xl border border-white/70 bg-paper/60 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.06)]";
 
 export default function LmsPortal() {
   // Phase-1 standalone portal: no platform login — borrowers identify by phone
@@ -447,12 +447,12 @@ export default function LmsPortal() {
   }
 
   return (
-    <div className="min-h-screen text-zinc-900 relative overflow-x-hidden" style={brandStyle}>
+    <div className="min-h-screen text-ash-900 relative overflow-x-hidden" style={brandStyle}>
       {/* Full-bleed white background image behind the whole lending system */}
       <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
 
       {/* Top bar — BirgenAI company logo left; language + account right */}
-      <header className="sticky top-0 z-30 border-b border-zinc-900/10 bg-white/70 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-ash-900/10 bg-paper/70 backdrop-blur-xl">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-2.5 min-w-0">
             {!mounted ? null : scoped ? (
@@ -469,7 +469,7 @@ export default function LmsPortal() {
             )}
           </Link>
           <div className="flex items-center gap-3 min-w-0">
-            <span className="hidden sm:block text-xs text-zinc-400 truncate">{scoped ? brand.blurb : ""}</span>
+            <span className="hidden sm:block text-xs text-ash-400 truncate">{scoped ? brand.blurb : ""}</span>
             <LangToggle />
           </div>
         </div>
@@ -489,13 +489,13 @@ export default function LmsPortal() {
               <div className="relative px-4 sm:px-5 py-4 flex items-center gap-3">
                 {/* The badge tile grows with the dial too — a fixed 48px tile with
                     overflow-hidden would just crop a scaled-up logo back to 48px. */}
-                <div className="flex items-center justify-center rounded-xl bg-white ring-1 ring-zinc-900/10 overflow-hidden shrink-0 p-1.5" style={logoH(48)}>
+                <div className="flex items-center justify-center rounded-xl bg-paper ring-1 ring-ash-900/10 overflow-hidden shrink-0 p-1.5" style={logoH(48)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={brand.logo} alt={brand.name} className="h-full w-auto max-w-40 object-contain" onError={(e) => onLogoError(e, brand.fallbackLogo)} />
                 </div>
                 <div>
                   <p className="text-lg font-bold leading-tight">{brand.name}</p>
-                  <p className="text-xs text-zinc-500">{brand.tagline}</p>
+                  <p className="text-xs text-ash-500">{brand.tagline}</p>
                 </div>
               </div>
             </div>
@@ -515,7 +515,7 @@ export default function LmsPortal() {
             {step === 0 && mounted && (
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                 className="min-h-[55vh] flex items-center justify-center">
-                <div className={`${GLASS} w-full rounded-3xl bg-white/65 backdrop-blur-2xl p-6 sm:p-8`}>
+                <div className={`${GLASS} w-full rounded-3xl bg-paper/65 backdrop-blur-2xl p-6 sm:p-8`}>
                   <div className="text-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={scoped ? brand.logo : "/images/logo.png"} alt={scoped ? brand.name : "BirgenAI"}
@@ -525,7 +525,7 @@ export default function LmsPortal() {
                     <h1 className="text-2xl sm:text-3xl font-bold">
                       {scoped ? t.landing.titleScoped : t.landing.titleOpen}
                     </h1>
-                    <p className="mt-2 text-sm text-zinc-500">
+                    <p className="mt-2 text-sm text-ash-500">
                       {scoped ? fmt(t.landing.subScoped, { name: brand.name }) : t.landing.subOpen}
                     </p>
                   </div>
@@ -537,15 +537,15 @@ export default function LmsPortal() {
                         const active = lender === l.slug;
                         return (
                           <button key={l.slug} onClick={() => setLender(l.slug)}
-                            className={`w-full flex items-center gap-3 rounded-2xl border p-3.5 text-left transition-colors ${active ? "" : "border-zinc-900/10 bg-white/70 hover:border-zinc-900/25"}`}
+                            className={`w-full flex items-center gap-3 rounded-2xl border p-3.5 text-left transition-colors ${active ? "" : "border-ash-900/10 bg-paper/70 hover:border-ash-900/25"}`}
                             style={active ? { borderColor: lb.accent, backgroundColor: lb.accentSoft } : undefined}>
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white ring-1 ring-zinc-900/10 overflow-hidden shrink-0">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-paper ring-1 ring-ash-900/10 overflow-hidden shrink-0">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={l.logo} alt={l.name} className="h-8 w-8 object-contain" onError={(e) => onLogoError(e, l.fallbackLogo)} />
                             </div>
                             <div className="flex-1">
                               <p className="font-semibold">{l.name}</p>
-                              <p className="text-xs text-zinc-500">{l.blurb}</p>
+                              <p className="text-xs text-ash-500">{l.blurb}</p>
                             </div>
                             {active && <CheckCircle2 className="h-5 w-5" style={{ color: lb.accent }} />}
                           </button>
@@ -554,18 +554,18 @@ export default function LmsPortal() {
                     </div>
                   )}
 
-                  <div className="mt-5 flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3">
-                    <Phone className="h-4 w-4 text-zinc-400 shrink-0" />
+                  <div className="mt-5 flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3">
+                    <Phone className="h-4 w-4 text-ash-400 shrink-0" />
                     <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel"
                       placeholder={scoped ? t.landing.phonePlaceholderScoped : t.landing.phonePlaceholderOpen}
-                      className="flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-zinc-400" />
+                      className="flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-ash-400" />
                   </div>
 
                   <button onClick={requestOtp} disabled={loading}
-                    className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                    className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-invert px-5 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {t.common.continue} <ArrowRight className="h-4 w-4" />
                   </button>
-                  <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-zinc-400">
+                  <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-ash-400">
                     <Lock className="h-3 w-3" /> {t.landing.smsNote}
                   </p>
                 </div>
@@ -605,7 +605,7 @@ export default function LmsPortal() {
                     <h1 className="text-xl font-bold leading-tight truncate">{customer.name}</h1>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       {customer.accountNo && (
-                        <span className="rounded-md bg-zinc-900/5 px-2 py-0.5 text-[11px] font-semibold text-zinc-600">ACC {customer.accountNo}</span>
+                        <span className="rounded-md bg-ash-900/5 px-2 py-0.5 text-[11px] font-semibold text-ash-600">ACC {customer.accountNo}</span>
                       )}
                       <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${customer.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
                         {customer.status}
@@ -615,20 +615,20 @@ export default function LmsPortal() {
                 </div>
 
                 <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm">
-                  {customer.nationalId && (<><span className="text-zinc-500">{t.profile.idNumber}</span><span className="text-right font-medium">{customer.nationalId}</span></>)}
-                  {customer.age != null && (<><span className="text-zinc-500">{t.profile.age}</span><span className="text-right font-medium">{fmt(t.profile.years, { n: customer.age })}</span></>)}
-                  {customer.gender && (<><span className="text-zinc-500">{t.profile.gender}</span><span className="text-right font-medium">{customer.gender}</span></>)}
-                  {customer.email && (<><span className="text-zinc-500">{t.profile.email}</span><span className="text-right font-medium truncate">{customer.email}</span></>)}
-                  {customer.agentName && (<><span className="text-zinc-500">{t.profile.yourOfficer}</span><span className="text-right font-medium">{customer.agentName}</span></>)}
+                  {customer.nationalId && (<><span className="text-ash-500">{t.profile.idNumber}</span><span className="text-right font-medium">{customer.nationalId}</span></>)}
+                  {customer.age != null && (<><span className="text-ash-500">{t.profile.age}</span><span className="text-right font-medium">{fmt(t.profile.years, { n: customer.age })}</span></>)}
+                  {customer.gender && (<><span className="text-ash-500">{t.profile.gender}</span><span className="text-right font-medium">{customer.gender}</span></>)}
+                  {customer.email && (<><span className="text-ash-500">{t.profile.email}</span><span className="text-right font-medium truncate">{customer.email}</span></>)}
+                  {customer.agentName && (<><span className="text-ash-500">{t.profile.yourOfficer}</span><span className="text-right font-medium">{customer.agentName}</span></>)}
                 </div>
 
                 {customer.officeTrail.length > 0 && (
-                  <p className="mt-3 text-xs text-zinc-500">
+                  <p className="mt-3 text-xs text-ash-500">
                     {customer.officeTrail.map((o, i) => (
                       <span key={i}>
-                        {i > 0 && <span className="mx-1 text-zinc-400">›</span>}
-                        <span className="font-medium text-zinc-700">{o.unit}</span>
-                        {o.level && o.level !== o.unit && <span className="text-zinc-400"> [{o.level}]</span>}
+                        {i > 0 && <span className="mx-1 text-ash-400">›</span>}
+                        <span className="font-medium text-ash-700">{o.unit}</span>
+                        {o.level && o.level !== o.unit && <span className="text-ash-400"> [{o.level}]</span>}
                       </span>
                     ))}
                   </p>
@@ -655,18 +655,18 @@ export default function LmsPortal() {
                     sub={customer.activeLoans > 0 ? fmt(t.profile.active, { n: customer.activeLoans }) : t.profile.nothingDue} />
                 </div>
 
-                <p className="mt-4 text-xs text-zinc-500 flex items-center gap-1.5">
+                <p className="mt-4 text-xs text-ash-500 flex items-center gap-1.5">
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
                   {fmt(t.profile.shownToConfirm, { name: lenderObj.name })}
                 </p>
 
                 <div className="mt-5 flex gap-2">
                   <button onClick={signOutBorrower}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 px-4 py-3 text-sm text-zinc-600 hover:bg-zinc-900/5">
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 px-4 py-3 text-sm text-ash-600 hover:bg-ash-900/5">
                     {t.profile.notMe}
                   </button>
                   <button onClick={() => setStep(3)}
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800">
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-invert px-5 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2">
                     {t.profile.thisIsMyAccount} <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
@@ -679,28 +679,28 @@ export default function LmsPortal() {
                 {elig?.graduated ? (
                   <div className="rounded-2xl border border-emerald-300 bg-emerald-50/90 p-4 mb-5">
                     <p className="flex items-center gap-2 font-semibold text-emerald-700"><CheckCircle2 className="h-5 w-5" /> {t.consent.preQualified}</p>
-                    <p className="mt-1 text-sm text-zinc-600">
+                    <p className="mt-1 text-sm text-ash-600">
                       {fmt(t.consent.welcomeBack, { name: elig.borrowerName ? `, ${elig.borrowerName.split(" ")[0]}` : "", n: elig.clearedLoans ?? 0 })}
                     </p>
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-zinc-900/10 bg-white/70 p-4 mb-5">
+                  <div className="rounded-2xl border border-ash-900/10 bg-paper/70 p-4 mb-5">
                     <p className="font-semibold">{t.consent.willAssess}</p>
-                    <p className="mt-1 text-sm text-zinc-600">{t.consent.willAssessDetail}</p>
+                    <p className="mt-1 text-sm text-ash-600">{t.consent.willAssessDetail}</p>
                   </div>
                 )}
 
                 <h2 className="text-lg font-semibold">{t.consent.yourConsent}</h2>
-                <p className="text-xs text-zinc-500 mb-3">{t.consent.intro}</p>
+                <p className="text-xs text-ash-500 mb-3">{t.consent.intro}</p>
                 <div className="space-y-2">
                   {CONSENT_KEYS.map((cn) => {
                     const words = t.consent.items[cn.key];
                     return (
-                      <label key={cn.key} className="flex items-start gap-3 rounded-xl border border-zinc-900/10 bg-white/70 p-3 cursor-pointer">
+                      <label key={cn.key} className="flex items-start gap-3 rounded-xl border border-ash-900/10 bg-paper/70 p-3 cursor-pointer">
                         <input type="checkbox" checked={!!consent[cn.key]} onChange={(e) => setConsent((s) => ({ ...s, [cn.key]: e.target.checked }))} className="mt-0.5 h-4 w-4" style={{ accentColor: "var(--brand)" }} />
                         <div>
                           <p className="text-sm font-medium">{words.label} {cn.required && <span className="text-xs" style={{ color: "var(--brand)" }}>{t.common.required}</span>}</p>
-                          <p className="text-xs text-zinc-500">{words.detail}</p>
+                          <p className="text-xs text-ash-500">{words.detail}</p>
                         </div>
                       </label>
                     );
@@ -708,22 +708,22 @@ export default function LmsPortal() {
                 </div>
 
                 {/* Location — optional, consented, one-time (never tracked) */}
-                <div className="mt-3 rounded-xl border border-zinc-900/10 bg-white/70 p-3">
+                <div className="mt-3 rounded-xl border border-ash-900/10 bg-paper/70 p-3">
                   <div className="flex items-start gap-2.5">
                     <MapPin className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--brand)" }} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">
                         {locationType === "business" ? t.geo.shareBusiness : t.geo.shareHome}{" "}
-                        <span className="text-zinc-400 text-xs">{t.common.optional}</span>
+                        <span className="text-ash-400 text-xs">{t.common.optional}</span>
                       </p>
-                      <p className="text-xs text-zinc-500">{t.geo.help}</p>
+                      <p className="text-xs text-ash-500">{t.geo.help}</p>
                     </div>
                   </div>
 
                   <div className="mt-2.5 grid grid-cols-2 gap-2">
                     {(["business", "home"] as const).map((ty) => (
                       <button key={ty} onClick={() => setLocationType(ty)}
-                        className={`rounded-lg border px-3 py-2 text-xs ${locationType === ty ? "font-semibold" : "border-zinc-900/10 bg-white/70 text-zinc-600"}`}
+                        className={`rounded-lg border px-3 py-2 text-xs ${locationType === ty ? "font-semibold" : "border-ash-900/10 bg-paper/70 text-ash-600"}`}
                         style={locationType === ty ? { borderColor: brand.accent, backgroundColor: brand.accentSoft } : undefined}>
                         {ty === "business" ? t.geo.business : t.geo.home}
                       </button>
@@ -737,7 +737,7 @@ export default function LmsPortal() {
                     </div>
                   ) : (
                     <button onClick={captureLocation} disabled={geoStatus === "capturing"}
-                      className="mt-2.5 w-full inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-900/15 bg-white/70 px-3 py-2.5 text-sm text-zinc-700 hover:bg-white disabled:opacity-60">
+                      className="mt-2.5 w-full inline-flex items-center justify-center gap-2 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-2.5 text-sm text-ash-700 hover:bg-paper disabled:opacity-60">
                       {geoStatus === "capturing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
                       {geoStatus === "capturing" ? t.geo.getting : t.geo.useCurrent}
                     </button>
@@ -746,12 +746,12 @@ export default function LmsPortal() {
 
                   <input value={manualAddress} onChange={(e) => setManualAddress(e.target.value)}
                     placeholder={locationType === "business" ? t.geo.addressBusiness : t.geo.addressHome}
-                    className="mt-2.5 w-full rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400" />
+                    className="mt-2.5 w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none placeholder:text-ash-400" />
                 </div>
 
                 <div className="mt-6 flex gap-2">
-                  <button onClick={() => setStep(customer ? 2 : 0)} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 px-4 py-3 text-sm text-zinc-600 hover:bg-zinc-900/5"><ArrowLeft className="h-4 w-4" /></button>
-                  <button onClick={next} disabled={!coreConsents} className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50">
+                  <button onClick={() => setStep(customer ? 2 : 0)} className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 px-4 py-3 text-sm text-ash-600 hover:bg-ash-900/5"><ArrowLeft className="h-4 w-4" /></button>
+                  <button onClick={next} disabled={!coreConsents} className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-invert px-5 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-50">
                     {t.common.continue} <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
@@ -762,35 +762,35 @@ export default function LmsPortal() {
             {step === 4 && (
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className={`${GLASS} p-5 sm:p-6`}>
                 <h1 className="text-2xl font-bold">{t.statement.title}</h1>
-                <p className="mt-2 text-sm text-zinc-600">{t.statement.sub}</p>
+                <p className="mt-2 text-sm text-ash-600">{t.statement.sub}</p>
 
-                <div className="mt-4 rounded-2xl border border-zinc-900/10 bg-white/70">
+                <div className="mt-4 rounded-2xl border border-ash-900/10 bg-paper/70">
                   <button onClick={() => setShowGuide((s) => !s)} className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-sm">
                     <span className="flex items-center gap-2"><HelpCircle className="h-4 w-4 text-emerald-600" /> {t.statement.guideTitle}</span>
-                    <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform ${showGuide ? "rotate-180" : ""}`} />
+                    <ChevronDown className={`h-4 w-4 text-ash-400 transition-transform ${showGuide ? "rotate-180" : ""}`} />
                   </button>
                   {showGuide && (
-                    <div className="px-4 pb-4 text-sm text-zinc-600 border-t border-zinc-900/10 pt-3 space-y-1">
+                    <div className="px-4 pb-4 text-sm text-ash-600 border-t border-ash-900/10 pt-3 space-y-1">
                       <p>{t.statement.guideBody}</p>
-                      <p className="text-xs text-zinc-500">{t.statement.guideNote}</p>
+                      <p className="text-xs text-ash-500">{t.statement.guideNote}</p>
                     </div>
                   )}
                 </div>
 
-                <div onClick={() => fileRef.current?.click()} className="mt-3 cursor-pointer rounded-xl border border-dashed border-zinc-900/20 bg-white/70 px-4 py-7 text-center hover:border-[var(--brand)]">
+                <div onClick={() => fileRef.current?.click()} className="mt-3 cursor-pointer rounded-xl border border-dashed border-ash-900/20 bg-paper/70 px-4 py-7 text-center hover:border-[var(--brand)]">
                   <Upload className="h-6 w-6 mx-auto mb-2" style={{ color: "var(--brand)" }} />
-                  {file ? <p className="text-sm flex items-center justify-center gap-2"><FileText className="h-4 w-4" /> {file.name}</p> : <p className="text-sm text-zinc-600">{t.statement.tapToChoose}</p>}
+                  {file ? <p className="text-sm flex items-center justify-center gap-2"><FileText className="h-4 w-4" /> {file.name}</p> : <p className="text-sm text-ash-600">{t.statement.tapToChoose}</p>}
                   <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
                 </div>
-                <div className="mt-3 flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3">
-                  <Lock className="h-4 w-4 text-zinc-400 shrink-0" />
+                <div className="mt-3 flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3">
+                  <Lock className="h-4 w-4 text-ash-400 shrink-0" />
                   <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t.statement.passwordPlaceholder}
-                    className="flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-zinc-400" />
+                    className="flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-ash-400" />
                 </div>
 
                 <div className="mt-6 flex gap-2">
-                  <button onClick={back} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 px-4 py-3 text-sm text-zinc-600 hover:bg-zinc-900/5"><ArrowLeft className="h-4 w-4" /></button>
-                  <button onClick={startCrunch} className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800">
+                  <button onClick={back} className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 px-4 py-3 text-sm text-ash-600 hover:bg-ash-900/5"><ArrowLeft className="h-4 w-4" /></button>
+                  <button onClick={startCrunch} className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-invert px-5 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2">
                     <Gauge className="h-4 w-4" /> {t.statement.checkAffordability}
                   </button>
                 </div>
@@ -801,10 +801,10 @@ export default function LmsPortal() {
             {step === 5 && (
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className={`${GLASS} p-5 sm:p-6`}>
                 {scorePreview && (
-                  <div className="rounded-2xl border border-zinc-900/10 bg-white/70 p-4 mb-5 text-center">
-                    <p className="text-xs uppercase tracking-wide text-zinc-500">{scoped ? t.amount.yourScore : t.amount.yourBirgenScore}</p>
-                    <p className={`text-3xl font-bold mt-1 ${TONE[scorePreview.tone]}`}>{scorePreview.score}<span className="text-sm text-zinc-400"> / 900</span></p>
-                    <p className="text-sm text-zinc-600">{scorePreview.band}</p>
+                  <div className="rounded-2xl border border-ash-900/10 bg-paper/70 p-4 mb-5 text-center">
+                    <p className="text-xs uppercase tracking-wide text-ash-500">{scoped ? t.amount.yourScore : t.amount.yourBirgenScore}</p>
+                    <p className={`text-3xl font-bold mt-1 ${TONE[scorePreview.tone]}`}>{scorePreview.score}<span className="text-sm text-ash-400"> / 900</span></p>
+                    <p className="text-sm text-ash-600">{scorePreview.band}</p>
                   </div>
                 )}
                 <h1 className="text-2xl font-bold">{t.amount.chooseALoan}</h1>
@@ -812,31 +812,31 @@ export default function LmsPortal() {
                 {/* Product picker — real products pulled from the lender's ServiceSuite */}
                 {products.length > 0 ? (
                   <div className="mt-4 space-y-2">
-                    <p className="text-xs text-zinc-500">{fmt(t.amount.selectProduct, { name: lenderObj.name })}</p>
+                    <p className="text-xs text-ash-500">{fmt(t.amount.selectProduct, { name: lenderObj.name })}</p>
                     {products.map((p) => {
                       const active = String(p.id) === productRef;
                       const term = productTerm(p);
                       return (
                         <button key={p.id} onClick={() => selectProduct(p)}
-                          className={`w-full rounded-xl border p-3.5 text-left transition-colors ${active ? "" : "border-zinc-900/10 bg-white/70 hover:border-zinc-900/25"}`}
+                          className={`w-full rounded-xl border p-3.5 text-left transition-colors ${active ? "" : "border-ash-900/10 bg-paper/70 hover:border-ash-900/25"}`}
                           style={active ? { borderColor: brand.accent, backgroundColor: brand.accentSoft } : undefined}>
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                               <p className="font-semibold truncate">{p.name}</p>
-                              {p.description && <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2">{p.description}</p>}
+                              {p.description && <p className="text-xs text-ash-500 mt-0.5 line-clamp-2">{p.description}</p>}
                             </div>
                             {active && <CheckCircle2 className="h-5 w-5 shrink-0" style={{ color: brand.accent }} />}
                           </div>
-                          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600">
+                          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ash-600">
                             {(hasMin(p) || hasMax(p)) ? (
-                              <span><span className="text-zinc-400">{t.amount.amountLabel}</span> {hasMin(p) ? fmtKES(p.minPrincipal!) : "—"}{hasMax(p) ? ` – ${fmtKES(p.maxPrincipal!)}` : "+"}</span>
+                              <span><span className="text-ash-400">{t.amount.amountLabel}</span> {hasMin(p) ? fmtKES(p.minPrincipal!) : "—"}{hasMax(p) ? ` – ${fmtKES(p.maxPrincipal!)}` : "+"}</span>
                             ) : (
-                              <span><span className="text-zinc-400">{t.amount.amountLabel}</span> {t.amount.flexible}</span>
+                              <span><span className="text-ash-400">{t.amount.amountLabel}</span> {t.amount.flexible}</span>
                             )}
                             {p.interestRate != null && (
-                              <span><span className="text-zinc-400">{t.amount.interest}</span> {p.interestRate}%{p.interestUnit ? `/${p.interestUnit.toLowerCase()}` : ""}</span>
+                              <span><span className="text-ash-400">{t.amount.interest}</span> {p.interestRate}%{p.interestUnit ? `/${p.interestUnit.toLowerCase()}` : ""}</span>
                             )}
-                            {term && <span><span className="text-zinc-400">{t.amount.term}</span> {term}</span>}
+                            {term && <span><span className="text-ash-400">{t.amount.term}</span> {term}</span>}
                           </div>
                           {(p as { interestMethod?: string }).interestMethod === "reducing" && (
                             // §5.1: interest accrues on the falling balance, so
@@ -850,9 +850,9 @@ export default function LmsPortal() {
                     })}
                   </div>
                 ) : productsLoaded ? (
-                  <p className="mt-3 text-xs text-zinc-500">{t.amount.manualAmount}</p>
+                  <p className="mt-3 text-xs text-ash-500">{t.amount.manualAmount}</p>
                 ) : (
-                  <p className="mt-3 text-xs text-zinc-500 flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t.amount.loadingProducts}</p>
+                  <p className="mt-3 text-xs text-ash-500 flex items-center gap-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t.amount.loadingProducts}</p>
                 )}
 
                 {/* The approved limit — the number this whole funnel exists to produce.
@@ -860,7 +860,7 @@ export default function LmsPortal() {
                     borrower's history with this lender; the customer chooses anything
                     up to it. The server enforces the same figure at submission. */}
                 {selectedProduct && limitLoading && (
-                  <p className="mt-4 flex items-center gap-1.5 text-xs text-zinc-500">
+                  <p className="mt-4 flex items-center gap-1.5 text-xs text-ash-500">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t.amount.limitWorking}
                   </p>
                 )}
@@ -868,7 +868,7 @@ export default function LmsPortal() {
                   <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: brand.accent, backgroundColor: brand.accentSoft }}>
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">{t.amount.qualifyUpTo}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-ash-500">{t.amount.qualifyUpTo}</p>
                         <p className="mt-0.5 text-2xl font-bold" style={{ color: brand.accent }}>{fmtKES(limitInfo.approvedLimit)}</p>
                       </div>
                       <button
@@ -880,7 +880,7 @@ export default function LmsPortal() {
                       </button>
                     </div>
                     {limitInfo.borrowerClass && (
-                      <p className="mt-1 text-[11px] font-semibold text-zinc-600">
+                      <p className="mt-1 text-[11px] font-semibold text-ash-600">
                         {limitInfo.borrowerClass === "NEW" ? t.amount.classNew
                           : limitInfo.borrowerClass === "GRADUATED" ? t.amount.classGraduated
                           : t.amount.classReturning}
@@ -889,7 +889,7 @@ export default function LmsPortal() {
                     {limitInfo.reasons.length > 0 && (
                       <ul className="mt-2 space-y-1">
                         {limitInfo.reasons.slice(0, 4).map((r) => (
-                          <li key={r.code} className="flex items-start gap-1.5 text-[11px] text-zinc-600">
+                          <li key={r.code} className="flex items-start gap-1.5 text-[11px] text-ash-600">
                             <span className={`mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full ${r.direction === "up" ? "bg-emerald-500" : "bg-amber-500"}`} />
                             {r.detail}
                           </li>
@@ -905,11 +905,11 @@ export default function LmsPortal() {
                 )}
 
                 <label className="mt-4 block text-sm font-medium">{t.amount.howMuch}</label>
-                <div className="mt-2 flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/80 px-3">
-                  <Banknote className="h-4 w-4 text-zinc-400 shrink-0" />
-                  <span className="text-sm text-zinc-500">KES</span>
+                <div className="mt-2 flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/80 px-3">
+                  <Banknote className="h-4 w-4 text-ash-400 shrink-0" />
+                  <span className="text-sm text-ash-500">KES</span>
                   <input value={amount ? Number(amount).toLocaleString() : ""} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))} placeholder="10,000" inputMode="numeric"
-                    className="flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-zinc-400" />
+                    className="flex-1 bg-transparent outline-none text-sm py-3 placeholder:text-ash-400" />
                 </div>
                 {overLimit && limitInfo && (
                   <p className="mt-2 text-xs font-semibold text-amber-600">
@@ -926,23 +926,23 @@ export default function LmsPortal() {
                 )}
 
                 {selectedProduct?.disbursementMode === "TO_THIRD_PARTY" && (
-                  <div className="mt-4 rounded-lg border border-zinc-900/10 bg-white/60 p-3">
+                  <div className="mt-4 rounded-lg border border-ash-900/10 bg-paper/60 p-3">
                     <p className="text-sm font-medium">{t.amount.payeeTitle}</p>
-                    <p className="mt-0.5 text-xs text-zinc-500">{t.amount.payeeDetail}</p>
+                    <p className="mt-0.5 text-xs text-ash-500">{t.amount.payeeDetail}</p>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
                       <input value={payee.name} onChange={(e) => setPayee((p) => ({ ...p, name: e.target.value }))} placeholder={t.amount.schoolName}
-                        className="rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400 sm:col-span-2" />
+                        className="rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none placeholder:text-ash-400 sm:col-span-2" />
                       <input value={payee.paybill} onChange={(e) => setPayee((p) => ({ ...p, paybill: e.target.value.replace(/\D/g, "") }))} inputMode="numeric" placeholder={t.amount.paybillNumber}
-                        className="rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400" />
+                        className="rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none placeholder:text-ash-400" />
                       <input value={payee.account} onChange={(e) => setPayee((p) => ({ ...p, account: e.target.value }))} placeholder={t.amount.accountNo}
-                        className="rounded-lg border border-zinc-900/15 bg-white/80 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-400" />
+                        className="rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none placeholder:text-ash-400" />
                     </div>
                   </div>
                 )}
 
                 <div className="mt-6 flex gap-2">
-                  <button onClick={back} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-900/15 px-4 py-3 text-sm text-zinc-600 hover:bg-zinc-900/5"><ArrowLeft className="h-4 w-4" /></button>
-                  <button onClick={submit} disabled={loading} className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60">
+                  <button onClick={back} className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 px-4 py-3 text-sm text-ash-600 hover:bg-ash-900/5"><ArrowLeft className="h-4 w-4" /></button>
+                  <button onClick={submit} disabled={loading} className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-invert px-5 py-3 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {t.amount.submit} <ArrowRight className="h-4 w-4" />
                   </button>
                 </div>
@@ -968,18 +968,18 @@ export default function LmsPortal() {
                   <CheckCircle2 className="h-8 w-8 text-emerald-600" />
                 </div>
                 <h1 className="text-2xl font-bold">{offerSigned ? t.result.agreementSigned : t.result.applicationReceived}</h1>
-                <p className="mt-2 text-sm text-zinc-600">{submitted.stageTitle} — {t.result.referenceIs} <span className="text-zinc-900 font-mono">{submitted.applicationId.slice(-8)}</span>.</p>
-                <div className="mt-5 rounded-2xl border border-zinc-900/10 bg-white/70 p-5 text-left">
-                  <div className="flex items-center justify-between"><span className="text-sm text-zinc-500">{scoped ? t.result.creditScore : t.result.birgenScore}</span><span className="font-semibold">{submitted.score} / 900 · {submitted.band}</span></div>
-                  <div className="mt-2 flex items-center justify-between"><span className="text-sm text-zinc-500">{t.result.nextStep}</span><span className="text-sm">{submitted.decision === "APPROVE" ? t.result.lenderVerification : t.result.humanReview}</span></div>
+                <p className="mt-2 text-sm text-ash-600">{submitted.stageTitle} — {t.result.referenceIs} <span className="text-ash-900 font-mono">{submitted.applicationId.slice(-8)}</span>.</p>
+                <div className="mt-5 rounded-2xl border border-ash-900/10 bg-paper/70 p-5 text-left">
+                  <div className="flex items-center justify-between"><span className="text-sm text-ash-500">{scoped ? t.result.creditScore : t.result.birgenScore}</span><span className="font-semibold">{submitted.score} / 900 · {submitted.band}</span></div>
+                  <div className="mt-2 flex items-center justify-between"><span className="text-sm text-ash-500">{t.result.nextStep}</span><span className="text-sm">{submitted.decision === "APPROVE" ? t.result.lenderVerification : t.result.humanReview}</span></div>
                   {submitted.posting?.attempted && (
-                    <p className="mt-3 text-xs text-zinc-500">{submitted.posting.ok ? t.result.postingOk : t.result.postingRecorded}</p>
+                    <p className="mt-3 text-xs text-ash-500">{submitted.posting.ok ? t.result.postingOk : t.result.postingRecorded}</p>
                   )}
                 </div>
-                <p className="mt-4 text-xs text-zinc-500 flex items-center justify-center gap-1.5">
+                <p className="mt-4 text-xs text-ash-500 flex items-center justify-center gap-1.5">
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> {t.result.humanReviews}
                 </p>
-                <Link href="/" className="mt-6 inline-flex items-center gap-2 rounded-lg border border-zinc-900/15 bg-white/70 px-5 py-3 text-sm hover:bg-white">{scoped ? t.common.done : t.result.backToLoans}</Link>
+                <Link href="/" className="mt-6 inline-flex items-center gap-2 rounded-lg border border-ash-900/15 bg-paper/70 px-5 py-3 text-sm hover:bg-paper">{scoped ? t.common.done : t.result.backToLoans}</Link>
               </motion.div>
             )}
 

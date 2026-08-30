@@ -107,7 +107,7 @@ export function OfferCard({
     );
   }
   if (!offer) {
-    return <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-zinc-400" /></div>;
+    return <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>;
   }
 
   if (offer.status === "ACCEPTED") {
@@ -123,7 +123,7 @@ export function OfferCard({
   }
   if (offer.status !== "OFFERED") {
     return (
-      <div className="rounded-2xl border border-zinc-900/10 bg-white/70 p-5 text-center text-sm text-zinc-600">
+      <div className="rounded-2xl border border-ash-900/10 bg-paper/70 p-5 text-center text-sm text-ash-600">
         {fmt(t.offer.statusNote, { status: t.offer.statusWord[offer.status] ?? offer.status.toLowerCase(), lender: offer.lender })}
       </div>
     );
@@ -133,10 +133,10 @@ export function OfferCard({
     return (
       <div>
         {/* What is being signed stays on screen while they type the code. */}
-        <div className="mb-4 rounded-2xl border border-zinc-900/10 bg-white/70 p-4 text-center">
-          <p className="text-[11px] uppercase tracking-wide text-zinc-500">{t.offer.signingFor}</p>
+        <div className="mb-4 rounded-2xl border border-ash-900/10 bg-paper/70 p-4 text-center">
+          <p className="text-[11px] uppercase tracking-wide text-ash-500">{t.offer.signingFor}</p>
           <p className="mt-1 text-2xl font-bold">{kes(offer.principal)}</p>
-          <p className="text-xs text-zinc-500">{fmt(t.offer.repayingBy, { total: kes(offer.totalRepayable), date: fullDay(offer.expectedClearDate) })}</p>
+          <p className="text-xs text-ash-500">{fmt(t.offer.repayingBy, { total: kes(offer.totalRepayable), date: fullDay(offer.expectedClearDate) })}</p>
         </div>
         <OtpCard
           lenderSlug={lenderSlug}
@@ -148,7 +148,7 @@ export function OfferCard({
           onVerified={onAccepted}
           onChangeNumber={() => setIssue(null)}
         />
-        <button onClick={() => setIssue(null)} className="mt-3 w-full text-xs text-zinc-500 hover:text-zinc-800">
+        <button onClick={() => setIssue(null)} className="mt-3 w-full text-xs text-ash-500 hover:text-ash-800">
           {t.offer.backToAgreement}
         </button>
       </div>
@@ -164,17 +164,17 @@ export function OfferCard({
 
       {/* The two numbers that matter, before anything else. */}
       <div className="mt-3 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-zinc-900/10 bg-white/70 p-4">
-          <p className="text-[11px] uppercase tracking-wide text-zinc-500">{t.offer.youReceive}</p>
+        <div className="rounded-2xl border border-ash-900/10 bg-paper/70 p-4">
+          <p className="text-[11px] uppercase tracking-wide text-ash-500">{t.offer.youReceive}</p>
           <p className="mt-1 text-2xl font-bold">{kes(offer.principal)}</p>
         </div>
-        <div className="rounded-2xl border border-zinc-900/10 bg-white/70 p-4">
-          <p className="text-[11px] uppercase tracking-wide text-zinc-500">{t.offer.youRepay}</p>
+        <div className="rounded-2xl border border-ash-900/10 bg-paper/70 p-4">
+          <p className="text-[11px] uppercase tracking-wide text-ash-500">{t.offer.youRepay}</p>
           <p className="mt-1 text-2xl font-bold">{kes(offer.totalRepayable)}</p>
         </div>
       </div>
 
-      <dl className="mt-3 rounded-2xl border border-zinc-900/10 bg-white/70 p-4 text-sm">
+      <dl className="mt-3 rounded-2xl border border-ash-900/10 bg-paper/70 p-4 text-sm">
         <Line label={t.offer.interest} value={`${kes(offer.totalInterest)} · ${offer.interestRate}% ${offer.interestMethod}`} />
         <Line label={t.offer.repayments} value={`${offer.termCount} × ${unitWord(offer.termUnit, offer.termCount, t.offer)}`} />
         <Line label={t.offer.firstPayment} value={fullDay(offer.firstDueDate)} />
@@ -183,7 +183,7 @@ export function OfferCard({
       </dl>
 
       {/* Pay early, pay less — but only where that is true. */}
-      <div className={`mt-3 rounded-2xl border p-3 text-xs ${offer.payEarly.applies ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-zinc-900/10 bg-white/60 text-zinc-600"}`}>
+      <div className={`mt-3 rounded-2xl border p-3 text-xs ${offer.payEarly.applies ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-ash-900/10 bg-paper/60 text-ash-600"}`}>
         {offer.payEarly.applies && offer.payEarly.savingKes > 0 && (
           <p className="font-semibold">{fmt(t.offer.saveHalf, { kes: kes(offer.payEarly.savingKes) })}</p>
         )}
@@ -193,11 +193,11 @@ export function OfferCard({
       </div>
 
       {/* Every installment, on the same screen. */}
-      <div className="mt-3 overflow-hidden rounded-2xl border border-zinc-900/10 bg-white/70">
+      <div className="mt-3 overflow-hidden rounded-2xl border border-ash-900/10 bg-paper/70">
         <div className="max-h-56 overflow-y-auto">
           <table className="w-full text-xs">
-            <thead className="sticky top-0 bg-white/95 backdrop-blur">
-              <tr className="text-left text-zinc-500">
+            <thead className="sticky top-0 bg-paper/95 backdrop-blur">
+              <tr className="text-left text-ash-500">
                 <th className="px-3 py-2 font-medium">{t.offer.seq}</th>
                 <th className="px-3 py-2 font-medium">{t.offer.due}</th>
                 <th className="px-3 py-2 text-right font-medium">{t.offer.principal}</th>
@@ -207,11 +207,11 @@ export function OfferCard({
             </thead>
             <tbody>
               {offer.schedule.map((r) => (
-                <tr key={r.seq} className="border-t border-zinc-900/5">
-                  <td className="px-3 py-2 text-zinc-400">{r.seq}</td>
+                <tr key={r.seq} className="border-t border-ash-900/5">
+                  <td className="px-3 py-2 text-ash-400">{r.seq}</td>
                   <td className="px-3 py-2">{day(r.dueDate)}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-500">{Math.round(r.principalDue).toLocaleString()}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-zinc-500">{Math.round(r.interestDue).toLocaleString()}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ash-500">{Math.round(r.principalDue).toLocaleString()}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-ash-500">{Math.round(r.interestDue).toLocaleString()}</td>
                   <td className="px-3 py-2 text-right tabular-nums font-semibold">{Math.round(r.amountDue).toLocaleString()}</td>
                 </tr>
               ))}
@@ -231,11 +231,11 @@ export function OfferCard({
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
         {t.offer.acceptAndSign}
       </button>
-      <button onClick={decline} disabled={busy} className="mt-2 w-full rounded-lg border border-zinc-900/15 bg-white/70 px-5 py-3 text-sm text-zinc-700 hover:bg-white disabled:opacity-60">
+      <button onClick={decline} disabled={busy} className="mt-2 w-full rounded-lg border border-ash-900/15 bg-paper/70 px-5 py-3 text-sm text-ash-700 hover:bg-paper disabled:opacity-60">
         {t.offer.noThanks}
       </button>
 
-      <p className="mt-3 text-center text-[11px] text-zinc-500">
+      <p className="mt-3 text-center text-[11px] text-ash-500">
         {t.offer.codeNote}
       </p>
     </div>
@@ -259,7 +259,7 @@ function unitWord(
 function Line({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1">
-      <dt className="text-zinc-500">{label}</dt>
+      <dt className="text-ash-500">{label}</dt>
       <dd className="text-right font-medium">{value}</dd>
     </div>
   );

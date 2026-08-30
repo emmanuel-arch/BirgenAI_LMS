@@ -27,6 +27,7 @@ import { useLoad } from "@/lib/hooks/useLoad";
 import type { StudioModule } from "@/lib/analytics/studio-nav";
 import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 import IdentityMenu from "@/components/shell/IdentityMenu";
+import ThemeSwitch from "@/components/shell/ThemeSwitch";
 import { navIcon } from "@/components/shell/icons";
 
 /** The studio's own accent. Violet — its colour in the suite launcher. */
@@ -65,11 +66,18 @@ export default function StudioShell({
   }, [drawer]);
 
   return (
-    <div className="min-h-screen bg-[#f6f6f4] text-zinc-800">
+    <div className="min-h-screen bg-studio text-ash-800">
       <div className="flex min-h-screen">
-        {/* ── The rail ─────────────────────────────────────────────────── */}
+        {/* ── The rail ───────────────────────────────────────────────────
+            z-30 is LOAD-BEARING. The canvas artwork below is `fixed inset-0`, and
+            `position: relative` on its parent does NOT create a containing block
+            for a fixed child — so the image and its scrim cover the whole VIEWPORT,
+            this rail included, not just the content column. The rail is `sticky`,
+            which makes it a positioned element at z-index:auto, and it therefore
+            lost to a later sibling on DOM order alone: the nav came out washed
+            grey with the web running straight across it. */}
         <aside
-          className={`sticky top-0 hidden h-screen shrink-0 flex-col bg-[#15141b] transition-[width] duration-200 lg:flex ${
+          className={`sticky top-0 z-30 hidden h-screen shrink-0 flex-col bg-[#15141b] transition-[width] duration-200 lg:flex ${
             collapsed ? "w-[68px]" : "w-64"
           }`}
         >
@@ -103,24 +111,29 @@ export default function StudioShell({
         <div className="relative flex min-w-0 flex-1 flex-col">
           <div
             aria-hidden
-            className="pointer-events-none fixed inset-0 z-0 bg-[url('/images/suite/analytics.jpg')] bg-cover bg-center opacity-[0.30]"
+            className="pointer-events-none fixed inset-0 z-0 bg-[url('/images/suite/analytics.jpg')] bg-cover bg-center"
+            // The photograph was chosen against a pale page. At 30% on a
+            // near-black ground it stops being texture and becomes smoke across
+            // every figure, so the theme scales it rather than the class doing so.
+            style={{ opacity: "calc(0.30 * var(--art-opacity))" }}
           />
-          <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-[#f6f6f4]/72" />
+          <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-studio/72" />
 
-          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-zinc-900/[0.07] bg-[#f6f6f4]/85 px-4 backdrop-blur sm:px-6">
+          <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-ash-900/[0.07] bg-studio/85 px-4 backdrop-blur sm:px-6">
             <button
               type="button"
               onClick={() => setDrawer(true)}
-              className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-900/5 lg:hidden"
+              className="rounded-lg p-2 text-ash-500 hover:bg-ash-900/5 lg:hidden"
               aria-label="Open navigation"
             >
               <Menu className="h-4 w-4" />
             </button>
-            <p className="hidden text-[11px] font-medium text-zinc-500 lg:block">
-              <span className="font-semibold text-zinc-700">{org.name}</span>
+            <p className="hidden text-[11px] font-medium text-ash-500 lg:block">
+              <span className="font-semibold text-ash-700">{org.name}</span>
               {" · "}reading the live book
             </p>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              <ThemeSwitch />
               <IdentityMenu
                 name={user.name}
                 email={user.email}
@@ -145,7 +158,7 @@ export default function StudioShell({
               type="button"
               onClick={() => setDrawer(false)}
               aria-label="Close navigation"
-              className="absolute right-2 top-3 z-10 rounded-lg p-2 text-white/50 hover:bg-white/10"
+              className="absolute right-2 top-3 z-10 rounded-lg p-2 text-white/50 hover:bg-paper/10"
             >
               <X className="h-4 w-4" />
             </button>
@@ -200,7 +213,7 @@ function StudioNav({
           <button
             type="button"
             onClick={onToggle}
-            className="ml-auto rounded-md p-1.5 text-white/35 hover:bg-white/10 hover:text-white/70"
+            className="ml-auto rounded-md p-1.5 text-white/35 hover:bg-paper/10 hover:text-white/70"
             aria-label="Collapse navigation"
           >
             <PanelLeftClose className="h-3.5 w-3.5" />
@@ -212,7 +225,7 @@ function StudioNav({
         <button
           type="button"
           onClick={onToggle}
-          className="mx-auto mb-2 rounded-md p-1.5 text-white/35 hover:bg-white/10 hover:text-white/70"
+          className="mx-auto mb-2 rounded-md p-1.5 text-white/35 hover:bg-paper/10 hover:text-white/70"
           aria-label="Expand navigation"
         >
           <PanelLeftOpen className="h-3.5 w-3.5" />
@@ -226,7 +239,7 @@ function StudioNav({
             {!collapsed && (
               <p className="px-3 pb-1 pt-3 text-[9px] font-bold uppercase tracking-[0.14em] text-white/30">{mod.label}</p>
             )}
-            {collapsed && <div className="mx-3 my-2 h-px bg-white/10" aria-hidden />}
+            {collapsed && <div className="mx-3 my-2 h-px bg-paper/10" aria-hidden />}
             {mod.items.map((item) => {
               const Icon = navIcon(item.icon);
               const active = isActive(item.href, item.exact);
@@ -242,7 +255,7 @@ function StudioNav({
                     </span>
                   )}
                   {!collapsed && dead && (
-                    <span className="shrink-0 rounded bg-white/10 px-1 py-0.5 text-[8px] font-bold uppercase text-white/40">soon</span>
+                    <span className="shrink-0 rounded bg-paper/10 px-1 py-0.5 text-[8px] font-bold uppercase text-white/40">soon</span>
                   )}
                 </>
               );
@@ -251,10 +264,10 @@ function StudioNav({
                 collapsed ? "justify-center px-2" : ""
               } ${
                 active
-                  ? "bg-white/[0.10] text-white"
+                  ? "bg-paper/[0.10] text-white"
                   : dead
                     ? "cursor-not-allowed text-white/25"
-                    : "text-white/60 hover:bg-white/[0.06] hover:text-white/90"
+                    : "text-white/60 hover:bg-paper/[0.06] hover:text-white/90"
               }`;
 
               if (dead) {
@@ -286,7 +299,7 @@ function StudioNav({
       <div className="shrink-0 border-t border-white/[0.08] p-2">
         <Link
           href={consoleHref}
-          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-white/50 transition-colors hover:bg-white/[0.06] hover:text-white/90 ${
+          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-white/50 transition-colors hover:bg-paper/[0.06] hover:text-white/90 ${
             collapsed ? "justify-center px-2" : ""
           }`}
           title="Back to the lending console"

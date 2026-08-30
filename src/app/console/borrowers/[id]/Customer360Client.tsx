@@ -63,29 +63,29 @@ export function Customer360Client({ borrowerId, initialCrb }: { borrowerId: stri
       )}
 
       {!report ? (
-        <p className="mt-3 text-sm text-zinc-500">No bureau file pulled yet. Run a check to see accounts, listings and the bureau score{" "}
-          <span className="text-zinc-400">— simulated until a bureau subscription is added in Settings → Vault.</span></p>
+        <p className="mt-3 text-sm text-ash-500">No bureau file pulled yet. Run a check to see accounts, listings and the bureau score{" "}
+          <span className="text-ash-400">— simulated until a bureau subscription is added in Settings → Vault.</span></p>
       ) : (
         <div className="mt-4">
           <div className="flex items-end justify-between gap-3 flex-wrap">
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-zinc-500">{report.bureau} · score</p>
+              <p className="text-[10px] uppercase tracking-wide text-ash-500">{report.bureau} · score</p>
               <p className="text-3xl font-bold leading-none" style={{ color: BAND_COLOR[report.band] }}>{report.score} <span className="text-sm font-semibold">{report.band}</span></p>
             </div>
             <span className={`rounded-md px-2 py-1 text-[11px] font-bold ${VERDICT[report.verdict].cls}`}>{VERDICT[report.verdict].text}</span>
           </div>
-          <div className="mt-2 h-2 rounded-full bg-zinc-900/8 overflow-hidden">
+          <div className="mt-2 h-2 rounded-full bg-ash-900/8 overflow-hidden">
             <div className="h-full rounded-full transition-[width] duration-700 ease-out" style={{ width: `${scorePct}%`, backgroundColor: BAND_COLOR[report.band] }} />
           </div>
 
           <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="rounded-lg border border-zinc-900/10 bg-white/60 px-2.5 py-2"><p className="text-[9px] uppercase text-zinc-500">Model PD</p><p className="text-sm font-bold">{(report.probabilityOfDefault * 100).toFixed(1)}%</p></div>
-            <div className="rounded-lg border border-zinc-900/10 bg-white/60 px-2.5 py-2"><p className="text-[9px] uppercase text-zinc-500">Accounts</p><p className="text-sm font-bold">{report.accounts.active} active / {report.accounts.total}</p></div>
-            <div className="rounded-lg border border-zinc-900/10 bg-white/60 px-2.5 py-2"><p className="text-[9px] uppercase text-zinc-500">NPL</p><p className={`text-sm font-bold ${report.accounts.npl > 0 ? "text-rose-600" : "text-emerald-600"}`}>{report.accounts.npl}</p></div>
-            <div className="rounded-lg border border-zinc-900/10 bg-white/60 px-2.5 py-2"><p className="text-[9px] uppercase text-zinc-500">Exposure</p><p className="text-sm font-bold">{fmtKES(report.totalExposure)}</p></div>
-            <div className="rounded-lg border border-zinc-900/10 bg-white/60 px-2.5 py-2"><p className="text-[9px] uppercase text-zinc-500">Worst arrears</p><p className="text-sm font-bold">{report.worstArrearsDays}d</p></div>
-            <div className="rounded-lg border border-zinc-900/10 bg-white/60 px-2.5 py-2"><p className="text-[9px] uppercase text-zinc-500">Enquiries 6m</p><p className="text-sm font-bold">{report.enquiriesLast6m}</p></div>
-            <div className="col-span-2 rounded-lg border border-zinc-900/10 bg-white/60 px-2.5 py-2"><p className="text-[9px] uppercase text-zinc-500">Reference</p><p className="text-sm font-bold tabular-nums truncate">{report.reference}</p></div>
+            <div className="rounded-lg border border-ash-900/10 bg-paper/60 px-2.5 py-2"><p className="text-[9px] uppercase text-ash-500">Model PD</p><p className="text-sm font-bold">{(report.probabilityOfDefault * 100).toFixed(1)}%</p></div>
+            <div className="rounded-lg border border-ash-900/10 bg-paper/60 px-2.5 py-2"><p className="text-[9px] uppercase text-ash-500">Accounts</p><p className="text-sm font-bold">{report.accounts.active} active / {report.accounts.total}</p></div>
+            <div className="rounded-lg border border-ash-900/10 bg-paper/60 px-2.5 py-2"><p className="text-[9px] uppercase text-ash-500">NPL</p><p className={`text-sm font-bold ${report.accounts.npl > 0 ? "text-rose-600" : "text-emerald-600"}`}>{report.accounts.npl}</p></div>
+            <div className="rounded-lg border border-ash-900/10 bg-paper/60 px-2.5 py-2"><p className="text-[9px] uppercase text-ash-500">Exposure</p><p className="text-sm font-bold">{fmtKES(report.totalExposure)}</p></div>
+            <div className="rounded-lg border border-ash-900/10 bg-paper/60 px-2.5 py-2"><p className="text-[9px] uppercase text-ash-500">Worst arrears</p><p className="text-sm font-bold">{report.worstArrearsDays}d</p></div>
+            <div className="rounded-lg border border-ash-900/10 bg-paper/60 px-2.5 py-2"><p className="text-[9px] uppercase text-ash-500">Enquiries 6m</p><p className="text-sm font-bold">{report.enquiriesLast6m}</p></div>
+            <div className="col-span-2 rounded-lg border border-ash-900/10 bg-paper/60 px-2.5 py-2"><p className="text-[9px] uppercase text-ash-500">Reference</p><p className="text-sm font-bold tabular-nums truncate">{report.reference}</p></div>
           </div>
 
           {report.negativeListings.length > 0 && (
@@ -102,7 +102,7 @@ export function Customer360Client({ borrowerId, initialCrb }: { borrowerId: stri
             </div>
           )}
 
-          <p className="mt-3 text-xs text-zinc-500">{report.summary}</p>
+          <p className="mt-3 text-xs text-ash-500">{report.summary}</p>
 
           {report.metropol && <MetropolDetail m={report.metropol} />}
         </div>
@@ -115,11 +115,11 @@ export function Customer360Client({ borrowerId, initialCrb }: { borrowerId: stri
 function MetropolDetail({ m }: { m: NonNullable<CrbReport["metropol"]> }) {
   const trend = m.scoreTrend.filter((t) => t.score != null);
   return (
-    <div className="mt-4 border-t border-zinc-900/10 pt-4">
+    <div className="mt-4 border-t border-ash-900/10 pt-4">
       {/* Identity + income + fraud row */}
       <div className="flex flex-wrap items-center gap-2">
         {m.identity && (
-          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${m.identity.verified ? "bg-emerald-100 text-emerald-700" : "bg-zinc-900/5 text-zinc-600"}`}>
+          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${m.identity.verified ? "bg-emerald-100 text-emerald-700" : "bg-ash-900/5 text-ash-600"}`}>
             <BadgeCheck className="h-3 w-3" />
             {m.identity.verified ? "Identity verified" : "Identity"}{m.identity.name ? `: ${m.identity.name}` : ""}
             {m.identity.dob ? ` · ${m.identity.dob}` : ""}
@@ -154,7 +154,7 @@ function MetropolDetail({ m }: { m: NonNullable<CrbReport["metropol"]> }) {
       {m.productMix.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {m.productMix.map((p) => (
-            <span key={p.product} className="rounded-md bg-zinc-900/5 px-2 py-1 text-[10px] font-medium text-zinc-600">{p.product} × {p.count}</span>
+            <span key={p.product} className="rounded-md bg-ash-900/5 px-2 py-1 text-[10px] font-medium text-ash-600">{p.product} × {p.count}</span>
           ))}
         </div>
       )}
@@ -162,7 +162,7 @@ function MetropolDetail({ m }: { m: NonNullable<CrbReport["metropol"]> }) {
       {/* Score trend (last 12 months of Metro Score) */}
       {trend.length > 1 && (
         <div className="mt-3">
-          <p className="text-[10px] uppercase tracking-wide text-zinc-500">Metro Score, last {trend.length} months</p>
+          <p className="text-[10px] uppercase tracking-wide text-ash-500">Metro Score, last {trend.length} months</p>
           <Sparkline points={trend.map((t) => t.score as number)} />
         </div>
       )}
@@ -171,8 +171,8 @@ function MetropolDetail({ m }: { m: NonNullable<CrbReport["metropol"]> }) {
       {m.accounts.length > 0 && (
         <div className="mt-3 overflow-x-auto">
           <table className="w-full text-left text-[11px]">
-            <thead className="text-zinc-500">
-              <tr className="border-b border-zinc-900/10">
+            <thead className="text-ash-500">
+              <tr className="border-b border-ash-900/10">
                 <th className="py-1 pr-2 font-medium">Product</th>
                 <th className="py-1 px-2 font-medium">Status</th>
                 <th className="py-1 px-2 font-medium text-right">Balance</th>
@@ -182,12 +182,12 @@ function MetropolDetail({ m }: { m: NonNullable<CrbReport["metropol"]> }) {
             </thead>
             <tbody>
               {m.accounts.slice(0, 8).map((a, i) => (
-                <tr key={i} className="border-b border-zinc-900/5">
-                  <td className="py-1 pr-2 font-medium text-zinc-700">{a.product}</td>
-                  <td className={`py-1 px-2 ${/Non-Performing|Write-Off|Legal|Collection/i.test(a.status) ? "text-rose-600 font-semibold" : "text-zinc-600"}`}>{a.status}</td>
+                <tr key={i} className="border-b border-ash-900/5">
+                  <td className="py-1 pr-2 font-medium text-ash-700">{a.product}</td>
+                  <td className={`py-1 px-2 ${/Non-Performing|Write-Off|Legal|Collection/i.test(a.status) ? "text-rose-600 font-semibold" : "text-ash-600"}`}>{a.status}</td>
                   <td className="py-1 px-2 text-right tabular-nums">{fmtKES(a.balance)}</td>
-                  <td className={`py-1 px-2 text-right tabular-nums ${a.overdue > 0 ? "text-rose-600 font-semibold" : "text-zinc-400"}`}>{a.overdue > 0 ? fmtKES(a.overdue) : "—"}</td>
-                  <td className={`py-1 pl-2 text-right tabular-nums ${a.arrearsDays >= 30 ? "text-rose-600 font-semibold" : "text-zinc-500"}`}>{a.arrearsDays}d</td>
+                  <td className={`py-1 px-2 text-right tabular-nums ${a.overdue > 0 ? "text-rose-600 font-semibold" : "text-ash-400"}`}>{a.overdue > 0 ? fmtKES(a.overdue) : "—"}</td>
+                  <td className={`py-1 pl-2 text-right tabular-nums ${a.arrearsDays >= 30 ? "text-rose-600 font-semibold" : "text-ash-500"}`}>{a.arrearsDays}d</td>
                 </tr>
               ))}
             </tbody>
@@ -196,7 +196,7 @@ function MetropolDetail({ m }: { m: NonNullable<CrbReport["metropol"]> }) {
       )}
 
       {m.reportsPulled.length > 0 && (
-        <p className="mt-3 text-[10px] text-zinc-400">Metropol pulled: {m.reportsPulled.join(" · ")}{m.trxIds[0] ? ` · ref ${m.trxIds[0].slice(0, 8)}` : ""}</p>
+        <p className="mt-3 text-[10px] text-ash-400">Metropol pulled: {m.reportsPulled.join(" · ")}{m.trxIds[0] ? ` · ref ${m.trxIds[0].slice(0, 8)}` : ""}</p>
       )}
     </div>
   );
@@ -204,8 +204,8 @@ function MetropolDetail({ m }: { m: NonNullable<CrbReport["metropol"]> }) {
 
 function Tile({ label, value, small }: { label: string; value: string; small?: boolean }) {
   return (
-    <div className="rounded-lg border border-zinc-900/10 bg-white/60 px-2.5 py-2">
-      <p className="text-[9px] uppercase text-zinc-500">{label}</p>
+    <div className="rounded-lg border border-ash-900/10 bg-paper/60 px-2.5 py-2">
+      <p className="text-[9px] uppercase text-ash-500">{label}</p>
       <p className={`font-bold ${small ? "text-[11px] leading-tight" : "text-sm"}`}>{value}</p>
     </div>
   );

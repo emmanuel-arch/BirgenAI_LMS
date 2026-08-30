@@ -263,7 +263,7 @@ export function BandEditor({
                         type="number" inputMode="decimal" step={axis.step} min={0}
                         value={b.threshold ?? 0}
                         onChange={(e) => patch(i, { threshold: tidy(clampThreshold(i, Number(e.target.value) || 0)) })}
-                        className="w-24 rounded-md border border-[color:var(--ink)]/12 bg-white px-2 py-1.5 text-[13px] tabular-nums outline-none focus:border-[color:var(--brand)]"
+                        className="w-24 rounded-md border border-[color:var(--ink)]/12 bg-paper px-2 py-1.5 text-[13px] tabular-nums outline-none focus:border-[color:var(--brand)]"
                       />
                     )}
                   </td>
@@ -272,7 +272,7 @@ export function BandEditor({
                       type="number" inputMode="numeric" min={0} max={100}
                       value={b.points}
                       onChange={(e) => patch(i, { points: Math.max(0, Math.min(100, Math.round(Number(e.target.value) || 0))) })}
-                      className="w-20 rounded-md border border-[color:var(--ink)]/12 bg-white px-2 py-1.5 text-[13px] tabular-nums outline-none focus:border-[color:var(--brand)]"
+                      className="w-20 rounded-md border border-[color:var(--ink)]/12 bg-paper px-2 py-1.5 text-[13px] tabular-nums outline-none focus:border-[color:var(--brand)]"
                     />
                   </td>
                   <td className="py-1">
