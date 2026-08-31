@@ -82,7 +82,10 @@ export const SUITE_APPS: SuiteApp[] = [
     id: "lms",
     name: "Lending Console",
     short: "Lending",
-    tagline: "Originate, score, disburse and collect — the core BirgenAI platform.",
+    // The tagline is the one sentence under the heading on this system's own
+    // front door. It says what the system is FOR — never what it is called
+    // internally, never a figure, and never the name of one lender.
+    tagline: "Originate, score, disburse and collect. The book, every day.",
     purpose: "Where your officers work the book, every day.",
     accent: "#2a78d6",
     icon: Landmark,
@@ -169,7 +172,10 @@ export const SUITE_APPS: SuiteApp[] = [
     id: "accounting",
     name: "Ledgerly Accounting",
     short: "Accounting",
-    tagline: "The journal Micromart already keep — read, for the first time.",
+    // Was "The journal Micromart already keep". This door is served to every
+    // lender on the platform, and naming one of them on it is the same class of
+    // mistake as hard-coding their colour.
+    tagline: "The journal you already keep — read, for the first time.",
     purpose: "The truth about the money.",
     accent: "#0f766e",
     icon: Calculator,
@@ -192,7 +198,14 @@ export const SUITE_APPS: SuiteApp[] = [
     id: "callcenter",
     name: "ConnectDesk Call-Center",
     short: "Call-Center",
-    tagline: "Micromart's live collections floor — 93,000 cases, 26 agents, every conversation on the record.",
+    // Was "Micromart's live collections floor — 93,000 cases, 26 agents…".
+    // Two problems, and the second is the serious one: it named a single lender
+    // on a door every lender sees, and it quoted counts that were typed into
+    // this file by hand and are re-read by nothing. A number on a sign-in page
+    // that nobody refreshes is a claim that goes stale silently. The launcher
+    // carries live figures because it actually queries for them; this does not,
+    // so it does not pretend to.
+    tagline: "Your live collections floor. Every conversation, on the record.",
     purpose: "Every conversation, on the record.",
     accent: "#be123c",
     icon: Headphones,

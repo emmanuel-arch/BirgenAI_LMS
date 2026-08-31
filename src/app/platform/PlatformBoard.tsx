@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
+import Backdrop from "@/components/shell/Backdrop";
 import {
   Loader2, AlertTriangle, ShieldCheck, CheckCircle2, Crown, Receipt,
   MessageSquare, Gift, LogOut, ArrowRightCircle, Circle, BadgeCheck, LayoutGrid,
@@ -65,6 +66,8 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
   const [grantFor, setGrantFor] = useState<string | null>(null);
   const [grantUnits, setGrantUnits] = useState("500");
   const [grantNote, setGrantNote] = useState("");
+  // Off by default: this board is opened in front of people.
+  const [showAll, setShowAll] = useState(false);
 
   const load = async () => {
     setError(null);
@@ -121,9 +124,26 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
     router.replace("/login");
   };
 
+  // ── WHAT THIS BOARD SHOWS BY DEFAULT ───────────────────────────────────────
+  // Lenders that have a LOGO. Nothing is deleted and nothing is unreachable —
+  // the toggle below puts everything back — but the default is the estate as it
+  // would be shown to somebody.
+  //
+  // The filter is "has a logo" rather than a list of names because a name list
+  // is a thing that rots: it would have to be edited every time a test account
+  // is created, and the one nobody remembered to add is the one that appears on
+  // a projector. A logo is the first thing a real lender uploads and the one
+  // thing no scripted account ever has, so the rule maintains itself.
+  //
+  // It is a VIEW, not a deletion. The rows are still in the database, still
+  // counted in the tiles above, and one press away.
+  const dressed = orgs?.filter((o) => !!o.logoUrl) ?? null;
+  const hidden = (orgs?.length ?? 0) - (dressed?.length ?? 0);
+  const shown = showAll ? orgs : dressed;
+
   // Review queue first: activation requests, then other PENDING, then the rest.
-  const sorted = orgs
-    ? [...orgs].sort((a, b) => {
+  const sorted = shown
+    ? [...shown].sort((a, b) => {
         const score = (o: OrgRow) => (o.activationRequestedAt && o.status === "PENDING" ? 0 : o.status === "PENDING" ? 1 : 2);
         return score(a) - score(b) || +new Date(b.createdAt) - +new Date(a.createdAt);
       })
@@ -131,11 +151,14 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
 
   return (
     <div className="min-h-screen relative text-ash-900">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
+      {/* The same theme-aware floor every staff surface stands on. It was a
+          hard-coded light plate here, which is why this board came back dark
+          with a white photograph behind it. */}
+      <Backdrop systemId="platform" accent="#2a78d6" accent2="#7c3aed" />
       <main className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 py-10">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-bold flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5" style={{ color: "var(--brand)" }} /> BirgenAI Platform — Organizations
+            <ShieldCheck className="h-5 w-5" style={{ color: "var(--brand)" }} /> Platform — Organizations
           </h1>
           <div className="flex items-center gap-2">
             <span className="hidden sm:block text-xs text-ash-500">{adminName} · platform admin</span>
@@ -158,6 +181,29 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
               <Tile label="Awaiting review" value={String(sorted.filter((o) => o.status === "PENDING" && o.activationRequestedAt).length)} />
               <Tile label="Loans on the platform" value={sorted.reduce((s, o) => s + o._count.loans, 0).toLocaleString()} />
             </div>
+
+            {/* ── THE ONES NOT BEING SHOWN ──────────────────────────────────
+                Named, counted, and one press away. A filter that hides rows
+                without saying so is how somebody ends up debugging a lender who
+                "disappeared from the platform"; a filter that admits what it is
+                doing is just a view. The tiles above still count everything. */}
+            {hidden > 0 && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-ash-900/10 bg-paper/60 px-3 py-2">
+                <LayoutGrid className="h-3.5 w-3.5 shrink-0 text-ash-400" />
+                <span className="text-xs text-ash-500">
+                  {showAll
+                    ? `Showing all ${orgs?.length ?? 0} organisations, including ${hidden} with no logo.`
+                    : `${hidden} organisation${hidden === 1 ? "" : "s"} without a logo ${hidden === 1 ? "is" : "are"} hidden.`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowAll((v) => !v)}
+                  className="ml-auto rounded-md border border-ash-900/15 bg-paper px-2.5 py-1 text-[11px] font-semibold text-ash-700 hover:bg-ash-900/[0.04]"
+                >
+                  {showAll ? "Hide them again" : "Show them"}
+                </button>
+              </div>
+            )}
 
             <div className="mt-5 space-y-3">
               {sorted.map((o) => {
@@ -303,7 +349,7 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
             </div>
 
             <p className="mt-5 text-[11px] text-ash-400">
-              Assigning a package records a commercial decision. It does not collect money — the BirgenAI wallet does —
+              Assigning a package records a commercial decision. It does not collect money — the platform wallet does —
               and a past-due lender still loses its metered features whatever is set here. &quot;Enter console&quot; is audited on
               both sides and shows a permanent banner inside the org.
             </p>

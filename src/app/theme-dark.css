@@ -93,7 +93,25 @@
   --metal-face-b: #eef1f8;
 }
 
-[data-theme="dark"] {
+/* ── WHY THIS IS `:root[data-theme]` AND NOT `[data-theme]` ──────────────────
+   Specificity, and it cost a whole theme.
+
+   `[data-theme="dark"]` is an attribute selector: (0,1,0). `:root` is a
+   pseudo-class: also (0,1,0). Identical. This file is @imported at the TOP of
+   globals.css — an @import has to precede other rules — so globals' own `:root`
+   block is declared LATER, and at equal specificity the later declaration wins.
+
+   Every token declared in BOTH files was therefore pinned to its light value in
+   dark mode: --ink, --ink-body, --ink-muted, --ink-faint, --canvas-*, --panel-*,
+   --background, --foreground, --glass-*, --raise. The ones declared only here —
+   the ash ramp, --paper, --studio, --art-opacity — flipped correctly, which is
+   exactly why the failure was so confusing to look at: the surfaces went dark
+   (they are built on --paper) and the type on them did not (it is built on
+   --ink), so a dark screen came back with near-black text on it.
+
+   `:root[data-theme="dark"]` is (0,2,0) and beats a bare `:root` outright.
+   Do not remove the `:root` prefix. */
+:root[data-theme="dark"] {
   /* Not grey. Slightly blue-black, so the brand accents read as light rather
      than as stickers — the same choice the borrower app makes. */
   --paper: oklch(19.5% 0.012 265);
@@ -182,6 +200,6 @@
 /* Form controls, scrollbars and the browser's own furniture. Without this the
    native select arrows and autofill backgrounds stay light and give the theme
    away instantly. */
-[data-theme="dark"] {
+:root[data-theme="dark"] {
   color-scheme: dark;
 }

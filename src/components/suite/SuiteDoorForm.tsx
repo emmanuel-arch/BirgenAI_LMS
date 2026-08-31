@@ -37,7 +37,6 @@
 
 import { useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowRight, KeyRound, Loader2, Lock, Mail, ShieldCheck, TriangleAlert, UserRound,
 } from "lucide-react";
@@ -68,7 +67,6 @@ export default function SuiteDoorForm({
    */
   orgSlug: string | null;
 }) {
-  const router = useRouter();
   const [mode, setMode] = useState<Mode>(who ? "sso" : "credentials");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -138,17 +136,28 @@ export default function SuiteDoorForm({
       {/* ── Already signed in: one button, their own name on it ───────────── */}
       {mode === "sso" && who && (
         <>
-          <div className="flex items-start gap-2 rounded-xl bg-emerald-400/10 px-3 py-2.5 ring-1 ring-emerald-400/25">
-            <ShieldCheck className="mt-px h-4 w-4 shrink-0 text-emerald-300" />
-            <p className="text-[12.5px] leading-snug text-white/85">
-              Signed in as <strong className="font-semibold text-white">{who}</strong> with BirgenAI ID.
-            </p>
-          </div>
+          {/* ── ONE STATEMENT OF WHO YOU ARE, NOT TWO ──────────────────────
+              There used to be a green banner above this button reading "Signed
+              in as Birgen Krosovic with BirgenAI ID." It said the same thing the
+              button says, in a second voice, and it named an internal product
+              ("BirgenAI ID") that no lender has any reason to recognise — on the
+              first screen their staff ever see.
 
-          <Link href={continueHref} className={`${primary} mt-3`} style={{ backgroundColor: accent }}>
-            <UserRound className="h-4 w-4" />
-            Continue as {firstName ?? who}
-            <ArrowRight className="h-4 w-4" />
+              The button carries it. It has the person's own name on it, and the
+              line underneath says why no password is being asked for. That is
+              the whole fact, once. */}
+          <Link href={continueHref} className={`${primary} group relative overflow-hidden`} style={{ backgroundColor: accent }}>
+            {/* The one moving control on the page. A highlight crossing the
+                primary action, and nothing else on this door, so it reads as
+                "press this" rather than as decoration. */}
+            <span
+              aria-hidden
+              className="suite-sheen pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 skew-x-[-20deg]"
+              style={{ background: "linear-gradient(90deg, transparent, rgb(255 255 255 / 0.28), transparent)" }}
+            />
+            <UserRound className="relative h-4 w-4" />
+            <span className="relative">Continue as {firstName ?? who}</span>
+            <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
 
           <p className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-[11px] text-white/40">

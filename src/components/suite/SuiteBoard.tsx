@@ -28,16 +28,16 @@
 // depends on colour alone.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  ArrowRight, ShieldCheck, KeyRound, Building2, Lock, Layers3, Database, Radio, ArrowUpRight,
+  ArrowRight, ShieldCheck, KeyRound, Building2, Layers3, Database, Radio, ArrowUpRight,
 } from "lucide-react";
 import { SUITE_APPS } from "@/lib/suite/apps";
 import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 import type { SuiteTelemetry } from "@/lib/suite/telemetry";
 import { TimeAgo } from "@/components/suite/kit";
+import SystemRail, { type RailArt } from "./SystemRail";
 
 // ── WHY THE FRESHNESS STAMP IS <TimeAgo> AND NOT A LOCAL ago() ───────────────
 // This is a CLIENT component, and a relative time is a function of Date.now().
@@ -54,13 +54,19 @@ import { TimeAgo } from "@/components/suite/kit";
 // what the old helper here was guarding against; see lib/enterprise/tz.ts.
 
 export default function SuiteBoard({
-  who, orgName, entered, hosts, telemetry, visible,
+  who, orgName, entered, hosts, telemetry, visible, art,
 }: {
   who: string;
   orgName: string;
   entered: string[];
   hosts: ResolvedSuiteApp[];
   telemetry: SuiteTelemetry;
+  /**
+   * Each system's front-door plate, and whether the file is actually on disk —
+   * checked on the server, because a client component cannot know and a card
+   * that requests a missing image flashes its gradient in and then out again.
+   */
+  art: RailArt[];
   /**
    * System ids this person may see at all. Undefined means all six — which is
    * what every existing caller passes, so nobody's launcher changes until an
@@ -69,9 +75,6 @@ export default function SuiteBoard({
   visible?: string[];
 }) {
   const reduce = useReducedMotion();
-  const [hover, setHover] = useState<string | null>(null);
-  const hostOf = (id: string) => hosts.find((h) => h.id === id);
-  const pulseOf = (id: string) => telemetry.systems.find((s) => s.id === id);
 
   // A door that has been turned off does not appear GREYED — it is not there.
   // A visible-but-dead tile invites the question "why can't I open that?", which
@@ -129,10 +132,15 @@ export default function SuiteBoard({
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-paper/[0.07] ring-1 ring-white/10">
               <KeyRound className="h-5 w-5 text-white/85" />
             </span>
+            {/* NO PRODUCT NAME HERE. This used to read "BirgenAI ID" — the
+                internal name of the identity service — on the first screen a
+                lender’s staff ever see, above a subtitle that already said
+                exactly what it does. What the sign-in is CALLED is our business;
+                what it DOES is theirs. */}
             <div>
-              <p className="text-[15px] font-bold leading-tight">BirgenAI ID</p>
+              <p className="text-[15px] font-bold leading-tight">One sign-in</p>
               <p className="text-[11.5px] text-white/45">
-                One sign-in. {Spell} system{n === 1 ? "" : "s"}. One nervous system.
+                {Spell} system{n === 1 ? "" : "s"}. One live book. One nervous system.
               </p>
             </div>
           </div>
@@ -204,131 +212,23 @@ export default function SuiteBoard({
           <div className="mt-4 rounded-2xl border border-white/[0.09] bg-paper/[0.035] px-5 py-8 text-center backdrop-blur">
             <p className="text-[15px] font-semibold text-white/80">No systems are switched on for {orgName} yet.</p>
             <p className="mx-auto mt-2 max-w-md text-[12.5px] leading-relaxed text-white/45">
-              Your BirgenAI ID is valid and you are signed in — there is simply nothing assigned to this organisation
+              Your sign-in is valid and you are signed in — there is simply nothing assigned to this organisation
               to open. A platform administrator turns systems on per lender; ask them to add the ones you have bought.
             </p>
           </div>
         )}
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {apps.map((app, i) => {
-            const host = hostOf(app.id);
-            const pulse = pulseOf(app.id);
-            const inside = entered.includes(app.id);
-            const external = host?.external ?? !!app.external;
-            const Icon = app.icon;
-            const on = hover === app.id;
+        {/* ── The systems, on a rail ─────────────────────────────────────
+            This was a three-across grid of six equal rectangles: honest,
+            static, and indistinguishable from a settings page. The cards are
+            now big enough to carry each system’s OWN front-door artwork, so
+            the colour code is taught by the picture rather than by a hairline —
+            and the container scrolls, so the systems a lender actually holds
+            decide its length instead of the layout deciding how many fit.
 
-            // EVERY TILE OPENS ON THAT SYSTEM'S OWN FRONT DOOR, not straight into
-            // the system. It costs a click and it buys the thing this product is
-            // actually selling: you see ConnectDesk's name, ConnectDesk's artwork
-            // and ConnectDesk's colour before you are inside it, and the button
-            // you press says "Continue as Faith" rather than nothing at all. A
-            // silent hop into the seventh identical dark console is how six
-            // products come to look like six tabs.
-            //
-            // Systems with no door — the borrower portal, the external
-            // Interchange — fall through to their href, which is the honest
-            // behaviour rather than a door that could not authenticate you.
-            const target = host?.door ?? host?.href ?? app.href;
-
-            return (
-              <motion.div key={app.id} {...rise(3 + i)}>
-                <Link
-                  href={target}
-                  {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-                  onMouseEnter={() => setHover(app.id)}
-                  onMouseLeave={() => setHover(null)}
-                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/[0.09] bg-paper/[0.035] p-4 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-white/[0.16] hover:bg-paper/[0.06]"
-                >
-                  {/* The system's own colour, washing the card from the top. */}
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute inset-x-0 -top-24 h-48 opacity-70 blur-3xl transition-opacity duration-500 group-hover:opacity-100"
-                    style={{ background: `radial-gradient(60% 60% at 50% 50%, ${app.accent}66 0%, transparent 70%)` }}
-                  />
-                  <span aria-hidden className="absolute inset-x-0 top-0 h-[2px]" style={{ backgroundColor: app.accent }} />
-
-                  <div className="relative flex items-start justify-between gap-2">
-                    <span
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-white/10"
-                      style={{ backgroundColor: `${app.accent}2e` }}
-                    >
-                      <Icon className="h-[18px] w-[18px]" style={{ color: app.accent }} />
-                    </span>
-                    <span className="flex flex-col items-end gap-1">
-                      {external ? (
-                        // A separate deployment with its own member gate. Claiming
-                        // "signed in" here would be a lie the next click exposes:
-                        // BirgenAI ID does not open the Interchange, an Ed25519
-                        // node certificate does.
-                        <span className="inline-flex items-center gap-1 rounded-md bg-paper/[0.07] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-white/45">
-                          <ArrowUpRight className="h-2.5 w-2.5" /> Separate sign-in
-                        </span>
-                      ) : inside ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-400/12 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-emerald-300">
-                          <ShieldCheck className="h-2.5 w-2.5" /> Signed in
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-paper/[0.07] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-white/40">
-                          <Lock className="h-2.5 w-2.5" /> Request access
-                        </span>
-                      )}
-                      {app.live && (
-                        <span className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: app.accent }}>
-                          live data
-                        </span>
-                      )}
-                    </span>
-                  </div>
-
-                  <h2 className="relative mt-3 text-[16px] font-bold leading-tight">{app.name}</h2>
-                  <p className="relative mt-1 text-[12px] leading-relaxed text-white/50">{app.purpose}</p>
-
-                  {/* The live figure — the thing that makes this a demonstration. */}
-                  <div className="relative mt-3 border-t border-white/[0.08] pt-3">
-                    {pulse?.value ? (
-                      <>
-                        <p className="text-[22px] font-bold leading-none tabular-nums" style={{ color: app.accent }}>
-                          {pulse.value}
-                        </p>
-                        <p className="mt-1 text-[11px] font-medium text-white/55">{pulse.label}</p>
-                        {pulse.detail && <p className="mt-0.5 text-[10.5px] text-white/35">{pulse.detail}</p>}
-                        <p className="mt-1.5 flex items-center gap-1 text-[9.5px] text-white/25">
-                          <Database className="h-2.5 w-2.5" /> {pulse.source}
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-[22px] font-bold leading-none text-white/20">—</p>
-                        <p className="mt-1 text-[11px] text-white/35">
-                          {telemetry.offline ? "server unreachable" : "no live probe for this system yet"}
-                        </p>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="relative mt-3 flex flex-wrap gap-1">
-                    {app.modules.slice(0, 4).map((m) => (
-                      <span key={m} className="rounded-md bg-paper/[0.06] px-1.5 py-0.5 text-[9.5px] font-medium text-white/45">
-                        {m}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="relative mt-3 flex items-center justify-between gap-2 pt-1">
-                    <span className="truncate text-[10px] text-white/25">{app.subdomain}</span>
-                    <span
-                      className="inline-flex items-center gap-1 text-[11.5px] font-semibold transition-transform group-hover:translate-x-0.5"
-                      style={{ color: app.accent }}
-                    >
-                      Open <ArrowRight className="h-3 w-3" />
-                    </span>
-                  </div>
-                </Link>
-              </motion.div>
-            );
-          })}
-        </div>
+            It does not auto-advance. See SystemRail for why not. */}
+        <motion.div {...rise(3)}>
+          <SystemRail apps={apps} hosts={hosts} entered={entered} telemetry={telemetry} art={art} />
+        </motion.div>
 
         {/* ── The pipelines ────────────────────────────────────────────── */}
         <motion.section {...rise(9)} className="mt-4 rounded-2xl border border-white/[0.09] bg-paper/[0.035] p-4 backdrop-blur">

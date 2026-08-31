@@ -7,6 +7,12 @@
 // SAME session as the console, because "one login, six systems" has to be true
 // at the authorisation layer or it is marketing.
 //
+// It renders the SAME chrome as ConnectDesk, PeopleHub and Ledgerly — SuiteShell
+// — rather than the bespoke dark rail it grew when it was the first satellite
+// and there was nothing to share. All that is declared for it now is a name, an
+// accent, a strap and a canvas width (lib/suite/satellites). The nav tree is
+// unchanged; only the thing drawn around it moved.
+//
 // The studio lives at /analytics inside this deployment and is rewritten onto
 // analytics.birgenai.com by src/proxy.ts. When it is split into its own origin,
 // SUITE_ANALYTICS_ORIGIN moves it and nothing here changes — the same mechanism
@@ -20,7 +26,8 @@ import { studioNavFor } from "@/lib/analytics/studio-nav";
 import { resolveSuite, hrefFor } from "@/lib/suite/hosts";
 import { visibleSystemIds } from "@/lib/suite/access";
 import { suiteApp } from "@/lib/suite/apps";
-import StudioShell from "@/components/analytics/StudioShell";
+import { ANALYTICS_IDENTITY } from "@/lib/suite/satellites";
+import SuiteShell from "@/components/suite/SuiteShell";
 import BrandHead from "@/components/BrandHead";
 
 export const runtime = "nodejs";
@@ -33,7 +40,7 @@ export default async function AnalyticsLayout({ children }: { children: React.Re
   const [org, rights, denied] = await Promise.all([
     prisma.org.findUnique({
       where: { id: session.user.orgId },
-      select: { name: true, slug: true, systems: true, mode: true, logoUrl: true },
+      select: { name: true, slug: true, systems: true, mode: true, logoUrl: true, logoScale: true },
     }),
     getRights(session),
     getDeniedModules(session),
@@ -63,15 +70,16 @@ export default async function AnalyticsLayout({ children }: { children: React.Re
   return (
     <>
       <BrandHead logoUrl={org.logoUrl} title={`${org.name} — Analytics & Reporting`} />
-      <StudioShell
+      <SuiteShell
+        identity={ANALYTICS_IDENTITY}
         nav={nav}
-        org={{ name: org.name, slug: org.slug, mode: org.mode, logoUrl: org.logoUrl }}
+        org={{ name: org.name, slug: org.slug, logoUrl: org.logoUrl, logoScale: org.logoScale }}
         user={{ name: session.user.name ?? "Staff", email: session.user.email, role: session.user.role }}
         suiteHosts={resolveSuite(visible)}
         consoleHref={lms ? hrefFor(lms) : "/console"}
       >
         {children}
-      </StudioShell>
+      </SuiteShell>
     </>
   );
 }

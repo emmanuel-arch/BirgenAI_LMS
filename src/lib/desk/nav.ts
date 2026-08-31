@@ -188,4 +188,7 @@ export const DESK_IDENTITY = {
   accent: "#be123c",
   accent2: "#f43f5e",
   strap: "working the live collections floor",
+  // A case file is three columns of history beside a disposition pad, and the
+  // work queue is a thousand rows. This system earns the width.
+  canvas: "wide",
 } as const;

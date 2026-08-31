@@ -25,7 +25,7 @@ import { prisma } from "@/lib/prisma";
 import { suiteApp } from "@/lib/suite/apps";
 import { artworkFor } from "@/lib/suite/artwork";
 import { entitledSystems } from "@/lib/suite/entitlements";
-import { hrefFor } from "@/lib/suite/hosts";
+import { hrefFor, resolveSuite } from "@/lib/suite/hosts";
 import SuiteDoor from "@/components/suite/SuiteDoor";
 
 export const runtime = "nodejs";
@@ -76,6 +76,20 @@ export default async function SatelliteLogin({ params }: { params: Promise<{ app
   // effect on the next render, with no rebuild and no code change.
   const hasArtwork = existsSync(join(process.cwd(), "public", art.file.replace(/^\//, "")));
 
+  // ── WHAT THE CORNER SWITCHER OFFERS ────────────────────────────────────────
+  // The doors this visitor could walk to instead. It replaces the "All six
+  // systems" link that used to sit in the bottom-right corner of this page and
+  // hard-code a count onto a screen served to lenders who bought four.
+  //
+  // Scoped to the lender WHERE THERE IS ONE. A signed-in visitor whose
+  // organisation holds four systems is offered four; an anonymous visitor is
+  // offered all of them, because without a session there is no organisation to
+  // scope by and a guess would be wrong for everybody whose lender bought a
+  // different four. Each door gates itself on arrival either way — the
+  // entitlement check a dozen lines above is that gate — so this menu is a
+  // convenience and never an access boundary.
+  const hosts = org ? resolveSuite([...entitledSystems(org.systems)]) : resolveSuite();
+
   return (
     <SuiteDoor
       app={{ id: app.id, name: app.name, tagline: app.tagline, accent: app.accent, modules: app.modules, icon: app.icon }}
@@ -87,6 +101,7 @@ export default async function SatelliteLogin({ params }: { params: Promise<{ app
       logoUrl={org?.logoUrl ?? null}
       continueHref={hrefFor(app)}
       hasArtwork={hasArtwork}
+      hosts={hosts}
     />
   );
 }

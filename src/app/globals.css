@@ -200,6 +200,54 @@ body {
   }
 }
 
+
+/* ── THE DOORS AND THE LAUNCHER — shared motion ──────────────────────────────
+   Three keyframes, used by the six front doors and the suite launcher. They live
+   here rather than in the components because the launcher and the doors have to
+   move the SAME WAY: a visitor crosses from one to the other in a single click,
+   and two easing curves for the same gesture is exactly the kind of seam that
+   makes six products feel like six products.
+
+   · SPOTLIGHT  a soft raking light that drifts in once and stops. It is the only
+     thing on a door that moves without being asked, and it stops on purpose —
+     a sign-in page that keeps animating is a sign-in page people mistrust.
+   · SHEEN      a highlight travelling across a control, for the one primary
+     button on the page and nothing else.
+   · DRIFT      a very slow parallax on the artwork behind the card. Two degrees
+     of movement over half a minute; you feel it, you do not watch it.
+
+   All three are switched off entirely under prefers-reduced-motion at the foot
+   of this file. */
+
+@keyframes suite-spotlight {
+  0%   { opacity: 0; transform: translate(-72%, -62%) scale(0.5); }
+  100% { opacity: 1; transform: translate(-50%, -40%) scale(1); }
+}
+@keyframes suite-sheen {
+  0%   { transform: translateX(-120%); }
+  60%, 100% { transform: translateX(240%); }
+}
+@keyframes suite-drift {
+  0%, 100% { transform: scale(1.06) translate3d(0, 0, 0); }
+  50%      { transform: scale(1.1) translate3d(-1.6%, 1.1%, 0); }
+}
+
+.suite-spotlight { animation: suite-spotlight 2s ease 0.4s 1 forwards; opacity: 0; }
+.suite-sheen { animation: suite-sheen 4.5s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+.suite-drift { animation: suite-drift 34s ease-in-out infinite; will-change: transform; }
+
+/* A word arriving out of focus. The door heading and the borrower app's voices
+   panel both use it; the delay is set per word from the call site. */
+@keyframes suite-word-in {
+  from { opacity: 0; filter: blur(10px); transform: translateY(6px); }
+  to   { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+.suite-word-in {
+  display: inline-block;
+  opacity: 0;
+  animation: suite-word-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 /* ── Riri assistant — the floating AI companion ──────────────────────────────
    Riri is the face of the platform's intelligence. Her avatar breathes and
    blinks so she feels alive; the launcher haloes when she's online and pulses
@@ -368,7 +416,11 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .riri-breathe, .riri-eye, .riri-halo, .riri-float, .riri-think-dot, .riri-orbit-dot, .riri-sheen,
   .auth-ray, .auth-bloom, .dock-scan, .dock-pulse,
-  .os-aurora, .os-home-press, .os-boot, .os-live, .os-badge, .os-key:active {
+  .os-aurora, .os-home-press, .os-boot, .os-live, .os-badge, .os-key:active,
+  .suite-spotlight, .suite-sheen, .suite-drift, .suite-word-in {
     animation: none;
   }
+  /* Two of them animate FROM opacity 0, so switching the animation off without
+     this leaves the door blank rather than still. */
+  .suite-spotlight, .suite-word-in { opacity: 1; filter: none; transform: none; }
 }

@@ -1,4 +1,4 @@
-// BirgenAI platform — the founder's cross-tenant board. A real session now
+// The platform board — the founder's cross-tenant view. A real session now
 // guards the door (PlatformAdmin + platform_session cookie); the typed-secret
 // box is gone. The API keeps the legacy bearer for scripts, one more release.
 import { redirect } from "next/navigation";

@@ -10,6 +10,8 @@
 // numbers, never the doors.
 // ─────────────────────────────────────────────────────────────────────────────
 import { redirect } from "next/navigation";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRights, getDeniedModules } from "@/lib/rbac/authz";
@@ -18,6 +20,7 @@ import { SUITE_APPS } from "@/lib/suite/apps";
 import { entitledSystems } from "@/lib/suite/entitlements";
 import { resolveSuite } from "@/lib/suite/hosts";
 import { getSuiteTelemetry } from "@/lib/suite/telemetry";
+import { artworkFor } from "@/lib/suite/artwork";
 import SuiteBoard from "@/components/suite/SuiteBoard";
 
 export const runtime = "nodejs";
@@ -56,6 +59,24 @@ export default async function SuiteLauncherPage() {
     .map((a) => a.id);
   const entered = SUITE_APPS.filter((a) => !a.right || rights.has(a.right)).map((a) => a.id);
 
+  // ── WHICH PLATES ARE ACTUALLY ON DISK ──────────────────────────────────────
+  // Each card on the rail wears its own system’s front-door artwork, so the
+  // launcher and the door it opens are visibly one product. The files are
+  // optional by design (see lib/suite/artwork), and the check has to happen HERE
+  // rather than in the card: a client component cannot stat the filesystem, so
+  // it would request a missing image, fail, and flash its fallback gradient in
+  // after the fact. Checked at request time, so dropping a plate in takes effect
+  // on the next render with no rebuild.
+  const art = SUITE_APPS.map((a) => {
+    const w = artworkFor(a.id);
+    return {
+      id: a.id,
+      file: w?.file ?? "",
+      gradient: w?.gradient ?? "#0b0a10",
+      hasFile: !!w && existsSync(join(process.cwd(), "public", w.file.replace(/^\//, ""))),
+    };
+  });
+
   return (
     <SuiteBoard
       who={session.user.name ?? session.user.email ?? "Signed in"}
@@ -64,6 +85,7 @@ export default async function SuiteLauncherPage() {
       visible={visible}
       hosts={resolveSuite(visible)}
       telemetry={telemetry}
+      art={art}
     />
   );
 }

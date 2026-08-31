@@ -20,6 +20,20 @@ export const PEOPLE_IDENTITY = {
   accent: "#6d28d9",
   accent2: "#a78bfa",
   strap: "the roster behind the book",
+  // A directory of names and a branch tree. Stretching either to 1560px only
+  // makes the eye travel further between a person and the number beside them.
+  canvas: "standard",
+} as const;
+
+export const ANALYTICS_IDENTITY = {
+  id: "analytics",
+  name: "Analytics & Reporting",
+  accent: "#7c3aed",
+  accent2: "#a855f7",
+  strap: "reading the live book",
+  // Twelve-column reports and a pivot explorer. The one system most often read
+  // on a large screen, or thrown at a projector.
+  canvas: "wide",
 } as const;
 
 export const BOOKS_IDENTITY = {
@@ -28,6 +42,8 @@ export const BOOKS_IDENTITY = {
   accent: "#0f766e",
   accent2: "#2dd4bf",
   strap: "reading the journal, live",
+  // The journal is a wide table with both sides of every posting named.
+  canvas: "wide",
 } as const;
 
 type Item = SuiteNavModule["items"][number] & { right?: Right };

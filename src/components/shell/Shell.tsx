@@ -37,8 +37,22 @@ import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 import Sidebar from "./Sidebar";
 import IdentityMenu from "./IdentityMenu";
 import ThemeSwitch from "./ThemeSwitch";
+import SkinMenu from "./SkinMenu";
+import Backdrop from "./Backdrop";
 import ImpersonationBanner from "./ImpersonationBanner";
 import RealmSwitch, { type SwitchRealm } from "./RealmSwitch";
+
+/**
+ * The lending console’s own colour in the suite launcher.
+ *
+ * Deliberately NOT `var(--brand)`, which on this surface is the LENDER’s accent
+ * and is set per organisation. The floor’s wash says which SYSTEM you are in —
+ * blue is always the console, violet is always analytics, rose is always the
+ * call centre — and a lender whose brand happens to be rose must not make their
+ * console look like ConnectDesk. Their colour owns everything inside the canvas;
+ * the system’s colour owns the floor under it.
+ */
+const SUITE_BLUE = "#2a78d6";
 
 export default function Shell({
   nav,
@@ -88,7 +102,15 @@ export default function Shell({
 
   return (
     <div className="min-h-screen text-[color:var(--ink-body)]">
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
+      {/* The floor. It used to be a hard-coded background-image utility naming
+          white-background.png
+          right here, which is why the dark theme flipped every token and every
+          surface and then painted a photograph of pale grey waves behind them.
+          A string in a class name cannot have a second value; a skin can. The
+          console keeps exactly the wallpaper it has always had — that is the
+          `linen` skin's light face — and gains the dark one it never had.
+          See components/shell/Backdrop and lib/theme/skins. */}
+      <Backdrop systemId="lms" accent={SUITE_BLUE} accent2="#60a5fa" />
 
       <div className="relative z-10 flex min-h-screen flex-col">
         {impersonator && <ImpersonationBanner adminName={impersonator.name} orgName={org.name} />}
@@ -137,6 +159,7 @@ export default function Shell({
                 {/* ONE control, far right: the grip and the person are the same
                     button now, because the systems it opens are opened BY that
                     identity. See IdentityMenu. */}
+                <SkinMenu systemId="lms" accent={SUITE_BLUE} />
                 <ThemeSwitch />
                 <IdentityMenu
                   name={user.name}

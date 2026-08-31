@@ -103,8 +103,18 @@ export default function StudioFilterBar({
     }
   };
 
+  // ── WHERE THIS BAR PINS, AND WHAT IT PINS TO ───────────────────────────────
+  // It stays at the top of the page as you scroll a long report. It used to do
+  // that by bleeding to the full width (`-mx-4`) and painting `bg-studio` —
+  // both of which assumed the shell's old opaque 56px header and a page that
+  // ran edge to edge. The page is a rounded canvas now, so a square full-bleed
+  // bar pokes out past its corners, and `bg-studio` is the FLOOR's colour,
+  // which is behind the canvas rather than on it.
+  //
+  // So it is a rounded card ON the canvas instead, offset far enough down to
+  // clear the shell's floating control row above it.
   return (
-    <div className={`sticky top-14 z-10 -mx-4 mb-4 border-b border-ash-900/[0.07] bg-studio/90 px-4 py-2.5 backdrop-blur sm:-mx-6 sm:px-6 ${pending ? "opacity-70" : ""}`}>
+    <div className={`sticky top-[3.25rem] z-10 mb-4 rounded-xl border border-[color:var(--ink)]/[0.07] bg-paper/85 px-3 py-2.5 shadow-sm backdrop-blur-xl sm:px-4 ${pending ? "opacity-70" : ""}`}>
       <div className="flex flex-wrap items-center gap-2">
         {/* ── Range ─────────────────────────────────────────────────────── */}
         <Popover
