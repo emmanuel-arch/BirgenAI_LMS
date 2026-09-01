@@ -321,10 +321,36 @@ export function verify(secret: string, ts: string, body: string, sig: string): b
 // ── The client half ──────────────────────────────────────────────────────────
 
 export class RelayError extends Error {
-  constructor(message: string) {
+  /**
+   * "road"   the relay could not be reached, or answered with a gateway status.
+   *          Another road might work.
+   * "answer" the relay reached SQL Server and it replied — including with an
+   *          error. Another road will reply identically.
+   *
+   * Callers above this layer need the distinction as much as relayQuery does.
+   * Without it, mssql.ts failed over from a perfectly good direct connection to
+   * a relay because of an "Invalid column name" — and then reported the RELAY's
+   * unrelated failure, hiding the actual bug for two runs.
+   */
+  constructor(
+    message: string,
+    readonly kind: "road" | "answer" = "road",
+  ) {
     super(message);
     this.name = "RelayError";
   }
+}
+
+/** True when an error means "try another road", false when it is an answer. */
+export function isRoadFailure(err: unknown): boolean {
+  if (err instanceof RelayError) return err.kind === "road";
+  // node-mssql separates these by class: ConnectionError is the socket, the
+  // login and the timeout; RequestError is SQL Server answering.
+  const name = (err as { name?: string } | null)?.name;
+  if (name === "ConnectionError") return true;
+  if (name === "RequestError") return false;
+  const code = String((err as { code?: unknown } | null)?.code ?? "");
+  return ["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "ETIMEOUT", "ESOCKET", "ENOTFOUND", "EHOSTUNREACH", "ELOGIN"].includes(code);
 }
 
 /**
@@ -422,13 +448,17 @@ export async function relayQuery(
         if (preferredRoad() === base) rememberRoad(null);
         continue;
       }
-      throw new RelayError(`SQL relay at ${base} returned ${res.status}. ${text.slice(0, 300)}`);
+      throw new RelayError(
+        `SQL relay at ${base} returned ${res.status}. ${text.slice(0, 300)}`,
+        ROAD_STATUS.has(res.status) ? "road" : "answer",
+      );
     }
 
     const json = (await res.json()) as RelayResponse;
     // `ok: false` is the far end reporting a SQL error — an ANSWER. Moving to
-    // another relay would produce the same error against the same database.
-    if (!json.ok) throw new RelayError(json.error);
+    // another relay would produce the same error against the same database, and
+    // moving to the DIRECT road would produce it against the same tables.
+    if (!json.ok) throw new RelayError(json.error, "answer");
 
     rememberRoad(base);
     return { columns: json.columns, rows: decodeRows(json.rows), rowCount: json.rowCount, elapsedMs: json.elapsedMs };

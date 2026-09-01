@@ -328,6 +328,11 @@ export const REPORTS: ReportDef[] = [
       { key: "dpd", label: "Days late", format: "days" },
       { key: "arrears", label: "In arrears", format: "money", total: true },
       { key: "olb", label: "OLB", format: "money", total: true },
+      // Penalty is ALREADY INSIDE LoanBalance: on a loan that has not been paid
+      // down, OLB is exactly Principal + Interest + Penalty. Totalled because the
+      // book-wide figure is what Collections asks for, but it is a COMPONENT of
+      // OLB, never an addition to it. Mirrors ISNULL(L.penalty,0) in sp_arrearsLoans.
+      { key: "penalty", label: "Penalty", format: "money", total: true },
       { key: "amount", label: "Disbursed", format: "money", total: true, secondary: true },
       { key: "product", label: "Product", format: "text", secondary: true },
       { key: "branch", label: "Branch", format: "text" },
@@ -345,6 +350,7 @@ export const REPORTS: ReportDef[] = [
                 COALESCE(ia.DaysInArears,0) AS dpd,
                 ${MONEY("ia.AmountInArrears")} AS arrears,
                 ${MONEY("l.LoanBalance")} AS olb,
+                ${MONEY("l.Penalty")} AS penalty,
                 ${MONEY("l.LoanAmount")} AS amount,
                 COALESCE(p.ProductName,'—') AS product,
                 COALESCE(ou.UnitTitle,'Unassigned') AS branch,

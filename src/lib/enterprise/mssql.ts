@@ -13,7 +13,7 @@
 
 import mssql, { type ConnectionPool, type config as MssqlConfig } from "mssql";
 import { getMssqlConfig, type OrgDef } from "./connections";
-import { relayEnabled, relayQuery } from "./relay";
+import { relayEnabled, relayQuery, isRoadFailure } from "./relay";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TWO WAYS TO REACH THE SAME SERVER, CHOSEN ONCE, HERE.
@@ -152,8 +152,16 @@ async function overRoads<T>(
     } catch (e) {
       last = e;
       if (!canFailOver || i === list.length - 1) throw e;
-      // Fall through to the next road. The relay client already distinguishes a
-      // broken road from a SQL error and will not have got here for the latter.
+
+      // ── AN ANSWER IS NOT A BROKEN ROAD ──────────────────────────────────
+      // "Invalid column name 'EntityId'" means SQL Server received the query
+      // and replied. Every other road runs the same SQL against the same
+      // tables and replies identically — so failing over cannot help, and it
+      // does active harm: the caller ends up holding the LAST road's error,
+      // which is usually about a relay being unreachable, and the real bug is
+      // invisible. That is not hypothetical. It hid a wrong column name here
+      // through two runs, reporting a relay 502 both times.
+      if (!isRoadFailure(e)) throw e;
     }
   }
   throw last;
