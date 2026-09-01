@@ -17,6 +17,9 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveScope, borrowerScopeWhere } from "@/lib/rbac/scope";
 import { PrintButton } from "@/components/print/PrintButton";
+import { resolveOrg } from "@/lib/tenancy";
+import { getCustomerStatementLive } from "@/lib/lms/servicesuite-statement";
+import { LiveStatementView } from "./LiveStatement";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +35,39 @@ export default async function CustomerStatement({ params }: { params: Promise<{ 
   if (!session?.user?.orgId) redirect("/login");
   const orgId = session.user.orgId;
   const { id } = await params;
+
+  // ── A LIVE CUSTOMER, BEFORE WE LOOK IN OUR OWN TABLES ────────────────
+  // A bridged lender's borrower carries a `ss:<id>` ref, not an LMS uuid, and
+  // has no Postgres row until somebody resolves them. Their whole money history
+  // lives in the lender's book, so the statement is read from there. Same URL,
+  // same sheet — only the source differs.
+  if (id.startsWith("ss:")) {
+    const liveOrg = session.user.orgSlug ? await resolveOrg(session.user.orgSlug) : null;
+    if (!liveOrg?.bridgedReady || !liveOrg.registry || !liveOrg.entityId) {
+      return <Problem title="Not available" detail="This lender’s system is not connected, so their statements cannot be read." />;
+    }
+    const ssId = Number(id.slice(3));
+    if (!Number.isInteger(ssId) || ssId <= 0) {
+      return <Problem title="Unknown customer" detail={`${id} is not a customer reference we recognise.`} />;
+    }
+    let statement: Awaited<ReturnType<typeof getCustomerStatementLive>> = null;
+    try {
+      statement = await getCustomerStatementLive(liveOrg.registry, liveOrg.entityId, ssId);
+    } catch (err) {
+      return (
+        <Problem
+          title={`Could not read ${liveOrg.name}’s book`}
+          detail={err instanceof Error ? err.message : "The lender’s system did not answer."}
+        />
+      );
+    }
+    if (!statement) {
+      // Not a miss to gloss over: ids are only meaningful within an entity, and
+      // 3002 and 3005 hold DIFFERENT PEOPLE. Refusing is the safe answer.
+      return <Problem title="Not this lender’s customer" detail={`No customer ${ssId} in entity ${liveOrg.entityId}.`} />;
+    }
+    return <LiveStatementView statement={statement} lender={liveOrg.name} />;
+  }
 
   const scope = await resolveScope(session);
   const b = await prisma.borrower.findFirst({
@@ -213,5 +249,20 @@ export default async function CustomerStatement({ params }: { params: Promise<{ 
         </footer>
       </main>
     </div>
+  );
+}
+
+
+/** Says what went wrong instead of rendering an empty statement, which reads
+ *  as "this customer has never paid anything". */
+function Problem({ title, detail }: { title: string; detail: string }) {
+  return (
+    <main className="mx-auto max-w-2xl px-4 sm:px-6 py-16 text-center">
+      <h1 className="text-lg font-semibold text-[color:var(--ink)]">{title}</h1>
+      <p className="t-meta mx-auto mt-2 max-w-[52ch] text-[13px] text-[color:var(--ink-muted)]">{detail}</p>
+      <Link href="/console/borrowers" className="mt-5 inline-block text-[12px] font-semibold hover:underline" style={{ color: "var(--brand)" }}>
+        Back to borrowers
+      </Link>
+    </main>
   );
 }

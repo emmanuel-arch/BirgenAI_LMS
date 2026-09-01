@@ -263,8 +263,14 @@ export async function listLoansLive(
       expectedClearDate: dateOnly(r.ExpectedClearDate),
       clearedAt: iso(r.DateCleared),
       nextDue: nextByLoan.get(n(r.id)) ?? null,
-      arrears: n(r.AmountInArrears),
-      daysInArrears: dpd > 0 ? dpd : null,
+      // ── A CLEARED LOAN IS NOT IN ARREARS, WHATEVER THE REGISTER SAYS ──────
+      // LoansInArrears keeps rows after a loan settles — loan #417250 is CLEARED
+      // with a zero balance and the register still reports 2 outstanding at 103
+      // days past due. That is a leftover row, not a debt, and rendering it puts
+      // "103 days late" beside a loan the customer paid off months ago. The loan
+      // being cleared is the stronger fact, so it wins.
+      arrears: cleared ? 0 : n(r.AmountInArrears),
+      daysInArrears: !cleared && dpd > 0 ? dpd : null,
       firstMissedAt: dateOnly(r.FirstDateInArrears),
     };
   });

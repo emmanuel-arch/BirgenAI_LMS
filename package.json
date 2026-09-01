@@ -98,7 +98,8 @@
     "test:realms": "tsx scripts/verify-realms.ts",
     "test:analytics-live": "tsx scripts/verify-analytics-live.ts",
     "test:reporting": "tsx scripts/verify-reporting.ts",
-    "test:live-loans": "tsx scripts/verify-live-loans.mts"
+    "test:live-loans": "tsx scripts/verify-live-loans.mts",
+    "test:live-statement": "tsx scripts/verify-live-statement.mts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

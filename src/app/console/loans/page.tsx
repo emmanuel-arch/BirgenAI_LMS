@@ -13,17 +13,23 @@
 // about that path changed.
 //
 // ── WHAT THE LIVE PATH SHOWS THAT THE LOCAL ONE CANNOT ──────────────────────
-// Next instalment and arrears, straight off the lender's schedule. That is the
-// column collections actually work from, and it is the reason this screen was
-// worth reading through rather than leaving on modelled data: 33 of Micromart's
-// 96 running loans are behind, and none of that was visible here before.
+// The next instalment and the arrears — the two columns collections actually
+// work from, and the reason this screen was worth reading through rather than
+// leaving on modelled data: 47 of Micromart's 96 running loans are behind, and
+// none of that was visible here before.
 //
-// ── AND WHAT IT CANNOT SHOW ─────────────────────────────────────────────────
-// A statement link. Statements render from OUR loan record, and a live loan has
-// no LMS uuid — only a `ss:<id>` ref. Rather than a link that 404s, the row
-// opens the customer through the resolve step, which is the same bargain the
-// borrower list strikes: browsing costs nothing, working a customer creates the
-// local record everything else hangs off.
+// ARREARS IS THEIR NUMBER, NOT OURS. It comes from
+// Transactions.dbo.LoansInArrears, the register their own dashboard reads. A
+// figure derived from the schedule instead disagreed with it (33 loans vs 47),
+// and a console that contradicts the system of record loses the argument in
+// front of the customer. See lib/lms/servicesuite-loans.ts.
+//
+// ── LINKS, FOR A ROW WITH NO LMS UUID ───────────────────────────────────────
+// A live loan has only a `ss:<id>` ref, so the borrower opens through the
+// existing resolve step — browsing costs nothing, working a customer creates
+// the local record everything else hangs off. The STATEMENT does not need that
+// bargain: it is read straight from the lender's book, keyed on the borrower,
+// exactly as their own sp_GetCustomerStatement is.
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Landmark, FileText, Radio } from "lucide-react";
@@ -117,7 +123,9 @@ export default async function LoansPage({ searchParams }: { searchParams: Promis
         balance: l.balance,
         status: l.status,
         bookedAt: l.borrowDate ? l.borrowDate.slice(0, 10) : null,
-        statementHref: null,
+        // Their statement IS available live — keyed on the borrower, the same
+        // way sp_GetCustomerStatement is.
+        statementHref: `/console/borrowers/${encodeURIComponent(`ss:${l.borrowerId}`)}/statement`,
         nextDue: l.nextDue,
         arrears: l.arrears,
         daysInArrears: l.daysInArrears,
