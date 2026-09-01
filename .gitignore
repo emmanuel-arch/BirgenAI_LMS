@@ -59,3 +59,8 @@ vault-backup/
 *.tmp
 *.tmp.sql
 sp_sp_*.sql
+
+# Scratch from tooling — never part of a build or a commit.
+*.tmp.*
+diag.*
+probe.tmp.*
