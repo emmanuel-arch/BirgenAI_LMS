@@ -72,13 +72,103 @@ export const RELAY_SKEW_MS = 120_000;
 export const RELAY_TS_HEADER = "x-relay-ts";
 export const RELAY_SIG_HEADER = "x-relay-sig";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MORE THAN ONE ROAD, TRIED IN ORDER.
+//
+// SERVICESUITE_RELAY_URL was one URL and is now an ORDERED LIST, comma or
+// whitespace separated. A single value still works exactly as before, so no
+// deployment breaks by upgrading.
+//
+// ── WHY A LIST IS THE WHOLE POINT ───────────────────────────────────────────
+// The relay was a single point of failure wearing the costume of a fix. Every
+// live read in the estate went through one process on one box, and when that box
+// restarted — which salesmaster does, sometimes several times a day, and can do
+// in the middle of a demo — every screen in six systems went to its unreachable
+// state at once. A relay that is down is indistinguishable from a lender whose
+// server is down, which is the worst version of this failure: it looks like
+// Micromart's fault.
+//
+// The fix is not a better relay. It is a SECOND one, on a machine chosen for the
+// property that matters — Micromart's own SQL host is always on, because it is
+// the thing everyone is querying. Put a relay there, funnel it, list it first:
+//
+//   SERVICESUITE_RELAY_URL="https://micromart.tail10c441.ts.net:8443,https://salesmaster.tail10c441.ts.net:8443"
+//
+// Now a salesmaster restart costs one failed connect on the next request and
+// nothing else.
+//
+// ── WHAT MAY AND MAY NOT BE RETRIED ─────────────────────────────────────────
+// Failover is a retry wearing a different hat. A retried READ is free. A retried
+// stored procedure is a second loan posted against a real customer, or a second
+// repayment written to a real ledger — so `exec` and `proc` never move roads.
+// See `mayFailOver` below; this is the same rule the borrower app applies to
+// payments, and it is not negotiable in either direction.
+//
+// A SQL ERROR IS AN ANSWER, NOT A BROKEN ROAD. "Invalid column name" from the
+// far end means the query reached SQL Server and it replied. Asking a second
+// relay produces the identical error while doubling the load, so only transport
+// failures — no connect, no answer, a gateway status — move to the next road.
+// ─────────────────────────────────────────────────────────────────────────────
+
 /** Is this deployment configured to reach SQL through a relay rather than directly? */
 export function relayEnabled(): boolean {
-  return !!(process.env.SERVICESUITE_RELAY_URL?.trim() && process.env.SERVICESUITE_RELAY_SECRET?.trim());
+  return relayEndpoints().length > 0 && !!process.env.SERVICESUITE_RELAY_SECRET?.trim();
 }
 
+/** The roads, in preference order. First entry is the primary. */
+export function relayEndpoints(): string[] {
+  return (process.env.SERVICESUITE_RELAY_URL ?? "")
+    .split(/[,\s]+/)
+    .map((s) => s.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+}
+
+/** The first configured road. Kept for messages and for callers that only need a name. */
 export function relayUrl(): string {
-  return (process.env.SERVICESUITE_RELAY_URL ?? "").trim().replace(/\/$/, "");
+  return relayEndpoints()[0] ?? "";
+}
+
+// ── Stickiness ───────────────────────────────────────────────────────────────
+// Once a road has answered, keep using it. Without this every single request
+// re-tries a dead primary first and pays its whole connect timeout — turning one
+// broken box into latency on every query in the estate rather than on one.
+//
+// Held per process (a serverless instance, a dev server). It is a cache, not
+// state: the worst a stale value can do is cost one failed attempt.
+const globalForRoad = globalThis as unknown as { __ssRelayRoad?: string | null };
+
+function preferredRoad(): string | null {
+  return globalForRoad.__ssRelayRoad ?? null;
+}
+
+function rememberRoad(url: string | null) {
+  globalForRoad.__ssRelayRoad = url;
+}
+
+/** Roads to try for this call, preferred one first, in configured order after. */
+function roadsToTry(): string[] {
+  const all = relayEndpoints();
+  const pref = preferredRoad();
+  if (!pref || !all.includes(pref)) return all;
+  return [pref, ...all.filter((u) => u !== pref)];
+}
+
+/**
+ * Reads move roads freely. Writes never do — see the header. `proc` covers loan
+ * posting and `exec` covers ledger updates, and a duplicate of either is a real
+ * customer's money.
+ */
+function mayFailOver(kind: RelayRequest["kind"]): boolean {
+  return kind === "read";
+}
+
+/** Gateway statuses mean the road is broken. A 400 or a 500 from the relay
+ *  itself is the relay ANSWERING, and is reported rather than retried. */
+const ROAD_STATUS = new Set([502, 503, 504, 522, 523, 524]);
+
+/** What the launcher and the health screens show about the roads. */
+export function relayRoadState(): { endpoints: string[]; active: string | null } {
+  return { endpoints: relayEndpoints(), active: preferredRoad() };
 }
 
 function relaySecret(): string {
@@ -266,46 +356,84 @@ export async function relayQuery(
   };
 
   const body = JSON.stringify(payload);
-  const ts = String(Date.now());
   const secret = relaySecret();
+  const roads = roadsToTry();
 
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), timeoutMs + 5000);
-
-  let res: Response;
-  try {
-    res = await fetch(`${relayUrl()}/query`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        [RELAY_TS_HEADER]: ts,
-        [RELAY_SIG_HEADER]: sign(secret, ts, body),
-      },
-      body,
-      signal: ctl.signal,
-      cache: "no-store",
-    });
-  } catch (e) {
-    const why =
-      e instanceof Error && e.name === "AbortError"
-        ? `no answer within ${timeoutMs + 5000}ms`
-        : e instanceof Error
-          ? e.message
-          : "unknown";
-    throw new RelayError(
-      `SQL relay at ${relayUrl()} did not answer (${why}). The relay host is off, asleep, or off the tailnet.`,
-    );
-  } finally {
-    clearTimeout(timer);
+  if (roads.length === 0) {
+    throw new RelayError("No SQL relay is configured (SERVICESUITE_RELAY_URL).");
   }
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new RelayError(`SQL relay returned ${res.status}. ${text.slice(0, 300)}`);
+  const canMove = mayFailOver(kind);
+  const failures: string[] = [];
+
+  for (let i = 0; i < roads.length; i++) {
+    const base = roads[i];
+    const last = i === roads.length - 1;
+
+    // The timestamp is re-minted per attempt. Reusing one across a slow first
+    // road would hand the second relay a signature already near the edge of the
+    // two-minute window, and it would reject a request that is perfectly good.
+    const ts = String(Date.now());
+
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), timeoutMs + 5000);
+
+    let res: Response;
+    try {
+      res = await fetch(`${base}/query`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          [RELAY_TS_HEADER]: ts,
+          [RELAY_SIG_HEADER]: sign(secret, ts, body),
+        },
+        body,
+        signal: ctl.signal,
+        cache: "no-store",
+      });
+    } catch (e) {
+      const why =
+        e instanceof Error && e.name === "AbortError"
+          ? `no answer within ${timeoutMs + 5000}ms`
+          : e instanceof Error
+            ? e.message
+            : "unknown";
+      failures.push(`${base} (${why})`);
+      // The road is broken. If this was the sticky choice, stop preferring it so
+      // the next call starts on a road that might work.
+      if (preferredRoad() === base) rememberRoad(null);
+      if (canMove && !last) continue;
+      throw new RelayError(
+        canMove
+          ? `No SQL relay answered. Tried: ${failures.join("; ")}. The relay hosts are off, asleep, or off the tailnet.`
+          : `SQL relay at ${base} did not answer (${why}). This was a ${kind.toUpperCase()} and was NOT retried on another relay — ` +
+            `repeating it could post the same record twice. Confirm on the lender's system before re-running it.`,
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      // A gateway status is the road; anything else is the relay answering, and
+      // a second relay will answer identically.
+      if (ROAD_STATUS.has(res.status) && canMove && !last) {
+        failures.push(`${base} (HTTP ${res.status})`);
+        if (preferredRoad() === base) rememberRoad(null);
+        continue;
+      }
+      throw new RelayError(`SQL relay at ${base} returned ${res.status}. ${text.slice(0, 300)}`);
+    }
+
+    const json = (await res.json()) as RelayResponse;
+    // `ok: false` is the far end reporting a SQL error — an ANSWER. Moving to
+    // another relay would produce the same error against the same database.
+    if (!json.ok) throw new RelayError(json.error);
+
+    rememberRoad(base);
+    return { columns: json.columns, rows: decodeRows(json.rows), rowCount: json.rowCount, elapsedMs: json.elapsedMs };
   }
 
-  const json = (await res.json()) as RelayResponse;
-  if (!json.ok) throw new RelayError(json.error);
-
-  return { columns: json.columns, rows: decodeRows(json.rows), rowCount: json.rowCount, elapsedMs: json.elapsedMs };
+  // Unreachable: the loop either returns or throws on its last iteration.
+  throw new RelayError(`No SQL relay answered. Tried: ${failures.join("; ")}.`);
 }

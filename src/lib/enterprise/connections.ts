@@ -182,9 +182,27 @@ export function getOrg(slug: string): OrgDef | null {
 
 /** The EntityId for an org (env override → default). */
 export function getEntityId(org: OrgDef): number {
+  return getEntityIdOverride(org) ?? org.defaultEntityId;
+}
+
+/**
+ * The entity id ONLY when this deployment has explicitly set one.
+ *
+ * `getEntityId` folds the env var and the registry default into a single number,
+ * which is right for callers that just need an id — and useless for the one
+ * caller that has to know whether a human chose it. `resolveOrg` needs that,
+ * because it is arbitrating between this value and a column in the database, and
+ * "3005 because somebody set SERVICESUITE_ENTITYID_MICROMART" must outrank
+ * "3002 because a seed script wrote it months ago".
+ *
+ * Returns null when unset or unparseable, so a typo falls back rather than
+ * silently resolving to NaN and reading entity `null`.
+ */
+export function getEntityIdOverride(org: OrgDef): number | null {
   const raw = process.env[org.entityEnv];
-  const n = raw != null ? Number(raw) : NaN;
-  return Number.isInteger(n) ? n : org.defaultEntityId;
+  if (raw == null || String(raw).trim() === "") return null;
+  const n = Number(raw);
+  return Number.isInteger(n) ? n : null;
 }
 
 /**

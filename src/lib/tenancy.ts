@@ -9,7 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { prisma } from "@/lib/prisma";
 import { runAsPlatform } from "@/lib/db/context";
-import { getOrg, getEntityId, isOrgConfigured, type OrgDef } from "@/lib/enterprise/connections";
+import { getOrg, getEntityId, getEntityIdOverride, isOrgConfigured, type OrgDef } from "@/lib/enterprise/connections";
 
 export type ResolvedOrg = {
   id: string;
@@ -50,8 +50,30 @@ export async function resolveOrg(slug: string): Promise<ResolvedOrg | null> {
   if (!row) return null;
 
   const registry = row.mode === "BRIDGED" ? getOrg(row.slug) : null;
+
+  // ── THE ENTITY IS AN IDENTITY BOUNDARY, NOT A LABEL ────────────────────────
+  // This used to read `row.serviceSuiteEntityId ?? registryDefault`, so the
+  // DATABASE COLUMN always won. For Micromart that is wrong and quietly so:
+  // prisma/seed.ts writes 3002, connections.ts documents that a live read found
+  // Micro Eazy active under 3005 and absent from 3002, and — the part that makes
+  // this a correctness bug rather than a preference — THE TWO BOOKS HOLD
+  // DIFFERENT PEOPLE ON THE SAME PHONE NUMBERS.
+  //
+  // So a deployment reading 3002 does not fail. It succeeds, against strangers:
+  // it finds a borrower, shows a balance, and posts a loan, all for somebody who
+  // is not the person holding the phone. Nothing about that looks like an error.
+  //
+  // connections.ts already said the env var was the per-deployment override.
+  // It simply was not, because this line outranked it. Now the order is:
+  //
+  //   1. SERVICESUITE_ENTITYID_<ORG>  — a human set this, for this deployment.
+  //   2. Org.serviceSuiteEntityId     — whatever is in the database.
+  //   3. the registry default         — the code's own best answer.
+  //
+  // The seed row stays as it is; it is no longer the thing that decides.
+  const override = registry ? getEntityIdOverride(registry) : null;
   const entityId =
-    row.serviceSuiteEntityId ?? (registry ? getEntityId(registry) : 0);
+    override ?? row.serviceSuiteEntityId ?? (registry ? getEntityId(registry) : 0);
 
   return {
     id: row.id,

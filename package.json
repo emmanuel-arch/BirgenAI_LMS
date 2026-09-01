@@ -85,7 +85,7 @@
     "setup:desk-demo": "tsx scripts/setup-desk-demo.ts",
     "relay": "tsx scripts/sql-relay.ts",
     "relay:crb": "node scripts/crb-relay.mjs",
-    "test:relay": "tsx scripts/verify-relay.ts",
+    "test:relay": "tsx scripts/verify-relay-failover.mts",
     "test:live": "tsx scripts/verify-live.ts",
     "art:optimize": "tsx scripts/optimize-suite-art.ts",
     "art:check": "tsx scripts/check-suite-art.ts",

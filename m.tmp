@@ -1,0 +1,49 @@
+SQL transport: more than one road, and the entity that decides who you are
+
+TWO FIXES, BOTH ABOUT READING THE RIGHT BOOK RELIABLY.
+
+1 · THE RELAY WAS A SINGLE POINT OF FAILURE WEARING THE COSTUME OF A FIX.
+runReadOnlyQuery was a hard either/or — relayEnabled() and every live read in
+the estate went down one process on one box, with no fallback. When salesmaster
+restarts, and it does, every live screen in six systems goes to its unreachable
+state at once and it reads as Micromart's server being down when it is not.
+
+SERVICESUITE_RELAY_URL is now an ordered LIST. A single URL behaves exactly as
+before, so nothing breaks by upgrading. Put a relay on Micromart's own SQL host
+— always on, because it is the thing everyone is querying — list it first, and a
+salesmaster restart costs one failed connect on the next request.
+
+The rules that make failover safe rather than merely present:
+  · A SQL error is an ANSWER. "Invalid column name" reached SQL Server and came
+    back; asking a second relay gives the identical error and doubles the load.
+    Only transport failures move roads.
+  · WRITES NEVER MOVE. A proc that timed out may still have run — the row was
+    written and the response was lost — so the retry posts a second loan against
+    a real customer. exec and proc are pinned to one road and say so in the
+    error when they fail.
+  · Sticky. Once a road answers it is preferred, or every request pays the dead
+    primary's connect timeout and one broken box becomes latency everywhere.
+
+SERVICESUITE_SQL_DIRECT places direct TDS in that order: off (default, and
+correct on Vercel where the CGNAT address has no route and connectionTimeout is
+20 seconds), first (a tailnet runtime), or last.
+
+scripts/verify-relay-failover.mts proves it against real sockets — a relay that
+is not listening, one returning 503, one returning a SQL error — including that
+the spare relay never sees a write. `npm run test:relay`. Eleven checks.
+
+2 · THE ENTITY WAS RESOLVED FROM THE WRONG PLACE.
+resolveOrg read `row.serviceSuiteEntityId ?? registryDefault`, so the database
+column always won. prisma/seed.ts writes 3002 for micromart; connections.ts
+records that a live read found Micro Eazy active under 3005 and absent from
+3002, and that THE TWO BOOKS HOLD DIFFERENT PEOPLE ON THE SAME PHONE NUMBERS.
+
+So a deployment on 3002 does not fail. It succeeds, against strangers — finds a
+borrower, shows a balance, posts a loan, for somebody who is not the person
+holding the phone. connections.ts already called the env var a per-deployment
+override; it simply was not one, because that line outranked it. Now an
+explicitly set SERVICESUITE_ENTITYID_<ORG> wins, then the column, then the
+registry default. getEntityIdOverride distinguishes "a human set this" from "the
+code's default", which getEntityId could not.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>

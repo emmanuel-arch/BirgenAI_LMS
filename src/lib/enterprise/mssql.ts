@@ -72,14 +72,102 @@ export type QueryResult = {
  * @param timeoutMs  per-request statement timeout (default 15s)
  * @param maxRows    hard cap applied after fetch (default 500)
  */
+// ─────────────────────────────────────────────────────────────────────────────
+// WHERE DIRECT TDS SITS IN THE ORDER — SERVICESUITE_SQL_DIRECT
+//
+//   off    (default) Relays only. The correct setting on Vercel, where a direct
+//                    socket to 100.72.35.56 CANNOT work at any price — the
+//                    address is Tailscale CGNAT and has no internet route. This
+//                    is not caution, it is arithmetic: connectionTimeout is
+//                    20 SECONDS, so a blind direct attempt would add twenty
+//                    seconds to every query that is going to the relay anyway.
+//   first            Direct TDS, then the relays. For a runtime that IS on the
+//                    tailnet — this workstation, or a tailnet-hosted deploy.
+//                    Fastest path to the book, and the relays remain underneath
+//                    it as the safety net.
+//   last             Relays, then direct. For a host that might have the route
+//                    and should use it only when every relay is down.
+//
+// It is one variable with three values rather than a pair of booleans because
+// the question is genuinely "where in the order", and two booleans can express
+// states that make no sense.
+// ─────────────────────────────────────────────────────────────────────────────
+type DirectMode = "off" | "first" | "last";
+
+function directMode(): DirectMode {
+  const v = (process.env.SERVICESUITE_SQL_DIRECT ?? "").trim().toLowerCase();
+  if (v === "first" || v === "last" || v === "off") return v;
+  // No relays configured at all means direct is the only road there is — which
+  // is what keeps local development a straight TDS connection with no config.
+  return relayEnabled() ? "off" : "first";
+}
+
+/** Can we even attempt a direct socket for this org? No connection string, no road. */
+function directConfigured(org: OrgDef): boolean {
+  return !!process.env[org.connEnv]?.trim();
+}
+
+/**
+ * The ordered roads for one call.
+ *
+ * "relay" is a single entry because relayQuery does its own ordering and
+ * failover across the endpoint list — this layer only decides where DIRECT sits
+ * relative to that whole set.
+ */
+function roads(org: OrgDef): ("direct" | "relay")[] {
+  const mode = directMode();
+  const direct = directConfigured(org) && mode !== "off" ? (["direct"] as const) : [];
+  const relay = relayEnabled() ? (["relay"] as const) : [];
+  if (mode === "first") return [...direct, ...relay];
+  return [...relay, ...direct];
+}
+
+/**
+ * Try the roads in order.
+ *
+ * `canFailOver` is false for anything that writes. A stored procedure that timed
+ * out may still have run: the request reached the server, the row was written,
+ * and the response was lost on the way back. Trying the next road then posts a
+ * second loan against a real customer. A read costs nothing to repeat; a write
+ * costs somebody money, so the default is the one that cannot.
+ */
+async function overRoads<T>(
+  org: OrgDef,
+  canFailOver: boolean,
+  run: (road: "direct" | "relay") => Promise<T>,
+): Promise<T> {
+  const list = roads(org);
+  if (list.length === 0) {
+    // Neither road exists. Say which switch turns one on rather than surfacing
+    // a connection error that reads like the lender being down.
+    throw new Error(
+      `${org.name} has no route to its ServiceSuite: ${org.connEnv} is unset and SERVICESUITE_RELAY_URL is empty.`,
+    );
+  }
+
+  let last: unknown;
+  for (let i = 0; i < list.length; i++) {
+    try {
+      return await run(list[i]);
+    } catch (e) {
+      last = e;
+      if (!canFailOver || i === list.length - 1) throw e;
+      // Fall through to the next road. The relay client already distinguishes a
+      // broken road from a SQL error and will not have got here for the latter.
+    }
+  }
+  throw last;
+}
+
 export async function runReadOnlyQuery(
   org: OrgDef,
   query: string,
   params: QueryParam[] = [],
   opts: { timeoutMs?: number; maxRows?: number } = {},
 ): Promise<QueryResult> {
-  if (relayEnabled()) return relayQuery("read", org, query, params, opts);
-  return runReadOnlyQueryDirect(org, query, params, opts);
+  return overRoads(org, true, (road) =>
+    road === "relay" ? relayQuery("read", org, query, params, opts) : runReadOnlyQueryDirect(org, query, params, opts),
+  );
 }
 
 /** The original TDS path: used on the tailnet, and by the relay process itself. */
@@ -117,11 +205,18 @@ export async function callStoredProc(
   params: QueryParam[] = [],
   opts: { timeoutMs?: number } = {},
 ): Promise<Record<string, unknown>[]> {
-  if (relayEnabled()) {
-    const { rows } = await relayQuery("proc", org, procName, params, { timeoutMs: opts.timeoutMs ?? 30000, maxRows: 2000 });
-    return rows;
-  }
-  return callStoredProcDirect(org, procName, params, opts);
+  // canFailOver: FALSE. This is the loan-posting path. A procedure that did not
+  // answer may still have run, and the second attempt would book the loan twice.
+  return overRoads(org, false, async (road) => {
+    if (road === "relay") {
+      const { rows } = await relayQuery("proc", org, procName, params, {
+        timeoutMs: opts.timeoutMs ?? 30000,
+        maxRows: 2000,
+      });
+      return rows;
+    }
+    return callStoredProcDirect(org, procName, params, opts);
+  });
 }
 
 export async function callStoredProcDirect(
@@ -146,15 +241,21 @@ export async function execNonQuery(
   params: QueryParam[] = [],
   opts: { timeoutMs?: number } = {},
 ): Promise<number> {
-  if (relayEnabled()) {
-    // On the "exec" kind the relay carries rowsAffected in rowCount — there is no
-    // recordset to return. A relay that has not been armed for writes refuses
-    // this by name rather than reporting zero rows affected, which would be
-    // indistinguishable from a statement that matched nothing.
-    const { rowCount } = await relayQuery("exec", org, query, params, { timeoutMs: opts.timeoutMs ?? 20000, maxRows: 0 });
-    return rowCount;
-  }
-  return execNonQueryDirect(org, query, params, opts);
+  // canFailOver: FALSE — this writes. See callStoredProc above.
+  return overRoads(org, false, async (road) => {
+    if (road === "relay") {
+      // On the "exec" kind the relay carries rowsAffected in rowCount — there is
+      // no recordset to return. A relay that has not been armed for writes
+      // refuses this by name rather than reporting zero rows affected, which
+      // would be indistinguishable from a statement that matched nothing.
+      const { rowCount } = await relayQuery("exec", org, query, params, {
+        timeoutMs: opts.timeoutMs ?? 20000,
+        maxRows: 0,
+      });
+      return rowCount;
+    }
+    return execNonQueryDirect(org, query, params, opts);
+  });
 }
 
 export async function execNonQueryDirect(
