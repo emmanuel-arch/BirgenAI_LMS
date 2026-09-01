@@ -54,3 +54,6 @@ public/*.png
 
 # Encrypted vault payloads, preserved before a key rotation. Never commit.
 vault-backup/
+
+# Scratch files from tooling; never part of a build.
+*.tmp
