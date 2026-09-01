@@ -7,18 +7,32 @@
 // picture of somebody else's book, and the one thing a lending console must
 // never be is confidently out of date about a balance.
 //
+// ── ARREARS COMES FROM THEIR TABLE, NOT FROM OUR ARITHMETIC ─────────────────
+// `Transactions.dbo.LoansInArrears` is ServiceSuite's own arrears register —
+// LoanId, DaysInArears (their spelling), AmountInArrears — maintained by their
+// job and read by their DashboardController and AnalyticsController for every
+// PAR figure Micromart actually looks at.
+//
+// This file first derived arrears from the schedule instead, and the two do not
+// agree: on 1 Sep 2026 their register said 47 loans and KSh 127,009 while the
+// derived figure said 33 and KSh 108,799. Both are defensible arithmetic; only
+// one is the number on the lender's own screen. A console that contradicts the
+// system of record is worse than one that stays quiet, because the disagreement
+// surfaces in front of the customer and every other figure becomes suspect.
+//
+// So arrears and days-past-due are READ, never computed. The schedule is used
+// for the one thing their register does not carry: the NEXT instalment owing.
+//
 // ── THE COLUMN THAT LIES IF YOU TRUST IT ─────────────────────────────────────
 // LoanSchedule.UnPaidAmount IS NULL ON AN UNPAID INSTALMENT. Not zero — NULL.
+// 3,109 of the 3,111 unpaid rows in this entity carry NULL.
 //
-// So the obvious `WHERE UnPaidAmount > 0` is never true. It matches no rows, and
-// every loan in the estate then reports no payment due and no arrears. Nothing
-// about that looks broken: the screen renders, the columns are merely empty, and
-// the book appears to be perfectly current. It was caught only by running the
-// query against the live database and noticing that a lender with 33 delinquent
-// loans was showing none.
-//
-// What is outstanding on an instalment is `amounttopay - ISNULL(AmountPaid, 0)`.
-// That is the only expression used here. UnPaidAmount is never read.
+// So `WHERE UnPaidAmount > 0` is never true, and `SUM(CASE … THEN UnPaidAmount)`
+// is NULL, which ISNULL(…,0) then reports as a confident zero. ServiceSuite's
+// OWN DashboardController carries this bug — its arrears expression returns 0
+// against this data — which is very likely why its PAR screens read the register
+// instead. What is outstanding is `amounttopay - ISNULL(AmountPaid, 0)`, and
+// that is the only form used here.
 //
 // ── AND THE JOIN THAT WOULD DROP MOST OF THE SCHEDULE ───────────────────────
 // LoanSchedule is joined on `Loanid` alone and deliberately NOT filtered by
@@ -32,18 +46,14 @@ import { type OrgDef } from "@/lib/enterprise/connections";
 /** The outstanding amount on one instalment. The only correct form — see above. */
 const DUE = "(ISNULL(s.amounttopay,0) - ISNULL(s.AmountPaid,0))";
 
-// ── AND THE PREDICATE THAT MAKES IT USABLE ──────────────────────────────────
-// `l.LoanCleared = 0` goes INSIDE both schedule lookups, not just in the outer
-// WHERE. It looks redundant — a cleared loan has nothing outstanding, so the
-// APPLY would return nothing anyway — and it is the difference between a screen
-// and a timeout.
-//
-// 59,771 of Micromart's 61,543 loans are cleared. Without this the optimiser
-// walks a ~2M-row LoanSchedule twice for every one of them to discover that,
-// and the first measured run took 17 SECONDS for five rows and then timed out
-// at 30s on an unfiltered search. With it, the whole cleared book is eliminated
-// before the child table is touched.
-const RUNNING_ONLY = "l.LoanCleared = 0";
+/**
+ * ServiceSuite's arrears register. A CROSS-DATABASE name, written exactly as
+ * their own controllers write it (`Transactions.dbo.LoansInArrears` in
+ * DashboardController and AnalyticsController). It sits beside the loan book on
+ * the same server, so the read-only credential reaches it — verified against
+ * entity 3005.
+ */
+const ARREARS = "Transactions.dbo.LoansInArrears";
 
 /**
  * A SQL Server `date` column, as the calendar date it actually is.
@@ -51,9 +61,9 @@ const RUNNING_ONLY = "l.LoanCleared = 0";
  * NOT toISOString(). The driver hands `date` back as a JS Date at local
  * midnight, so in Nairobi (UTC+3) an instalment due on the 7th becomes
  * "2026-09-06T21:00:00Z" and every due date in the console renders A DAY EARLY.
- * That is worse than a crash: a collections officer chases somebody a day
- * before they are late, and the schedule looks internally consistent while
- * doing it. Caught by comparing the adapter's output against the raw row.
+ * That is worse than a crash: a collections officer chases somebody the day
+ * before they are late, and the schedule stays internally consistent while it
+ * happens. Caught by comparing the adapter's output against the raw row.
  */
 function dateOnly(v: unknown): string | null {
   if (v == null) return null;
@@ -84,13 +94,15 @@ export type LiveLoan = {
   disbursedAt: string | null;
   expectedClearDate: string | null;
   clearedAt: string | null;
-  /** The next instalment still carrying money. Null when nothing is outstanding. */
+  /** The next instalment still carrying money. Derived from the schedule — the
+   *  arrears register does not hold it. */
   nextDue: { date: string; amount: number } | null;
-  /** Everything past its due date and still unpaid. */
+  /** THE LENDER'S OWN FIGURE, from LoansInArrears. Never our arithmetic. */
   arrears: number;
-  /** How long the OLDEST unpaid instalment has been overdue. The honest measure
-   *  of delinquency — the newest missed payment would flatter every case. */
+  /** Their DaysInArears. Their spelling, their number. */
   daysInArrears: number | null;
+  /** When this loan first fell behind, per their register. */
+  firstMissedAt: string | null;
 };
 
 export type LiveLoanFilter = "all" | "active" | "cleared" | "pending" | "arrears";
@@ -109,13 +121,6 @@ export async function listLoansLive(
   // match on the last 9 digits so every format finds the same customer.
   const phone9 = digits.length >= 9 ? digits.slice(-9) : digits;
 
-  // An EXISTS rather than a join: a loan with four overdue instalments must
-  // appear ONCE. A join would repeat it four times and inflate the total in the
-  // header beside it.
-  const overdue =
-    "EXISTS (SELECT 1 FROM LoanSchedule s WHERE s.Loanid = l.id " +
-    `AND ${RUNNING_ONLY} AND ${DUE} > 0 AND s.ExpectedDueDate < CAST(GETDATE() AS date))`;
-
   const byStatus =
     status === "active"
       ? "AND l.isApproved = 1 AND l.LoanCleared = 0 AND l.LoanBalance > 0"
@@ -124,7 +129,9 @@ export async function listLoansLive(
         : status === "pending"
           ? "AND l.isApproved = 0"
           : status === "arrears"
-            ? `AND l.isApproved = 1 AND l.LoanCleared = 0 AND l.LoanBalance > 0 AND ${overdue}`
+            ? // Their register decides who is behind, so the filter and the
+              // number in the column can never disagree with each other.
+              "AND l.isApproved = 1 AND l.LoanCleared = 0 AND l.LoanBalance > 0 AND ISNULL(ia.DaysInArears,0) > 0"
             : "";
 
   const filter = `
@@ -145,21 +152,24 @@ export async function listLoansLive(
     { name: "take", type: mssql.Int, value: take },
   ];
 
-  // ── TWO QUERIES, NOT ONE CORRELATED ONE ────────────────────────────────────
-  // The obvious shape — OUTER APPLY into LoanSchedule for the next instalment
-  // and again for the arrears — is what this started as, and it is unusable:
-  // MEASURED AT ~6,000ms FOR FIVE ROWS, and a timeout at 30s on an unfiltered
-  // search. There is no usable index on LoanSchedule.Loanid, so each APPLY scans
-  // a ~2M-row table once PER LOAN ON THE PAGE.
-  //
-  // So the page is fetched with no child-table work at all (186ms for 50 rows),
-  // and then ONE pass collects every outstanding instalment for exactly those
-  // loans (275ms). Same answer, 461ms instead of 6,000 — and it gets better with
-  // page size rather than worse, because the second query is one scan regardless.
-  //
-  // Folding the instalments in JS rather than in SQL is deliberate: "the next
-  // one still owing" and "everything already overdue" are two different readings
-  // of the same rows, and doing it here means the database is asked once.
+  // The arrears register joins on LoanId and is cheap. THE SCHEDULE IS NOT:
+  // there is no usable index on LoanSchedule.Loanid, so an OUTER APPLY into it
+  // scans a ~2M-row table once per loan on the page — measured at 6,000ms for
+  // FIVE rows, and a timeout at 30s on an unfiltered search. So the page is
+  // fetched without touching the schedule, and one follow-up pass collects the
+  // outstanding instalments for exactly those ids. 28,550ms to ~340ms, and it
+  // improves with page size rather than degrading.
+  const FROM = `
+    FROM Loans l
+    JOIN Borrowers b ON b.ID = l.BorrowerId
+    LEFT JOIN Products pr ON pr.ID = l.ProductId
+    LEFT JOIN ${ARREARS} ia ON ia.LoanId = l.id`;
+
+  const COUNT_FROM =
+    status === "arrears"
+      ? `FROM Loans l JOIN Borrowers b ON b.ID = l.BorrowerId LEFT JOIN ${ARREARS} ia ON ia.LoanId = l.id`
+      : "FROM Loans l JOIN Borrowers b ON b.ID = l.BorrowerId";
+
   const [page, counted] = await Promise.all([
     runReadOnlyQuery(
       org,
@@ -168,22 +178,25 @@ export async function listLoansLive(
               l.LoanCleared, l.isApproved,
               LTRIM(RTRIM(ISNULL(b.firstName,'') + ' ' + ISNULL(b.otherName,''))) AS BorrowerName,
               b.PhoneNumber, b.NationalID,
-              pr.ProductName
-       FROM Loans l
-       JOIN Borrowers b ON b.ID = l.BorrowerId
-       LEFT JOIN Products pr ON pr.ID = l.ProductId
+              pr.ProductName,
+              ISNULL(ia.DaysInArears, 0) AS DaysInArrears,
+              ISNULL(ia.AmountInArrears, 0) AS AmountInArrears,
+              ia.FirstDateInArrears
+       ${FROM}
        WHERE ${filter}
        ORDER BY l.id DESC
        OFFSET @skip ROWS FETCH NEXT @take ROWS ONLY`,
       params,
       { timeoutMs: 45000, maxRows: take },
     ),
-    runReadOnlyQuery(
-      org,
-      `SELECT COUNT(*) AS total FROM Loans l JOIN Borrowers b ON b.ID = l.BorrowerId WHERE ${filter}`,
-      params,
-      { timeoutMs: 45000, maxRows: 1 },
-    ),
+    // The count needs neither the product name nor — unless it is FILTERING on
+    // arrears — the cross-database register. Dropping both off a COUNT over
+    // 61,543 rows is most of the difference between a header that appears with
+    // the page and one that arrives after it.
+    runReadOnlyQuery(org, `SELECT COUNT(*) AS total ${COUNT_FROM} WHERE ${filter}`, params, {
+      timeoutMs: 45000,
+      maxRows: 1,
+    }),
   ]);
 
   const n = (v: unknown): number => {
@@ -194,22 +207,21 @@ export async function listLoansLive(
   const iso = (v: unknown): string | null => (v ? new Date(v as string).toISOString() : null);
 
   // Only loans that can still owe anything are worth asking about. A cleared
-  // loan has no outstanding instalment by definition, and including 59,771 of
-  // them in the id list would undo the whole point of the second query.
+  // loan has no outstanding instalment by definition, and putting 59,771 of them
+  // in the id list would undo the point of the second query.
   const openIds = page.rows
     .filter((r) => n(r.LoanCleared) !== 1)
     .map((r) => n(r.id))
     .filter((id) => Number.isInteger(id) && id > 0);
 
-  type Outstanding = { due: string; amount: number };
-  const byLoan = new Map<number, Outstanding[]>();
+  const nextByLoan = new Map<number, { date: string; amount: number }>();
 
   if (openIds.length > 0) {
     // The ids are integers this function just read out of Loans.id and has
-    // re-validated with Number.isInteger — they are not user input and cannot
-    // carry SQL. A bound parameter would be preferable on principle, but mssql
-    // has no array binding and STRING_SPLIT would pin this to SQL Server 2016+
-    // on a database that is not ours to make assumptions about.
+    // re-validated with Number.isInteger — not user input, and they cannot carry
+    // SQL. A bound parameter would be preferable on principle, but mssql has no
+    // array binding and STRING_SPLIT would pin this to SQL Server 2016+ on a
+    // database that is not ours to make assumptions about.
     const { rows } = await runReadOnlyQuery(
       org,
       `SELECT s.Loanid, s.ExpectedDueDate, ${DUE} AS DueAmount
@@ -220,29 +232,18 @@ export async function listLoansLive(
     );
     for (const r of rows) {
       const id = n(r.Loanid);
-      const due = dateOnly(r.ExpectedDueDate);
-      if (!due) continue;
-      const list = byLoan.get(id) ?? [];
-      list.push({ due, amount: n(r.DueAmount) });
-      byLoan.set(id, list);
+      const date = dateOnly(r.ExpectedDueDate);
+      if (!date) continue;
+      const current = nextByLoan.get(id);
+      // The EARLIEST instalment still owing is the one a customer is asked for.
+      if (!current || date < current.date) nextByLoan.set(id, { date, amount: n(r.DueAmount) });
     }
   }
-
-  // Compared as calendar days in UTC so a Nairobi afternoon does not make
-  // today's instalment look overdue.
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const todayMs = Date.parse(`${todayKey}T00:00:00Z`);
 
   const loans: LiveLoan[] = page.rows.map((r) => {
     const cleared = n(r.LoanCleared) === 1;
     const approved = n(r.isApproved) === 1;
-    const outstanding = (byLoan.get(n(r.id)) ?? []).sort((a, b) => a.due.localeCompare(b.due));
-
-    const next = outstanding[0] ?? null;
-    const overdue = outstanding.filter((x) => x.due < todayKey);
-    const arrears = overdue.reduce((sum, x) => sum + x.amount, 0);
-    const oldest = overdue[0]?.due ?? null;
-
+    const dpd = n(r.DaysInArrears);
     return {
       ref: `ss:${n(r.id)}`,
       serviceSuiteId: n(r.id),
@@ -261,9 +262,10 @@ export async function listLoansLive(
       disbursedAt: iso(r.LoanDisbursmentDate),
       expectedClearDate: dateOnly(r.ExpectedClearDate),
       clearedAt: iso(r.DateCleared),
-      nextDue: next ? { date: next.due, amount: next.amount } : null,
-      arrears,
-      daysInArrears: oldest ? Math.max(0, Math.round((todayMs - Date.parse(`${oldest}T00:00:00Z`)) / 86_400_000)) : null,
+      nextDue: nextByLoan.get(n(r.id)) ?? null,
+      arrears: n(r.AmountInArrears),
+      daysInArrears: dpd > 0 ? dpd : null,
+      firstMissedAt: dateOnly(r.FirstDateInArrears),
     };
   });
 
@@ -286,6 +288,8 @@ export type LoanBookStats = {
   inArrears: number;
   olb: number;
   arrearsValue: number;
+  /** The worst days-past-due in the running book. Their number. */
+  worstDpd: number;
 };
 
 export async function getLoanBookStats(org: OrgDef, entityId: number): Promise<LoanBookStats> {
@@ -304,20 +308,17 @@ export async function getLoanBookStats(org: OrgDef, entityId: number): Promise<L
       param,
       { timeoutMs: 45000, maxRows: 1 },
     ),
-    // A second pass on purpose. Folding arrears into the aggregate above needs a
-    // correlated subquery inside a SUM across the whole 61.5k-row book, and the
-    // optimiser turns that into a scan — the header goes from fast to unusable.
+    // Straight off their register, so this matches the figure on Micromart's own
+    // dashboard rather than being a second opinion about the same book.
     runReadOnlyQuery(
       org,
-      `SELECT COUNT(*) AS inArrears, ISNULL(SUM(d.Arrears), 0) AS arrearsValue
+      `SELECT COUNT(*) AS inArrears,
+              ISNULL(SUM(ia.AmountInArrears), 0) AS arrearsValue,
+              ISNULL(MAX(ia.DaysInArears), 0) AS worstDpd
        FROM Loans l
-       CROSS APPLY (
-         SELECT SUM(${DUE}) AS Arrears
-         FROM LoanSchedule s WHERE s.Loanid = l.id AND ${RUNNING_ONLY} AND ${DUE} > 0
-           AND s.ExpectedDueDate < CAST(GETDATE() AS date)
-       ) d
+       JOIN ${ARREARS} ia ON ia.LoanId = l.id
        WHERE l.EntityId = @entityId AND l.isApproved = 1 AND l.LoanCleared = 0
-         AND l.LoanBalance > 0 AND d.Arrears > 0`,
+         AND l.LoanBalance > 0 AND ia.DaysInArears > 0`,
       param,
       { timeoutMs: 45000, maxRows: 1 },
     ),
@@ -336,5 +337,6 @@ export async function getLoanBookStats(org: OrgDef, entityId: number): Promise<L
     olb: n(r.olb),
     inArrears: n(ar.rows[0]?.inArrears),
     arrearsValue: n(ar.rows[0]?.arrearsValue),
+    worstDpd: n(ar.rows[0]?.worstDpd),
   };
 }
