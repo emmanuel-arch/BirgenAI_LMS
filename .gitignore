@@ -57,3 +57,5 @@ vault-backup/
 
 # Scratch files from tooling; never part of a build.
 *.tmp
+*.tmp.sql
+sp_sp_*.sql
