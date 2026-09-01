@@ -97,7 +97,8 @@
     "interchange:verify": "tsx scripts/interchange-verify.ts",
     "test:realms": "tsx scripts/verify-realms.ts",
     "test:analytics-live": "tsx scripts/verify-analytics-live.ts",
-    "test:reporting": "tsx scripts/verify-reporting.ts"
+    "test:reporting": "tsx scripts/verify-reporting.ts",
+    "test:live-loans": "tsx scripts/verify-live-loans.mts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
