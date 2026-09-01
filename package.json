@@ -99,7 +99,8 @@
     "test:analytics-live": "tsx scripts/verify-analytics-live.ts",
     "test:reporting": "tsx scripts/verify-reporting.ts",
     "test:live-loans": "tsx scripts/verify-live-loans.mts",
-    "test:live-statement": "tsx scripts/verify-live-statement.mts"
+    "test:live-statement": "tsx scripts/verify-live-statement.mts",
+    "test:ladder": "tsx scripts/verify-ladder.mts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
