@@ -87,3 +87,18 @@ export async function resolveOrg(slug: string): Promise<ResolvedOrg | null> {
     isDemo: row.isDemo,
   };
 }
+
+/**
+ * The same resolution, keyed on the org id.
+ *
+ * Background work — the promise resolver, the nightly crons — carries an orgId
+ * and no slug, because nothing in Postgres is keyed on the slug. One extra read
+ * to find it is cheaper than threading a slug through every caller, and it is
+ * only paid when a job actually needs the lender's own system.
+ */
+export async function resolveOrgById(id: string): Promise<ResolvedOrg | null> {
+  const s = (id ?? "").trim();
+  if (!s) return null;
+  const row = await runAsPlatform(() => prisma.org.findUnique({ where: { id: s }, select: { slug: true } }));
+  return row ? resolveOrg(row.slug) : null;
+}

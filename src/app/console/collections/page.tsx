@@ -24,6 +24,12 @@ type QueueRow = {
   ptp: { id: string; amount: number; dueDate: string; overdue: boolean } | null;
   lastCall: { outcome: string; at: string; by: string | null } | null;
   openTickets: number;
+  // ── Present only on a BRIDGED lender's queue (source: "servicesuite") ─────
+  /** `ss:<borrowerId>` — the ref the resolve step takes. */
+  liveBorrowerRef?: string;
+  /** No local record for this customer yet, so nothing can be logged against
+   *  them until an officer opens them. */
+  needsResolve?: boolean;
 };
 type Summary = { loansOverdue: number; amountOverdue: number; ptpsPending: number; ptpsDueToday: number; ptpsBroken30d: number; ticketsOpen: number };
 type Ptp = {
@@ -71,6 +77,20 @@ const TICKET_TONE: Record<string, string> = {
   CLOSED: "bg-ash-900/5 text-ash-500",
 };
 const KINDS = ["DISPUTE", "HARDSHIP", "FRAUD", "COMPLAINT", "LEGAL", "OTHER"];
+
+/**
+ * Where a queue row's customer opens.
+ *
+ * A row from the lender's live book has no Customer 360 to open — that page is
+ * all our own machinery (KYC, early warning, the graduation ladder) and none of
+ * it exists for somebody who has never been through our funnel. So it goes
+ * through the RESOLVE step, which seeds a local record from the lender's own
+ * data and hands off to the canonical page. Local rows link straight there.
+ */
+const customerHref = (r: QueueRow) =>
+  r.needsResolve || r.borrowerId.startsWith("ss:")
+    ? `/console/borrowers/resolve/${encodeURIComponent(r.liveBorrowerRef ?? r.borrowerId)}`
+    : `/console/borrowers/${r.borrowerId}`;
 
 const kes = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
@@ -168,9 +188,19 @@ function QueueTab({ onChanged, setNotice, setError }: { onChanged: () => void; s
   const [logFor, setLogFor] = useState<QueueRow | null>(null);
 
   const load = async () => {
-    const res = await fetch("/api/console/collections/queue");
-    const data = await res.json();
-    if (data.success) setRows(data.rows);
+    try {
+      const res = await fetch("/api/console/collections/queue");
+      const data = await res.json();
+      if (data.success) { setRows(data.rows); return; }
+      // A queue that could not be READ is not a queue with nobody in it. Say so
+      // and stop the spinner: "Reading the book…" forever reads as "still
+      // loading", which is the same lie as showing nobody in arrears.
+      setRows([]);
+      setError(data.message || "Could not read the arrears queue.");
+    } catch {
+      setRows([]);
+      setError("Could not read the arrears queue.");
+    }
   };
   useLoad(load);
 
@@ -205,12 +235,17 @@ function QueueTab({ onChanged, setNotice, setError }: { onChanged: () => void; s
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Link href={`/console/borrowers/${r.borrowerId}`} className="text-sm font-semibold hover:underline">{r.name}</Link>
+                    <Link href={customerHref(r)} className="text-sm font-semibold hover:underline">{r.name}</Link>
                     <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${BUCKET_TONE[r.bucket]}`}>{r.dpd}d overdue</span>
                     {r.openTickets > 0 && <span className="rounded-md bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">{r.openTickets} ticket{r.openTickets > 1 ? "s" : ""}</span>}
                   </div>
                   <p className="mt-0.5 text-xs text-ash-500">{r.product} · owes {kes(r.amountOverdue)} of {kes(r.balance)} balance</p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px]">
+                    {r.needsResolve && (
+                      <span className="rounded-md bg-amber-100 px-2 py-0.5 font-semibold text-amber-700">
+                        Not in your records yet — open them to work this debt
+                      </span>
+                    )}
                     {r.ptp && (
                       <span className={`rounded-md px-2 py-0.5 font-semibold ${r.ptp.overdue ? "bg-red-100 text-red-700" : "bg-sky-100 text-sky-700"}`}>
                         Promised {kes(r.ptp.amount)} by {day(r.ptp.dueDate)}{r.ptp.overdue ? " — date passed" : ""}
@@ -227,18 +262,34 @@ function QueueTab({ onChanged, setNotice, setError }: { onChanged: () => void; s
                   <a href={`tel:${r.phone}`} className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold text-white" style={{ backgroundColor: "var(--brand)" }}>
                     <Phone className="h-3.5 w-3.5" /> Call
                   </a>
-                  <button onClick={() => setLogFor(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-2 text-xs font-semibold text-ash-700 hover:bg-paper">
-                    <ClipboardList className="h-3.5 w-3.5" /> Log call
-                  </button>
-                  {/* The SAME component the Customer-360, the counter and Field Ops use.
-                      An agent on a call can ask for the installment, a fee, or the part
-                      payment the customer just offered — without a second code path. */}
-                  <RequestPaymentButton
-                    borrowerId={r.borrowerId}
-                    borrowerName={r.name}
-                    channel="collections"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                  />
+                  {r.needsResolve ? (
+                    // Their debt, their customer, and no record here yet. A call
+                    // log and a payment request both need a borrower to attach
+                    // to, so offering them offers a button that 409s. The honest
+                    // action is the resolve step itself — one click, and every
+                    // other action on this row starts working.
+                    <Link
+                      href={customerHref(r)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-2 text-xs font-semibold text-ash-700 hover:bg-paper"
+                    >
+                      <UserRound className="h-3.5 w-3.5" /> Open customer
+                    </Link>
+                  ) : (
+                    <>
+                      <button onClick={() => setLogFor(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-2 text-xs font-semibold text-ash-700 hover:bg-paper">
+                        <ClipboardList className="h-3.5 w-3.5" /> Log call
+                      </button>
+                      {/* The SAME component the Customer-360, the counter and Field Ops use.
+                          An agent on a call can ask for the installment, a fee, or the part
+                          payment the customer just offered — without a second code path. */}
+                      <RequestPaymentButton
+                        borrowerId={r.borrowerId}
+                        borrowerName={r.name}
+                        channel="collections"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                      />
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -274,7 +325,13 @@ function LogCallSheet({ row, onClose, onLogged, setError }: {
       const res = await fetch("/api/console/collections/calls", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          loanId: row.loanId, outcome, note: note.trim() || undefined,
+          loanId: row.loanId,
+          // A loan in the lender's own book has no row of ours to key on, so the
+          // call and any promise hang off the BORROWER instead — which is how
+          // the live queue reads the human layer back. Harmless on a local loan,
+          // where the route still takes the borrower from the loan itself.
+          borrowerId: row.borrowerId,
+          outcome, note: note.trim() || undefined,
           ...(outcome === "PROMISE_TO_PAY" ? { ptp: { amount: Number(amount), dueDate } } : {}),
         }),
       });

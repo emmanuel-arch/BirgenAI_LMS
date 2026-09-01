@@ -171,6 +171,35 @@ export function relayRoadState(): { endpoints: string[]; active: string | null }
   return { endpoints: relayEndpoints(), active: preferredRoad() };
 }
 
+/**
+ * Is the relay armed for writes? — asked BEFORE offering a button that writes.
+ *
+ * A relay refuses `exec` and `proc` unless SQL_RELAY_ALLOW_WRITES=true, which is
+ * the correct default. Without this probe the only way to discover that is to
+ * let an officer find a suspended payment, type a reference, confirm a customer
+ * and press Reconcile — and then be told the deployment was never going to do
+ * it. The screen asks first and says so instead.
+ *
+ * NULL means "it did not say": an unreachable relay, or one built before
+ * /health reported this. Null is not "read-only" — the caller must let the
+ * write be attempted and report the refusal honestly rather than disabling a
+ * button on a guess.
+ */
+export async function relayWritesArmed(): Promise<boolean | null> {
+  for (const base of roadsToTry()) {
+    try {
+      const res = await fetch(`${base}/health`, { cache: "no-store", signal: AbortSignal.timeout(2500) });
+      if (!res.ok) continue;
+      const body = (await res.json()) as { writes?: unknown };
+      if (typeof body.writes === "boolean") return body.writes;
+      return null; // it answered, but this relay predates the field
+    } catch {
+      /* try the next road */
+    }
+  }
+  return null;
+}
+
 function relaySecret(): string {
   return (process.env.SERVICESUITE_RELAY_SECRET ?? "").trim();
 }

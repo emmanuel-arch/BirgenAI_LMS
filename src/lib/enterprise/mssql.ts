@@ -13,7 +13,7 @@
 
 import mssql, { type ConnectionPool, type config as MssqlConfig } from "mssql";
 import { getMssqlConfig, type OrgDef } from "./connections";
-import { relayEnabled, relayQuery, isRoadFailure } from "./relay";
+import { relayEnabled, relayQuery, isRoadFailure, relayWritesArmed } from "./relay";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TWO WAYS TO REACH THE SAME SERVER, CHOSEN ONCE, HERE.
@@ -279,6 +279,72 @@ export async function execNonQueryDirect(
   for (const prm of params) request.input(prm.name, prm.type as mssql.ISqlType, prm.value);
   const result = await request.query(query);
   return result.rowsAffected?.[0] ?? 0;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CAN THIS DEPLOYMENT WRITE TO THE LENDER'S SERVER?
+//
+// Every write leaves here by one of two roads, and they answer that question
+// differently. A DIRECT socket writes whenever it is configured and in the road
+// order. A RELAY refuses `exec` and `proc` outright unless it was started with
+// SQL_RELAY_ALLOW_WRITES=true.
+//
+// Screens that offer a write — reconciling a suspended payment is the first —
+// ask this first, so the button is disabled with a reason rather than failing
+// under the officer's hand after they have done all the thinking.
+//
+// UNKNOWN is a real answer and is treated as one: an old or unreachable relay
+// gets `armed: null`, and the caller must still let the attempt happen. Refusing
+// to try because we could not confirm would break a deployment that works.
+// ─────────────────────────────────────────────────────────────────────────────
+export type WritePathState = {
+  /** A direct TDS socket is configured and in the road order for this org. */
+  direct: boolean;
+  /** What the relay says: armed, read-only, unknown (old/unreachable), or none configured. */
+  relay: "armed" | "read-only" | "unknown" | "none";
+  /** Will a write be accepted? null when nothing on any road could tell us. */
+  armed: boolean | null;
+  /** One sentence, for the screen. */
+  detail: string;
+};
+
+export async function writePathState(org: OrgDef): Promise<WritePathState> {
+  const direct = directConfigured(org) && directMode() !== "off";
+  if (!relayEnabled()) {
+    return direct
+      ? { direct, relay: "none", armed: true, detail: "Writing over a direct connection to the lender's server." }
+      : {
+          direct,
+          relay: "none",
+          armed: false,
+          detail: "No road to the lender's server is configured on this deployment — neither a direct connection nor a relay.",
+        };
+  }
+
+  const armed = await relayWritesArmed();
+  if (armed === true) {
+    return { direct, relay: "armed", armed: true, detail: "The relay is armed for writes." };
+  }
+  if (armed === false) {
+    // Direct still wins when it is ahead of the relays, because that is the road
+    // the write will actually take.
+    return direct && directMode() === "first"
+      ? { direct, relay: "read-only", armed: true, detail: "Writing over the direct connection; the relay behind it is read-only." }
+      : {
+          direct,
+          relay: "read-only",
+          armed: false,
+          detail: "The relay is read-only. Set SQL_RELAY_ALLOW_WRITES=true on the relay host to arm writes.",
+        };
+  }
+  return {
+    direct,
+    relay: "unknown",
+    armed: direct ? true : null,
+    detail: direct
+      ? "Writing over the direct connection; the relay did not report whether it is armed."
+      : "The relay did not say whether it is armed for writes — the attempt will tell us.",
+  };
 }
 
 /** Convenience: run a single-scalar metric query returning the `value` column. */

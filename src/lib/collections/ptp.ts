@@ -14,8 +14,42 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { resolveOrgById, type ResolvedOrg } from "@/lib/tenancy";
+import { paidOnLoanSince } from "@/lib/lms/servicesuite-statement";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** "ss:9351" — a promise taken on a loan that lives in the LENDER'S book. */
+const LIVE_LOAN = /^ss:([0-9]+)$/;
+
+/**
+ * Money that landed on a LIVE loan since `since`, or null when we could not ask.
+ *
+ * A promise taken from the live arrears queue is keyed on `ss:<loanId>`, and the
+ * repayment that answers it lands in the LENDER'S paybill and the LENDER'S
+ * ledger — never in our C2BReceipt or PaymentIntent tables. `paidSince` asked of
+ * those tables returns zero for every one of these, which would resolve every
+ * live promise BROKEN and put "broke their promise" against a customer who paid.
+ *
+ * NULL, not 0, when their system cannot be reached: an unread promise stays
+ * PENDING and is asked again on the next sweep. Guessing zero is the exact
+ * failure this function exists to prevent.
+ */
+async function paidOnLiveLoan(
+  orgId: string,
+  serviceSuiteLoanId: number,
+  since: Date,
+  cache: Map<string, ResolvedOrg | null>,
+): Promise<number | null> {
+  if (!cache.has(orgId)) cache.set(orgId, await resolveOrgById(orgId).catch(() => null));
+  const org = cache.get(orgId) ?? null;
+  if (!org?.registry || !org.bridgedReady) return null;
+  try {
+    return await paidOnLoanSince(org.registry, serviceSuiteLoanId, since);
+  } catch {
+    return null;
+  }
+}
 
 /** Money that landed on the loan since `since` — allocated C2B + successful STK, deduped by receipt. */
 export async function paidSince(orgId: string, loanId: string, since: Date): Promise<number> {
@@ -80,8 +114,14 @@ export async function resolveDuePromises(orgId?: string): Promise<PtpResolution[
   });
 
   const out: PtpResolution[] = [];
+  const orgs = new Map<string, ResolvedOrg | null>();
   for (const p of due) {
-    const paid = await paidSince(p.orgId, p.loanId, p.createdAt);
+    const live = LIVE_LOAN.exec(p.loanId);
+    const paid = live
+      ? await paidOnLiveLoan(p.orgId, Number(live[1]), p.createdAt, orgs)
+      : await paidSince(p.orgId, p.loanId, p.createdAt);
+    // Their system did not answer. Leave it PENDING; the next sweep asks again.
+    if (paid === null) continue;
     const status = paid >= Number(p.amount) ? "KEPT" : paid > 0 ? "PARTIAL" : "BROKEN";
     await prisma.promiseToPay.update({
       where: { id: p.id },

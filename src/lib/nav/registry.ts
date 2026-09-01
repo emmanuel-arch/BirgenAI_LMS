@@ -95,7 +95,10 @@ export const NAV_REGISTRY: NavModule[] = [
       // its own screen when treasury grows beyond one ledger.
       { key: "disbursements", label: "Disbursements & Float", href: "/console/disbursements", icon: "Banknote", right: "disbursements.view" },
       { key: "repayments", label: "Repayments", href: "/console/repayments", icon: "HandCoins", right: "repayments.view" },
-      { key: "reconciliation", label: "Reconciliation", href: "/console/reconciliation", icon: "Scale", right: "reconciliation.view" },
+      // Two tabs, two books: our exceptions queue, and the lender's own parking
+      // bay of payments that arrived with a reference nobody could match.
+      { key: "reconciliation", label: "Reconciliation", href: "/console/reconciliation", icon: "Scale", right: "reconciliation.view", exact: true },
+      { key: "reconciliation-suspended", label: "Suspended Payments", href: "/console/reconciliation?tab=suspended", icon: "Banknote", right: "reconciliation.view", exact: true },
     ],
   },
   {

@@ -276,3 +276,35 @@ export async function getCustomerStatementLive(
     truncated: n(totals.n) > txnRows.rows.length,
   };
 }
+
+/**
+ * What has been REPAID on one of their loans since a moment in time.
+ *
+ * The promise-to-pay resolver needs this. A promise taken on the live arrears
+ * queue is keyed on `ss:<loanId>`, and the money that answers it lands in THEIR
+ * paybill and THEIR ledger — never in our C2BReceipt/PaymentIntent tables. Asked
+ * of those tables the answer is always zero, which would resolve every live
+ * promise BROKEN and tell an officer a customer who paid did not.
+ *
+ * TransType 2, because a repayment is money leaving the CUSTOMER (see the header
+ * — this is the semantic that is easy to get backwards, and getting it backwards
+ * here would count a disbursement as a repayment).
+ *
+ * Not entity-filtered, deliberately: the loan id establishes the entity, and
+ * CustomerStatement is a child table — see the 3005 transfer note in the header.
+ */
+export async function paidOnLoanSince(org: OrgDef, serviceSuiteLoanId: number, since: Date): Promise<number> {
+  const { rows } = await runReadOnlyQuery(
+    org,
+    `SELECT ISNULL(SUM(c.Amount), 0) AS paid
+     FROM CustomerStatement c WITH (NOLOCK)
+     WHERE c.LoanId = @loanId AND c.TransType = 2 AND c.TransactedDate >= @since`,
+    [
+      { name: "loanId", type: mssql.Int, value: serviceSuiteLoanId },
+      { name: "since", type: mssql.DateTime, value: since },
+    ],
+    { timeoutMs: 30000, maxRows: 1 },
+  );
+  const v = Number(rows[0]?.paid);
+  return Number.isFinite(v) ? Math.round(v * 100) / 100 : 0;
+}

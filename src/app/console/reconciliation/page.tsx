@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
 import {
   Loader2, AlertTriangle, CheckCircle2, Scale, RefreshCw, ShieldCheck,
   Banknote, EyeOff, Undo2, Zap,
 } from "lucide-react";
 import { ReconcileToCustomer } from "./ReconcileToCustomer";
+import { SuspendedPayments } from "./SuspendedPayments";
 
 // Finance's exceptions queue. Every card is one disagreement between what
 // M-Pesa says happened and what the book says happened. The queue empties by
@@ -54,7 +56,69 @@ function sourceOf(e: Ex): string {
   return parts.length ? parts.join(" · ") : e.message;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TWO BOOKS, ONE SCREEN.
+//
+// EXCEPTIONS is ours: disagreements between what M-Pesa says happened and what
+// our own ledger says happened. For a bridged lender it is correctly EMPTY —
+// their money never touches our tables — and an empty exceptions queue was the
+// only thing this screen had to say to them.
+//
+// SUSPENDED PAYMENTS is theirs: money that reached their paybill with a
+// reference that matched no account, parked in their own system. That is where a
+// bridged lender's unreconciled money actually is, and it is the tab that makes
+// this screen mean anything to Micromart.
+// ─────────────────────────────────────────────────────────────────────────────
+const TABS = [
+  { key: "exceptions", label: "Exceptions", icon: Scale },
+  { key: "suspended", label: "Suspended Payments", icon: Banknote },
+] as const;
+
+const BLURB: Record<string, string> = {
+  exceptions: "Every shilling M-Pesa moved, checked against the book. Checked nightly — or right now.",
+  suspended:
+    "Money that reached the lender's paybill with a reference nobody could match. It is parked, not lost — and it stays parked until somebody says whose it is.",
+};
+
 export default function ReconciliationPage() {
+  return (
+    <Suspense fallback={null}>
+      <Reconciliation />
+    </Suspense>
+  );
+}
+
+function Reconciliation() {
+  const router = useRouter();
+  const search = useSearchParams();
+  const tab = search.get("tab") === "suspended" ? "suspended" : "exceptions";
+
+  return (
+    <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
+      <h1 className="flex items-center gap-2 text-xl font-bold">
+        <Scale className="h-5 w-5" style={{ color: "var(--brand)" }} /> Reconciliation
+      </h1>
+      <p className="mt-1 max-w-2xl text-sm text-ash-500">{BLURB[tab]}</p>
+
+      <div className="mt-5 flex flex-wrap gap-1.5">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => router.replace(t.key === "exceptions" ? "/console/reconciliation" : `/console/reconciliation?tab=${t.key}`)}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold ${tab === t.key ? "text-white" : "border border-ash-900/10 bg-paper/70 text-ash-600 hover:bg-paper"}`}
+            style={tab === t.key ? { backgroundColor: "var(--brand)" } : undefined}
+          >
+            <t.icon className="h-3.5 w-3.5" /> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "exceptions" ? <ExceptionsTab /> : <SuspendedPayments />}
+    </main>
+  );
+}
+
+function ExceptionsTab() {
   const [data, setData] = useState<Data | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,24 +157,16 @@ export default function ReconciliationPage() {
 
   if (!data) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-ash-500">
-        {error ? <span className="text-red-600">{error}</span> : <Loader2 className="h-5 w-5 animate-spin" />}
+      <div className="glass mt-5 flex items-center gap-2 p-5 text-sm text-ash-500">
+        {error ? <span className="text-red-600">{error}</span> : <><Loader2 className="h-4 w-4 animate-spin" /> Checking the money against the book…</>}
       </div>
     );
   }
 
   return (
-    <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
+    <div>
 
-        <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold flex items-center gap-2">
-              <Scale className="h-5 w-5" style={{ color: "var(--brand)" }} /> Reconciliation
-            </h1>
-            <p className="mt-1 text-sm text-ash-500">
-              Every shilling M-Pesa moved, checked against the book. Checked nightly — or right now.
-            </p>
-          </div>
+        <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
           <button onClick={() => post({ action: "sweep" }, "sweep")} disabled={busy !== null}
             className="inline-flex items-center gap-2 rounded-lg bg-invert px-4 py-2.5 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
             {busy === "sweep" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
@@ -243,7 +299,7 @@ export default function ReconciliationPage() {
           Exceptions are raised the moment a payment fails to post, and every check is re-run nightly. A condition that
           stops reproducing closes itself; anything resolved that comes back is reopened.
         </p>
-      </main>
+      </div>
   );
 }
 

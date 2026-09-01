@@ -135,11 +135,11 @@ export async function listSuspendedTxns(
   org: OrgDef,
   entityId: number,
   opts: { take?: number; q?: string } = {},
-): Promise<{ txns: SuspendedTxn[]; total: number; shortCodes: number[] }> {
+): Promise<{ txns: SuspendedTxn[]; total: number; value: number; shortCodes: number[] }> {
   const take = Math.min(Math.max(opts.take ?? 100, 1), 500);
   const q = (opts.q ?? "").trim();
   const shortCodes = await lenderPaybills(org);
-  if (shortCodes.length === 0) return { txns: [], total: 0, shortCodes };
+  if (shortCodes.length === 0) return { txns: [], total: 0, value: 0, shortCodes };
 
   // The codes come from our own query of OrganizationUnits and are re-validated
   // as integers; they are not user input and cannot carry SQL.
@@ -163,10 +163,16 @@ export async function listSuspendedTxns(
       params,
       { timeoutMs: 45000, maxRows: take },
     ),
-    runReadOnlyQuery(org, `SELECT COUNT(*) AS total FROM ${PAYMENTS} p WITH (NOLOCK) WHERE ${filter}`, params, {
-      timeoutMs: 45000,
-      maxRows: 1,
-    }),
+    // The value comes off the same scan as the count. A parking bay is a number
+    // of payments AND an amount of somebody's money, and the amount is the half
+    // that makes anyone open the screen.
+    runReadOnlyQuery(
+      org,
+      `SELECT COUNT(*) AS total, ISNULL(SUM(p.TransAmount), 0) AS value
+       FROM ${PAYMENTS} p WITH (NOLOCK) WHERE ${filter}`,
+      params,
+      { timeoutMs: 45000, maxRows: 1 },
+    ),
   ]);
 
   const n = (v: unknown): number => {
@@ -187,6 +193,7 @@ export async function listSuspendedTxns(
       methodUsed: r.MethodUsed == null ? null : n(r.MethodUsed),
     })),
     total: n(counted.rows[0]?.total),
+    value: n(counted.rows[0]?.value),
     shortCodes,
   };
 }
