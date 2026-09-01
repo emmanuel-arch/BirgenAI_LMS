@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
             olb: r.olb,
             clearedLoans: r.clearedLoans,
             loanLimit: r.loanLimit,
-            creditScore: r.creditScore,
+            riskScore: r.riskScore,
             riskCategory: r.riskCategory,
             graduationCount: r.graduationCount,
             dueInDays: r.dueInDays,

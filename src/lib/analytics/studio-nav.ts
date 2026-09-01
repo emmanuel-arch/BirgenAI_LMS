@@ -19,7 +19,7 @@
 // screen that opens on the right question beats a blank pivot every time.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { Right } from "@/lib/rbac/rights";
-import { isDenied } from "@/lib/rbac/modules";
+import { isDenied } from "@/lib/rbac/module-keys";
 
 export type StudioItem = {
   key: string;

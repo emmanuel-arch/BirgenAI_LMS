@@ -935,6 +935,83 @@ export async function pullMetropol(
   return { ...report, calls };
 }
 
+/**
+ * ONE report, on its own, with the bureau's RAW answer kept.
+ *
+ * pullMetropol() is the orchestrator: it runs a SET, merges the answers into one
+ * borrower file, and throws the raw responses away once mapped — which is exactly
+ * right for a credit decision, where what you want is the merged view.
+ *
+ * The master file wants the opposite. Its whole premise is that every scrutiny is
+ * an artifact in its own right: "Metropol Report 12, pulled on the 2nd, said
+ * this" is a different and more auditable claim than "the bureau file says this",
+ * and it is the form a report has to be in before it can be weighed, aged, or
+ * contributed to the Interchange. So this returns the untouched JSON, per report,
+ * and never merges.
+ *
+ * It NEVER throws for a report the bureau simply cannot answer. A thin file
+ * (E017), an unentitled report (E029) and an empty key (E002) are FINDINGS — "we
+ * asked, and this is what came back" — and a sweep of fourteen reports that
+ * aborted on the first of them would tell a lender nothing about the other
+ * thirteen. Only the transport failing is an error, and even then it is reported
+ * rather than raised.
+ */
+export type SingleReportResult = {
+  code: number;
+  key: string;
+  name: string;
+  ok: boolean;
+  /** True when this report has no JSON caller at all — report 4 is a binary PDF. */
+  skipped: boolean;
+  apiCode: string | null;
+  message: string | null;
+  ms: number;
+  /** The bureau's own response, untouched. Null unless `ok`. */
+  json: Record<string, unknown> | null;
+};
+
+export async function pullSingleReport(
+  cfg: CrbConfig,
+  subject: Subject,
+  code: number,
+  opts: { loanAmount?: number; reportReason?: ReportReason; applicationRef?: string } = {},
+): Promise<SingleReportResult> {
+  const def = reportByCode(code as ReportCode);
+  const name = def?.name ?? `Report ${code}`;
+  const key = def?.key ?? `report-${code}`;
+  const caller = CALLERS[code];
+  const started = Date.now();
+
+  if (!caller) {
+    return { code, key, name, ok: false, skipped: true, apiCode: null, message: "No JSON endpoint — this report is a binary document.", ms: 0, json: null };
+  }
+
+  const args: CreditArgs = {
+    ...subject,
+    // Several reports price the enquiry off the amount being applied for. Zero is
+    // rejected by the bureau, so a nominal amount stands in when none is given —
+    // the reports that ignore it are unaffected, and the ones that do not at
+    // least get a valid request rather than a validation error.
+    loanAmount: Math.max(1, Math.round(opts.loanAmount || 0)) || 10_000,
+    reportReason: opts.reportReason,
+    applicationRef: opts.applicationRef,
+  };
+
+  try {
+    const json = await caller(cfg, args);
+    return { code, key, name, ok: true, skipped: false, apiCode: null, message: null, ms: Date.now() - started, json };
+  } catch (err) {
+    const e = err instanceof MetropolError ? err : null;
+    return {
+      code, key, name, ok: false, skipped: false,
+      apiCode: e?.apiCode ?? null,
+      message: e?.message ?? (err instanceof Error ? err.message : "Request failed."),
+      ms: Date.now() - started,
+      json: null,
+    };
+  }
+}
+
 /** API codes that mean "this report has no answer for this person", not "we failed". */
 const SOFT_CODES = new Set(["E017", "E002", "E029", "E016", "E019"]);
 

@@ -46,7 +46,7 @@ async function main() {
     console.log(
       `    ${b.ref.padEnd(11)} ${(b.name ?? "-").padEnd(34).slice(0, 34)} ${(b.phone ?? "-").padEnd(13)}` +
       ` loans ${String(b.loansCount).padStart(3)}  cleared ${String(b.clearedLoans).padStart(3)}` +
-      `  olb ${kes(b.olb).padStart(14)}  score ${b.creditScore ?? "-"}  geo ${b.hasGeo ? "yes" : "NO"}`,
+      `  olb ${kes(b.olb).padStart(14)}  risk ${b.riskScore ?? "-"}  geo ${b.hasGeo ? "yes" : "NO"}`,
     );
   }
 
@@ -82,7 +82,7 @@ async function main() {
       bad(`could not read borrower ${target.serviceSuiteId} back by id`);
     } else {
       console.log(`    ${seed.firstName} ${seed.otherName}  phone ${seed.phone}  NID ${seed.nationalId}`);
-      console.log(`    dob ${seed.dob?.slice(0, 10) ?? "-"}  gender ${seed.gender ?? "-"}  score ${seed.creditScore ?? "-"}` +
+      console.log(`    dob ${seed.dob?.slice(0, 10) ?? "-"}  gender ${seed.gender ?? "-"}  risk ${seed.riskScore ?? "-"}` +
                   `  limit ${seed.loanLimit != null ? kes(seed.loanLimit) : "-"}  graduations ${seed.graduationCount}`);
       console.log(`    email ${seed.email ?? "(none — placeholder rejected)"}`);
       if (seed.serviceSuiteId === target.serviceSuiteId) ok("id round-trips"); else bad("id did not round-trip");

@@ -1,17 +1,34 @@
 "use client";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The Customer-360 kebab — every way an officer may change this account, in one
-// place, top-right of the identity card.
+// MANAGE — every way an officer may change this account, ON THE PAGE.
 //
-// Design rules:
-//   • The MENU is grouped the way an officer thinks (who they are / what they
-//     may borrow / their paperwork), not the way the API is shaped.
+// ── WHY THIS IS NO LONGER A KEBAB ────────────────────────────────────────────
+// It used to be a three-dot button in the corner of the identity card, opening a
+// drawer over a frosted page. Sixteen verbs — the whole of what a lender may DO
+// to a customer — reachable only by first discovering a 9×9 pixel target, and
+// then only one at a time, with the customer's own record hidden behind the ice
+// while you worked. An officer with the customer on the phone could not read the
+// limit they were about to change.
+//
+// So the drawer is gone and its contents are a SECTION of Customer 360, in the
+// canvas, beside everything else the page knows. Nothing is hidden and nothing
+// needs discovering: the actions are cards, they carry their current value in
+// their own subtitle ("Currently KES 9,100"), and the record stays on screen
+// while you act on it.
+//
+// The MODALS are untouched and deliberately so — they are where the audited,
+// reason-demanding writes live, they were correct, and a rewrite would have been
+// a hundred chances to lose one of those properties for no gain.
+//
+// Design rules, unchanged:
+//   • Grouped the way an officer thinks (who they are / what they may borrow /
+//     their paperwork), not the way the API is shaped.
 //   • Anything money-adjacent (limit, score) demands a written reason in the
-//     modal itself — the API refuses without one, the UI says so up front.
+//     modal itself — the API refuses without one, and the UI says so up front.
 //   • Every verb lands as an audit row; nothing here is a quiet edit.
-//   • Saves call router.refresh(): the page's numbers are server-rendered, and
-//     a modal that "saved" while the header still shows the old limit is a lie.
+//   • Saves call router.refresh(): the page's numbers are server-rendered, and a
+//     modal that "saved" while the header still shows the old limit is a lie.
 // ─────────────────────────────────────────────────────────────────────────────
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -19,12 +36,13 @@ import { useRouter } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
 import { IdentityLookup } from "@/components/kyc/IdentityLookup";
 import {
-  MoreVertical, UserPen, Users, Banknote, Gauge, Paperclip, UserCog, MessageSquare,
-  Loader2, X, CheckCircle2, AlertTriangle, FileText, Upload, ScanFace, Calculator,
+  UserPen, Users, Banknote, Gauge, Paperclip, UserCog, MessageSquare,
+  Loader2, CheckCircle2, AlertTriangle, FileText, Upload, ScanFace, Calculator,
   Download, Trash2, Scale, MapPin, User, Receipt, ChevronRight, ShieldCheck,
   Building2, Home, Navigation, KeyRound,
 } from "lucide-react";
 import { PinDropMap, type LatLng } from "@/components/maps/PinDropMap";
+import { placesOf, type Place } from "./places";
 import { Modal as ModalShell } from "@/components/ui/Modal";
 
 type Kin = { name?: string; relationship?: string; phone?: string } | null;
@@ -50,52 +68,69 @@ type Props = {
 
 type ModalKind = "info" | "kin" | "limit" | "score" | "assign" | "attachments" | "erase" | "location" | "locations" | "profile" | "limitcheck" | null;
 
-/** Where a customer can be found. `address` may be null — a pin without one still routes. */
-export type Place = {
-  kind: "business" | "home";
-  lat: number;
-  lng: number;
-  address: string | null;
-};
-
-/**
- * The places we hold for this customer.
- *
- * The primary pin (lat/lng) is whichever place was captured first — locationType says
- * which — and homeLat/homeLng holds a home captured alongside a business. So "which
- * pin is the business?" is a question about locationType, not about the column name.
- */
-export function placesOf(p: {
-  lat: number | null; lng: number | null; locationType: string | null; locationAddress: string | null;
-  homeLat: number | null; homeLng: number | null; homeAddress: string | null;
-}): Place[] {
-  const out: Place[] = [];
-  if (p.lat != null && p.lng != null) {
-    out.push({
-      kind: p.locationType === "home" ? "home" : "business",
-      lat: p.lat, lng: p.lng, address: p.locationAddress,
-    });
-  }
-  if (p.homeLat != null && p.homeLng != null && !out.some((x) => x.kind === "home")) {
-    out.push({ kind: "home", lat: p.homeLat, lng: p.homeLng, address: p.homeAddress });
-  }
-  return out;
-}
+// placesOf and Place moved to ./places — a module with no "use client", because
+// Customer 360 is a SERVER component and now calls it. Re-exported so the modals
+// below and any existing importer keep working unchanged.
+export { placesOf, type Place } from "./places";
 
 /** The browser takes it from here — the route answers with a Content-Disposition. */
 function download(url: string) {
   window.location.href = url;
 }
 
-export function BorrowerMenu(props: Props) {
+/**
+ * One action, as a card.
+ *
+ * The SUBTITLE carries the current value wherever there is one — "Currently KES
+ * 9,100", the next-of-kin name, which places we hold a pin for. In the drawer
+ * those read as descriptions of a verb; on the page they are the record itself,
+ * which is how one panel replaces both a menu and the fields it used to hide.
+ *
+ * At MODULE scope, not inside the panel. Declared in the render body, React sees
+ * a new component type on every pass and throws the whole grid away rather than
+ * updating it — every card remounts on each keystroke in a modal behind it.
+ */
+function Action({ icon, label, sub, onClick, tone }: {
+  icon: React.ReactNode; label: string; sub: string; onClick: () => void; tone?: "danger";
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`group flex items-start gap-3 rounded-xl border p-3 text-left transition-all hover:-translate-y-px hover:shadow-sm ${
+        tone === "danger"
+          ? "border-rose-500/20 bg-rose-500/[0.03] hover:border-rose-500/40"
+          : "border-ash-900/10 bg-paper/60 hover:border-[color:var(--brand)]/35"
+      }`}
+    >
+      <span
+        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+        style={{ backgroundColor: tone === "danger" ? "rgba(225,29,72,0.10)" : "var(--brand-soft)" }}
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={`block text-[13px] font-semibold ${tone === "danger" ? "text-rose-700" : "text-[color:var(--ink)]"}`}>{label}</span>
+        <span className="mt-0.5 block text-[11px] leading-snug text-[color:var(--ink-muted)]">{sub}</span>
+      </span>
+      <ChevronRight className="mt-1 h-3.5 w-3.5 shrink-0 text-[color:var(--ink-faint)] opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
+    </button>
+  );
+}
+
+function Group({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <h3 className="t-label">{title}</h3>
+        <p className="text-[11px] text-[color:var(--ink-faint)]">{hint}</p>
+      </div>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
+    </section>
+  );
+}
+
+export function BorrowerManagePanel(props: Props) {
   const router = useRouter();
-  // Mount + slide without setState-in-effect: opening mounts the drawer and a rAF
-  // flips it into view; closing slides it out, then unmounts after the transition —
-  // so no invisible full-screen overlay is ever left capturing clicks.
-  const [mounted, setMounted] = useState(false);
-  const [shown, setShown] = useState(false);
-  const openDrawer = () => { setMounted(true); requestAnimationFrame(() => setShown(true)); };
-  const closeDrawer = () => { setShown(false); setTimeout(() => setMounted(false), 300); };
   // The Needs-Location worklist deep-links here with ?drop=location — open straight
   // onto the pin-drop. Read from a lazy initial state (not an effect) so there is no
   // cascading render, and no Suspense boundary forced onto the page by useSearchParams.
@@ -104,16 +139,7 @@ export function BorrowerMenu(props: Props) {
       ? "location" : null,
   );
   const [toast, setToast] = useState<string | null>(null);
-  const wrap = useRef<HTMLDivElement>(null);
   const places = placesOf(props);
-
-  // The drawer closes on its own backdrop; Escape closes it from anywhere.
-  useEffect(() => {
-    if (!mounted) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeDrawer(); };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [mounted]);
 
   useEffect(() => {
     if (!toast) return;
@@ -128,12 +154,11 @@ export function BorrowerMenu(props: Props) {
   };
 
   /**
-   * "I can't get into the app" — the single most common inbound call, ended in
+   * "I cannot get into the app" — the single most common inbound call, ended in
    * one press. A fresh PIN goes to their handset and their inbox; the officer is
    * never shown it (see the route), so the toast can only ever say it was sent.
    */
   const resetPortalPin = async () => {
-    closeDrawer();
     setToast("Sending a new PIN…");
     try {
       const res = await fetch(`/api/console/borrowers/${props.borrowerId}/portal-pin`, { method: "POST" });
@@ -143,7 +168,6 @@ export function BorrowerMenu(props: Props) {
   };
 
   const sendKycLink = async () => {
-    closeDrawer();
     try {
       const res = await fetch("/api/console/kyc/queue", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -154,126 +178,76 @@ export function BorrowerMenu(props: Props) {
     } catch { setToast("Could not send the link."); }
   };
 
-  const item = (icon: React.ReactNode, label: string, sub: string, onClick: () => void) => (
-    <button
-      onClick={onClick}
-      className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-ash-900/[0.05]"
-    >
-      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: "var(--brand-soft)" }}>
-        {icon}
-      </span>
-      <span className="min-w-0">
-        <span className="block text-[13px] font-semibold text-ash-800">{label}</span>
-        <span className="block text-[11px] leading-snug text-ash-500">{sub}</span>
-      </span>
-    </button>
-  );
-  const groupLabel = (s: string) => (
-    <p className="px-3 pb-1 pt-2.5 text-[9px] font-bold uppercase tracking-[0.14em] text-ash-400">{s}</p>
-  );
-  const ic = { className: "h-3.5 w-3.5", style: { color: "var(--brand)" } as React.CSSProperties };
-
+  const ic = { className: "h-4 w-4", style: { color: "var(--brand)" } as React.CSSProperties };
   return (
-    <div ref={wrap} className="shrink-0">
-      {/* The one way in — the kebab, pinned to the furthest top-right of the identity
-          card by the page. Everything an officer may DO to this account opens from
-          the right, as a drawer, so the card underneath stays a read. */}
-      <button
-        onClick={openDrawer}
-        aria-label="Open the borrower menu"
-        aria-expanded={mounted}
-        className="flex h-9 w-9 items-center justify-center rounded-lg border border-ash-900/10 bg-paper/70 text-ash-500 transition-colors hover:bg-paper hover:text-ash-800"
-      >
-        <MoreVertical className="h-4.5 w-4.5" />
-      </button>
+    <div className="space-y-5">
+      <Group title="Overview" hint="Read the whole customer, or ask what they qualify for.">
+        {Action({ icon: <User {...ic} />, label: "Profile", sub: "KYC, age, branch, officer, guarantor, limit & score", onClick: () => setModal("profile") })}
+        {Action({ icon: <Scale {...ic} />, label: "Check limit", sub: "What they qualify for right now, per product", onClick: () => setModal("limitcheck") })}
+        {Action({ icon: <Receipt {...ic} />, label: "Customer statement", sub: "Every shilling in and out, plus their savings", onClick: () => router.push(`/console/borrowers/${props.borrowerId}/statement`) })}
+      </Group>
 
-      {/* PORTALLED TO <body>. The identity card is a .glass panel, and backdrop-filter
-          makes an element the containing block for fixed descendants — rendered in
-          place, this "full-screen" drawer freezes and covers the header card only,
-          while Risk band and everything below it stay live. The body is the one
-          ancestor that cannot clip it. (mounted is only ever true after a click, so
-          `document` is always there.) */}
-      {mounted && createPortal(
-        <div className="fixed inset-0 z-50">
-          {/* THE ICE. The whole page behind freezes over — top to bottom, edge to edge —
-              so the drawer reads as the only live thing on screen. A 1px blur (what this
-              used to be) is not an effect, it is a rounding error: the page stayed sharp,
-              the drawer looked pasted on, and nothing told the eye where to go.
-              Click anywhere on it to close. */}
-          <div
-            className={`absolute inset-0 bg-ash-900/25 backdrop-blur-md backdrop-saturate-[0.85] transition-opacity duration-300 ${shown ? "opacity-100" : "opacity-0"}`}
-            onClick={() => closeDrawer()}
-          />
-          {/* The drawer. SOLID white — .glass's translucent background beats bg-* in the
-              cascade, and the labels must stay readable over whatever is behind.
-              A three-part column: the header and footer never move, only the middle
-              scrolls, so the way out is always on screen. */}
-          <div
-            className={`absolute inset-y-0 right-0 flex w-[min(380px,92vw)] flex-col bg-paper shadow-[0_0_80px_rgba(0,0,0,0.35)] transition-transform duration-300 ease-out ${shown ? "translate-x-0" : "translate-x-full"}`}
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Manage ${props.name}`}
-          >
-            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-ash-900/10 px-4 py-3.5">
-              <div className="min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-ash-400">Borrower menu</p>
-                <p className="truncate text-sm font-bold text-ash-800">{props.name}</p>
-              </div>
-              <button onClick={() => closeDrawer()} className="shrink-0 rounded-lg p-1.5 text-ash-400 hover:bg-ash-900/5 hover:text-ash-700" aria-label="Close the borrower menu">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+      <Group title="Account" hint="Who they are, and whose book they sit on.">
+        {Action({ icon: <UserPen {...ic} />, label: "Update details", sub: "Name, phone, ID, email, address", onClick: () => setModal("info") })}
+        {Action({
+          icon: <Users {...ic} />, label: "Next of kin",
+          sub: props.nextOfKin?.name ? `${props.nextOfKin.name} · ${props.nextOfKin.relationship}` : "Who to call when they cannot be reached",
+          onClick: () => setModal("kin"),
+        })}
+        {Action({ icon: <UserCog {...ic} />, label: "Officer & branch", sub: "Move them to a different book", onClick: () => setModal("assign") })}
+        {Action({
+          icon: <MapPin {...ic} />, label: "Locations",
+          sub: places.length
+            ? `${places.map((x) => (x.kind === "business" ? "Business" : "Home")).join(" · ")} — open a route to them`
+            : "No pin yet — drop it so they can be found and routed to",
+          onClick: () => setModal("locations"),
+        })}
+      </Group>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
-              {groupLabel("Overview")}
-              {item(<User {...ic} />, "Profile", "KYC, age, branch, officer, guarantor, limit & score", () => { closeDrawer(); setModal("profile"); })}
-              {item(<Scale {...ic} />, "Check limit", "What they qualify for right now, per product", () => { closeDrawer(); setModal("limitcheck"); })}
-              {item(<Receipt {...ic} />, "Customer statement", "Every shilling in and out, plus their savings", () => { router.push(`/console/borrowers/${props.borrowerId}/statement`); })}
+      <Group title="Credit" hint="Both of these are credit decisions, and both demand a written reason.">
+        {Action({
+          icon: <Banknote {...ic} />, label: "Loan limit",
+          sub: props.loanLimit != null ? `Currently KES ${Math.round(props.loanLimit).toLocaleString()}` : "No limit set — the engine decides",
+          onClick: () => setModal("limit"),
+        })}
+        {Action({
+          icon: <Gauge {...ic} />, label: "Credit score",
+          sub: props.creditScore != null ? `Currently ${props.creditScore} / 900` : "No statement score yet — crunch one below",
+          onClick: () => setModal("score"),
+        })}
+        {Action({ icon: <Calculator {...ic} />, label: "Crunch their statement", sub: "Score their M-Pesa statement — the report saves back here", onClick: () => router.push(`/console/crunch?borrowerId=${props.borrowerId}&from=360`) })}
+      </Group>
 
-              {groupLabel("Account")}
-              {item(<UserPen {...ic} />, "Update details", "Name, phone, ID, email, address", () => { closeDrawer(); setModal("info"); })}
-              {item(<Users {...ic} />, "Next of kin", props.nextOfKin?.name ? `${props.nextOfKin.name} · ${props.nextOfKin.relationship}` : "Who to call when they can't be reached", () => { closeDrawer(); setModal("kin"); })}
-              {item(<UserCog {...ic} />, "Officer & branch", "Move them to a different book", () => { closeDrawer(); setModal("assign"); })}
-              {item(
-                <MapPin {...ic} />, "Locations",
-                places.length
-                  ? `${places.map((x) => (x.kind === "business" ? "Business" : "Home")).join(" · ")} — open a route to them`
-                  : "No pin yet — drop it so they can be found and routed to",
-                () => { closeDrawer(); setModal("locations"); },
-              )}
+      <Group title="Their portal" hint="What the customer can reach on their own phone.">
+        {Action({
+          icon: <KeyRound {...ic} />, label: "Reset their portal PIN",
+          sub: props.nationalId
+            ? "Sends a new PIN by SMS and email — they sign in with their ID"
+            : "Add their national ID first — the portal asks for it before the PIN",
+          onClick: resetPortalPin,
+        })}
+      </Group>
 
-              {groupLabel("Credit")}
-              {item(<Banknote {...ic} />, "Loan limit", props.loanLimit != null ? `Currently KES ${Math.round(props.loanLimit).toLocaleString()}` : "No limit set — the engine decides", () => { closeDrawer(); setModal("limit"); })}
-              {item(<Gauge {...ic} />, "Credit score", props.creditScore != null ? `Currently ${props.creditScore} / 900` : "No score yet", () => { closeDrawer(); setModal("score"); })}
-              {item(<Calculator {...ic} />, "Crunch their statement", "Score their M-Pesa statement — the report saves back here", () => { router.push(`/console/crunch?borrowerId=${props.borrowerId}&from=360`); })}
+      <Group title="Records" hint="Their paperwork, and the identity gate.">
+        {Action({ icon: <Paperclip {...ic} />, label: "Attachments", sub: "Upload and read their documents", onClick: () => setModal("attachments") })}
+        {!props.verified && Action({ icon: <MessageSquare {...ic} />, label: "Send verification link", sub: "Text them the KYC link", onClick: sendKycLink })}
+        {!props.verified && Action({ icon: <ScanFace {...ic} />, label: "Verify at the counter", sub: "They are with you — run KYC now", onClick: () => router.push(`/console/kyc/${props.borrowerId}?from=360`) })}
+      </Group>
 
-              {groupLabel("Customer portal")}
-              {item(
-                <KeyRound {...ic} />, "Reset their portal PIN",
-                props.nationalId
-                  ? "Sends a new PIN by SMS and email — they sign in with their ID"
-                  : "Add their national ID first — the portal asks for it before the PIN",
-                resetPortalPin,
-              )}
-
-              {groupLabel("Records")}
-              {item(<Paperclip {...ic} />, "Attachments", "Upload and read their documents", () => { closeDrawer(); setModal("attachments"); })}
-              {!props.verified && item(<MessageSquare {...ic} />, "Send verification link", "Text them the KYC link", sendKycLink)}
-              {!props.verified && item(<ScanFace {...ic} />, "Verify at the counter", "They're with you — run KYC now", () => { router.push(`/console/kyc/${props.borrowerId}?from=360`); })}
-
-              {/* Where a data-protection request actually arrives: an officer, with the
-                  customer on the phone, asking for their data or asking to be forgotten. */}
-              {groupLabel("Their data")}
-              {item(<Download {...ic} />, "Give them a copy", "Everything you hold about them, as a file they can keep", () => {
-                closeDrawer();
-                download(`/api/console/compliance/export?scope=borrower&id=${props.borrowerId}`);
-              })}
-              {item(<Trash2 className="h-3.5 w-3.5 text-rose-500" />, "Erase them", "They asked to be forgotten — see what the law lets you delete", () => { closeDrawer(); setModal("erase"); })}
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
+      {/* Where a data-protection request actually arrives: an officer, with the
+          customer on the phone, asking for their data or asking to be forgotten. */}
+      <Group title="Their data" hint="Their rights under the Data Protection Act, exercised from here.">
+        {Action({
+          icon: <Download {...ic} />, label: "Give them a copy",
+          sub: "Everything you hold about them, as a file they can keep",
+          onClick: () => download(`/api/console/compliance/export?scope=borrower&id=${props.borrowerId}`),
+        })}
+        {Action({
+          icon: <Trash2 className="h-4 w-4 text-rose-500" />, label: "Erase them",
+          sub: "They asked to be forgotten — see what the law lets you delete",
+          onClick: () => setModal("erase"), tone: "danger",
+        })}
+      </Group>
 
       {toast && createPortal(
         <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-invert px-4 py-2 text-xs font-semibold text-invert-fg shadow-lg">

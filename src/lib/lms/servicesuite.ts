@@ -147,6 +147,36 @@ export type Customer360 = {
   activeLoans: number;
 };
 
+/**
+ * One live customer, by their ServiceSuite id.
+ *
+ * The id is the RIGHT key wherever we hold it. Phone matching exists because the
+ * public API has nothing else to go on — a borrower proves a phone number, not a
+ * row id — but inside the console we resolved this person from the lender's own
+ * book and stored the id they came back with (Borrower.serviceSuiteBorrowerId).
+ * Matching them by phone after that is guessing at a fact we already know, and
+ * it guesses wrong the moment two records share a number, which on a book of
+ * 17,021 people they do.
+ *
+ * The entity is still asserted, and is not a formality: ids only mean something
+ * within an entity, and 3002 and 3005 hold different people. Returning the wrong
+ * one is a data-protection incident, not a display bug.
+ */
+export async function getCustomer360ById(
+  org: OrgDef,
+  entityId: number,
+  serviceSuiteBorrowerId: number,
+): Promise<Customer360 | null> {
+  return customer360(
+    org,
+    "b.EntityId = @entityId AND b.ID = @borrowerId",
+    [
+      { name: "entityId", type: mssql.Int, value: entityId },
+      { name: "borrowerId", type: mssql.Int, value: serviceSuiteBorrowerId },
+    ],
+  );
+}
+
 /** Matched by phone only — see checkGraduation for why the ID is not a key here. */
 export async function getCustomer360(
   org: OrgDef,
@@ -154,6 +184,31 @@ export async function getCustomer360(
   phone: string,
 ): Promise<Customer360 | null> {
   phone = cleanPhone(phone);
+  return customer360(
+    org,
+    `b.EntityId = @entityId
+       AND (b.PhoneNumber = @phone
+         OR RIGHT(REPLACE(b.PhoneNumber, ' ', ''), 9) = RIGHT(@phone, 9))`,
+    [
+      { name: "entityId", type: mssql.Int, value: entityId },
+      { name: "phone", type: mssql.VarChar(32), value: phone },
+    ],
+  );
+}
+
+/**
+ * The read itself, with the caller's own WHERE.
+ *
+ * Both doors above want exactly the same twenty-odd fields and differ only in how
+ * they find the row, so the projection lives once. It is a long SELECT and it was
+ * duplicated the first time a second key was needed — which is how the two
+ * quietly drift into disagreeing about what a customer is.
+ */
+async function customer360(
+  org: OrgDef,
+  where: string,
+  params: QueryParam[],
+): Promise<Customer360 | null> {
   const sql = `
     SELECT TOP 1
       b.ID, b.firstName, b.otherName, b.AccountNo, b.NationalID, b.PhoneNumber, b.EmailAddress,
@@ -177,20 +232,10 @@ export async function getCustomer360(
              SUM(CASE WHEN LoanCleared = 0 THEN 1 ELSE 0 END) AS ActiveLoans
       FROM Loans WHERE BorrowerId = b.ID AND isApproved = 1
     ) s
-    WHERE b.EntityId = @entityId
-      AND (b.PhoneNumber = @phone
-        OR RIGHT(REPLACE(b.PhoneNumber, ' ', ''), 9) = RIGHT(@phone, 9))
+    WHERE ${where}
     ORDER BY b.ID DESC`;
 
-  const { rows } = await runReadOnlyQuery(
-    org,
-    sql,
-    [
-      { name: "entityId", type: mssql.Int, value: entityId },
-      { name: "phone", type: mssql.VarChar(32), value: phone },
-    ],
-    { timeoutMs: 30000, maxRows: 1 },
-  );
+  const { rows } = await runReadOnlyQuery(org, sql, params, { timeoutMs: 30000, maxRows: 1 });
   if (rows.length === 0) return null;
   const r = rows[0] as Record<string, unknown>;
 
@@ -205,7 +250,6 @@ export async function getCustomer360(
   } catch { /* trail is decorative */ }
 
   const num = (v: unknown): number | null => (v == null ? null : Number(v));
-  const photoId = String(r.borrowerPhoto ?? "").trim();
 
   return {
     borrowerId: Number(r.ID),
@@ -219,7 +263,7 @@ export async function getCustomer360(
     status: String(r.StatusTitle ?? "PENDING"),
     // Micromart photos live in Google Drive with link-visible sharing — the
     // thumbnail endpoint serves them without credentials.
-    photoUrl: photoId ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(photoId)}&sz=w480` : null,
+    photoUrl: drivePhotoUrl(r.borrowerPhoto),
     riskScore: num(r.RiskScore),
     riskCategory: r.RiskCategory != null ? String(r.RiskCategory) : null,
     lastScoreUpdate: r.LastScoreUpdateDate ? new Date(r.LastScoreUpdateDate as string).toISOString() : null,
@@ -254,7 +298,12 @@ export type LiveBorrower = {
   phone: string | null;
   nationalId: string | null;
   portraitUrl: string | null;
-  creditScore: number | null;
+  /**
+   * THEIR RiskScore, 0–100 — not `Borrowers.CreditScore`, which is a cumulative
+   * points field running to 28 million and made every customer read as PRIME.
+   * See LiveBorrowerSeed.riskScore for the measurement that settled it.
+   */
+  riskScore: number | null;
   riskCategory: string | null;
   loanLimit: number | null;
   graduationCount: number;
@@ -305,7 +354,7 @@ export async function listBorrowersLive(
     runReadOnlyQuery(
       org,
       `SELECT b.ID, b.firstName, b.otherName, b.PhoneNumber, b.NationalID, b.borrowerPhoto,
-              b.CreditScore, b.RiskCategory, b.LoanLimit, ISNULL(b.GraduationCount,0) AS GraduationCount,
+              b.RiskScore, b.RiskCategory, b.LoanLimit, ISNULL(b.GraduationCount,0) AS GraduationCount,
               b.Latitude, b.Longitude, b.KycVerification, b.AccountStatus, b.CreatedDate,
               s.LoansCount, s.ActiveLoans, s.ClearedLoans, s.Olb, s.TotalBorrowed
        FROM Borrowers b
@@ -342,15 +391,14 @@ export async function listBorrowersLive(
     const clearedLoans = Number(r.ClearedLoans ?? 0);
     // Their photos are Google Drive fileIds with link-visible sharing, so the
     // thumbnail endpoint serves them without credentials (same as Customer 360).
-    const photoId = String(r.borrowerPhoto ?? "").trim();
-    return {
+      return {
       ref: `ss:${Number(r.ID)}`,
       serviceSuiteId: Number(r.ID),
       name: `${String(r.firstName ?? "").trim()} ${String(r.otherName ?? "").trim()}`.trim() || null,
       phone: str(r.PhoneNumber),
       nationalId: str(r.NationalID),
-      portraitUrl: photoId ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(photoId)}&sz=w480` : null,
-      creditScore: num(r.CreditScore),
+      portraitUrl: drivePhotoUrl(r.borrowerPhoto),
+      riskScore: num(r.RiskScore),
       riskCategory: str(r.RiskCategory),
       loanLimit: num(r.LoanLimit),
       graduationCount: Number(r.GraduationCount ?? 0),
@@ -395,7 +443,7 @@ export async function getBorrowerBookStats(org: OrgDef, entityId: number): Promi
             SUM(CASE WHEN b.Latitude IS NULL OR LTRIM(RTRIM(b.Latitude)) = ''
                       OR b.Longitude IS NULL OR LTRIM(RTRIM(b.Longitude)) = ''
                      THEN 1 ELSE 0 END) AS needsLocation,
-            SUM(CASE WHEN b.CreditScore IS NOT NULL THEN 1 ELSE 0 END) AS scored,
+            SUM(CASE WHEN b.RiskScore IS NOT NULL THEN 1 ELSE 0 END) AS scored,
             SUM(CASE WHEN ISNULL(ol.OpenLoans, 0) > 0 THEN 1 ELSE 0 END) AS withOpenLoan
      FROM Borrowers b
      LEFT JOIN (
@@ -462,7 +510,12 @@ export type LiveNeedsLocation = {
   olb: number;
   clearedLoans: number;
   loanLimit: number | null;
-  creditScore: number | null;
+  /**
+   * THEIR RiskScore, 0–100 — not `Borrowers.CreditScore`, which is a cumulative
+   * points field running to 28 million and made every customer read as PRIME.
+   * See LiveBorrowerSeed.riskScore for the measurement that settled it.
+   */
+  riskScore: number | null;
   riskCategory: string | null;
   graduationCount: number;
   kycVerified: boolean;
@@ -568,7 +621,7 @@ export async function listNeedsLocationLive(
       // so newest-first falls out. `b.ID` last keeps deep paging stable — without a
       // unique tiebreak, page 800 of a 17k sort can repeat or skip a row.
       `SELECT b.ID, b.firstName, b.otherName, b.PhoneNumber, b.NationalID, b.borrowerPhoto,
-              b.CreditScore, b.RiskCategory, b.LoanLimit, ISNULL(b.GraduationCount,0) AS GraduationCount,
+              b.RiskScore, b.RiskCategory, b.LoanLimit, ISNULL(b.GraduationCount,0) AS GraduationCount,
               b.KycVerification, b.CreatedDate, b.LastLoanClearDate, b.EntityAgent,
               ag.FirstName AS AgentFirst, ag.OtherName AS AgentOther,
               ISNULL(o.OpenLoans,0) AS OpenLoans, ISNULL(o.Olb,0) AS Olb, o.NextDue,
@@ -607,21 +660,20 @@ export async function listNeedsLocationLive(
   const str = (v: unknown): string | null => (v == null ? null : String(v).trim() || null);
 
   const rows: LiveNeedsLocation[] = page.rows.map((r) => {
-    const photoId = String(r.borrowerPhoto ?? "").trim();
-    const agentName = `${String(r.AgentFirst ?? "").trim()} ${String(r.AgentOther ?? "").trim()}`.trim();
+      const agentName = `${String(r.AgentFirst ?? "").trim()} ${String(r.AgentOther ?? "").trim()}`.trim();
     return {
       ref: `ss:${Number(r.ID)}`,
       serviceSuiteId: Number(r.ID),
       name: `${String(r.firstName ?? "").trim()} ${String(r.otherName ?? "").trim()}`.trim() || null,
       phone: str(r.PhoneNumber),
       nationalId: str(r.NationalID),
-      portraitUrl: photoId ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(photoId)}&sz=w480` : null,
+      portraitUrl: drivePhotoUrl(r.borrowerPhoto),
       tier: (TIERS.includes(String(r.Tier) as NeedsLocationTier) ? String(r.Tier) : "DORMANT") as NeedsLocationTier,
       openLoans: Number(r.OpenLoans ?? 0),
       olb: Number(r.Olb ?? 0),
       clearedLoans: Number(r.ClearedLoans ?? 0),
       loanLimit: num(r.LoanLimit),
-      creditScore: num(r.CreditScore),
+      riskScore: num(r.RiskScore),
       riskCategory: str(r.RiskCategory),
       graduationCount: Number(r.GraduationCount ?? 0),
       kycVerified: Number(r.KycVerification ?? 0) === 1,
@@ -798,13 +850,39 @@ export type LiveBorrowerSeed = {
   email: string | null;
   dob: string | null; // ISO
   gender: "M" | "F" | null;
-  creditScore: number | null;
+  /**
+   * THEIR RiskScore, 0–100 — NOT `Borrowers.CreditScore`.
+   *
+   * This field used to carry CreditScore and it was the most consequential wrong
+   * number in the console. Measured across entity 3005 on 1 Sep 2026, CreditScore
+   * runs from 0 to 28,531,233 with a mean of 4,271: it is a cumulative points
+   * field, not a score on any scale. Copied into our 300–900 `creditScore`
+   * column, EVERY customer cleared the 750 PRIME floor — so a borrower 47 days in
+   * arrears rendered as "pays on time, every time".
+   *
+   * RiskScore is the real figure and the one their own screens show: 26.5–100,
+   * mean 69.1, and it agrees exactly with their RiskCategory bands (Major ≤50.5,
+   * Moderate 51–76, Minor ≥76.5). It is written by sp_CreditScoringAndGraduation
+   * on the 0–100 scale our `behaviouralScore` uses, so it maps across without
+   * conversion — see bandForBehavioural in lib/risk/bands.
+   */
+  riskScore: number | null;
   riskCategory: string | null;
   loanLimit: number | null;
   previousLoanLimit: number | null;
   graduationCount: number;
   accountNo: string | null;
   createdAt: string | null;
+  /**
+   * The lender's own photo of this customer, as a URL.
+   *
+   * The BORROWER LIST has always shown these and the detail page never did, for a
+   * reason that was invisible from either screen: the list reads the live book,
+   * where 13,403 of 17,021 customers have a portrait, while Customer 360 read our
+   * own storage, where a resolved customer has none because nobody has run KYC on
+   * them here. The seed carries it so the face survives the hop.
+   */
+  portraitUrl: string | null;
 };
 
 export async function getLiveBorrowerById(
@@ -815,8 +893,9 @@ export async function getLiveBorrowerById(
   const { rows } = await runReadOnlyQuery(
     org,
     `SELECT TOP 1 b.ID, b.firstName, b.otherName, b.PhoneNumber, b.NationalID, b.EmailAddress,
-            b.DOB, b.Gender, b.CreditScore, b.RiskCategory, b.LoanLimit, b.PreviousLoanLimit,
-            ISNULL(b.GraduationCount,0) AS GraduationCount, b.AccountNo, b.CreatedDate
+            b.DOB, b.Gender, b.RiskScore, b.RiskCategory, b.LoanLimit, b.PreviousLoanLimit,
+            ISNULL(b.GraduationCount,0) AS GraduationCount, b.AccountNo, b.CreatedDate,
+            b.borrowerPhoto
      FROM Borrowers b
      WHERE b.ID = @id AND b.EntityId = @entityId`,
     [
@@ -849,14 +928,33 @@ export async function getLiveBorrowerById(
     })(),
     dob: r.DOB ? new Date(r.DOB as string).toISOString() : null,
     gender: g === 1 ? "M" : g === 2 ? "F" : null,
-    creditScore: num(r.CreditScore),
+    riskScore: num(r.RiskScore),
     riskCategory: str(r.RiskCategory),
     loanLimit: num(r.LoanLimit),
     previousLoanLimit: num(r.PreviousLoanLimit),
     graduationCount: Number(r.GraduationCount ?? 0),
     accountNo: str(r.AccountNo),
     createdAt: r.CreatedDate ? new Date(r.CreatedDate as string).toISOString() : null,
+    portraitUrl: drivePhotoUrl(r.borrowerPhoto),
   };
+}
+
+/**
+ * A ServiceSuite borrower photo, as something an `<img>` can load.
+ *
+ * Micromart's portraits live in Google Drive with link-visible sharing and the
+ * Borrowers row carries only the file id, so Drive's thumbnail endpoint serves
+ * them with no credentials and no proxy of ours in the path.
+ *
+ * ONE derivation, used by every surface that shows a live face. It was inlined in
+ * two places and the third — Customer 360 — simply did not have it, which is the
+ * whole reason the detail page showed initials for a customer the list showed a
+ * photograph of.
+ */
+export function drivePhotoUrl(photoId: unknown): string | null {
+  const id = String(photoId ?? "").trim();
+  if (!id) return null;
+  return `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w480`;
 }
 
 export type LmsProduct = {

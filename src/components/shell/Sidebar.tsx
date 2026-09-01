@@ -8,7 +8,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useLoad } from "@/lib/hooks/useLoad";
-import { ChevronDown, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronDown, PanelLeftClose, PanelLeftOpen, ArrowUpRight } from "lucide-react";
 import type { NavModule, NavItem } from "@/lib/nav/registry";
 import type { ShellOrg } from "./types";
 import { navIcon } from "./icons";
@@ -78,8 +78,12 @@ function parseHref(href: string): { base: string; query: [string, string][] } {
   return { base: href.slice(0, q), query: [...new URLSearchParams(href.slice(q + 1)).entries()] };
 }
 
-function scoreItem(item: NavItem, pathname: string, search: URLSearchParams): number {
+function scoreItem(item: LinkedItem, pathname: string, search: URLSearchParams): number {
   if (!item.href) return -1;
+  // A door into ANOTHER system is never the active item here. Its href is that
+  // system's path — "/books/journal", or a whole other origin — and letting it
+  // into the scoring would light it up on a route it does not own.
+  if (item.system) return -1;
   const { base, query } = parseHref(item.href);
   const onPath = item.exact || query.length > 0
     ? pathname === base
@@ -94,6 +98,14 @@ function scoreItem(item: NavItem, pathname: string, search: URLSearchParams): nu
   return base.length;
 }
 
+/**
+ * A nav item as the SERVER hands it down: the registry's shape, plus the one
+ * thing only the server could work out — whether following this item leaves
+ * this origin. See linkCrossSystem() in lib/suite/hosts.
+ */
+type LinkedItem = NavItem & { external?: boolean };
+type LinkedModule = Omit<NavModule, "items"> & { items: LinkedItem[] };
+
 export default function Sidebar({
   nav,
   org,
@@ -101,7 +113,7 @@ export default function Sidebar({
   onNavigate,
   onToggleCollapse,
 }: {
-  nav: NavModule[];
+  nav: LinkedModule[];
   org: ShellOrg;
   collapsed: boolean;
   /** Called on any link click — the mobile drawer closes itself with this. */
@@ -192,6 +204,15 @@ export default function Sidebar({
                     <>
                       <Icon className={`h-4 w-4 shrink-0 ${active ? "" : "text-[color:var(--ink-faint)] group-hover:text-[color:var(--ink-body)]"}`} aria-hidden />
                       {!collapsed && <span className="truncate">{item.label}</span>}
+                      {/* THE ARROW IS THE PROMISE. Every item in this menu that
+                          leads out of the lending console wears it, and nothing
+                          else does — so the officer knows before they click that
+                          the next screen belongs to another system. Drawn from
+                          the resolved tree rather than typed into a label, which
+                          is what stops the two from ever disagreeing. */}
+                      {!collapsed && item.system && (
+                        <ArrowUpRight className={`ml-auto h-3.5 w-3.5 shrink-0 ${active ? "opacity-70" : "text-[color:var(--ink-faint)] opacity-60 group-hover:opacity-100"}`} aria-hidden />
+                      )}
                       {!collapsed && item.ready === false && (
                         <span className="ml-auto rounded bg-ash-900/5 px-1.5 py-0.5 text-[9px] font-semibold text-[color:var(--ink-faint)]">SOON</span>
                       )}
@@ -209,6 +230,29 @@ export default function Sidebar({
                       <button key={item.key} type="button" data-riri-open={item.open} title={collapsed ? item.label : undefined} className={`${cls} w-full text-left`} onClick={onNavigate}>
                         {inner}
                       </button>
+                    );
+                  }
+                  // A cross-link that has actually left this deployment is a
+                  // plain anchor in a new tab: next/link would try to
+                  // client-navigate to another origin, and an officer who opens
+                  // Ledgerly's journal to check one posting wants their console
+                  // still standing behind it. While the suite is one deployment
+                  // `external` is false and it stays an ordinary in-app Link —
+                  // same screen, no lost place, no tab nobody asked for.
+                  if (item.external) {
+                    return (
+                      <a
+                        key={item.key}
+                        href={item.href!}
+                        target="_blank"
+                        rel="noopener"
+                        title={collapsed ? `${item.label} — opens in a new tab` : undefined}
+                        className={cls}
+                        style={style}
+                        onClick={onNavigate}
+                      >
+                        {inner}
+                      </a>
                     );
                   }
                   return (

@@ -33,6 +33,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { MERGED_CRB_ONLY } from "@/lib/crb/rows";
 import { resolveOrg } from "@/lib/tenancy";
 import { enterOrg } from "@/lib/db/context";
 import { borrowerFor, otpRequired } from "@/lib/portal/session";
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
   const [stored, loanCount] = await Promise.all([
     crbAllowed
       ? prisma.kycCheck.findFirst({
-          where: { orgId: org.id, borrowerId: borrower.id, kind: "CRB" },
+          where: { orgId: org.id, borrowerId: borrower.id, kind: "CRB", ...MERGED_CRB_ONLY },
           orderBy: { createdAt: "desc" },
           select: { payload: true, createdAt: true },
         })

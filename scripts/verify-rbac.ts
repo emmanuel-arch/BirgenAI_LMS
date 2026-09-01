@@ -17,6 +17,7 @@ import {
 } from "@/lib/rbac/rights";
 import { rightsSetFrom, getRights, requireRight } from "@/lib/rbac/authz";
 import { NAV_REGISTRY, navFor } from "@/lib/nav/registry";
+import { SUITE_APPS } from "@/lib/suite/apps";
 import { AVAILABLE_FEATURES, PLANS } from "@/lib/billing/plans";
 import type { Session } from "@/lib/auth";
 
@@ -101,7 +102,22 @@ async function main() {
     items.every((i) => (i.ready === false ? !i.href : !!i.href || !!i.open)),
   );
   ok("no reserved right sits on a ready item", items.every((i) => i.ready === false || !i.right || !reserved.has(i.right)));
-  ok("hrefs live under /console or /suite (the connected-suite launcher)", items.every((i) => !i.href || i.href.startsWith("/console") || i.href.startsWith("/suite")));
+  // An item's href is a CONSOLE route — unless it declares a `system`, in which
+  // case it is deliberately a path inside ANOTHER system and the console has no
+  // route by that name at all. Both still have to be rooted: a relative href
+  // would resolve against whatever screen the officer happened to be standing on.
+  ok(
+    "console hrefs live under /console or /suite (the connected-suite launcher)",
+    items.every((i) => !i.href || i.system || i.href.startsWith("/console") || i.href.startsWith("/suite")),
+  );
+  ok(
+    "every cross-system href is a rooted path inside that system",
+    items.every((i) => !i.system || (!!i.href && i.href.startsWith("/"))),
+  );
+  ok(
+    "every cross-system item names a system that exists",
+    items.every((i) => !i.system || SUITE_APPS.some((a) => a.id === i.system)),
+  );
 
   console.log("\n4. navFor — the sidebar is rights × features");
   const allFeatures = features as ReadonlySet<string>;

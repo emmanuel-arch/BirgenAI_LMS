@@ -101,7 +101,10 @@
     "test:live-loans": "tsx scripts/verify-live-loans.mts",
     "test:live-statement": "tsx scripts/verify-live-statement.mts",
     "test:ladder": "tsx scripts/verify-ladder.mts",
-    "test:reconciliation": "tsx scripts/verify-reconciliation.mts"
+    "test:reconciliation": "tsx scripts/verify-reconciliation.mts",
+    "score:live": "tsx scripts/score-live-book.ts",
+    "crb:all": "tsx scripts/crb-pull-all.ts",
+    "ratiba:test": "tsx scripts/ratiba-test.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

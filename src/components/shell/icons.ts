@@ -13,6 +13,8 @@ import {
   // this same map — one fallback, one place to add a name.
   UserCheck, Building, Layers3, Filter, Radio, Compass, Table2, Bookmark,
   TriangleAlert, ArrowLeftRight, Cog, ChartNoAxesCombined, Wrench,
+  // Named by the cross-system doors — the customer portal and the ConnectDesk floor.
+  Smartphone, Headphones, ArrowUpRight,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,6 +27,8 @@ const ICONS: Record<string, LucideIcon> = {
   ScrollText, Handshake, Waypoints,
   UserCheck, Building, Layers3, Filter, Radio, Compass, Table2, Bookmark,
   TriangleAlert, ArrowLeftRight, Cog, ChartNoAxesCombined, Wrench,
+  // Named by the cross-system doors — the customer portal and the ConnectDesk floor.
+  Smartphone, Headphones, ArrowUpRight,
   // `Infinity` is a global in TS, so the import is aliased; the registry still
   // names it "Infinity" like every other lucide icon.
   Infinity: InfinityIcon,

@@ -31,7 +31,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useLoad } from "@/lib/hooks/useLoad";
 import { Menu, ShieldCheck, X } from "lucide-react";
-import type { NavModule } from "@/lib/nav/registry";
+import type { NavModule, NavItem } from "@/lib/nav/registry";
 import type { ShellOrg, ShellUser } from "./types";
 import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 import Sidebar from "./Sidebar";
@@ -64,7 +64,10 @@ export default function Shell({
   activeRealm,
   children,
 }: {
-  nav: NavModule[];
+  // The tree comes down already LINKED — cross-system items carry a resolved
+  // href and an `external` flag the server worked out (lib/suite/hosts). The
+  // shell only passes it through; the Sidebar is what reads the flag.
+  nav: (Omit<NavModule, "items"> & { items: (NavItem & { external?: boolean })[] })[];
   org: ShellOrg;
   user: ShellUser;
   impersonator?: { name: string } | null;

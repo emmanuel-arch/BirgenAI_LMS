@@ -12,7 +12,7 @@
 
 import type { Right } from "@/lib/rbac/rights";
 import type { SuiteNavModule } from "@/components/suite/SuiteShell";
-import { isDenied } from "@/lib/rbac/modules";
+import { isDenied } from "@/lib/rbac/module-keys";
 
 export const PEOPLE_IDENTITY = {
   id: "hr",

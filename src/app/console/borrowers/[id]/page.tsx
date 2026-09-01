@@ -1,25 +1,70 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// CUSTOMER 360.
+//
+// Everything one lender knows about one customer, from BOTH books, on one page.
+//
+// ── THE TWO BOOKS ────────────────────────────────────────────────────────────
+// For a bridged lender this page is a join, and saying which side answered is
+// not a footnote — it is the page's main honesty obligation:
+//
+//   THEIRS (ServiceSuite, read live at render)   the loans, the balances, the
+//     arrears register, the whole ledger, the officer, the office trail, the
+//     portrait, and the repayment record every score below is computed from.
+//   OURS (Postgres)                              KYC and its images, pins and
+//     consent, guarantors, applications, interactions, the audit trail, and
+//     anything we originated.
+//
+// The old page read only the second one. So a customer with fourteen loans and
+// KSh 125,642 disbursed on the lender's own screen rendered here as "OLB KES 0 ·
+// Loans 0/0", with initials where their face should be — because in OUR book they
+// were a row created four seconds ago by the resolve step. Everything rendered
+// correctly. Nothing rendered the customer.
+//
+// ── AND THE BAND IS COMPUTED, NOT COPIED ─────────────────────────────────────
+// The header tile used to read "INTERNAL SCORE 4500" beside "STATEMENT SCORE
+// 4500 / 900", and banded everyone PRIME on the strength of it, because the
+// resolve step had copied ServiceSuite's `Borrowers.CreditScore` — a cumulative
+// points column that runs to 28 million on this book — into a field the product
+// reads as 300–900. Now the score is computed from their actual instalments by
+// the same engine a native lender's customers go through, under this lender's own
+// published credit policy. Measured across all 17,018 customers of entity 3005 it
+// lands within a mean of 0.33 points of the lender's own stored figure.
+// ─────────────────────────────────────────────────────────────────────────────
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, ScanFace, ShieldAlert, Landmark, MapPin, History, CheckCircle2, XCircle, Clock, FileText, BadgeCheck, Building2,
+  ArrowLeft, BadgeCheck, Building2, CheckCircle2, Clock, History, Landmark,
+  Radio, ScanFace, ShieldAlert,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { resolveScope, borrowerScopeWhere } from "@/lib/rbac/scope";
 import { prisma } from "@/lib/prisma";
 import { hasFeature } from "@/lib/billing/entitlements";
+import { resolveOrg } from "@/lib/tenancy";
 import { portfolioEarlyWarning } from "@/lib/intelligence/earlywarning";
 import { portraitsFor, PORTRAIT_TTL_SEC } from "@/lib/kyc/avatars";
 import { signedUrl } from "@/lib/storage/provider";
 import { BorrowerAvatar } from "@/components/kyc/BorrowerAvatar";
 import type { CrbReport } from "@/lib/crb/provider";
+import { MERGED_CRB_ONLY } from "@/lib/crb/rows";
 import { Customer360Client } from "./Customer360Client";
-import { BorrowerMenu } from "./BorrowerMenu";
+import { BorrowerManagePanel } from "./BorrowerMenu";
+import { placesOf } from "./places";
 import { BorrowerActions } from "./BorrowerActions";
-import { RiskBandCard } from "@/components/risk/RiskBandCard";
+import { RiskBandCard, type RiskView } from "@/components/risk/RiskBandCard";
 import { bandForScore, bandForBehavioural, defaultProbability, normaliseBandName, BAND_BY_KEY } from "@/lib/risk/bands";
 import { previewLadder } from "@/lib/risk/graduation";
 import KycGallery from "./KycGallery";
 import { CustomerTimeline, type TimelineEvent } from "./CustomerTimeline";
+import { Customer360Workspace, type Section } from "./Customer360Workspace";
+import { readLiveCustomer360 } from "@/lib/lms/customer360";
+import { readMasterFile } from "@/lib/lms/master-file";
+import { MasterFilePanel, masterFileBadge } from "./MasterFilePanel";
+import {
+  Panel, Provenance, LiveLoans, LiveLedger, ScoreFactors, LadderPanel,
+  ScoreComparison, EarlyWarning, PeoplePanel, PlacesPanel, MoneySummary,
+  RatibaPanel, type RatibaView,
+} from "./Customer360Sections";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,30 +79,30 @@ function accountAgeOf(createdAt: Date | string): string {
   if (months < 12) return `${months} ${months === 1 ? "month" : "months"}`;
   const y = Math.floor(months / 12);
   const m = months % 12;
-  return `${y} yr${y > 1 ? "s" : ""}${m ? ` ${m} mo` : ""}`;
+  return `${y}y${m ? ` ${m}m` : ""}`;
 }
 
 const KYC_TONE: Record<string, string> = {
-  VERIFIED: "bg-emerald-100 text-emerald-700", PENDING_REVIEW: "bg-amber-100 text-amber-700",
-  IN_PROGRESS: "bg-sky-100 text-sky-700", FAILED: "bg-rose-100 text-rose-700", NONE: "bg-ash-900/5 text-ash-500",
+  VERIFIED: "bg-emerald-500/12 text-emerald-700", PENDING_REVIEW: "bg-amber-500/12 text-amber-700",
+  IN_PROGRESS: "bg-sky-500/12 text-sky-700", FAILED: "bg-rose-500/12 text-rose-700", NONE: "bg-ash-900/[0.06] text-[color:var(--ink-muted)]",
 };
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
     <div className="rounded-lg border border-ash-900/10 bg-paper/60 px-2.5 py-2">
-      <p className="text-[9px] uppercase tracking-wide text-ash-500">{label}</p>
-      <p className={`text-sm font-bold leading-tight ${tone ?? "text-ash-800"}`}>{value}</p>
+      <p className="t-label">{label}</p>
+      <p className={`text-sm font-bold leading-tight ${tone ?? "text-[color:var(--ink)]"}`}>{value}</p>
     </div>
   );
 }
 
-/** The header strip's tile — Stat at billboard size. The four numbers an officer
-    prices a customer by deserve more than a 9px whisper. */
-function BigStat({ label, value, tone }: { label: string; value: string; tone?: string }) {
+/** The masthead's tile. The numbers an officer prices a customer by, at reading size. */
+function BigStat({ label, value, tone, sub }: { label: string; value: string; tone?: string; sub?: string }) {
   return (
-    <div className="min-w-[8.5rem] rounded-xl border border-ash-900/10 bg-paper/60 px-4 py-3">
-      <p className="text-[10px] uppercase tracking-wide text-ash-500">{label}</p>
-      <p className={`mt-0.5 text-xl font-bold leading-tight ${tone ?? "text-ash-800"}`}>{value}</p>
+    <div className="min-w-[8rem] rounded-xl border border-ash-900/10 bg-paper/60 px-4 py-2.5">
+      <p className="t-label">{label}</p>
+      <p className={`mt-0.5 text-xl font-bold leading-tight tabular-nums ${tone ?? "text-[color:var(--ink)]"}`}>{value}</p>
+      {sub && <p className="mt-0.5 text-[11px] text-[color:var(--ink-faint)]">{sub}</p>}
     </div>
   );
 }
@@ -88,10 +133,14 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
     hasFeature(orgId, "portfolio-scan"),
     hasFeature(orgId, "route-planner"),
   ]);
-  const [kyc, scores, crbCheck, ew, branch] = await Promise.all([
+  const [kyc, scores, crbCheck, ew, branch, guarantors, standingOrders] = await Promise.all([
     prisma.kycSession.findFirst({ where: { orgId, OR: [{ borrowerId: id }, { phone: b.phone }] }, orderBy: { createdAt: "desc" } }),
     prisma.scoreSnapshot.findMany({ where: { orgId, borrowerId: id }, orderBy: { createdAt: "desc" }, take: 8 }),
-    prisma.kycCheck.findFirst({ where: { orgId, borrowerId: id, kind: "CRB" }, orderBy: { createdAt: "desc" } }),
+    // MERGED_CRB_ONLY: the master file now also stores individual Metropol
+    // reports as CRB rows, and this panel wants the lender's whole merged file —
+    // without the filter a raw report-22 payload would win on recency and render
+    // as if it were the bureau's verdict.
+    prisma.kycCheck.findFirst({ where: { orgId, borrowerId: id, kind: "CRB", ...MERGED_CRB_ONLY }, orderBy: { createdAt: "desc" } }),
     scanEntitled ? portfolioEarlyWarning(orgId) : null,
     // Where they sit in the book, said the way the org says it: the branch plus its
     // ancestors up to the head office (three levels covers every real tree we hold).
@@ -101,9 +150,55 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
           select: { name: true, levelName: true, parent: { select: { name: true, levelName: true, parent: { select: { name: true, levelName: true } } } } },
         })
       : null,
+    // The people standing behind their money. They hang off applications, but an
+    // officer asks the question about the PERSON, which is why the row is
+    // denormalised onto the borrower in the first place.
+    prisma.guarantor.findMany({
+      where: { orgId, borrowerId: id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { id: true, fullName: true, phone: true, relationship: true, status: true },
+    }),
+    // M-PESA Ratiba. The table, the Daraja call and the callback have existed
+    // for months with no console surface at all — so the officer on the phone
+    // about a late instalment could not see whether this customer had a standing
+    // order that should have collected it.
+    prisma.standingOrder.findMany({
+      where: { orgId, borrowerId: id },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: { id: true, status: true, amount: true, frequency: true, startDate: true, endDate: true, simulated: true, createdById: true },
+    }).catch(() => []),
   ]);
   const risk = ew?.rows.find((r) => r.borrowerId === id) ?? null;
   const initialCrb = (crbCheck?.payload as unknown as CrbReport) ?? null;
+
+  // ── THE LENDER'S OWN BOOK ───────────────────────────────────────────────────
+  // Everything above is ours. This is theirs, and for a bridged lender it is most
+  // of what the page is actually about. Non-fatal by construction: a lender whose
+  // database is unreachable still gets a working Customer 360 of what WE hold,
+  // with the live sections absent and said to be absent — which is the only
+  // honest degradation, because a zero here reads as "they owe nothing".
+  const org = session.user.orgSlug ? await resolveOrg(session.user.orgSlug) : null;
+  const bridged = !!(org?.mode === "BRIDGED" && org.bridgedReady && org.registry && org.entityId);
+  const live = bridged
+    ? await readLiveCustomer360(
+        org!.registry!,
+        org!.entityId,
+        { serviceSuiteBorrowerId: b.serviceSuiteBorrowerId, phone: b.phone },
+        orgId,
+      ).catch(() => null)
+    : null;
+
+  // ── THE MASTER FILE ─────────────────────────────────────────────────────────
+  // Every scrutiny this ecosystem has ever obtained about this person, composed
+  // from the systems that already own each one. It is read AFTER the live block
+  // because the repayment record is the single heaviest piece of evidence in it,
+  // and that comes from the lender's own schedule.
+  const masterFile = await readMasterFile(orgId, id, {
+    behaviour: live?.behaviour ?? null,
+    hasLiveBook: !!live,
+  }).catch(() => null);
 
   // ── Customer timeline: interactions + limit + score + approval history ────────
   // Merged from the live tables into one spine; interactions are activity rows so a
@@ -135,354 +230,574 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
 
   const name = `${b.firstName ?? "Borrower"}${b.otherName ? " " + b.otherName : ""}`.trim();
   const verified = b.kycStatus === "VERIFIED";
-
   const accountAge = accountAgeOf(b.createdAt);
 
-  // Root-first placement chain: Head Office → Region → Branch.
+  // Root-first placement chain: Head Office → Region → Branch. Ours where we have
+  // it; the lender's own office trail where we do not, which for a bridged book is
+  // almost always — their tree is the real one and ours is a stub.
   type BranchNode = { name: string; levelName: string; parent?: BranchNode | null };
   const branchChain: { name: string; levelName: string }[] = [];
   for (let n = branch as BranchNode | null; n; n = n.parent ?? null) branchChain.unshift({ name: n.name, levelName: n.levelName });
+  const officeTrail = branchChain.length
+    ? branchChain.map((n) => n.name)
+    : (live?.profile.officeTrail ?? []).map((n) => n.unit);
 
-  // Where this account is on the road from walk-in to money: registered →
-  // KYC → statement crunched → application → active. Shown on the page so the
-  // officer never has to reconstruct "what's next" from four different panels.
-  const hasScore = b.creditScore != null || scores.length > 0;
-  const hasApplication = b.applications.length > 0 || b.loans.length > 0;
-  const hasActive = b.loans.some((l) => l.status === "ACTIVE" || l.status === "PENDING_DISBURSEMENT" || l.status === "CLEARED");
+  // ── THE FACE ────────────────────────────────────────────────────────────────
+  // Three sources, in order of how much we trust them, and the third is the fix:
+  //   1. the portrait promoted onto the Borrower row at KYC attach
+  //   2. the one still only on the KYC session (itself a finding)
+  //   3. THE LENDER'S OWN PHOTO — 13,403 of entity 3005's 17,021 customers have
+  //      one, which is exactly why the borrower LIST showed faces while this page
+  //      showed initials: the list read their book and this page never did.
+  const portraitUrl = (await portraitsFor([b.id]))[b.id]
+    ?? (kyc?.portraitKey ? await signedUrl(kyc.portraitKey, PORTRAIT_TTL_SEC) : null)
+    ?? live?.profile.photoUrl
+    ?? null;
+
+  // ── The numbers, live where a live book answered ───────────────────────────
+  const liveLoans = live?.statement?.loans ?? [];
+  const olb = live
+    ? liveLoans.filter((l) => l.status === "ACTIVE").reduce((s, l) => s + l.balance, 0)
+    : b.loans.filter((l) => l.status === "ACTIVE").reduce((s, l) => s + num(l.balance), 0);
+  const loansTotal = live ? liveLoans.length : b.loans.length;
+  const loansActive = live ? liveLoans.filter((l) => l.status === "ACTIVE").length : b.loans.filter((l) => l.status === "ACTIVE").length;
+  const clearedCount = live ? liveLoans.filter((l) => l.status === "CLEARED").length : b.loans.filter((l) => l.status === "CLEARED").length;
+  const loanLimit = live?.profile.loanLimit ?? (b.loanLimit != null ? Number(b.loanLimit) : null);
+  const arrearsTotal = liveLoans.reduce((s, l) => s + (l.arrears || 0), 0);
+  const worstDpd = liveLoans.reduce((m, l) => Math.max(m, l.daysInArrears ?? 0), 0);
+
+  // ── WHAT THIS CUSTOMER IS ───────────────────────────────────────────────────
+  // The live behavioural score wins outright where we have one, because it was
+  // computed a second ago from their real instalments under this lender's own
+  // policy. Everything below it is the fallback ladder for a native customer, or
+  // for a live book that did not answer.
+  const liveBehaviour = live?.behaviour ?? null;
+  const liveScore = liveBehaviour?.scored ? liveBehaviour.score : null;
+  const bandFromLive = liveBehaviour?.category ? BAND_BY_KEY.get(normaliseBandName(liveBehaviour.category.key) ?? "HIGH") ?? null : null;
+  const band =
+    bandFromLive
+    ?? bandForBehavioural(b.behaviouralScore)
+    ?? bandForScore(b.creditScore)
+    ?? (b.riskBand ? BAND_BY_KEY.get(normaliseBandName(b.riskBand) ?? "HIGH") ?? null : null);
+
+  const riskView: RiskView = {
+    band: band
+      ? {
+          key: band.key,
+          // THE LENDER'S OWN WORD for this category where their policy names one.
+          // Micromart publish three ("Minor risk" / "Moderate" / "Major risk") and
+          // showing them our "Prime" instead would be renaming their vocabulary on
+          // their own screen. The COLOUR and the geometry stay ours.
+          label: liveBehaviour?.category?.label ?? band.label,
+          meaning: band.meaning,
+          from: band.from, to: band.to, ink: band.ink, soft: band.soft, icon: band.icon,
+          graduationPercent: liveBehaviour?.category?.graduationPercent ?? band.graduationPercent,
+        }
+      : null,
+    score: b.creditScore,
+    behavioural: liveScore ?? b.behaviouralScore,
+    pd: defaultProbability(band, liveBehaviour?.pd ?? (scores[0]?.pd != null ? Number(scores[0].pd) : null)),
+  };
+
+  // The ladder. Live where the live book answered — it is the same engine either
+  // way, but only one of them has seen this customer actually repay anything.
+  const graduation = live?.ladder
+    ? { eligible: live.ladder.move === "graduate", reason: live.ladder.reason, newLimit: live.ladder.newLimit }
+    : clearedCount > 0
+      ? await previewLadder(orgId, b.id).then(({ assessment: g }) => ({
+          eligible: g.move === "graduate",
+          reason: g.reason,
+          newLimit: g.newLimit,
+        })).catch(() => null)
+      : null;
+
+  // Where this account is on the road from walk-in to money.
+  const hasScore = b.creditScore != null || scores.length > 0 || liveScore != null;
+  const hasApplication = b.applications.length > 0 || loansTotal > 0;
+  const hasActive = loansActive > 0 || clearedCount > 0 || b.loans.some((l) => l.status === "PENDING_DISBURSEMENT");
   const journey: { label: string; done: boolean; href?: string }[] = [
     { label: "Registered", done: true },
     { label: "KYC verified", done: verified, href: verified ? undefined : `/console/kyc/${b.id}?from=360` },
-    { label: "Statement crunched", done: hasScore, href: hasScore ? undefined : `/console/crunch?borrowerId=${b.id}&from=360` },
+    { label: "Scored", done: hasScore, href: hasScore ? undefined : `/console/crunch?borrowerId=${b.id}&from=360` },
     { label: "Application", done: hasApplication },
     { label: "Active loan", done: hasActive },
   ];
   const currentStep = journey.findIndex((s) => !s.done);
-  // The portrait may live on the Borrower row (promoted at attach) or still only on
-  // the session (a verification that hasn't been promoted — which is itself a finding).
-  const portraitUrl = (await portraitsFor([b.id]))[b.id]
-    ?? (kyc?.portraitKey ? await signedUrl(kyc.portraitKey, PORTRAIT_TTL_SEC) : null);
-  const olb = b.loans.filter((l) => l.status === "ACTIVE").reduce((s, l) => s + num(l.balance), 0);
-  const clearedCount = b.loans.filter((l) => l.status === "CLEARED").length;
 
-  // ── Where this customer sits, and what it would take to move them ───────────
-  //
-  // The band is taken from whichever engine has actually spoken. Their REPAYMENT
-  // record outranks their statement score, and deliberately: a statement tells you
-  // what someone earns, a repayment record tells you what they DO — and once we have
-  // watched them clear two loans, what they do is the better predictor of what they
-  // will do next. Before that, the crunch score is all we have.
-  const latestSnapshot = scores[0] ?? null;
-  const bandFromBehaviour = bandForBehavioural(b.behaviouralScore);
-  const bandFromScore = bandForScore(b.creditScore);
-  const band = bandFromBehaviour ?? bandFromScore ?? (b.riskBand ? BAND_BY_KEY.get(normaliseBandName(b.riskBand) ?? "HIGH") ?? null : null);
+  const ratiba: RatibaView[] = standingOrders.map((o) => ({
+    id: o.id,
+    status: o.status,
+    amount: Number(o.amount),
+    frequency: o.frequency,
+    startDate: o.startDate.toISOString(),
+    endDate: o.endDate ? o.endDate.toISOString() : null,
+    simulated: o.simulated,
+    byStaff: !!o.createdById,
+  }));
+  const ratibaOn = ratiba.some((o) => o.status === "ACTIVE");
+  // The next instalment still carrying money, from the lender's own schedule.
+  const nextDue = liveLoans
+    .filter((l) => l.status === "ACTIVE" && l.expectedClearDate)
+    .map((l) => ({ date: l.expectedClearDate!, amount: l.installmentAmount ?? l.balance }))
+    .sort((x, y) => x.date.localeCompare(y.date))[0] ?? null;
 
-  const riskView = {
-    band: band
-      ? {
-          key: band.key, label: band.label, meaning: band.meaning,
-          from: band.from, to: band.to, ink: band.ink, soft: band.soft, icon: band.icon,
-          graduationPercent: band.graduationPercent,
-        }
-      : null,
-    score: b.creditScore,
-    behavioural: b.behaviouralScore,
-    pd: defaultProbability(band, latestSnapshot?.pd != null ? Number(latestSnapshot.pd) : null),
-  };
+  const places = placesOf(b);
+  const visits = b.fieldVisits.map((v) => ({
+    id: v.id, label: v.label, status: v.status,
+    agent: v.agent ? `${v.agent.firstName ?? ""} ${v.agent.otherName ?? ""}`.trim() || null : null,
+  }));
 
-  // The ladder is only meaningful once they have repaid something.
-  const graduation = clearedCount > 0
-    ? await previewLadder(orgId, b.id).then(({ assessment: g }) => ({
-        // "eligible" now means specifically that the ladder would RAISE them — the
-        // engine can also lower a limit, and a demotion must not render as good news.
-        eligible: g.move === "graduate",
-        reason: g.reason,
-        newLimit: g.newLimit,
-      }))
-    : null;
-
-  return (
-    <main className="mx-auto max-w-5xl px-4 sm:px-6 py-8">
-        <Link href="/console/borrowers" className="inline-flex items-center gap-1.5 text-sm text-ash-500 hover:text-ash-800"><ArrowLeft className="h-4 w-4" /> Borrowers</Link>
-
-        {/* Identity header. The customer's FACE leads — an officer looking for a person
-            is looking for a person, and the fastest fraud check anyone ever runs is
-            noticing that the face beside the name is the wrong one.
-            relative: the kebab button pins to this card's corner. The drawer and
-            modals it opens portal to <body> — a .glass panel's backdrop-filter would
-            otherwise trap and clip anything position:fixed inside it. */}
-        <div className="relative mt-3 glass p-5">
-          {/* The one way to MANAGE this account — pinned to the furthest top-right of
-              the card, opening a drawer from the right. The card itself stays a read. */}
-          <div className="absolute right-3 top-3 z-30">
-            <BorrowerMenu
-              borrowerId={b.id}
-              name={name}
-              phone={b.phone}
-              email={b.email}
-              nationalId={b.nationalId}
-              locationType={b.locationType}
-              locationAddress={b.locationAddress}
-              lat={b.lat}
-              lng={b.lng}
-              homeLat={b.homeLat}
-              homeLng={b.homeLng}
-              homeAddress={b.homeAddress}
-              loanLimit={b.loanLimit != null ? Number(b.loanLimit) : null}
-              creditScore={b.creditScore}
-              riskBand={b.riskBand}
-              nextOfKin={(b.nextOfKin as { name?: string; relationship?: string; phone?: string } | null) ?? null}
-              verified={verified}
-            />
-          </div>
-          {/* pr clears the kebab pinned at right-3: the stats grid must not crowd
-              its button, so the row stops a full button-width-plus-breath short. */}
-          <div className="flex items-start justify-between gap-4 flex-wrap pr-10 sm:pr-16">
+  // ── THE MASTHEAD ────────────────────────────────────────────────────────────
+  const masthead = (
+    <div className="glass p-5">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-4">
+            {/* The corner tick stays off — verification lives beside the name,
+                Twitter-style, and one identity never wears two ticks. */}
+            <BorrowerAvatar name={name} portraitUrl={portraitUrl} verified={verified} tick={false} size="xl" />
             <div className="min-w-0">
-              <div className="flex items-center gap-4 min-w-0">
-              {/* The corner tick stays off here — verification lives beside the name,
-                  Twitter-style, and one identity never wears two ticks. */}
-              <BorrowerAvatar name={name} portraitUrl={portraitUrl} verified={verified} tick={false} size="xl" />
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl font-bold truncate">{name}</h1>
-                  {/* Verified reads like a verified handle: the filled badge, no words.
-                      The words live in the tooltip for whoever hovers to ask. */}
-                  {verified ? (
-                    <span title={`Identity verified${b.kycVerifiedAt ? ` on ${dateFmt(b.kycVerifiedAt)}` : ""} — cleared for disbursement.`}>
-                      <BadgeCheck className="h-5 w-5 shrink-0 fill-emerald-500 text-white" aria-label="KYC verified" />
-                    </span>
-                  ) : (
-                    <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${KYC_TONE[b.kycStatus] ?? KYC_TONE.NONE}`}>KYC {b.kycStatus}</span>
-                  )}
-                  {b.graduationCount > 0 && <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">GRADUATED ×{b.graduationCount}</span>}
-                  {/* The gate, said out loud on the customer's own page — and a way through
-                      it. An unverified borrower cannot be disbursed to, so the officer
-                      looking at them needs to know that here, not at the payout desk.
-                      ?from=360 sends them BACK here when it's done, not to the queue. */}
-                  {!verified && (
-                    <Link
-                      href={`/console/kyc/${b.id}?from=360`}
-                      className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold text-white"
-                      style={{ backgroundColor: "var(--brand)" }}
-                    >
-                      Start verification →
-                    </Link>
-                  )}
-                </div>
-                <p className="mt-0.5 text-sm text-ash-500 truncate">{b.phone}{b.nationalId ? ` · ID ${b.nationalId}` : ""}{b.locationAddress ? ` · ${b.locationAddress}` : ""}</p>
-                {/* Tenure and placement — how long they've banked here and whose book
-                    they sit on, root-first the way the org says it. This earns the line
-                    the old "identity verified" sentence held; the badge above already
-                    says that in one glyph. */}
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ash-600">
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-ash-400" />
-                    <span className="text-ash-400">Account age</span>
-                    <span className="font-semibold text-ash-700">{accountAge}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="t-title truncate">{name}</h1>
+                {verified ? (
+                  <span title={`Identity verified${b.kycVerifiedAt ? ` on ${dateFmt(b.kycVerifiedAt)}` : ""} — cleared for disbursement.`}>
+                    <BadgeCheck className="h-5 w-5 shrink-0 fill-emerald-500 text-white" aria-label="KYC verified" />
                   </span>
-                  {branchChain.map((n, i) => (
-                    <span key={`${n.name}-${i}`} className="flex items-center gap-1">
-                      {i === 0 && <Building2 className="h-3.5 w-3.5 text-ash-400" />}
-                      <span className="font-semibold text-ash-700">{n.name}</span>
-                      {i > 0 && <span className="text-[10px] text-ash-400">({n.levelName})</span>}
-                    </span>
-                  ))}
-                </div>
+                ) : (
+                  <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${KYC_TONE[b.kycStatus] ?? KYC_TONE.NONE}`}>KYC {b.kycStatus}</span>
+                )}
+                {b.graduationCount > 0 && (
+                  <span className="rounded-md bg-emerald-500/12 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                    GRADUATED ×{b.graduationCount}
+                  </span>
+                )}
                 {!verified && (
-                  <p className="mt-1 text-[12px] font-medium text-amber-700">
-                    Identity not verified — no money can be disbursed to this borrower yet.
-                  </p>
+                  <Link
+                    href={`/console/kyc/${b.id}?from=360`}
+                    className="flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold text-white"
+                    style={{ backgroundColor: "var(--brand)" }}
+                  >
+                    Start verification →
+                  </Link>
                 )}
               </div>
-              </div>
-              {/* THE THREE PRIMARY ACTS, directly under the face. Asking for money,
-                  sending a human, and asking Riri are what an officer DOES on this
-                  page — they sit with the identity they act on, not across the card.
-                  The kebab top-right stays what an officer may CHANGE. */}
-              <div className="mt-3">
-                <BorrowerActions
-                  borrowerId={b.id}
-                  name={name}
-                  lat={b.lat}
-                  lng={b.lng}
-                  fieldEntitled={fieldEntitled}
-                  subject={{ kind: "borrower", id: b.id, label: name }}
-                />
-              </div>
-            </div>
-            {/* Full-width grid under the identity on a phone; a fixed 2×2 strip
-                beside it on sm+. The four numbers an officer prices this customer
-                by, big enough to be read from across a desk: what's out, what they
-                may take, what the model says, and their loan record. */}
-            <div className="grid w-full grid-cols-2 gap-2.5 sm:w-auto sm:shrink-0">
-              <BigStat label="OLB" value={fmtKES(olb)} tone="text-[color:var(--brand)]" />
-              <BigStat label="Loan limit" value={b.loanLimit != null ? fmtKES(Number(b.loanLimit)) : "—"} />
-              <BigStat label="Internal score" value={b.creditScore != null ? String(b.creditScore) : "—"} />
-              <BigStat label="Loans" value={`${b.loans.filter((l) => l.status === "ACTIVE").length}/${b.loans.length}`} />
-            </div>
-          </div>
-
-          {/* The journey strip — which step this account is on, and a way into
-              the step it is waiting for. */}
-          <div className="mt-4 border-t border-ash-900/10 pt-3">
-            <div className="flex items-center gap-0 overflow-x-auto">
-              {journey.map((s, i) => {
-                const isCurrent = i === currentStep;
-                const dot = s.done ? (
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white"><CheckCircle2 className="h-3.5 w-3.5" /></span>
-                ) : (
-                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${isCurrent ? "text-white" : "bg-ash-900/10 text-ash-500"}`}
-                    style={isCurrent ? { backgroundColor: "var(--brand)" } : undefined}>{i + 1}</span>
-                );
-                const label = (
-                  <span className={`ml-1.5 whitespace-nowrap text-[11px] ${s.done ? "font-medium text-ash-600" : isCurrent ? "font-bold text-ash-900" : "text-ash-400"}`}>
-                    {s.label}{isCurrent && <span className="ml-1 rounded bg-ash-900/5 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-ash-500">current step</span>}
+              <p className="mt-0.5 truncate t-meta">
+                {b.phone}
+                {b.nationalId ? ` · ID ${b.nationalId}` : ""}
+                {live?.profile.accountNo ? ` · A/C ${live.profile.accountNo}` : ""}
+              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[color:var(--ink-muted)]">
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-[color:var(--ink-faint)]" />
+                  <span className="text-[color:var(--ink-faint)]">Account age</span>
+                  <span className="font-semibold text-[color:var(--ink)]">{accountAge}</span>
+                </span>
+                {officeTrail.length > 0 && (
+                  <span className="flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5 text-[color:var(--ink-faint)]" />
+                    <span className="font-semibold text-[color:var(--ink)]">{officeTrail.join(" › ")}</span>
                   </span>
-                );
-                return (
-                  <div key={s.label} className="flex items-center">
-                    {i > 0 && <span className={`mx-2 h-px w-4 sm:w-7 ${journey[i - 1].done ? "bg-emerald-400" : "bg-ash-900/15"}`} />}
-                    {s.href && isCurrent
-                      ? <Link href={s.href} className="flex items-center hover:opacity-80">{dot}{label}</Link>
-                      : <span className="flex items-center">{dot}{label}</span>}
-                  </div>
-                );
-              })}
+                )}
+                {live?.profile.agentName && (
+                  <span className="text-[color:var(--ink-faint)]">
+                    Officer <span className="font-semibold text-[color:var(--ink)]">{live.profile.agentName}</span>
+                  </span>
+                )}
+              </div>
+              {!verified && (
+                <p className="mt-1 text-[12px] font-medium text-amber-700">
+                  Identity not verified — no money can be disbursed to this borrower yet.
+                </p>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* WHAT THIS CUSTOMER IS, IN ONE LOOK. Directly under the identity, above
-            everything else, because it is the question every other panel on this page
-            is evidence for. The bare "Internal score: 747" tile in the strip above is
-            a number on a scale nobody has memorised; this says what it MEANS. */}
-        <div className="mt-4">
-          <RiskBandCard view={riskView} graduation={graduation} />
-        </div>
-
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          {/* Early-warning risk */}
-          <div className="glass p-5">
-            <h2 className="text-sm font-semibold flex items-center gap-2"><ShieldAlert className="h-4 w-4" style={{ color: "var(--brand)" }} /> Early-warning risk</h2>
-            {risk ? (
-              <div className="mt-3">
-                <div className="flex items-center gap-2.5">
-                  <span className={`rounded-md px-2 py-0.5 text-xs font-bold ${risk.band === "HIGH" ? "bg-rose-100 text-rose-700" : risk.band === "ELEVATED" ? "bg-amber-100 text-amber-700" : "bg-ash-900/5 text-ash-600"}`}>{risk.band}</span>
-                  <div className="flex-1 h-2 rounded-full bg-ash-900/8 overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${risk.riskScore}%`, backgroundColor: risk.band === "HIGH" ? "#e11d48" : risk.band === "ELEVATED" ? "#d97706" : "#a1a1aa" }} />
-                  </div>
-                  <span className="text-xs font-bold tabular-nums">{risk.riskScore}</span>
-                </div>
-                <div className="mt-2.5 flex flex-wrap gap-1.5">
-                  {risk.reasons.map((r, i) => <span key={i} className="rounded-full border border-ash-900/10 bg-paper/60 px-2 py-0.5 text-[10px] text-ash-600">{r}</span>)}
-                </div>
-                <p className="mt-2.5 text-xs text-ash-500">Recommended: <span className="font-semibold text-ash-700">{risk.action.label}</span> · projected loss {fmtKES(risk.expectedLoss)}</p>
-              </div>
-            ) : (
-              <p className="mt-3 text-sm text-ash-500 flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-emerald-500" /> No early-warning signals — performing to schedule.</p>
-            )}
+          {/* THE THREE PRIMARY ACTS, directly under the face. Asking for money,
+              sending a human, and asking Riri are what an officer DOES here. */}
+          <div className="mt-3.5">
+            <BorrowerActions
+              borrowerId={b.id}
+              name={name}
+              lat={b.lat}
+              lng={b.lng}
+              fieldEntitled={fieldEntitled}
+              subject={{ kind: "borrower", id: b.id, label: name }}
+            />
           </div>
+        </div>
 
-          {/* Identity & KYC */}
-          <div className="glass p-5">
-            <h2 className="text-sm font-semibold flex items-center gap-2"><ScanFace className="h-4 w-4" style={{ color: "var(--brand)" }} /> Identity &amp; KYC</h2>
+        {/* The five numbers this customer is priced by, big enough to read from
+            across a desk — and, for a bridged lender, every one of them read from
+            the lender's own book rather than from our empty copy of it. */}
+        <div className="grid w-full grid-cols-2 gap-2.5 sm:w-auto sm:shrink-0 sm:grid-cols-3">
+          <BigStat label="Outstanding" value={fmtKES(olb)} tone="text-[color:var(--brand)]" />
+          <BigStat label="Loan limit" value={loanLimit != null ? fmtKES(loanLimit) : "—"} />
+          <BigStat
+            label="Score"
+            value={liveScore != null ? liveScore.toFixed(1) : b.behaviouralScore != null ? b.behaviouralScore.toFixed(1) : "—"}
+            sub={liveScore != null ? "of 100 · from their repayments" : undefined}
+          />
+          <BigStat label="Loans" value={`${loansActive}/${loansTotal}`} sub={clearedCount > 0 ? `${clearedCount} cleared` : undefined} />
+          <BigStat
+            label="Arrears"
+            value={arrearsTotal > 0 ? fmtKES(arrearsTotal) : "—"}
+            sub={worstDpd > 0 ? `${worstDpd} days past due` : "nothing behind"}
+            tone={arrearsTotal > 0 ? "text-rose-600" : undefined}
+          />
+          <BigStat
+            label="Auto-repay"
+            value={ratibaOn ? "On" : "Off"}
+            sub={ratibaOn ? "Safaricom collects" : "collected by hand"}
+            tone={ratibaOn ? "text-emerald-600" : undefined}
+          />
+        </div>
+      </div>
+
+      {/* The journey strip — which step this account is on, and a way into the
+          step it is waiting for. */}
+      <div className="mt-4 border-t border-ash-900/10 pt-3">
+        <div className="flex items-center gap-0 overflow-x-auto">
+          {journey.map((s, i) => {
+            const isCurrent = i === currentStep;
+            const dot = s.done ? (
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white"><CheckCircle2 className="h-3.5 w-3.5" /></span>
+            ) : (
+              <span
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${isCurrent ? "text-white" : "bg-ash-900/10 text-[color:var(--ink-faint)]"}`}
+                style={isCurrent ? { backgroundColor: "var(--brand)" } : undefined}
+              >
+                {i + 1}
+              </span>
+            );
+            const label = (
+              <span className={`ml-1.5 whitespace-nowrap text-[11px] ${s.done ? "font-medium text-[color:var(--ink-muted)]" : isCurrent ? "font-bold text-[color:var(--ink)]" : "text-[color:var(--ink-faint)]"}`}>
+                {s.label}
+                {isCurrent && <span className="ml-1 rounded bg-ash-900/5 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-[color:var(--ink-faint)]">current step</span>}
+              </span>
+            );
+            return (
+              <div key={s.label} className="flex items-center">
+                {i > 0 && <span className={`mx-2 h-px w-4 sm:w-7 ${journey[i - 1].done ? "bg-emerald-400" : "bg-ash-900/15"}`} />}
+                {s.href && isCurrent
+                  ? <Link href={s.href} className="flex items-center hover:opacity-80">{dot}{label}</Link>
+                  : <span className="flex items-center">{dot}{label}</span>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── THE SECTIONS ────────────────────────────────────────────────────────────
+  const sections: Section[] = [];
+
+  sections.push({
+    key: "overview",
+    label: "Overview",
+    icon: "LayoutDashboard",
+    content: (
+      <div className="space-y-4">
+        {live && org && <Provenance lender={org.name} entityId={org.entityId} degraded={live.degraded} matchedBy={live.matchedBy} />}
+        <RiskBandCard view={riskView} graduation={graduation} />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Panel title="Early-warning risk" icon={<ShieldAlert className="h-4 w-4" style={{ color: "var(--brand)" }} />}>
+            <EarlyWarning risk={risk} />
+          </Panel>
+          <Panel
+            title="Identity & KYC"
+            icon={<ScanFace className="h-4 w-4" style={{ color: "var(--brand)" }} />}
+            note={verified ? "Cleared for disbursement." : "Money cannot leave until this is done."}
+          >
             {kyc ? (
-              <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <Stat label="ID quality" value={kyc.idQualityScore != null ? `${kyc.idQualityScore}` : "—"} />
                 <Stat label="Liveness" value={kyc.livenessScore != null ? `${kyc.livenessScore}` : "—"} tone={kyc.livenessPassed ? "text-emerald-600" : undefined} />
                 <Stat label="Face match" value={kyc.faceMatchScore != null ? `${kyc.faceMatchScore}` : "—"} />
                 <Stat label="IPRS" value={kyc.iprsMatched ? "Matched" : "—"} tone={kyc.iprsMatched ? "text-emerald-600" : undefined} />
-                <div className="col-span-2 sm:col-span-4 text-xs text-ash-500">
-                  Session <span className="font-semibold">{kyc.status}</span> · {kyc.provider} · {dateFmt(kyc.createdAt)}
-                  {kyc.iprsName ? ` · registry: ${kyc.iprsName}` : ""}
-                </div>
-                {/* Keys only — the images come from signed URLs, on demand. */}
-                <div className="col-span-2 sm:col-span-4">
-                  <KycGallery
-                    portraitKey={b.portraitKey ?? kyc.portraitKey}
-                    idFrontKey={b.idFrontKey ?? kyc.idFrontKey}
-                    selfieKey={b.selfieKey ?? kyc.selfieKey}
-                  />
-                </div>
               </div>
             ) : (
-              <p className="mt-3 text-sm text-ash-500">
+              <p className="t-meta">
                 No KYC session on file.{" "}
                 <Link href={`/console/kyc/${b.id}?from=360`} className="font-semibold" style={{ color: "var(--brand)" }}>Start verification</Link>
               </p>
             )}
-          </div>
+          </Panel>
+        </div>
+      </div>
+    ),
+  });
 
-          {/* Loans */}
-          <div className="glass p-5">
-            <h2 className="text-sm font-semibold flex items-center gap-2"><Landmark className="h-4 w-4" style={{ color: "var(--brand)" }} /> Loans <span className="text-ash-400 font-normal">· {clearedCount} cleared</span></h2>
-            <div className="mt-3 space-y-2">
-              {b.loans.length === 0 && <p className="text-sm text-ash-500">No loans yet.</p>}
-              {b.loans.slice(0, 6).map((l) => {
-                const total = l.installments.length;
-                const paid = l.installments.filter((i) => i.status === "PAID").length;
-                return (
-                  <div key={l.id} className="rounded-lg border border-ash-900/10 bg-paper/60 px-3 py-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-medium truncate">{l.product.name}</p>
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${l.status === "ACTIVE" ? "bg-sky-100 text-sky-700" : l.status === "CLEARED" ? "bg-emerald-100 text-emerald-700" : "bg-ash-900/5 text-ash-600"}`}>{l.status}</span>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between text-xs text-ash-500">
-                      <span>{fmtKES(num(l.loanAmount))} · {paid}/{total} paid</span>
-                      <span className="font-semibold" style={{ color: "var(--brand)" }}>{fmtKES(num(l.balance))}</span>
-                    </div>
-                    <Link href={`/console/loans/${l.id}/statement`} className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium hover:underline" style={{ color: "var(--brand)" }}>
-                      <FileText className="h-3 w-3" /> Statement
-                    </Link>
+  if (live?.statement) {
+    const st = live.statement;
+    sections.push({
+      key: "money",
+      label: "Money",
+      icon: "Banknote",
+      badge: String(st.loans.length),
+      tone: arrearsTotal > 0 ? "bad" : "brand",
+      content: (
+        <div className="space-y-4">
+          {org && <Provenance lender={org.name} entityId={org.entityId} degraded={live.degraded} matchedBy={live.matchedBy} />}
+          <MoneySummary statement={st} />
+          <Panel
+            title="Auto-repay — M-PESA Ratiba"
+            icon={<Radio className="h-4 w-4" style={{ color: "var(--brand)" }} />}
+            note="Whether Safaricom is collecting these instalments, or somebody has to."
+          >
+            <RatibaPanel orders={ratiba} nextDue={nextDue} />
+          </Panel>
+          <Panel
+            title="Every loan they have taken"
+            icon={<Landmark className="h-4 w-4" style={{ color: "var(--brand)" }} />}
+            note="Arrears is the lender's own register, never our arithmetic — so this page and their PAR reports can never disagree."
+            right={
+              <Link href={`/console/borrowers/${b.id}/statement`} className="text-[12px] font-semibold hover:underline" style={{ color: "var(--brand)" }}>
+                Full statement →
+              </Link>
+            }
+          >
+            <LiveLoans loans={st.loans} />
+          </Panel>
+          <Panel
+            title="The ledger"
+            icon={<History className="h-4 w-4" style={{ color: "var(--brand)" }} />}
+            note={`${st.totals.count.toLocaleString()} entries, newest first. "In" is money reaching the customer.`}
+          >
+            <LiveLedger txns={st.transactions.slice(0, 60)} truncated={st.truncated || st.transactions.length > 60} />
+          </Panel>
+        </div>
+      ),
+    });
+  } else if (b.loans.length > 0) {
+    // A NATIVE customer, or a live book that did not answer. Our own loans, said
+    // plainly as ours.
+    sections.push({
+      key: "money",
+      label: "Money",
+      icon: "Banknote",
+      badge: String(b.loans.length),
+      content: (
+        <Panel title="Loans" icon={<Landmark className="h-4 w-4" style={{ color: "var(--brand)" }} />} note={`${clearedCount} cleared`}>
+          <div className="space-y-2">
+            {b.loans.slice(0, 12).map((l) => {
+              const total = l.installments.length;
+              const paid = l.installments.filter((i) => i.status === "PAID").length;
+              return (
+                <div key={l.id} className="rounded-lg border border-ash-900/10 bg-paper/60 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-medium">{l.product.name}</p>
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${l.status === "ACTIVE" ? "bg-sky-500/12 text-sky-700" : l.status === "CLEARED" ? "bg-emerald-500/12 text-emerald-700" : "bg-ash-900/[0.06] text-[color:var(--ink-muted)]"}`}>{l.status}</span>
                   </div>
-                );
-              })}
-            </div>
+                  <div className="mt-1 flex items-center justify-between text-xs text-[color:var(--ink-muted)]">
+                    <span>{fmtKES(num(l.loanAmount))} · {paid}/{total} paid</span>
+                    <span className="font-semibold" style={{ color: "var(--brand)" }}>{fmtKES(num(l.balance))}</span>
+                  </div>
+                  <Link href={`/console/loans/${l.id}/statement`} className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium hover:underline" style={{ color: "var(--brand)" }}>
+                    Statement
+                  </Link>
+                </div>
+              );
+            })}
           </div>
+        </Panel>
+      ),
+    });
+  }
 
-          {/* Customer timeline — interactions/dispositions + limit/score/approval history */}
-          <CustomerTimeline borrowerId={b.id} events={timelineTop} />
-
-          {/* Score history (closed ML loop) */}
-          <div className="glass p-5">
-            <h2 className="text-sm font-semibold flex items-center gap-2"><History className="h-4 w-4" style={{ color: "var(--brand)" }} /> Score history <span className="text-ash-400 font-normal">· closed ML loop</span></h2>
-            <div className="mt-3 space-y-1.5">
-              {scores.length === 0 && <p className="text-sm text-ash-500">No scores recorded.</p>}
+  sections.push({
+    key: "risk",
+    label: "Risk & score",
+    icon: "Gauge",
+    badge: liveScore != null ? liveScore.toFixed(0) : b.behaviouralScore != null ? b.behaviouralScore.toFixed(0) : null,
+    tone: band?.key === "HIGH" ? "bad" : band?.key === "WATCH" ? "warn" : "good",
+    content: (
+      <div className="space-y-4">
+        <RiskBandCard view={riskView} graduation={graduation} />
+        {liveBehaviour?.scored ? (
+          <>
+            <Panel
+              title="Why the score is what it is"
+              note={`Computed from ${liveBehaviour.installmentsUsed} instalments across ${liveBehaviour.loans.length} loan${liveBehaviour.loans.length === 1 ? "" : "s"}${liveBehaviour.includesLiveLoan ? ", including one still being repaid — so this can still move." : "."}`}
+            >
+              <ScoreFactors behaviour={liveBehaviour} />
+            </Panel>
+            {live?.profile.riskScore != null && (
+              <Panel title="Against the lender's own score" note="Ours is computed now; theirs was frozen when their job last ran.">
+                <ScoreComparison
+                  ours={liveBehaviour.score}
+                  theirs={live.profile.riskScore}
+                  theirLabel={live.profile.riskCategory}
+                  lastRun={live.profile.lastScoreUpdate}
+                />
+              </Panel>
+            )}
+            {live?.ladder && (
+              <Panel title="Where the ladder would put their limit" note="What this lender's own published credit policy says, applied to this record.">
+                <LadderPanel ladder={live.ladder} />
+              </Panel>
+            )}
+          </>
+        ) : (
+          <Panel title="Not scored from behaviour yet">
+            <p className="t-meta">
+              No instalment has fallen due for this customer, so there is nothing to score them on. That is a fact worth
+              knowing rather than a gap — a band assigned without a repayment record would be a guess wearing a number.
+            </p>
+          </Panel>
+        )}
+        {scores.length > 0 && (
+          <Panel title="Score history" icon={<History className="h-4 w-4" style={{ color: "var(--brand)" }} />} note="closed ML loop">
+            <div className="space-y-1.5">
               {scores.map((s) => (
                 <div key={s.id} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="text-ash-500 truncate">{s.modelKind} <span className="text-ash-400">{s.modelVersion}</span></span>
-                  <span className="flex items-center gap-2 shrink-0">
-                    {s.score != null && <span className="font-semibold text-ash-700">{s.score}</span>}
-                    {s.pd != null && <span className="text-ash-400">PD {Number(s.pd).toFixed(2)}</span>}
-                    <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${s.outcome === "REPAID" ? "bg-emerald-100 text-emerald-700" : s.outcome === "DEFAULTED" ? "bg-rose-100 text-rose-700" : "bg-ash-900/5 text-ash-500"}`}>{s.outcome}</span>
+                  <span className="truncate text-[color:var(--ink-muted)]">{s.modelKind} <span className="text-[color:var(--ink-faint)]">{s.modelVersion}</span></span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    {s.score != null && <span className="font-semibold text-[color:var(--ink)]">{s.score}</span>}
+                    {s.pd != null && <span className="text-[color:var(--ink-faint)]">PD {Number(s.pd).toFixed(2)}</span>}
+                    <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold ${s.outcome === "REPAID" ? "bg-emerald-500/12 text-emerald-700" : s.outcome === "DEFAULTED" ? "bg-rose-500/12 text-rose-700" : "bg-ash-900/[0.06] text-[color:var(--ink-faint)]"}`}>{s.outcome}</span>
                   </span>
                 </div>
               ))}
             </div>
-          </div>
+          </Panel>
+        )}
+      </div>
+    ),
+  });
 
-          {/* Field visits */}
-          {b.fieldVisits.length > 0 && (
-            <div className="glass p-5">
-              <h2 className="text-sm font-semibold flex items-center gap-2"><MapPin className="h-4 w-4" style={{ color: "var(--brand)" }} /> Field visits</h2>
-              <div className="mt-3 space-y-1.5">
-                {b.fieldVisits.map((v) => (
-                  <div key={v.id} className="flex items-center justify-between gap-2 text-xs">
-                    <span className="text-ash-600 truncate">{v.label}{v.agent ? ` · ${v.agent.firstName}` : ""}</span>
-                    <span className="flex items-center gap-1.5 shrink-0 text-ash-500">
-                      {v.status === "VERIFIED" ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> : v.status === "FAILED" ? <XCircle className="h-3.5 w-3.5 text-rose-500" /> : <Clock className="h-3.5 w-3.5 text-amber-500" />}
-                      {v.status}
-                    </span>
-                  </div>
-                ))}
+  sections.push({
+    key: "identity",
+    label: "Identity",
+    icon: "ShieldCheck",
+    badge: verified ? "✓" : b.kycStatus === "NONE" ? "!" : null,
+    tone: verified ? "good" : "warn",
+    content: (
+      <div className="space-y-4">
+        <Panel
+          title="KYC"
+          icon={<ScanFace className="h-4 w-4" style={{ color: "var(--brand)" }} />}
+          note={kyc ? `Session ${kyc.status} · ${kyc.provider} · ${dateFmt(kyc.createdAt)}${kyc.iprsName ? ` · registry: ${kyc.iprsName}` : ""}` : undefined}
+        >
+          {kyc ? (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Stat label="ID quality" value={kyc.idQualityScore != null ? `${kyc.idQualityScore}` : "—"} />
+              <Stat label="Liveness" value={kyc.livenessScore != null ? `${kyc.livenessScore}` : "—"} tone={kyc.livenessPassed ? "text-emerald-600" : undefined} />
+              <Stat label="Face match" value={kyc.faceMatchScore != null ? `${kyc.faceMatchScore}` : "—"} />
+              <Stat label="IPRS" value={kyc.iprsMatched ? "Matched" : "—"} tone={kyc.iprsMatched ? "text-emerald-600" : undefined} />
+              <div className="col-span-2 sm:col-span-4">
+                {/* Keys only — the images come from signed URLs, on demand. */}
+                <KycGallery
+                  portraitKey={b.portraitKey ?? kyc.portraitKey}
+                  idFrontKey={b.idFrontKey ?? kyc.idFrontKey}
+                  selfieKey={b.selfieKey ?? kyc.selfieKey}
+                />
               </div>
             </div>
+          ) : (
+            <p className="t-meta">
+              No KYC session on file.{" "}
+              <Link href={`/console/kyc/${b.id}?from=360`} className="font-semibold" style={{ color: "var(--brand)" }}>Start verification</Link>
+            </p>
           )}
+        </Panel>
+        {/* The credit bureau. Its own client island — a CRB pull costs money, so it
+            is asked for, never fetched because a page opened. */}
+        <Customer360Client borrowerId={b.id} initialCrb={initialCrb} />
+      </div>
+    ),
+  });
 
-          {/* The credit bureau panel. The actions that used to sit under it now live in
-              the header strip — see BorrowerActions. */}
-          <Customer360Client borrowerId={b.id} initialCrb={initialCrb} />
-        </div>
-      </main>
+  if (masterFile) {
+    const mb = masterFileBadge(masterFile);
+    sections.push({
+      key: "master",
+      label: "Master file",
+      icon: "FileLock2",
+      badge: mb.badge,
+      tone: mb.tone,
+      content: <MasterFilePanel file={masterFile} borrowerId={b.id} />,
+    });
+  }
+
+  const peopleCount = (b.nextOfKin ? 1 : 0) + guarantors.length + (live?.profile.agentName ? 1 : 0);
+  sections.push({
+    key: "people",
+    label: "People",
+    icon: "Users",
+    badge: peopleCount > 0 ? String(peopleCount) : null,
+    content: (
+      <Panel title="Everyone around this customer" note="Who to call, who is liable, and whose book they sit on.">
+        <PeoplePanel
+          kin={(b.nextOfKin as { name?: string; relationship?: string; phone?: string } | null) ?? null}
+          officer={live?.profile.agentName ?? null}
+          branchTrail={officeTrail}
+          guarantors={guarantors.map((g) => ({ ...g, relationship: g.relationship ?? null }))}
+        />
+      </Panel>
+    ),
+  });
+
+  if (fieldEntitled || places.length > 0 || visits.length > 0) {
+    sections.push({
+      key: "places",
+      label: "Places",
+      icon: "MapPin",
+      badge: places.length > 0 ? String(places.length) : "0",
+      tone: places.length > 0 ? "brand" : "warn",
+      content: (
+        <Panel title="Where they can be found" note="Consented snapshots, captured once — never a track.">
+          <PlacesPanel places={places} visits={visits} />
+        </Panel>
+      ),
+    });
+  }
+
+  sections.push({
+    key: "timeline",
+    label: "Timeline",
+    icon: "History",
+    badge: timeline.length > 0 ? String(timeline.length) : null,
+    content: <CustomerTimeline borrowerId={b.id} events={timelineTop} />,
+  });
+
+  sections.push({
+    key: "manage",
+    label: "Manage",
+    icon: "Settings2",
+    content: (
+      <Panel title="What you can do to this account" note="Every one of these lands as an audit row under your name. Nothing here is a quiet edit.">
+        <BorrowerManagePanel
+          borrowerId={b.id}
+          name={name}
+          phone={b.phone}
+          email={b.email}
+          nationalId={b.nationalId}
+          locationType={b.locationType}
+          locationAddress={b.locationAddress}
+          lat={b.lat}
+          lng={b.lng}
+          homeLat={b.homeLat}
+          homeLng={b.homeLng}
+          homeAddress={b.homeAddress}
+          loanLimit={loanLimit}
+          creditScore={b.creditScore}
+          riskBand={b.riskBand}
+          nextOfKin={(b.nextOfKin as { name?: string; relationship?: string; phone?: string } | null) ?? null}
+          verified={verified}
+        />
+      </Panel>
+    ),
+  });
+
+  return (
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <Link href="/console/borrowers" className="inline-flex items-center gap-1.5 text-sm text-[color:var(--ink-muted)] hover:text-[color:var(--ink)]">
+        <ArrowLeft className="h-4 w-4" /> Borrowers
+      </Link>
+      <div className="mt-3">
+        <Customer360Workspace masthead={masthead} sections={sections} />
+      </div>
+    </main>
   );
 }

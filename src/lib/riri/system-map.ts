@@ -476,6 +476,33 @@ export const SYSTEM_SCREENS: SystemScreen[] = [
     right: "reconciliation.view",
     related: ["repayments", "disbursements", "income-statement"],
   },
+  {
+    // The lender's OWN parking bay, not our exceptions queue — the second tab of
+    // the same screen, and its own entry here because it is a different question
+    // with a different answer. "Where did that payment go?" is asked about this
+    // list far more often than about the queue beside it.
+    id: "suspended-payments",
+    href: "/console/reconciliation?tab=suspended",
+    title: "Suspended Payments",
+    module: "payments",
+    purpose:
+      "The payments the lender's own system parked because the reference on them matched nobody — read live, and reconciled by naming the account they belong to.",
+    does: [
+      "Search the suspense account for a payment by M-Pesa reference, phone or amount",
+      "Look up who an account number actually resolves to, inside this book",
+      "Set the reference so the lender's own posting job clears it to the right customer",
+    ],
+    asks: [
+      "suspended payments", "suspense account", "payment parked", "unmatched reference",
+      "wrong account number", "money paid to wrong account", "malipo yaliyosimamishwa",
+    ],
+    concepts: ["suspense", "allocation", "unallocated C2B"],
+    implications: [
+      "Reconciling here does not move money. It writes the reference the lender's own statement job reads, and that job posts the entry — so the correction appears in their book, under their process, not ours.",
+    ],
+    right: "reconciliation.view",
+    related: ["reconciliation", "repayments"],
+  },
 
   // ── Collections ────────────────────────────────────────────────────────────
   {
@@ -1026,6 +1053,33 @@ export const SYSTEM_SCREENS: SystemScreen[] = [
     ],
     right: "settings.view",
     related: ["credit-policy", "borrower-new", "charges", "kyc-queue"],
+  },
+  {
+    // Its own entry rather than a line inside the vault, for the same reason it
+    // is its own menu item: which of Metropol's reports a lender buys is a
+    // COMMERCIAL decision, and the person who signs off bureau spend is rarely
+    // the person who pastes in an API key.
+    id: "crb-scrutiny",
+    href: "/console/settings/crb",
+    title: "Bureau Scrutiny",
+    module: "organization",
+    purpose:
+      "Which credit-bureau reports this lender buys, what each one costs to pull, and what it comes back with.",
+    does: [
+      "Turn an individual Metropol report on or off for this lender",
+      "See the per-pull price of each report before it is enabled",
+      "Read what a report actually returns, so the spend can be judged against the answer",
+    ],
+    asks: [
+      "CRB", "credit bureau", "Metropol", "bureau reports", "scrutiny", "credit check cost",
+      "which CRB reports", "ripoti ya CRB",
+    ],
+    concepts: ["CRB"],
+    implications: [
+      "Every enabled report is a real per-pull charge on this lender's account, incurred the moment an officer runs a check — enabling one is a spending decision, not a display setting.",
+    ],
+    right: "settings.view",
+    related: ["settings", "compliance"],
   },
   {
     id: "compliance",

@@ -141,3 +141,18 @@ export const SATELLITE_LABELS: readonly string[] = [
   ...SATELLITE_HOSTS.map((h) => h.label),
   ...EXTERNAL_LABELS,
 ];
+
+/**
+ * The BORROWER APP's own host — portal.servicesuitecloud.com.
+ *
+ * Not in SATELLITE_HOSTS, and not `satelliteHost("portal")`, because it is not
+ * this deployment. The customer portal a lender's borrowers actually use is a
+ * SEPARATE Vercel project (ecosystem/registry.json → `pwa`), live on this host
+ * since 1 Sep 2026; `microeazy.servicesuitecloud.com` is this application's own
+ * consumer route. Two labels, two projects, because only one Vercel project can
+ * hold a hostname.
+ *
+ * A staff member who opens the portal from the console is going to the thing
+ * their CUSTOMERS see, which is the deployed app — not our copy of it.
+ */
+export const BORROWER_PORTAL_HOST = `portal.${SUITE_DOMAIN}`;

@@ -35,6 +35,24 @@
 // request parameters and response shapes), §5.1 (report types), §5.2 (report
 // reasons). Verified live against api.metropol.co.ke:5555/v2_1 on the test key
 // pair for reports 1, 2, 3, 11 and 12 plus the health check.
+//
+// ── WHAT MICROMART ARE ACTUALLY ENTITLED TO (2 Sep 2026) ─────────────────────
+// The whole catalogue was pulled one report at a time against a real subject on
+// production keys, through the CRB relay (npm run crb:all). Twelve of the
+// fourteen answered:
+//
+//   ANSWERED   1, 2, 3, 5, 6, 8, 10, 11, 12, 13, 14, 16
+//   REFUSED    22  Accounts Info (12-month history) — E029, unauthorized report.
+//                  Not a bug and not a transport failure: this lender's contract
+//                  does not include it. Anything that needs a month-by-month
+//                  arrears trend must come from report 12's `metro_score_trend`
+//                  (12 points) instead, which they DO get.
+//   NO JSON     4  PDF Credit Report — a binary document, no JSON endpoint, and
+//                  deliberately outside the orchestrated pull.
+//
+// Entitlement is per contract and can change without notice, so this is a record
+// of what was true on that date, not a constant to branch on. Re-run the sweep
+// rather than trusting this list if a report starts refusing.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Report type codes, exactly as Metropol number them (§5.1). 7, 9, 15, 17, 20, 21 do not exist. */

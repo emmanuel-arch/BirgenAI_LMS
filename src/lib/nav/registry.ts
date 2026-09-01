@@ -16,7 +16,7 @@
 import type { Feature } from "@/lib/billing/plans";
 import type { Right } from "@/lib/rbac/rights";
 import { ASSISTANT_NAME } from "@/lib/riri/brand";
-import { isDenied } from "@/lib/rbac/modules";
+import { isDenied } from "@/lib/rbac/module-keys";
 
 export type NavItem = {
   key: string;
@@ -38,6 +38,25 @@ export type NavItem = {
   ready?: boolean;
   /** Match the active state on the exact href (incl. query) instead of prefix. */
   exact?: boolean;
+  /**
+   * THIS ITEM OPENS A SCREEN IN ANOTHER SYSTEM. The id of a suite app
+   * (lib/suite/apps.ts); `href` is then the path INSIDE that system, and the
+   * server layout resolves the pair to that system's real origin through
+   * deepLinkFor().
+   *
+   * The field exists because two doors that look identical in a menu are not
+   * the same door. Opening ConnectDesk from the LAUNCHER is arriving at a
+   * system: it lands on that system's front door, which introduces itself and
+   * offers to continue as you. Opening "Recoveries" from THIS sidebar is not
+   * arriving anywhere — it is following one thread of work into the screen that
+   * holds the rest of it, and a sign-in page in the middle of that is the
+   * product forgetting what was just clicked.
+   *
+   * Entitlement rides along: navFor() drops a cross-system item when the lender
+   * has not bought that system, so the console never advertises a door onto a
+   * system they do not have.
+   */
+  system?: string;
 };
 
 export type NavModule = {
@@ -68,6 +87,16 @@ export const NAV_REGISTRY: NavModule[] = [
       // score. It lives here — not under Intelligence — because it is the next thing
       // the onboarding officer does, in order.
       { key: "crunch", label: "Statement Cruncher", href: "/console/crunch", icon: "Calculator", right: "loans.apply", feature: "statement-cruncher" },
+      // ── AND WHAT THE CUSTOMER SEES ──────────────────────────────────────
+      // Last in the module, because it is the far side of everything above it:
+      // the same person, the same loan, rendered in the lender's brand on their
+      // own phone. An officer taking a call about "the app" has been guessing at
+      // this screen from a description; now they open it.
+      //
+      // The one cross-link that genuinely leaves the building in every
+      // environment — the borrower app is its own deployment on its own host
+      // (BORROWER_PORTAL_HOST), not a route we could fall back to.
+      { key: "customer-portal", label: "Customer Portal", href: "/", system: "portal", icon: "Smartphone", right: "borrowers.view" },
     ],
   },
   {
@@ -99,6 +128,13 @@ export const NAV_REGISTRY: NavModule[] = [
       // bay of payments that arrived with a reference nobody could match.
       { key: "reconciliation", label: "Reconciliation", href: "/console/reconciliation", icon: "Scale", right: "reconciliation.view", exact: true },
       { key: "reconciliation-suspended", label: "Suspended Payments", href: "/console/reconciliation?tab=suspended", icon: "Banknote", right: "reconciliation.view", exact: true },
+      // ── THE OTHER SIDE OF EVERY PAYMENT ─────────────────────────────────
+      // Every disbursement and every fee on the screens above is already a
+      // double-entry posting in the lender's journal — that is what Ledgerly
+      // reads. The accountant asking "did that payout actually book?" and the
+      // officer who made it have been answering the same question in two
+      // systems neither of them had both windows for.
+      { key: "books-journal", label: "Journal", href: "/books/journal", system: "accounting", icon: "ScrollText", right: "reconciliation.view" },
     ],
   },
   {
@@ -109,6 +145,13 @@ export const NAV_REGISTRY: NavModule[] = [
       { key: "collections-queue", label: "Work Queue", href: "/console/collections", icon: "PhoneCall", right: "collections.view", exact: true },
       { key: "collections-ptp", label: "Promises to Pay", href: "/console/collections?tab=ptp", icon: "CalendarClock", right: "collections.view", exact: true },
       { key: "collections-tickets", label: "Tickets", href: "/console/collections?tab=tickets", icon: "Ticket", right: "collections.view", exact: true },
+      // ── WHAT THE FLOOR ACTUALLY BROUGHT IN ──────────────────────────────
+      // The three screens above are the work; this is the result of it, and it
+      // lives in ConnectDesk because that is where the calls were made and the
+      // money is attributed to the agent who earned it. A collections manager
+      // reading a work queue with no view of recoveries is reading effort with
+      // no view of outcome.
+      { key: "desk-recoveries", label: "Recoveries", href: "/desk/recoveries", system: "callcenter", icon: "Coins", right: "collections.view" },
     ],
   },
   {
@@ -131,7 +174,11 @@ export const NAV_REGISTRY: NavModule[] = [
       // whole book four levels inside a loan-officer tool is why nobody senior
       // ever opened it. The old route still resolves and redirects, so existing
       // links and bookmarks keep working.
-      { key: "analytics", label: "Analytics & Reporting ↗", href: "/analytics", icon: "ChartNoAxesCombined", anyRight: ["reports.view", "reports.analytics"] },
+      // Declared `system` like every other cross-link now, rather than an in-app
+      // path with an arrow typed into its label. Two consequences: the studio's
+      // own origin is honoured the moment it federates, and the arrow is DRAWN
+      // by the sidebar for every door instead of being remembered per entry.
+      { key: "analytics", label: "Analytics & Reporting", href: "/analytics", system: "analytics", icon: "ChartNoAxesCombined", anyRight: ["reports.view", "reports.analytics"] },
       { key: "model-tuning", label: "Model Tuning", href: "/console/intelligence/tuning", icon: "SlidersHorizontal", right: "intelligence.tune", feature: "model-tuning" },
       { key: "metrics", label: "Metric Catalogue", href: "/console/intelligence/metrics", icon: "Ruler", right: "metrics.view", feature: "riri" },
       { key: "documents", label: "Document Parser", href: "/console/documents", icon: "ScanLine", right: "documents.view", feature: "document-parser" },
@@ -145,8 +192,38 @@ export const NAV_REGISTRY: NavModule[] = [
       // scoped to the book you are standing in, read on screen before it is
       // downloaded, and exported with its provenance attached. The old routes
       // redirect, so bookmarks and old links still land somewhere true.
-      { key: "reports", label: "Reports ↗", href: "/analytics/reports", icon: "FileBarChart", anyRight: ["reports.view", "reports.portfolio"] },
+      { key: "reports", label: "Reports", href: "/analytics/reports", system: "analytics", icon: "FileBarChart", anyRight: ["reports.view", "reports.portfolio"] },
       { key: "report-builder", label: "Report Builder", href: "/console/intelligence/reports", icon: "FilePlus2", anyRight: ["reports.view", "reports.builder"], feature: "riri" },
+    ],
+  },
+  {
+    // ── THE INTERCHANGE ───────────────────────────────────────────────────────
+    //
+    // Its own section, and deliberately not a line inside Intelligence: every
+    // other entry in this registry reads THIS lender's book, and this one reads
+    // what the rest of the market knows. That is a different kind of answer and
+    // it should not be filed as if it were another of our own reports.
+    //
+    // It is also the only module in the console where every item is a door out.
+    // The Interchange is a separate deployment with a separate database that
+    // authenticates members by Ed25519 node certificate, so a BirgenAI ID means
+    // nothing to it — these links land on the exchange's own member gate rather
+    // than carrying a session, and that is correct rather than a shortfall. What
+    // the deep link still buys is the SCREEN: an officer who wants an exposure
+    // check arrives at the exposure check.
+    key: "interchange",
+    label: "The Interchange",
+    icon: "Waypoints",
+    items: [
+      // First, because it is the question the console cannot answer on its own:
+      // what does this borrower already owe everybody else?
+      { key: "ix-exposure", label: "Exposure Check", href: "/exposure", system: "interchange", icon: "Scale", right: "borrowers.view" },
+      { key: "ix-consent", label: "Consent Register", href: "/consent", system: "interchange", icon: "FileLock2", right: "compliance.view" },
+      // Gated like the other two rather than left open. Who else is on the
+      // exchange is not a public fact about the market — it is the shape of a
+      // lender's counterparties, and a person with no rights at all in this
+      // console has no business reading it.
+      { key: "ix-directory", label: "Member Directory", href: "/directory", system: "interchange", icon: "Building2", right: "borrowers.view" },
     ],
   },
   {
@@ -209,6 +286,15 @@ export const NAV_REGISTRY: NavModule[] = [
     items: [
       { key: "team", label: "Team", href: "/console/team", icon: "Users", right: "team.view" },
       { key: "roles", label: "Roles & Rights", href: "/console/roles", icon: "KeyRound", right: "roles.view" },
+      // ── THE SAME PEOPLE, WHERE THEY ARE ACTUALLY KEPT ───────────────────
+      // Team is who may sign in HERE. These two are who those people ARE: the
+      // relationship officer's book and branch live in PeopleHub, and the
+      // collections agent's seat and recovery record live on the ConnectDesk
+      // floor. Neither belongs in an access screen — but the manager standing
+      // in one, asking "who is this and what do they carry", is now one click
+      // from the answer instead of one system away from it.
+      { key: "people-officers", label: "Relationship Officers", href: "/people/officers", system: "hr", icon: "UserCheck", right: "team.view" },
+      { key: "desk-agents", label: "Agents", href: "/desk/agents", system: "callcenter", icon: "Headphones", right: "team.view" },
     ],
   },
   {
@@ -256,6 +342,16 @@ export function navFor(
   features: ReadonlySet<string>,
   /** Modules this person was individually told not to see. See lib/rbac/modules. */
   denied: ReadonlySet<string> = EMPTY,
+  /**
+   * The suite systems this caller may actually reach — `visibleSystemIds()`,
+   * which is the org's entitlements minus what this person was denied.
+   *
+   * Cross-system items are dropped when their system is not in here. Omitting
+   * the argument admits every cross-link, which is what the offline test suite
+   * and the role editor want: they are asking what the registry CONTAINS, not
+   * what one lender bought.
+   */
+  systems?: ReadonlySet<string>,
 ): NavModule[] {
   return NAV_REGISTRY.filter((mod) => !isDenied(denied, "lms", mod.key))
     .map((mod) => ({
@@ -264,7 +360,11 @@ export function navFor(
         (item) =>
           (!item.right || rights.has(item.right)) &&
           (!item.anyRight || item.anyRight.some((r) => rights.has(r))) &&
-          (!item.feature || features.has(item.feature)),
+          (!item.feature || features.has(item.feature)) &&
+          // A door onto a system this lender never bought is worse than no door:
+          // it advertises, then 403s. Hiding it is the commercial answer AND the
+          // honest one.
+          (!item.system || !systems || systems.has(item.system)),
       ),
     }))
     .filter((mod) => mod.items.length > 0);

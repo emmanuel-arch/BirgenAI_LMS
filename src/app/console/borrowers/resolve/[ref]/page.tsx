@@ -125,11 +125,31 @@ export default async function ResolveLiveBorrower({
           email: seed.email,
           dob: seed.dob ? new Date(seed.dob) : null,
           gender: seed.gender,
-          creditScore: seed.creditScore != null ? Math.round(seed.creditScore) : null,
+          // ── THE SCORE GOES IN THE COLUMN THAT MATCHES ITS SCALE ───────────
+          // This used to write ServiceSuite's `CreditScore` into `creditScore`,
+          // which every band function in the product reads as 300–900. On entity
+          // 3005 that column runs 0 → 28,531,233 (mean 4,271), so every resolved
+          // customer cleared the 750 PRIME floor and the page told the officer
+          // they "pay on time, every time" — about people 47 days in arrears.
+          //
+          // Their RiskScore is the real figure, on the 0–100 scale our
+          // `behaviouralScore` already uses, and it agrees with their own
+          // RiskCategory bands to the half point. `creditScore` stays NULL until
+          // something actually scores them on the 900 scale — the statement
+          // cruncher — because an empty field is honest and a mis-scaled one is
+          // not.
+          behaviouralScore: seed.riskScore,
           riskBand: seed.riskCategory ? normaliseBandName(seed.riskCategory) : null,
+          lastScoredAt: seed.riskScore != null ? new Date() : null,
           loanLimit: seed.loanLimit,
           previousLoanLimit: seed.previousLoanLimit,
           graduationCount: seed.graduationCount,
+          // The id we just looked them up by. Storing it is what lets every later
+          // read — Customer 360, the statement, the live score — go straight to
+          // the right row instead of matching on a phone number two customers can
+          // share. It was only ever written into the audit log, where nothing
+          // could query it.
+          serviceSuiteBorrowerId: seed.serviceSuiteId,
         };
 
         const existing = await prisma.borrower.findUnique({

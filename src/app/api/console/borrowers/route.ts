@@ -63,7 +63,10 @@ export async function GET(req: NextRequest) {
             nationalId: b.nationalId,
             // Their book records a verification flag, not our KYC state machine.
             kycStatus: b.kycVerified ? "VERIFIED" : "NONE",
-            creditScore: b.creditScore,
+            // Their RiskScore (0–100), not CreditScore. The list used to print
+            // CreditScore, which is a points field running into the millions —
+            // "score 4500" beside a KES 9,100 limit, on a scale nobody has.
+            behaviouralScore: b.riskScore,
             riskBand: b.riskCategory,
             // No location data comes across: this entity is 0% pinned, which is
             // exactly why every one of them lands on the field-ops worklist.

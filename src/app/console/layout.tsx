@@ -15,7 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { getRights, getDeniedModules } from "@/lib/rbac/authz";
 import { entitlementsFor } from "@/lib/billing/entitlements";
 import { navFor } from "@/lib/nav/registry";
-import { resolveSuite } from "@/lib/suite/hosts";
+import { resolveSuite, linkCrossSystem } from "@/lib/suite/hosts";
 import { visibleSystemIds } from "@/lib/suite/access";
 import { realmsFor, brandFor } from "@/lib/suite/realms";
 import { activeRealm } from "@/lib/suite/realm-server";
@@ -39,7 +39,6 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   if (!org || !session?.user) return <>{children}</>;
 
   const [rights, denied, ent] = await Promise.all([getRights(session), getDeniedModules(session), entitlementsFor(session.user.orgId!)]);
-  const nav = navFor(rights, ent.features as ReadonlySet<string>, denied);
 
   // ── THE COMMERCIAL GATE ────────────────────────────────────────────────────
   // The lending console is the anchor of the suite and switching it off is
@@ -48,6 +47,15 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   // on the launcher is a courtesy; this refusal is the control.
   const visible = visibleSystemIds(org.systems, denied);
   if (!visible.includes("lms")) redirect("/suite");
+
+  // The sidebar, resolved twice over: first by what this person may see, then by
+  // where each system actually LIVES. Cross-system items carry a system id and a
+  // path inside it (lib/nav/registry) and come out of linkCrossSystem() carrying
+  // a real href — the satellite's own origin once it has one, the in-app route
+  // until then. That is the whole difference between the doors in this menu and
+  // the launcher's: these land on the SCREEN, with the session already carried
+  // on the shared suite cookie, instead of on a sign-in page.
+  const nav = linkCrossSystem(navFor(rights, ent.features as ReadonlySet<string>, denied, new Set(visible)));
 
   // ── WHICH BOOK ─────────────────────────────────────────────────────────────
   // Micromart is two lenders wearing one name (see lib/suite/realms.ts). The

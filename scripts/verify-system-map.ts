@@ -66,7 +66,12 @@ console.log("1. Every href in the map resolves to a page that exists");
 // ── 2. Every menu item is described ──────────────────────────────────────────
 console.log("\n2. Nothing on the sidebar is a stranger to the assistant");
 {
-  const navHrefs = NAV_REGISTRY.flatMap((m) => m.items).filter((i) => i.href).map((i) => i.href!);
+  // Cross-system items are skipped, and it is not a loophole: the map describes
+  // THIS system's screens, and an item declaring a `system` points at a route in
+  // PeopleHub, Ledgerly, ConnectDesk or the Interchange. Asserting those against
+  // the console's map would demand entries for pages this application does not
+  // own — and, for the Interchange, does not even serve.
+  const navHrefs = NAV_REGISTRY.flatMap((m) => m.items).filter((i) => i.href && !i.system).map((i) => i.href!);
   const mapHrefs = new Set(SYSTEM_SCREENS.map((s) => s.href));
   const missing = navHrefs.filter((h) => !mapHrefs.has(h));
   ok("every nav href appears in the map", missing.length === 0, missing.join(", "));

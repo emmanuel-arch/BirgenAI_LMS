@@ -34,6 +34,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NAV_REGISTRY } from "@/lib/nav/registry";
+import { moduleKey } from "./module-keys";
 import { DESK_NAV } from "@/lib/desk/nav";
 import { STUDIO_NAV } from "@/lib/analytics/studio-nav";
 import { PEOPLE_NAV, BOOKS_NAV } from "@/lib/suite/satellites";
@@ -150,18 +151,10 @@ export function parseAccess(raw: unknown): StaffAccess {
   return { ...(deny ? { deny } : {}), ...(grant ? { grant } : {}) };
 }
 
-export const moduleKey = (systemId: string, module: string) => `${systemId}:${module}`;
-
-/**
- * Is this system, or this module inside it, hidden from the caller?
- *
- * Denying a SYSTEM implies denying everything in it, so a caller asking about a
- * module does not have to ask about its system first and cannot forget to.
- */
-export function isDenied(denied: ReadonlySet<string>, systemId: string, module?: string): boolean {
-  if (denied.has(systemId)) return true;
-  return module != null && denied.has(moduleKey(systemId, module));
-}
+// Both live in ./module-keys now — a file with no imports, so a nav tree can
+// filter itself without dragging the whole catalogue (and every system's menu)
+// in behind it. Re-exported here because this is where callers already look.
+export { moduleKey, isDenied } from "./module-keys";
 
 /** Every key an admin could tick, for validating what the editor posts back. */
 export function allAccessKeys(): Set<string> {

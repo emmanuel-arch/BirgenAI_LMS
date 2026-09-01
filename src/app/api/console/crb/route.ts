@@ -11,6 +11,7 @@ import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
+import { MERGED_CRB_ONLY } from "@/lib/crb/rows";
 import { requireFeature } from "@/lib/billing/entitlements";
 import { meter } from "@/lib/billing/meter";
 import { runCrbCheck, MetropolError, type CrbReport } from "@/lib/crb/provider";
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
   // Reuse a recent pull unless explicitly forced — cheaper, and dodges E409.
   if (!body.force && reuseMs > 0) {
     const recent = await prisma.kycCheck.findFirst({
-      where: { orgId, borrowerId: borrower.id, kind: "CRB", createdAt: { gte: new Date(Date.now() - reuseMs) } },
+      where: { orgId, borrowerId: borrower.id, kind: "CRB", ...MERGED_CRB_ONLY, createdAt: { gte: new Date(Date.now() - reuseMs) } },
       orderBy: { createdAt: "desc" },
       select: { payload: true, createdAt: true },
     });
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
       // A duplicate/transient live failure: fall back to the most recent stored
       // pull if we have one, so the officer still sees a file.
       const last = await prisma.kycCheck.findFirst({
-        where: { orgId, borrowerId: borrower.id, kind: "CRB" },
+        where: { orgId, borrowerId: borrower.id, kind: "CRB", ...MERGED_CRB_ONLY },
         orderBy: { createdAt: "desc" }, select: { payload: true, createdAt: true },
       });
       if (last?.payload) return NextResponse.json({ success: true, report: last.payload, reused: true, checkedAt: last.createdAt, note: err.message });

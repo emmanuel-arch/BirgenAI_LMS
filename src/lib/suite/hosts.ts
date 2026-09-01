@@ -24,7 +24,7 @@
 // production (peoplehub.servicesuitecloud.com) without a branch anywhere in the UI.
 // ─────────────────────────────────────────────────────────────────────────────
 import { SUITE_APPS, type SuiteApp } from "./apps";
-import { SATELLITE_LABELS } from "./labels";
+import { SATELLITE_LABELS, BORROWER_PORTAL_HOST } from "./labels";
 
 /**
  * Labels that are PLATFORM surfaces, never a lender slug.
@@ -136,6 +136,80 @@ export function hrefFor(app: SuiteApp): string {
 }
 
 /**
+ * Where the BORROWER APP is served from — the deployed PWA, not our copy of it.
+ *
+ * BORROWER_PORTAL_ORIGIN overrides it (a staging build, or the day the rebuild
+ * in `micro-eazy-app` takes the hostname over). The default is the live host,
+ * because that is where a lender's customers are today.
+ */
+function borrowerPortalOrigin(): string {
+  const raw = process.env.BORROWER_PORTAL_ORIGIN?.trim();
+  if (raw) {
+    try {
+      const url = new URL(raw);
+      if (url.protocol === "https:" || url.protocol === "http:") return url.origin;
+    } catch { /* malformed ⇒ the live host, never a broken link */ }
+  }
+  return `https://${BORROWER_PORTAL_HOST}`;
+}
+
+/**
+ * A DEEP LINK into another system — its origin plus a path INSIDE it.
+ *
+ * This is the difference the console's sidebar is built on, and it is worth
+ * saying plainly because the two look identical in a menu:
+ *
+ *   · The LAUNCHER (/suite) sends you to a system's FRONT DOOR. You may be
+ *     arriving cold, so the door introduces the system and, if you are already
+ *     carrying a BirgenAI ID, offers "continue as…" — see doorHrefFor().
+ *   · A SIDEBAR CROSS-LINK sends you to the SCREEN. You are already signed in,
+ *     you already know which system you want, and you asked for one specific
+ *     view of it. Routing that through a sign-in page is the product forgetting
+ *     what you just clicked.
+ *
+ * Only "/" on a satellite host is rewritten to its door (see labels.ts), so a
+ * path lands where it says it will and the session rides along on the shared
+ * `.servicesuitecloud.com` cookie. In a single-deployment build the same call
+ * returns the plain in-app route — the same screen by a shorter road.
+ *
+ * Returns null for a system id that does not exist, so a typo in the nav
+ * registry drops the item rather than linking at this deployment's own root.
+ */
+export function deepLinkFor(systemId: string, path: string): string | null {
+  const app = SUITE_APPS.find((a) => a.id === systemId);
+  if (!app) return null;
+  const p = path.startsWith("/") ? path : `/${path}`;
+  const tail = p === "/" ? "" : p;
+
+  // THE BORROWER APP IS NOT THIS DEPLOYMENT. `portal` is the only system whose
+  // production host belongs to a DIFFERENT Vercel project (see
+  // BORROWER_PORTAL_HOST), so it must never fall back to an in-app route: this
+  // application's "/" is the consumer surface we build, not the one customers
+  // have already installed. Staff who open "the customer portal" mean the app
+  // their borrowers are actually holding.
+  //
+  // It reads its OWN variable rather than SUITE_PORTAL_ORIGIN, and the
+  // distinction is real: SUITE_PORTAL_ORIGIN is the launcher's tile and points
+  // at microeazy.servicesuitecloud.com, which is this deployment's consumer
+  // route. Pointing a staff deep-link there would show an officer our copy of
+  // the app instead of the one on the customer's phone.
+  if (systemId === "portal") return `${borrowerPortalOrigin()}${tail}`;
+  // An external system has no in-app route either — its declared production host
+  // is the honest answer whether or not an origin has been configured yet.
+  if (app.external) return `${originFor(app) ?? `https://${app.subdomain}`}${tail}`;
+
+  const origin = originFor(app);
+  return origin ? `${origin}${p}` : p;
+}
+
+/** True once a link into this system leaves this origin — i.e. it is a real hop. */
+export function leavesDeployment(systemId: string): boolean {
+  const app = SUITE_APPS.find((a) => a.id === systemId);
+  if (!app) return false;
+  return systemId === "portal" || !!app.external || originFor(app) !== null;
+}
+
+/**
  * The system's own branded sign-in door.
  *
  * Where a system has been split onto its own origin the door lives over there
@@ -182,5 +256,35 @@ export function resolveSuite(only?: readonly string[]): ResolvedSuiteApp[] {
     federated: isFederated(a),
     door: doorHrefFor(a),
     external: !!a.external,
+  }));
+}
+
+/**
+ * Resolve every cross-system item in a nav tree to a real link.
+ *
+ * The registry declares a system id and a path inside it; only the server knows
+ * which systems have been split onto their own origins, so the resolution
+ * happens here, once per request, and the client shell renders whatever it is
+ * handed. `external` is what the sidebar draws the arrow from — and it is
+ * derived rather than typed, so a satellite that federates tomorrow starts
+ * opening in its own tab without anybody editing a menu.
+ *
+ * Generic over the item shape so the console's registry and the satellites'
+ * own nav trees can both be passed without this file importing either.
+ */
+export function linkCrossSystem<M extends { items: { href?: string; system?: string }[] }>(
+  nav: M[],
+): (Omit<M, "items"> & { items: (M["items"][number] & { external?: boolean })[] })[] {
+  return nav.map((mod) => ({
+    ...mod,
+    items: mod.items.map((item) => {
+      if (!item.system) return item;
+      const href = deepLinkFor(item.system, item.href ?? "/");
+      // A system id that resolves to nothing is a typo in the registry. Leave
+      // the item's own href alone rather than inventing a link: a door that
+      // does not move is easier to notice than one onto the wrong building.
+      if (!href) return item;
+      return { ...item, href, external: leavesDeployment(item.system) };
+    }),
   }));
 }
