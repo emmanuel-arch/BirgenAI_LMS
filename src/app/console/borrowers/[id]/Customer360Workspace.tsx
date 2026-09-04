@@ -38,6 +38,7 @@
 // entire body is server-rendered, and the section is a view preference, not a
 // navigation event worth a history entry each time somebody browses across.
 // ─────────────────────────────────────────────────────────────────────────────
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { navIcon } from "@/components/shell/icons";
 
@@ -54,7 +55,19 @@ export type Section = {
   badge?: string | null;
   /** Draws the badge as a warning rather than a count. */
   tone?: "brand" | "good" | "warn" | "bad";
-  content: ReactNode;
+  /**
+   * A DOOR, not a panel.
+   *
+   * Most sections open in place. One does not: the statement is a DOCUMENT — a
+   * full-bleed sheet with a letterhead and a download button, the thing a
+   * customer is handed across a desk — and squeezing it into a tab panel under
+   * the customer's masthead would make it neither a good tab nor a good
+   * statement. So this chip navigates. It sits in the rail because that is where
+   * an officer looks for it, and it is drawn with a small arrow so nobody is
+   * surprised to leave the page.
+   */
+  href?: string;
+  content?: ReactNode;
 };
 
 const TONE: Record<string, { bg: string; fg: string }> = {
@@ -74,7 +87,10 @@ export function Customer360Workspace({
   /** Where to open when the URL says nothing. */
   initial?: string;
 }) {
-  const first = sections[0]?.key ?? "overview";
+  // A door is never "the open section" — landing on this page must never select
+  // a chip whose panel does not exist.
+  const panels = sections.filter((s) => !s.href);
+  const first = panels[0]?.key ?? "overview";
   // Lazy initial state, not an effect: the correct section renders on the first
   // paint, so a deep link never flashes the overview before switching.
   const [active, setActive] = useState<string>(() => {
@@ -83,9 +99,9 @@ export function Customer360Workspace({
     // ?drop=location is the field worklist saying "they came here to pin this
     // customer". Honouring it here means the officer lands on Places with the
     // map already open, instead of on a page they have to navigate out of.
-    if (p.get("drop") === "location" && sections.some((s) => s.key === "places")) return "places";
+    if (p.get("drop") === "location" && panels.some((s) => s.key === "places")) return "places";
     const s = p.get("s");
-    return s && sections.some((x) => x.key === s) ? s : initial ?? first;
+    return s && panels.some((x) => x.key === s) ? s : initial ?? first;
   });
 
   const railRef = useRef<HTMLDivElement>(null);
@@ -105,9 +121,11 @@ export function Customer360Workspace({
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
-    const i = sections.findIndex((s) => s.key === active);
-    const next = e.key === "ArrowRight" ? (i + 1) % sections.length : (i - 1 + sections.length) % sections.length;
-    go(sections[next].key);
+    // Doors are skipped: arrowing along a tab strip must not navigate away from
+    // the page mid-sweep.
+    const i = panels.findIndex((s) => s.key === active);
+    const next = e.key === "ArrowRight" ? (i + 1) % panels.length : (i - 1 + panels.length) % panels.length;
+    go(panels[next].key);
   };
 
   // Keep the selected chip in view when the rail overflows — on a laptop the last
@@ -118,7 +136,7 @@ export function Customer360Workspace({
     el?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
   }, [active]);
 
-  const current = sections.find((s) => s.key === active) ?? sections[0];
+  const current = panels.find((s) => s.key === active) ?? panels[0];
 
   return (
     <>
@@ -137,21 +155,13 @@ export function Customer360Workspace({
       >
         {sections.map((s) => {
           const Icon = navIcon(s.icon);
-          const on = s.key === current?.key;
+          const on = !s.href && s.key === current?.key;
           const tone = s.tone && s.tone !== "brand" ? TONE[s.tone] : null;
-          return (
-            <button
-              key={s.key}
-              data-key={s.key}
-              role="tab"
-              aria-selected={on}
-              tabIndex={on ? 0 : -1}
-              onClick={() => go(s.key)}
-              className={`group flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
-                on ? "text-white shadow-sm" : "text-[color:var(--ink-body)] hover:bg-ash-900/[0.055] hover:text-[color:var(--ink)]"
-              }`}
-              style={on ? { backgroundColor: "var(--brand)" } : undefined}
-            >
+          const className = `group flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
+            on ? "text-white shadow-sm" : "text-[color:var(--ink-body)] hover:bg-ash-900/[0.055] hover:text-[color:var(--ink)]"
+          }`;
+          const inner = (
+            <>
               <Icon className={`h-4 w-4 shrink-0 ${on ? "" : "text-[color:var(--ink-faint)] group-hover:text-[color:var(--ink-body)]"}`} aria-hidden />
               <span className="whitespace-nowrap">{s.label}</span>
               {s.badge && (
@@ -168,6 +178,28 @@ export function Customer360Workspace({
                   {s.badge}
                 </span>
               )}
+              {/* The tell that this chip leaves the page. Small, but it is the
+                  difference between a click that surprises and one that does not. */}
+              {s.href && <span className="text-[color:var(--ink-faint)] group-hover:text-[color:var(--ink-body)]" aria-hidden>→</span>}
+            </>
+          );
+
+          return s.href ? (
+            <Link key={s.key} data-key={s.key} href={s.href} className={className}>
+              {inner}
+            </Link>
+          ) : (
+            <button
+              key={s.key}
+              data-key={s.key}
+              role="tab"
+              aria-selected={on}
+              tabIndex={on ? 0 : -1}
+              onClick={() => go(s.key)}
+              className={className}
+              style={on ? { backgroundColor: "var(--brand)" } : undefined}
+            >
+              {inner}
             </button>
           );
         })}

@@ -112,7 +112,7 @@ export function Metric({
  * quietly disagrees with the system of record turns every other figure on the
  * screen into a question.
  */
-export function LiveLoans({ loans }: { loans: StatementLoan[] }) {
+export function LiveLoans({ loans, hrefFor }: { loans: StatementLoan[]; hrefFor?: (loanId: number) => string }) {
   if (loans.length === 0) {
     return <p className="t-meta">No loans on the lender&rsquo;s book for this customer.</p>;
   }
@@ -132,12 +132,24 @@ export function LiveLoans({ loans }: { loans: StatementLoan[] }) {
         <tbody>
           {loans.map((l) => {
             const behind = l.daysInArrears != null && l.daysInArrears > 0;
+            // The loan's own file. A row on this table is ONE loan, and until it
+            // had a page of its own the only place a click could go was back to
+            // the customer it was already sitting under.
+            const name = (
+              <>
+                <span className="font-medium text-[color:var(--ink)]">{l.product ?? "Loan"}</span>
+                <span className="ml-1.5 text-[11px] text-[color:var(--ink-faint)]">#{l.loanId}</span>
+                {l.installments && <div className="text-[11px] text-[color:var(--ink-faint)]">{l.installments}</div>}
+              </>
+            );
             return (
               <tr key={l.loanId}>
                 <td>
-                  <span className="font-medium text-[color:var(--ink)]">{l.product ?? "Loan"}</span>
-                  <span className="ml-1.5 text-[11px] text-[color:var(--ink-faint)]">#{l.loanId}</span>
-                  {l.installments && <div className="text-[11px] text-[color:var(--ink-faint)]">{l.installments}</div>}
+                  {hrefFor ? (
+                    <Link href={hrefFor(l.loanId)} className="block hover:underline">{name}</Link>
+                  ) : (
+                    name
+                  )}
                 </td>
                 <td className="text-right tabular-nums">{kes(l.principal)}</td>
                 <td className="text-right font-semibold tabular-nums" style={{ color: l.balance > 0 ? "var(--brand)" : undefined }}>

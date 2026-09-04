@@ -14,7 +14,7 @@
 // judged by the weight of what they publish rather than by how many rows.
 // ─────────────────────────────────────────────────────────────────────────────
 import Link from "next/link";
-import { CheckCircle2, CircleDashed, Download, TriangleAlert } from "lucide-react";
+import { CheckCircle2, CircleDashed, Download, FileText, TriangleAlert } from "lucide-react";
 import type { MasterFile, Evidence, EvidenceKind } from "@/lib/lms/master-file";
 
 const KIND_LABEL: Record<EvidenceKind, string> = {
@@ -93,14 +93,30 @@ export function MasterFilePanel({ file, borrowerId }: { file: MasterFile; borrow
               so a new check appears here the moment it is run, without anybody filing it twice.
             </p>
           </div>
-          {/* A real file, not a screenshot of one. This is what a member would
-              contribute, and what an auditor would ask to see. */}
-          <a
-            href={`/api/console/borrowers/${borrowerId}/master-file`}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-ash-900/12 bg-paper/70 px-3 py-2 text-[12px] font-semibold text-[color:var(--ink-body)] transition-colors hover:bg-ash-900/[0.04]"
-          >
-            <Download className="h-3.5 w-3.5" /> Download the master file
-          </a>
+          {/* TWO ARTIFACTS, AND THEY ARE NOT THE SAME DOCUMENT.
+              · THE CASE FILE is for a person: the face, the identity page, every
+                photograph an officer took in the field, laid out to be printed,
+                annotated in a committee and filed.
+              · THE REGISTER is for a machine: what was checked, by whom, when and
+                what it found, with no images and no bureau payloads, because it
+                is built to be published to the Interchange.
+              Offering only the second one meant the only thing an underwriter
+              could carry into a meeting was a JSON file. */}
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Link
+              href={`/console/borrowers/${borrowerId}/dossier`}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-semibold text-white transition-opacity hover:opacity-90"
+              style={{ backgroundColor: "var(--brand)" }}
+            >
+              <FileText className="h-3.5 w-3.5" /> Open the case file
+            </Link>
+            <a
+              href={`/api/console/borrowers/${borrowerId}/master-file`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/12 bg-paper/70 px-3 py-2 text-[12px] font-semibold text-[color:var(--ink-body)] transition-colors hover:bg-ash-900/[0.04]"
+            >
+              <Download className="h-3.5 w-3.5" /> Evidence register
+            </a>
+          </div>
         </div>
         <div className="mt-4">
           <WeightBar file={file} />

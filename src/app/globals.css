@@ -166,6 +166,42 @@ body {
   .no-print {
     display: none !important;
   }
+  /* ── A DOCUMENT IS ALWAYS PRINTED LIGHT ───────────────────────────────────
+     The dark theme flips --paper to near-black and inverts the whole ash ramp
+     and ink scale. A .print-doc sheet is built out of exactly those tokens, so
+     a statement saved to PDF from a dark console came out as pale type on a
+     black sheet — not a document anybody can send a customer, and invisible
+     until somebody actually pressed print.
+
+     Redeclaring the tokens HERE rather than fighting the theme's specificity is
+     what makes it work: custom properties inherit, .print-doc is a descendant of
+     the <html> the dark theme declares on, and a descendant's own declaration
+     governs its whole subtree. Print is paper — white sheet, dark ink, whatever
+     the screen was doing. */
+  .print-doc {
+    background: #fff !important;
+    /* min-height: 100vh on screen adds a trailing blank page on paper. */
+    min-height: 0 !important;
+    border-radius: 0 !important;
+
+    --paper: #ffffff;
+    --ink: #0c0c10;
+    --ink-body: #2c2c34;
+    --ink-muted: #494955;
+    --ink-faint: #6c6c79;
+    --ash-50: oklch(98.5% 0 0);
+    --ash-100: oklch(96.7% 0.001 286.375);
+    --ash-200: oklch(92% 0.004 286.32);
+    --ash-300: oklch(87.1% 0.006 286.286);
+    --ash-400: oklch(70.5% 0.015 286.067);
+    --ash-500: oklch(55.2% 0.016 285.938);
+    --ash-600: oklch(44.2% 0.017 285.786);
+    --ash-700: oklch(37% 0.013 285.805);
+    --ash-800: oklch(27.4% 0.006 286.033);
+    --ash-900: oklch(21% 0.006 285.885);
+    --ash-950: oklch(14.1% 0.005 285.823);
+  }
+
   /* Glass surfaces become plain paper. */
   .glass, .canvas, .panel, .print-surface {
     background: #fff !important;

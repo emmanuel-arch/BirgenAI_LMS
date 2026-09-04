@@ -15,6 +15,10 @@ import {
   TriangleAlert, ArrowLeftRight, Cog, ChartNoAxesCombined, Wrench,
   // Named by the cross-system doors — the customer portal and the ConnectDesk floor.
   Smartphone, Headphones, ArrowUpRight,
+  // Named by Customer 360's own section rail, which resolves through this same
+  // map. `History` was already being asked for by the Timeline tab and silently
+  // falling back to a dot.
+  Paperclip, History,
   type LucideIcon,
 } from "lucide-react";
 
@@ -29,6 +33,7 @@ const ICONS: Record<string, LucideIcon> = {
   TriangleAlert, ArrowLeftRight, Cog, ChartNoAxesCombined, Wrench,
   // Named by the cross-system doors — the customer portal and the ConnectDesk floor.
   Smartphone, Headphones, ArrowUpRight,
+  Paperclip, History,
   // `Infinity` is a global in TS, so the import is aliased; the registry still
   // names it "Infinity" like every other lucide icon.
   Infinity: InfinityIcon,

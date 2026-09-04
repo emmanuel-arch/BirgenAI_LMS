@@ -83,6 +83,43 @@ export type LiveCustomer360 = {
 };
 
 /**
+ * WHICH ROW IN THE LENDER'S BOOK IS THIS POSTGRES BORROWER?
+ *
+ * ── THE ID FIRST, THEN THE PHONE ────────────────────────────────────────────
+ * The stored id is the better key and is tried first. But it is NOT the last
+ * word, and finding that out cost a null page: this lender's books are two
+ * entities (3002 and 3005) holding different people, ids are written by several
+ * different flows, and a customer can be registered in both. An id that does not
+ * resolve IN THE BOOK WE ARE STANDING IN means "not that row here" — it does not
+ * mean "not this person here", and returning null on it hid a customer with a
+ * full loan history behind an empty page.
+ *
+ * The phone fallback is entity-scoped like everything else, so at worst it finds
+ * somebody else in THIS book sharing a handset — the same exposure every
+ * unresolved borrower already carries, and far better than showing an officer
+ * nothing. Which key answered is reported, so the surface can say so.
+ *
+ * Exported because Customer 360 is no longer the only page that needs it: the
+ * STATEMENT reads the live book too, and it must find the same person by the
+ * same rule or the two screens will disagree about whose ledger they are showing.
+ */
+export async function findLiveBorrower(
+  org: OrgDef,
+  entityId: number,
+  key: BorrowerKey,
+): Promise<{ profile: Customer360; matchedBy: "id" | "phone" } | null> {
+  let matchedBy: "id" | "phone" = "id";
+  let profile = key.serviceSuiteBorrowerId
+    ? await getCustomer360ById(org, entityId, key.serviceSuiteBorrowerId).catch(() => null)
+    : null;
+  if (!profile && key.phone) {
+    profile = await getCustomer360(org, entityId, key.phone).catch(() => null);
+    matchedBy = "phone";
+  }
+  return profile ? { profile, matchedBy } : null;
+}
+
+/**
  * Find and read one customer in the lender's live book.
  *
  * Returns null when they are not in it at all — a native customer of a bridged
@@ -97,28 +134,9 @@ export async function readLiveCustomer360(
 ): Promise<LiveCustomer360 | null> {
   const degraded: string[] = [];
 
-  // ── THE ID FIRST, THEN THE PHONE ────────────────────────────────────────────
-  // The stored id is the better key and is tried first. But it is NOT the last
-  // word, and finding that out cost a null page: this lender's books are two
-  // entities (3002 and 3005) holding different people, ids are written by several
-  // different flows, and a customer can be registered in both. An id that does
-  // not resolve IN THE BOOK WE ARE STANDING IN means "not that row here" — it does
-  // not mean "not this person here", and returning null on it hid a customer with
-  // a full loan history behind an empty page.
-  //
-  // The phone fallback is entity-scoped like everything else, so at worst it
-  // finds somebody else in THIS book sharing a handset — the same exposure every
-  // unresolved borrower already carries, and far better than showing an officer
-  // nothing. Which key answered is reported, so the page can say so.
-  let matchedBy: "id" | "phone" = "id";
-  let profile = key.serviceSuiteBorrowerId
-    ? await getCustomer360ById(org, entityId, key.serviceSuiteBorrowerId).catch(() => null)
-    : null;
-  if (!profile && key.phone) {
-    profile = await getCustomer360(org, entityId, key.phone).catch(() => null);
-    matchedBy = "phone";
-  }
-  if (!profile) return null;
+  const found = await findLiveBorrower(org, entityId, key);
+  if (!found) return null;
+  const { profile, matchedBy } = found;
 
   const ssId = profile.borrowerId;
 

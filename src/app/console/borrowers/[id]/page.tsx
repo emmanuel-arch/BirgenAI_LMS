@@ -55,6 +55,8 @@ import { RiskBandCard, type RiskView } from "@/components/risk/RiskBandCard";
 import { bandForScore, bandForBehavioural, defaultProbability, normaliseBandName, BAND_BY_KEY } from "@/lib/risk/bands";
 import { previewLadder } from "@/lib/risk/graduation";
 import KycGallery from "./KycGallery";
+import { AttachmentsGallery } from "./AttachmentsGallery";
+import { getBorrowerAttachmentsLive, type LiveAttachment } from "@/lib/lms/servicesuite-attachments";
 import { CustomerTimeline, type TimelineEvent } from "./CustomerTimeline";
 import { Customer360Workspace, type Section } from "./Customer360Workspace";
 import { readLiveCustomer360 } from "@/lib/lms/customer360";
@@ -189,6 +191,18 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
         orgId,
       ).catch(() => null)
     : null;
+
+  // ── THE PAPERWORK ───────────────────────────────────────────────────────────
+  // The photographs an officer took standing in front of this customer's shop —
+  // and the two faces of the ID that names them. They have been in the lender's
+  // book the whole time and this page has never shown one, which meant every
+  // underwriting decision made here was made without looking at the evidence the
+  // limit rests on. Best-effort like every other live read: absent rather than
+  // fatal, because a slow Drive column must not take the customer off the screen.
+  const attachments: LiveAttachment[] =
+    live && org?.registry
+      ? await getBorrowerAttachmentsLive(org.registry, org.entityId, live.profile.borrowerId).catch(() => [])
+      : [];
 
   // ── THE MASTER FILE ─────────────────────────────────────────────────────────
   // Every scrutiny this ecosystem has ever obtained about this person, composed
@@ -528,18 +542,42 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
     ),
   });
 
+  // ── LOANS AND THE STATEMENT ARE TWO DIFFERENT QUESTIONS ────────────────────
+  // They used to be one tab called "Money", which held the loans, the Ratiba
+  // orders and a 60-row extract of the ledger stacked on top of each other. But
+  // "what have they borrowed?" and "what has passed between us?" are asked by
+  // different people at different moments, and the second one has a DOCUMENT as
+  // its answer — a letterheaded sheet with a download button, the thing a
+  // customer is handed. So the loans stay here, and the statement becomes a door
+  // in the rail that opens the real sheet, whole.
+  const statementHref = `/console/borrowers/${b.id}/statement`;
+  /** One loan's own file, on the lender's book. */
+  const liveLoanHref = (loanId: number) => `/console/loans/${encodeURIComponent(`ss:${loanId}`)}`;
+
   if (live?.statement) {
     const st = live.statement;
     sections.push({
-      key: "money",
-      label: "Money",
-      icon: "Banknote",
+      key: "loans",
+      label: "Loans",
+      icon: "Landmark",
       badge: String(st.loans.length),
       tone: arrearsTotal > 0 ? "bad" : "brand",
       content: (
         <div className="space-y-4">
           {org && <Provenance lender={org.name} entityId={org.entityId} degraded={live.degraded} matchedBy={live.matchedBy} />}
           <MoneySummary statement={st} />
+          <Panel
+            title="Every loan they have taken"
+            icon={<Landmark className="h-4 w-4" style={{ color: "var(--brand)" }} />}
+            note="Arrears is the lender's own register, never our arithmetic — so this page and their PAR reports can never disagree. Open a loan for its schedule, its arrears and its own statement."
+            right={
+              <Link href={statementHref} className="text-[12px] font-semibold hover:underline" style={{ color: "var(--brand)" }}>
+                Full statement →
+              </Link>
+            }
+          >
+            <LiveLoans loans={st.loans} hrefFor={liveLoanHref} />
+          </Panel>
           <Panel
             title="Auto-repay — M-PESA Ratiba"
             icon={<Radio className="h-4 w-4" style={{ color: "var(--brand)" }} />}
@@ -548,23 +586,16 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
             <RatibaPanel orders={ratiba} nextDue={nextDue} />
           </Panel>
           <Panel
-            title="Every loan they have taken"
-            icon={<Landmark className="h-4 w-4" style={{ color: "var(--brand)" }} />}
-            note="Arrears is the lender's own register, never our arithmetic — so this page and their PAR reports can never disagree."
+            title="Recent movement"
+            icon={<History className="h-4 w-4" style={{ color: "var(--brand)" }} />}
+            note={`The last few of ${st.totals.count.toLocaleString()} entries. "In" is money reaching the customer.`}
             right={
-              <Link href={`/console/borrowers/${b.id}/statement`} className="text-[12px] font-semibold hover:underline" style={{ color: "var(--brand)" }}>
-                Full statement →
+              <Link href={statementHref} className="text-[12px] font-semibold hover:underline" style={{ color: "var(--brand)" }}>
+                The whole ledger →
               </Link>
             }
           >
-            <LiveLoans loans={st.loans} />
-          </Panel>
-          <Panel
-            title="The ledger"
-            icon={<History className="h-4 w-4" style={{ color: "var(--brand)" }} />}
-            note={`${st.totals.count.toLocaleString()} entries, newest first. "In" is money reaching the customer.`}
-          >
-            <LiveLedger txns={st.transactions.slice(0, 60)} truncated={st.truncated || st.transactions.length > 60} />
+            <LiveLedger txns={st.transactions.slice(0, 12)} truncated={st.totals.count > 12} />
           </Panel>
         </div>
       ),
@@ -573,18 +604,31 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
     // A NATIVE customer, or a live book that did not answer. Our own loans, said
     // plainly as ours.
     sections.push({
-      key: "money",
-      label: "Money",
-      icon: "Banknote",
+      key: "loans",
+      label: "Loans",
+      icon: "Landmark",
       badge: String(b.loans.length),
       content: (
-        <Panel title="Loans" icon={<Landmark className="h-4 w-4" style={{ color: "var(--brand)" }} />} note={`${clearedCount} cleared`}>
+        <Panel
+          title="Loans"
+          icon={<Landmark className="h-4 w-4" style={{ color: "var(--brand)" }} />}
+          note={`${clearedCount} cleared`}
+          right={
+            <Link href={statementHref} className="text-[12px] font-semibold hover:underline" style={{ color: "var(--brand)" }}>
+              Full statement →
+            </Link>
+          }
+        >
           <div className="space-y-2">
             {b.loans.slice(0, 12).map((l) => {
               const total = l.installments.length;
               const paid = l.installments.filter((i) => i.status === "PAID").length;
               return (
-                <div key={l.id} className="rounded-lg border border-ash-900/10 bg-paper/60 px-3 py-2">
+                <Link
+                  key={l.id}
+                  href={`/console/loans/${l.id}`}
+                  className="block rounded-lg border border-ash-900/10 bg-paper/60 px-3 py-2 transition-colors hover:bg-ash-900/[0.04]"
+                >
                   <div className="flex items-center justify-between gap-2">
                     <p className="truncate text-sm font-medium">{l.product.name}</p>
                     <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${l.status === "ACTIVE" ? "bg-sky-500/12 text-sky-700" : l.status === "CLEARED" ? "bg-emerald-500/12 text-emerald-700" : "bg-ash-900/[0.06] text-[color:var(--ink-muted)]"}`}>{l.status}</span>
@@ -593,10 +637,7 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
                     <span>{fmtKES(num(l.loanAmount))} · {paid}/{total} paid</span>
                     <span className="font-semibold" style={{ color: "var(--brand)" }}>{fmtKES(num(l.balance))}</span>
                   </div>
-                  <Link href={`/console/loans/${l.id}/statement`} className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium hover:underline" style={{ color: "var(--brand)" }}>
-                    Statement
-                  </Link>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -604,6 +645,16 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
       ),
     });
   }
+
+  // THE DOOR. Sits between Loans and Risk because that is the reading order an
+  // officer works in: what they owe, what has passed, what they are.
+  sections.push({
+    key: "statement",
+    label: "Statement",
+    icon: "FileText",
+    href: statementHref,
+    badge: live?.statement ? String(live.statement.totals.count) : null,
+  });
 
   sections.push({
     key: "risk",
@@ -707,6 +758,34 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
       </div>
     ),
   });
+
+  // ── THE PAPERWORK ───────────────────────────────────────────────────────────
+  // Everything photographed about this customer, ours and theirs, in one place.
+  // It is a section rather than a strip inside Identity because there can be a
+  // dozen of them, and because a shopfront is affordability evidence rather than
+  // an identity document — different questions, different gates.
+  if (attachments.length > 0) {
+    const fieldShots = attachments.filter((a) => a.group === "field").length;
+    sections.push({
+      key: "documents",
+      label: "Documents",
+      icon: "Paperclip",
+      badge: String(attachments.length),
+      tone: fieldShots > 0 ? "brand" : "warn",
+      content: (
+        <Panel
+          title="Everything on file for this customer"
+          note={
+            org
+              ? `Held in ${org.name}'s own system — the same photographs their officers took in the field, read live.`
+              : undefined
+          }
+        >
+          <AttachmentsGallery attachments={attachments} />
+        </Panel>
+      ),
+    });
+  }
 
   if (masterFile) {
     const mb = masterFileBadge(masterFile);

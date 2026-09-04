@@ -61,6 +61,15 @@ type Row = {
   phone: string | null;
   borrowerKey: string | null;
   borrowerHref: string;
+  /**
+   * THIS loan's own page.
+   *
+   * The name used to link to Customer 360, which answered a question nobody had
+   * asked: an officer clicking a row that says "KES 5,650, 10 days late" wants
+   * THAT loan, and landing on a customer with four of them made them work out
+   * which. The customer is still one click away, from the loan.
+   */
+  loanHref: string;
   kycVerified: boolean;
   product: string;
   principal: number;
@@ -114,6 +123,8 @@ export default async function LoansPage({ searchParams }: { searchParams: Promis
         phone: l.phone,
         borrowerKey: null,
         borrowerHref: `/console/borrowers/resolve/${encodeURIComponent(`ss:${l.borrowerId}`)}`,
+        // No resolve step for a loan: it is read straight from the lender's book.
+        loanHref: `/console/loans/${encodeURIComponent(l.ref)}`,
         // Their book records a verification flag we do not read here; claiming
         // VERIFIED off a loan row would put a tick beside somebody our own KYC
         // has never seen.
@@ -123,9 +134,10 @@ export default async function LoansPage({ searchParams }: { searchParams: Promis
         balance: l.balance,
         status: l.status,
         bookedAt: l.borrowDate ? l.borrowDate.slice(0, 10) : null,
-        // Their statement IS available live — keyed on the borrower, the same
-        // way sp_GetCustomerStatement is.
-        statementHref: `/console/borrowers/${encodeURIComponent(`ss:${l.borrowerId}`)}/statement`,
+        // THIS loan's statement — its schedule, its arrears, and the money posted
+        // against it. The customer's whole-relationship statement is a click
+        // further in, from the loan page.
+        statementHref: `/console/loans/${encodeURIComponent(l.ref)}/statement`,
         nextDue: l.nextDue,
         arrears: l.arrears,
         daysInArrears: l.daysInArrears,
@@ -242,6 +254,7 @@ export default async function LoansPage({ searchParams }: { searchParams: Promis
     phone: l.borrower.phone,
     borrowerKey: l.borrower.id,
     borrowerHref: `/console/borrowers/${l.borrower.id}`,
+    loanHref: `/console/loans/${l.id}`,
     kycVerified: l.borrower.kycStatus === "VERIFIED",
     product: l.product.name,
     principal: Number(l.principal),
@@ -324,7 +337,8 @@ function LoanTable({
             {rows.map((r) => (
               <tr key={r.key}>
                 <td>
-                  <Link href={r.borrowerHref} className="group/b flex items-center gap-2.5">
+                  {/* The name opens THIS LOAN, not the person. See Row.loanHref. */}
+                  <Link href={r.loanHref} className="group/b flex items-center gap-2.5">
                     <BorrowerAvatar
                       name={r.who}
                       portraitUrl={(r.borrowerKey && portraits[r.borrowerKey]) || null}
@@ -371,15 +385,19 @@ function LoanTable({
                 </td>
                 <td className="t-num text-[11px] text-[color:var(--ink-muted)]">{r.bookedAt ?? "—"}</td>
                 <td>
-                  {r.statementHref ? (
-                    <Link href={r.statementHref} className="inline-flex items-center gap-1 text-[11px] font-semibold hover:underline" style={{ color: "var(--brand)" }}>
-                      <FileText className="h-3.5 w-3.5" /> Statement
+                  {/* Two doors, said plainly: the loan's own sheet, and the person
+                      behind it. Before, the row offered only one and it was the
+                      wrong one for a collections call. */}
+                  <span className="flex flex-col gap-0.5">
+                    {r.statementHref && (
+                      <Link href={r.statementHref} className="inline-flex items-center gap-1 text-[11px] font-semibold hover:underline" style={{ color: "var(--brand)" }}>
+                        <FileText className="h-3.5 w-3.5" /> Statement
+                      </Link>
+                    )}
+                    <Link href={r.borrowerHref} className="inline-flex items-center gap-1 text-[11px] text-[color:var(--ink-muted)] hover:underline">
+                      Customer
                     </Link>
-                  ) : (
-                    <Link href={r.borrowerHref} className="inline-flex items-center gap-1 text-[11px] font-semibold hover:underline" style={{ color: "var(--brand)" }}>
-                      Open customer
-                    </Link>
-                  )}
+                  </span>
                 </td>
               </tr>
             ))}
