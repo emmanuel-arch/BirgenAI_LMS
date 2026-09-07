@@ -17,6 +17,7 @@ import { buildSchedule } from "./schedule";
 import { effectiveStatus, hashTerms, termsOf } from "./offer";
 import { standsBehind, effectiveGuarantorStatus } from "./guarantor";
 import { checkSecurity } from "./security";
+import { principalDeductions } from "./upfront-charges";
 
 export type BookResult = {
   loanId: string;
@@ -155,6 +156,13 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
     }))?.id ??
     null;
 
+  // WHAT ACTUALLY LEAVES THE FLOAT. Fees set to DEDUCT_FROM_PRINCIPAL come out of
+  // the disbursement rather than being collected before it, so the customer
+  // borrows the full principal, owes the full principal, and receives the rest.
+  // Computed OUTSIDE the transaction because it only reads the fee table, and
+  // holding a write transaction open across it buys nothing.
+  const netting = await principalDeductions({ orgId: app.orgId, productId: app.product!.id, principal });
+
   const result = await orgTx(async (tx) => {
     const loan = await tx.loan.create({
       data: {
@@ -197,7 +205,10 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
       data: {
         orgId: app.orgId,
         loanId: loan.id,
-        amount: new Prisma.Decimal(principal), // net-of-fees logic lands with the fee engine
+        // NET of any DEDUCT_FROM_PRINCIPAL fees — the loan is still for `principal`
+        // and the schedule above still repays `principal`; this is only what the
+        // customer receives. See lending/upfront-charges.ts#principalDeductions.
+        amount: new Prisma.Decimal(netting.net),
         phone: app.borrower.phone,
         state: "PENDING_MAKER",
         // §7 diversion control: pay-to-institution loans freeze the payee here;
@@ -225,6 +236,13 @@ export async function bookLoanFromApplication(applicationId: string, actorStaffI
         // The signature travels with the booking record: which agreement, and how signed.
         meta: {
           applicationId: app.id, principal, interest, loanAmount, installments: count,
+          // What was netted off on the way out, itemised. A customer who borrowed
+          // 15,000 and received 13,950 will ask why, and the answer has to be a
+          // record rather than a recomputation against a fee table that may since
+          // have been edited.
+          deductedFromPrincipal: netting.total,
+          deductions: netting.deductions,
+          disbursedNet: netting.net,
           offerId: offer.id, termsHash: offer.termsHash,
           acceptedVia: offer.channel, acceptedAt: offer.acceptedAt?.toISOString() ?? null,
           // Who stood behind it, and what secured it, at the moment it was written.

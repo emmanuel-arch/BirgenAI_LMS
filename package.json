@@ -104,7 +104,9 @@
     "test:reconciliation": "tsx scripts/verify-reconciliation.mts",
     "score:live": "tsx scripts/score-live-book.ts",
     "crb:all": "tsx scripts/crb-pull-all.ts",
-    "ratiba:test": "tsx scripts/ratiba-test.ts"
+    "ratiba:test": "tsx scripts/ratiba-test.ts",
+    "ratiba:diagnose": "tsx scripts/ratiba-diagnose.ts",
+    "products:sync": "tsx scripts/sync-live-products.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

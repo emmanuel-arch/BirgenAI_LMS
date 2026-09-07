@@ -237,18 +237,29 @@ export async function createStandingOrder(
       signal: AbortSignal.timeout(30000),
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    const header = (data.ResponseHeader ?? data) as Record<string, unknown>;
+    // THE ENVELOPE KEY IS `header`, LOWERCASE. Safaricom's own Ratiba docs write
+    // it as `ResponseHeader`, and production does not: a live refusal on 7 Sep
+    // 2026 came back as {"header":{...},"body":{}}. Reading only the documented
+    // spelling meant every Ratiba response — success or failure — fell through to
+    // the generic branch, so a perfectly explicit "Unauthorised-Invalid Access
+    // Token" reached the operator as "Ratiba request failed (401)". Worse on the
+    // success path: responseRefID would have been dropped, and the callback has
+    // nothing to match a standing order against without it. All three spellings
+    // are accepted, and the message field likewise (`responseMessage` in
+    // production, `responseDescription` in the docs).
+    const header = (data.ResponseHeader ?? data.header ?? data) as Record<string, unknown>;
     const code = String(header.responseCode ?? header.ResponseCode ?? "");
+    const desc = header.responseDescription ?? header.responseMessage ?? header.customerMessage;
     const ok = res.ok && (code === "200" || code === "0" || code === "1000");
     if (ok) {
       return {
         ok: true,
-        ref: String(header.responseRefID ?? header.ResponseRefID ?? ""),
-        message: String(header.responseDescription ?? "Standing order sent — the customer approves it on their phone."),
+        ref: String(header.responseRefID ?? header.ResponseRefID ?? header.requestRefId ?? ""),
+        message: String(desc ?? "Standing order sent — the customer approves it on their phone."),
         raw: data,
       };
     }
-    return { ok: false, message: String(header.responseDescription ?? data.errorMessage ?? `Ratiba request failed (${res.status}).`), raw: data };
+    return { ok: false, message: String(desc ?? data.errorMessage ?? `Ratiba request failed (${res.status}).`), raw: data };
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : "Standing order request failed." };
   }

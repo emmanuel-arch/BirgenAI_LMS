@@ -19,22 +19,20 @@
 //
 // Idempotent: keyed on (orgId, phone), so re-opening finds the existing record and
 // refreshes the lender-owned fields rather than duplicating anyone.
+//
+// THE RESOLUTION ITSELF NO LONGER LIVES HERE. It moved to
+// lib/lms/resolve-live-borrower.ts when Apply for a Borrower needed the same step
+// and could not call a page; this file is now the Customer-360 door onto it.
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
-import { prisma } from "@/lib/prisma";
 import { resolveOrg } from "@/lib/tenancy";
-import { originStamp } from "@/lib/rbac/scope";
-import { getLiveBorrowerById } from "@/lib/lms/servicesuite";
-import { normaliseBandName } from "@/lib/risk/bands";
+import { parseLiveRef, resolveLiveBorrower } from "@/lib/lms/resolve-live-borrower";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/** Digits-only, the way the Borrower table stores them (2547XXXXXXXX). */
-const cleanPhone = (p: string) => p.replace(/\D/g, "");
 
 function Problem({ title, detail }: { title: string; detail: string }) {
   return (
@@ -72,7 +70,6 @@ export default async function ResolveLiveBorrower({
   const denied = await requireRight(session, "borrowers.view");
   if (denied) redirect("/console/borrowers");
 
-  const orgId = session.user.orgId;
   const { ref } = await params;
 
   // WHY the resolver reads a query string at all: an officer arriving from the
@@ -84,131 +81,21 @@ export default async function ResolveLiveBorrower({
   const drop = intent === "location" ? "?drop=location" : "";
 
   // "ss:168346" — anything else is not a live ref.
-  const match = decodeURIComponent(ref).match(/^ss:(\d+)$/);
-  if (!match) {
+  const serviceSuiteId = parseLiveRef(ref);
+  if (serviceSuiteId == null) {
     return <Problem title="That customer reference is not valid" detail={`"${decodeURIComponent(ref)}" is not a live customer reference. Open the customer from the book so the reference is carried correctly.`} />;
   }
-  const serviceSuiteId = Number(match[1]);
 
   const org = session.user.orgSlug ? await resolveOrg(session.user.orgSlug) : null;
-  if (!org?.registry || !org.bridgedReady || !org.entityId) {
+  if (!org) {
     return <Problem title="This lender's book is not connected" detail="Live customers can only be opened while the connection to the lender's own system is configured and reachable. Reconnect it, then try again." />;
   }
+  // The resolution itself lives in lib/lms/resolve-live-borrower.ts, because the
+  // Apply-for-a-Borrower screen has to perform exactly the same step and cannot
+  // call a page. redirect() must be reached OUTSIDE any try, since it works by
+  // throwing and a catch would swallow it — so the outcome is inspected first.
+  const outcome = await resolveLiveBorrower(org, serviceSuiteId, { id: session.user.id });
+  if (!outcome.ok) return <Problem title={outcome.title} detail={outcome.detail} />;
 
-  // `resolvedId` is set inside the try; redirect() must be called OUTSIDE it,
-  // because redirect() works by throwing and a catch would swallow it.
-  let resolvedId: string | null = null;
-  let failure: { title: string; detail: string } | null = null;
-
-  try {
-    const seed = await getLiveBorrowerById(org.registry, org.entityId, serviceSuiteId);
-    if (!seed) {
-      failure = {
-        title: "That customer is no longer in the lender's book",
-        detail: `Customer ${serviceSuiteId} was not found in entity ${org.entityId}. They may have been moved to another entity or removed since the list was loaded.`,
-      };
-    } else {
-      const phone = cleanPhone(seed.phone ?? "");
-      if (phone.length < 9) {
-        failure = {
-          title: "This customer has no usable phone number",
-          detail: "Their record in the lender's system has no valid mobile number, and a customer is identified by phone here. Correct it in ServiceSuite first — every message, OTP and repayment depends on it.",
-        };
-      } else {
-        // Fields the LENDER owns are refreshed on every open; fields WE own
-        // (KYC state, pins, consent) are only ever set by our own pipeline and
-        // are deliberately absent from the update below.
-        const lenderOwned = {
-          firstName: seed.firstName,
-          otherName: seed.otherName,
-          nationalId: seed.nationalId,
-          email: seed.email,
-          dob: seed.dob ? new Date(seed.dob) : null,
-          gender: seed.gender,
-          // ── THE SCORE GOES IN THE COLUMN THAT MATCHES ITS SCALE ───────────
-          // This used to write ServiceSuite's `CreditScore` into `creditScore`,
-          // which every band function in the product reads as 300–900. On entity
-          // 3005 that column runs 0 → 28,531,233 (mean 4,271), so every resolved
-          // customer cleared the 750 PRIME floor and the page told the officer
-          // they "pay on time, every time" — about people 47 days in arrears.
-          //
-          // Their RiskScore is the real figure, on the 0–100 scale our
-          // `behaviouralScore` already uses, and it agrees with their own
-          // RiskCategory bands to the half point. `creditScore` stays NULL until
-          // something actually scores them on the 900 scale — the statement
-          // cruncher — because an empty field is honest and a mis-scaled one is
-          // not.
-          behaviouralScore: seed.riskScore,
-          riskBand: seed.riskCategory ? normaliseBandName(seed.riskCategory) : null,
-          lastScoredAt: seed.riskScore != null ? new Date() : null,
-          loanLimit: seed.loanLimit,
-          previousLoanLimit: seed.previousLoanLimit,
-          graduationCount: seed.graduationCount,
-          // The id we just looked them up by. Storing it is what lets every later
-          // read — Customer 360, the statement, the live score — go straight to
-          // the right row instead of matching on a phone number two customers can
-          // share. It was only ever written into the audit log, where nothing
-          // could query it.
-          serviceSuiteBorrowerId: seed.serviceSuiteId,
-        };
-
-        const existing = await prisma.borrower.findUnique({
-          where: { orgId_phone: { orgId, phone } },
-          select: { id: true },
-        });
-
-        if (existing) {
-          await prisma.borrower.update({ where: { id: existing.id }, data: lenderOwned });
-          resolvedId = existing.id;
-        } else {
-          // The officer who opens them owns them, so an OWN-scoped officer keeps
-          // seeing their own book (lib/rbac/scope.ts).
-          const me = await prisma.staffUser.findFirst({
-            where: { id: session.user.id, orgId },
-            select: { id: true, branchId: true },
-          });
-          const origin = await originStamp(orgId, me);
-          const created = await prisma.borrower.create({
-            data: {
-              orgId,
-              createdById: origin.staffId,
-              branchId: origin.branchId,
-              phone,
-              language: "en",
-              ...lenderOwned,
-            },
-            select: { id: true },
-          });
-          resolvedId = created.id;
-
-          await prisma.auditLog.create({
-            data: {
-              orgId,
-              actorId: session.user.id,
-              actorType: "staff",
-              action: "borrower.resolve",
-              entity: "Borrower",
-              entityId: created.id,
-              meta: {
-                channel: "console",
-                source: "servicesuite",
-                entityId: org.entityId,
-                serviceSuiteBorrowerId: serviceSuiteId,
-                accountNo: seed.accountNo,
-                phone,
-              },
-            },
-          }).catch(() => {});
-        }
-      }
-    }
-  } catch (err) {
-    failure = {
-      title: "Could not read that customer from the lender's system",
-      detail: err instanceof Error ? err.message : "The lender's database did not answer. Try again in a moment.",
-    };
-  }
-
-  if (failure) return <Problem {...failure} />;
-  redirect(`/console/borrowers/${resolvedId}${drop}`);
+  redirect(`/console/borrowers/${outcome.borrowerId}${drop}`);
 }

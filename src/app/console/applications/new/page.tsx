@@ -128,9 +128,30 @@ export default function NewApplicationPage() {
     if (b.activeLoans > 0) return; // running-loan gate handled in render
     setLoadingPreview(true);
     try {
+      // A BRIDGED lender's search answers out of THEIR ServiceSuite, and those
+      // rows carry `ss:<id>` rather than one of our uuids. Every borrower-scoped
+      // endpoint below is a Postgres lookup, so handing it that ref returns
+      // "Borrower not found." about somebody the officer is looking straight at.
+      // Resolving takes the customer onto our book first — the same step the
+      // Borrowers List does on its way to Customer 360, and the same step this
+      // application's own POST would otherwise fail on at the very end.
+      let id = b.id;
+      if (/^ss:\d+$/.test(id)) {
+        const res = await fetch("/api/console/borrowers/resolve", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ref: id }),
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!d.success) { setError(d.message || "Could not open this customer."); return; }
+        id = d.borrowerId;
+        // Everything after this point — the limit preview, and the application
+        // itself — must use the resolved id, so put it back on the selection.
+        setBorrower({ ...b, id });
+      }
+
       const [pRes, lRes] = await Promise.all([
-        fetch(`/api/console/borrowers/${b.id}/profile`).then((r) => r.json()),
-        fetch(`/api/console/borrowers/${b.id}/limit-check`).then((r) => r.json()),
+        fetch(`/api/console/borrowers/${id}/profile`).then((r) => r.json()),
+        fetch(`/api/console/borrowers/${id}/limit-check`).then((r) => r.json()),
       ]);
       if (pRes.success && lRes.success) {
         setPreview({ profile: pRes.profile, basis: lRes.basis, products: lRes.products });

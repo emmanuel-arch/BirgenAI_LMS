@@ -72,3 +72,62 @@ export async function unpaidUpfrontCharges(opts: {
 
   return { unpaid, total: round2(unpaid.reduce((s, c) => s + c.amount, 0)) };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE OTHER WAY TO COLLECT A FEE: net it off the money on its way out.
+//
+// A BEFORE_DISBURSEMENT fee has to be in hand before the loan exists, which means
+// the customer needs cash before they can borrow — the thing they came in without.
+// A DEDUCT_FROM_PRINCIPAL fee is taken out of the disbursement instead: they
+// borrow 15,000, they receive 13,950, and they owe 15,000. Same money to the
+// lender, no cash required up front, and nothing to collect at the counter.
+//
+// The schema and the upfront gate have both understood this from the start —
+// `unpaidUpfrontCharges` above deliberately filters to BEFORE_DISBURSEMENT so that
+// a netted fee is not ALSO demanded at the counter. What was missing is the other
+// half: something that actually performs the netting. lending/book.ts created the
+// disbursement for the full principal with a comment reading "net-of-fees logic
+// lands with the fee engine", and until now it never landed. A charge set to
+// DEDUCT_FROM_PRINCIPAL was therefore silently never charged at all.
+//
+// PRICED BY THE SAME FUNCTION AS EVERYTHING ELSE. chargeAmount/chargeAppliesTo are
+// what the gate quotes and what the STK push asks for, clamps and bands included.
+// A second pricing rule here is how the offer, the prompt and the payout start
+// disagreeing about what a loan costs.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type DeductedCharge = { id: string; code: string; name: string; amount: number };
+
+/**
+ * Fees taken out of the principal at disbursement, for a given loan size.
+ *
+ * `net` is what actually leaves the float and reaches the customer. It is floored
+ * at zero: a fee table that eats the whole principal is a configuration mistake,
+ * and a negative B2C amount would be a far stranger one.
+ */
+export async function principalDeductions(opts: {
+  orgId: string;
+  productId: string | null;
+  principal: number;
+}): Promise<{ deductions: DeductedCharge[]; total: number; net: number }> {
+  const productClause = opts.productId ? { OR: [{ productId: null }, { productId: opts.productId }] } : { productId: null };
+  const all = await prisma.charge.findMany({
+    where: {
+      orgId: opts.orgId, isActive: true,
+      applyAt: "DEDUCT_FROM_PRINCIPAL",
+      ...productClause,
+    },
+    select: {
+      id: true, code: true, name: true, amount: true, isPercent: true,
+      minValue: true, maxValue: true, minPrincipal: true, maxPrincipal: true,
+    },
+  });
+
+  const deductions = all
+    .filter((c) => chargeAppliesTo(c, opts.principal))
+    .map((c) => ({ id: c.id, code: c.code, name: c.name, amount: round2(chargeAmount(c, opts.principal)) }))
+    .filter((d) => d.amount > 0);
+
+  const total = round2(deductions.reduce((s, d) => s + d.amount, 0));
+  return { deductions, total, net: round2(Math.max(0, opts.principal - total)) };
+}

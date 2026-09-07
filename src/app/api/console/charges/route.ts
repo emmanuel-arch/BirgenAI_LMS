@@ -17,6 +17,21 @@ export const runtime = "nodejs";
 
 const KINDS = ["MANUAL", "ON_REGISTRATION", "ON_APPLICATION"] as const;
 
+// HOW a fee is collected, as opposed to WHEN it is offered (`trigger`).
+//
+//   BEFORE_DISBURSEMENT   the customer pays it before the loan exists. The only
+//                         one that GATES — the application cannot enter the queue
+//                         until it is settled, so the borrower needs cash in hand
+//                         before they can borrow.
+//   DEDUCT_FROM_PRINCIPAL netted off the payout. They borrow 15,000, receive
+//                         13,950, and still owe 15,000. No cash needed up front.
+//   ON_INSTALLMENTS       spread across the repayment schedule.
+//
+// This was settable in the schema and nowhere else, so every charge a lender
+// created was BEFORE_DISBURSEMENT by default and there was no way to say
+// otherwise without a migration.
+const APPLY_AT = ["BEFORE_DISBURSEMENT", "DEDUCT_FROM_PRINCIPAL", "ON_INSTALLMENTS"] as const;
+
 export async function GET() {
   const session = await auth();
   const denied = await requireRight(session, "products.view");
@@ -30,6 +45,7 @@ export async function GET() {
       id: c.id, name: c.name, code: c.code, description: c.description,
       amount: Number(c.amount), isPercent: c.isPercent,
       trigger: c.trigger, beneficiary: c.beneficiary,
+      applyAt: c.applyAt,
       isActive: c.isActive,
       // A platform fee is ours. The screen renders it read-only.
       locked: c.beneficiary === "PLATFORM",
@@ -43,7 +59,7 @@ export async function POST(req: NextRequest) {
   if (denied) return denied;
   const orgId = session!.user!.orgId!;
 
-  let body: { name?: string; code?: string; description?: string; amount?: number; isPercent?: boolean; trigger?: string };
+  let body: { name?: string; code?: string; description?: string; amount?: number; isPercent?: boolean; trigger?: string; applyAt?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
   const name = (body.name ?? "").trim();
@@ -66,6 +82,9 @@ export async function POST(req: NextRequest) {
       description: body.description?.trim() || null,
       amount, isPercent,
       trigger: (KINDS as readonly string[]).includes(String(body.trigger)) ? (body.trigger as "MANUAL") : "MANUAL",
+      applyAt: (APPLY_AT as readonly string[]).includes(String(body.applyAt))
+        ? (body.applyAt as "BEFORE_DISBURSEMENT")
+        : "BEFORE_DISBURSEMENT",
       // A lender can only ever create their OWN fee. Ours are seeded by the platform.
       beneficiary: "LENDER",
     },
@@ -75,7 +94,7 @@ export async function POST(req: NextRequest) {
     data: {
       orgId, actorId: session!.user!.id, actorType: "staff", action: "charge.create",
       entity: "Charge", entityId: charge.id,
-      meta: { name, code, amount, isPercent, trigger: charge.trigger },
+      meta: { name, code, amount, isPercent, trigger: charge.trigger, applyAt: charge.applyAt },
     },
   }).catch(() => {});
 
@@ -88,7 +107,7 @@ export async function PATCH(req: NextRequest) {
   if (denied) return denied;
   const orgId = session!.user!.orgId!;
 
-  let body: { id?: string; amount?: number; isActive?: boolean; name?: string; description?: string };
+  let body: { id?: string; amount?: number; isActive?: boolean; name?: string; description?: string; applyAt?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
   const charge = await prisma.charge.findFirst({ where: { id: String(body.id ?? ""), orgId } });
@@ -116,6 +135,13 @@ export async function PATCH(req: NextRequest) {
     data.name = body.name.trim();
   }
   if (typeof body.description === "string") data.description = body.description.trim() || null;
+  // Switching HOW a fee is collected changes whether it gates a loan and whether it
+  // is netted off the payout, so it is audited with the rest of the money-adjacent
+  // edits rather than treated as a display preference.
+  if (typeof body.applyAt === "string" && (APPLY_AT as readonly string[]).includes(body.applyAt) && body.applyAt !== charge.applyAt) {
+    changed.applyAt = { from: charge.applyAt, to: body.applyAt };
+    data.applyAt = body.applyAt;
+  }
 
   if (Object.keys(data).length === 0) return NextResponse.json({ success: false, message: "Nothing to change." }, { status: 400 });
 

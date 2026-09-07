@@ -17,7 +17,7 @@ import { PageHeader } from "@/components/shell/PageHeader";
 
 type Charge = {
   id: string; name: string; code: string; description: string | null;
-  amount: number; isPercent: boolean; trigger: string; beneficiary: "LENDER" | "PLATFORM";
+  amount: number; isPercent: boolean; trigger: string; applyAt: string; beneficiary: "LENDER" | "PLATFORM";
   isActive: boolean; locked: boolean;
 };
 
@@ -25,6 +25,13 @@ const TRIGGER_LABEL: Record<string, string> = {
   MANUAL: "Whenever staff ask for it",
   ON_REGISTRATION: "When a customer is registered",
   ON_APPLICATION: "When they apply for a loan",
+};
+
+const APPLY_AT_LABEL: Record<string, string> = {
+  // The order matters: the first is the default, and the one that GATES.
+  BEFORE_DISBURSEMENT: "Customer pays it before the loan is released",
+  DEDUCT_FROM_PRINCIPAL: "Netted off the payout 2014 no cash needed up front",
+  ON_INSTALLMENTS: "Spread across the repayments",
 };
 
 const field = "w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none placeholder:text-ash-400";
@@ -35,7 +42,7 @@ export default function ChargesPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: "", code: "", amount: "", isPercent: false, trigger: "MANUAL", description: "" });
+  const [form, setForm] = useState({ name: "", code: "", amount: "", isPercent: false, trigger: "MANUAL", applyAt: "BEFORE_DISBURSEMENT", description: "" });
 
   const load = useCallback(async () => {
     try {
@@ -57,7 +64,7 @@ export default function ChargesPage() {
       const d = await res.json();
       if (!d.success) { setError(d.message ?? "Could not create the charge."); return; }
       setNotice(`${form.name} added — it is now on the Request payment button everywhere.`);
-      setForm({ name: "", code: "", amount: "", isPercent: false, trigger: "MANUAL", description: "" });
+      setForm({ name: "", code: "", amount: "", isPercent: false, trigger: "MANUAL", applyAt: "BEFORE_DISBURSEMENT", description: "" });
       setAdding(false);
       await load();
     } catch { setError("Could not reach the server."); } finally { setBusy(false); }
@@ -126,12 +133,25 @@ export default function ChargesPage() {
             <select className={field} value={form.trigger} onChange={(e) => setForm((f) => ({ ...f, trigger: e.target.value }))}>
               {Object.entries(TRIGGER_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
+            {/* WHEN it is asked for is one question; HOW it is collected is another,
+                and the second one decides whether a customer needs cash before they
+                can borrow at all. */}
+            <select className={field} value={form.applyAt} onChange={(e) => setForm((f) => ({ ...f, applyAt: e.target.value }))}>
+              {Object.entries(APPLY_AT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
             <input className={`${field} sm:col-span-2`} placeholder="What is it for? (shown to your staff)" value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           </div>
           <p className="mt-2 text-[11px] text-ash-400">
             The short code is what the customer sees on their M-Pesa prompt — keep it recognisable.
           </p>
+          {form.applyAt === "DEDUCT_FROM_PRINCIPAL" && (
+            <p className="mt-1 text-[11px] text-ash-500">
+              Netted off the payout: a customer borrowing KES 15,000 with a KES 1,050 fee receives
+              KES 13,950 and still owes KES 15,000. Nothing is collected at the counter, and the
+              loan is not held up waiting for it.
+            </p>
+          )}
           <div className="mt-3 flex items-center gap-2">
             <button onClick={create} disabled={busy || !form.name.trim() || !form.code || !(Number(form.amount) > 0)}
               className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ backgroundColor: "var(--brand)" }}>
@@ -164,6 +184,29 @@ export default function ChargesPage() {
                   {!c.isActive && <span className="rounded bg-ash-200 px-1.5 py-0.5 text-[10px] font-semibold text-ash-600">OFF</span>}
                 </p>
                 <p className="mt-0.5 text-[12px] text-ash-500">{c.description || TRIGGER_LABEL[c.trigger]}</p>
+                {/* HOW it is collected, on every row — because "does this fee hold up
+                    the loan?" is the question staff actually ask about a fee, and it
+                    was previously unanswerable from this screen. */}
+                {!c.locked ? (
+                  <label className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-ash-500">
+                    <span>Collected:</span>
+                    <select
+                      value={c.applyAt}
+                      disabled={busy}
+                      onChange={(e) => patch(c.id, { applyAt: e.target.value })}
+                      className="rounded border border-ash-900/15 bg-paper/70 px-1.5 py-1 text-[11px] text-ash-700 disabled:opacity-50"
+                    >
+                      {Object.entries(APPLY_AT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    </select>
+                    {c.applyAt === "BEFORE_DISBURSEMENT" && (
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                        holds up the loan
+                      </span>
+                    )}
+                  </label>
+                ) : (
+                  <p className="mt-1 text-[11px] text-ash-500">{APPLY_AT_LABEL[c.applyAt]}</p>
+                )}
                 {c.locked && (
                   <p className="mt-1 text-[11px] text-violet-700">Settles to BirgenAI, not to your paybill.</p>
                 )}

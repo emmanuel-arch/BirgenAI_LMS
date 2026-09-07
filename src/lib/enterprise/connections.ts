@@ -119,7 +119,11 @@ export const ORGS: Record<OrgSlug, OrgDef> = {
     // MICROMART FINTECH — verified live 12 Aug 2026 on Micromart's OWN server
     // (reachable over Tailscale at 100.72.35.56,4230 / Serviceconnect).
     //
-    // EntityId 3005, org unit 129, paybill 4116125. Two active products —
+    // EntityId 3005, org unit 129, paybill 4329635 — read live out of
+    // Transactions.dbo.StkParams on 7 Sep 2026 and decrypted, NOT the 4116125
+    // this comment used to claim. The two books really do have separate Daraja
+    // apps: 3002 signs with paybill 4038021 and 3005 with 4329635, different
+    // consumer keys and secrets on each. Two active products —
     // Micro Eazy (30219, 8.25% flat/week, customer-selected tenor up to 10) and
     // Micro Eazy Monthly (30220, 22% flat/month x 2) — both on workflow 1022
     // "Micro Eazy" (stage 2058 Risk -> stage 2059 Customer Service). 17,016
