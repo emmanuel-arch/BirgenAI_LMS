@@ -12,9 +12,13 @@
 // Paging is done IN the lender's database (`take`/`skip`) — 17k rows is not a list
 // to load and filter on the client.
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
+import { readBorrowerConfig, readDetailsConfig } from "@/lib/config/store";
+import { KYC_FIELDS } from "@/lib/config/borrower";
+import { groupsFor, validateDetailValues, type DetailValues } from "@/lib/config/details";
 import { originStamp, resolveScope, borrowerScopeWhere } from "@/lib/rbac/scope";
 import { portraitsFor } from "@/lib/kyc/avatars";
 import { resolveOrg } from "@/lib/tenancy";
@@ -189,6 +193,12 @@ export async function POST(req: NextRequest) {
     };
     /** Registry-first onboarding: the IPRS payload the officer reviewed (frozen as a KycCheck). */
     iprs?: { mode?: string; fullName?: string; gender?: string; dob?: string; citizenship?: string; serialNumber?: string; placeOfBirth?: string; placeOfLive?: string };
+    /** The lender's own extra questions, keyed by the stable item code. */
+    details?: Record<string, unknown>;
+    /** Which rail produced this record — audited, and shown on the customer file. */
+    onboardingMethod?: string;
+    occupation?: string; businessName?: string;
+    postalAddress?: string; physicalAddress?: string;
   };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
@@ -197,6 +207,66 @@ export async function POST(req: NextRequest) {
   if (name.length < 3) return NextResponse.json({ success: false, message: "Enter the borrower's full name." }, { status: 400 });
   if (digits.length < 9) return NextResponse.json({ success: false, message: "Enter a valid phone number." }, { status: 400 });
   const phone = `254${digits.slice(-9)}`;
+
+  // ── The lender's own rules, enforced server-side ──────────────────────────
+  //
+  // The screen rendered the onboarding contract; this re-derives it and checks the
+  // submission against it. Not belt-and-braces: the contract is what a lender
+  // configured, four surfaces submit to this one endpoint, and a rule only the
+  // client enforces is a rule a different client does not.
+  const [borrowerCfg, detailsCfg] = await Promise.all([
+    readBorrowerConfig(orgId),
+    readDetailsConfig(orgId),
+  ]);
+  const kyc = borrowerCfg.value.kyc.fields;
+  const submitted: Record<string, string> = {
+    firstName: name.split(/\s+/)[0] ?? "",
+    otherName: name.split(/\s+/).slice(1).join(" "),
+    nationalId: (body.nationalId ?? "").trim(),
+    phone: digits,
+    email: (body.email ?? "").trim(),
+    dob: (body.dob ?? body.iprs?.dob ?? "").trim(),
+    gender: (body.gender ?? body.iprs?.gender ?? "").trim(),
+    occupation: (body.occupation ?? "").trim(),
+    businessName: (body.businessName ?? "").trim(),
+    postalAddress: (body.postalAddress ?? "").trim(),
+    physicalAddress: (body.physicalAddress ?? "").trim(),
+    nextOfKin: "",
+  };
+  const missingFields = KYC_FIELDS
+    .filter((f) => kyc[f.key]?.required && !kyc[f.key]?.hidden && !submitted[f.key])
+    .map((f) => f.label);
+  if (missingFields.length > 0) {
+    return NextResponse.json({
+      success: false,
+      message: `Your borrower settings require ${missingFields.join(", ")}.`,
+    }, { status: 422 });
+  }
+
+  // The extra questions this lender invented, validated by the same function the
+  // screen ran, so the two can never disagree about what "complete" means.
+  const detailValues = (body.details ?? {}) as DetailValues;
+  const detailIssues = validateDetailValues(groupsFor(detailsCfg.value, "borrower"), detailValues);
+  if (detailIssues.length > 0) {
+    return NextResponse.json(
+      { success: false, message: detailIssues[0].message, issues: detailIssues },
+      { status: 422 },
+    );
+  }
+
+  // A location the lender insists on is not optional because a client forgot it.
+  if (borrowerCfg.value.onboarding.geo.required) {
+    const anyPin = borrowerCfg.value.onboarding.geo.places.some((place) => {
+      const p = place === "business" ? body.geo?.business : body.geo?.home;
+      return p && Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng));
+    });
+    if (!body.geo?.consent || !anyPin) {
+      return NextResponse.json({
+        success: false,
+        message: "Your borrower settings require a consented location snapshot.",
+      }, { status: 422 });
+    }
+  }
 
   // One borrower per phone per org — the phone IS the identity key everywhere else.
   const dup = await prisma.borrower.findFirst({ where: { orgId, phone: { contains: digits.slice(-9) } }, select: { id: true } });
@@ -258,6 +328,9 @@ export async function POST(req: NextRequest) {
       locationAddress: body.locationAddress?.trim() || null,
       lat: hasGeo ? Number(body.lat) : null,
       lng: hasGeo ? Number(body.lng) : null,
+      // The lender's own questions, filed under the item CODE and never the title —
+      // renaming a field on the settings screen must not orphan a year of capture.
+      details: Object.keys(detailValues).length > 0 ? (detailValues as Prisma.InputJsonValue) : undefined,
       ...(geoData ?? {}),
     },
   });
@@ -295,7 +368,14 @@ export async function POST(req: NextRequest) {
     data: {
       orgId, actorId: session!.user!.id, actorType: "staff", action: "borrower.create",
       entity: "Borrower", entityId: borrower.id,
-      meta: { channel: "console", phone, iprsPrefill: !!body.iprs?.fullName, geoPinned: geoData ? (biz && home ? "business+home" : biz ? "business" : "home") : "none" },
+      meta: {
+        channel: "console",
+        phone,
+        method: body.onboardingMethod ?? "manual",
+        iprsPrefill: !!body.iprs?.fullName,
+        detailsCaptured: Object.keys(detailValues).length,
+        geoPinned: geoData ? (biz && home ? "business+home" : biz ? "business" : "home") : "none",
+      },
     },
   }).catch(() => {});
 

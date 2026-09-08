@@ -264,6 +264,12 @@ export const NAV_REGISTRY: NavModule[] = [
       { key: "products", label: "Products", href: "/console/products", icon: "Package", right: "products.view" },
       { key: "charges", label: "Charges", href: "/console/charges", icon: "Coins", right: "products.view" },
       { key: "workflows", label: "Workflows", href: "/console/workflows", icon: "GitBranch", right: "workflows.view" },
+      // The three catalogues a lender configures once and every other screen reads:
+      // what happens to a loan after it books, what a customer may be asked to bring,
+      // and the fields we did not ship that this lender needs.
+      { key: "loan-settings", label: "Loan Settings", href: "/console/settings/loans", icon: "Landmark", right: "settings.view" },
+      { key: "attachments", label: "Attachment Types", href: "/console/settings/attachments", icon: "Paperclip", right: "settings.view" },
+      { key: "details", label: "Additional Details", href: "/console/settings/details", icon: "ListPlus", right: "settings.view" },
       { key: "branding", label: "Branding", href: "/console/settings/branding", icon: "Palette", right: "branding.manage" },
       { key: "settings", label: "Settings & Vault", href: "/console/settings", icon: "Settings2", right: "settings.view", exact: true },
       // Which of Metropol's fourteen reports this lender buys, and what that

@@ -19,6 +19,15 @@ import {
 import {
   CREDIT_DEFAULTS, mergeCreditPolicy, validateCreditPolicy, type CreditPolicy,
 } from "@/lib/decision/policy";
+import {
+  ATTACHMENT_DEFAULTS, mergeAttachmentConfig, validateAttachmentConfig, type AttachmentConfig,
+} from "./attachments";
+import {
+  DETAILS_DEFAULTS, mergeDetailsConfig, validateDetailsConfig, type DetailsConfig,
+} from "./details";
+import {
+  LOANS_DEFAULTS, mergeLoansConfig, validateLoansConfig, type LoansConfig,
+} from "./loans";
 
 /** Every namespace the platform knows, and how each is filled forward + checked. */
 const NAMESPACES = {
@@ -33,6 +42,24 @@ const NAMESPACES = {
     defaults: CREDIT_DEFAULTS as unknown,
     merge: mergeCreditPolicy as (stored: unknown) => unknown,
     validate: validateCreditPolicy as (c: unknown) => ConfigIssue[],
+  },
+  attachments: {
+    label: "Attachment catalogue",
+    defaults: ATTACHMENT_DEFAULTS as unknown,
+    merge: mergeAttachmentConfig as (stored: unknown) => unknown,
+    validate: validateAttachmentConfig as (c: unknown) => ConfigIssue[],
+  },
+  details: {
+    label: "Additional details",
+    defaults: DETAILS_DEFAULTS as unknown,
+    merge: mergeDetailsConfig as (stored: unknown) => unknown,
+    validate: validateDetailsConfig as (c: unknown) => ConfigIssue[],
+  },
+  loans: {
+    label: "Loan settings",
+    defaults: LOANS_DEFAULTS as unknown,
+    merge: mergeLoansConfig as (stored: unknown) => unknown,
+    validate: validateLoansConfig as (c: unknown) => ConfigIssue[],
   },
 } as const;
 
@@ -65,6 +92,9 @@ export async function read<T = unknown>(orgId: string, ns: Namespace): Promise<C
 /** Typed convenience for the namespaces the app reads by name. */
 export const readBorrowerConfig = (orgId: string) => read<BorrowerConfig>(orgId, "borrower");
 export const readCreditPolicy = (orgId: string) => read<CreditPolicy>(orgId, "credit");
+export const readAttachmentConfig = (orgId: string) => read<AttachmentConfig>(orgId, "attachments");
+export const readDetailsConfig = (orgId: string) => read<DetailsConfig>(orgId, "details");
+export const readLoansConfig = (orgId: string) => read<LoansConfig>(orgId, "loans");
 
 export type PublishResult =
   | { ok: true; version: number; value: unknown }

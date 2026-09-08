@@ -33,7 +33,13 @@
 // (`projectToColumns`), so every query written before versioning keeps working.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { normaliseBindings, CHECK_BY_ID, type CheckBinding } from "@/lib/workflow/checks";
+
 export type PeriodUnit = "day" | "week" | "month" | "term";
+
+/** Upper-cased, deduplicated catalogue references (attachment and detail codes). */
+const uniqueCodes = (v: unknown): string[] =>
+  Array.isArray(v) ? [...new Set(v.map((x) => String(x).toUpperCase().trim()).filter(Boolean))] : [];
 
 export type PricingBlock = {
   /** How the balance interest is computed. */
@@ -59,6 +65,14 @@ export type ScheduleBlock = {
   cycle: "day" | "week" | "fortnight" | "month";
   /** How many installments. */
   installments: number;
+  /**
+   * THE SHORTEST TERM THIS PRODUCT WILL BOOK. 0 = the term is fixed at
+   * `installments`, which is the right answer for most products. When it is set,
+   * every term from here up is a genuine offer and the decision engine picks the one
+   * the borrower's cashflow actually carries — a customer who can service four weeks
+   * of a ten-week product is offered four, not declined for ten.
+   */
+  minInstallments: number;
   /** Days after disbursement before the first installment is due. */
   graceDays: number;
   /** Days of the week no installment may fall on (0 = Sunday). */
@@ -140,12 +154,30 @@ export type ProcessBlock = {
 };
 
 export type EvidenceBlock = {
-  /** Document kinds required on an application for this product. */
+  /**
+   * Attachment CODES required on an application for this product, resolved against
+   * the lender's own catalogue (lib/config/attachments.ts). A code that has been
+   * switched off in the catalogue simply stops being asked for — the product does
+   * not need republishing to follow it.
+   */
   documents: string[];
   /** The borrower's business/home pin must be on file before money moves. */
   requireGeoPin: boolean;
   /** A field officer must physically verify before disbursement. */
   requireFieldVisit: boolean;
+  /**
+   * AUTOMATED CHECKS THIS PRODUCT INSISTS ON, over and above whatever its workflow
+   * runs. A pay-day product may want a bureau pull on every application while the
+   * asset-finance product beside it does not, and neither of them should have to be
+   * given its own workflow to say so.
+   */
+  checks: CheckBinding[];
+  /**
+   * Additional-detail group CODES collected on an application for this product
+   * (lib/config/details.ts, scope "loan"). This is how a school-fees product asks
+   * for the school and the term while a boda product asks for the route.
+   */
+  detailGroups: string[];
 };
 
 export type AvailabilityBlock = {
@@ -206,6 +238,7 @@ export const PRODUCT_DEFAULTS: ProductDefinition = {
     principalType: "standard",
     cycle: "week",
     installments: 8,
+    minInstallments: 0,
     graceDays: 0,
     skipDays: [],
     onSkippedDay: "next_business_day",
@@ -252,7 +285,7 @@ export const PRODUCT_DEFAULTS: ProductDefinition = {
     allowPostDate: false,
     allowBackDate: false,
   },
-  evidence: { documents: [], requireGeoPin: true, requireFieldVisit: false },
+  evidence: { documents: [], requireGeoPin: true, requireFieldVisit: false, checks: [], detailGroups: [] },
   availability: { branchIds: [], channels: ["console", "portal"], activeFrom: null, activeTo: null },
 };
 
@@ -311,6 +344,19 @@ export function validateProduct(d: ProductDefinition): ProductIssue[] {
   if (d.schedule.skipDays.length >= 7) bad("schedule.skipDays", "Every day of the week is skipped — no installment could ever fall due.");
   if (d.schedule.principalType === "interest_first" && d.schedule.installments < 2) {
     bad("schedule.principalType", "Interest-first needs at least two installments — the first services interest, the last clears principal.");
+  }
+  if (d.schedule.minInstallments > 0) {
+    if (d.schedule.minInstallments > d.schedule.installments) {
+      bad("schedule.minInstallments", "The shortest term is longer than the full term.");
+    }
+    // Pricing a shorter term means pro-rating the whole-term rate, which is exact for
+    // flat interest and simply wrong for reducing balance.
+    if (d.pricing.method === "reducing") {
+      bad("schedule.minInstallments", "A flexible term can only be priced on flat interest. Fix the term, or price it flat.");
+    }
+    if (d.pricing.ratePeriod !== "term") {
+      bad("schedule.minInstallments", "A flexible term needs the rate quoted per term, so a shorter loan can be pro-rated.");
+    }
   }
 
   // ── Limits ──
@@ -381,6 +427,24 @@ export function validateProduct(d: ProductDefinition): ProductIssue[] {
     bad("process.repeatDirectCeiling", "Direct funding needs a ceiling.");
   }
 
+  // ── Evidence ──
+  // A check whose credential is missing is a queue that silently never clears, so the
+  // wizard surfaces it here rather than letting the counter discover it.
+  for (const b of d.evidence.checks) {
+    const spec = CHECK_BY_ID[b.id];
+    if (!spec) { bad("evidence.checks", `An unknown check (${b.id}) is attached to this product.`); continue; }
+    if (b.blocking && !spec.canBlock) {
+      bad("evidence.checks", `${spec.label} cannot block — there is nothing for it to fail.`);
+    }
+  }
+  if (d.eligibility.security.required && !d.evidence.documents.includes("SECURITY_PHOTO")) {
+    // Advisory, not fatal: some lenders value security off a logbook instead.
+    bad("evidence.documents", "Security is required but no evidence of it is asked for on the application.");
+  }
+  if (d.evidence.requireFieldVisit && !d.evidence.requireGeoPin) {
+    bad("evidence.requireGeoPin", "A field visit needs a location on file to route to.");
+  }
+
   // ── Availability ──
   if (d.availability.channels.length === 0) {
     bad("availability.channels", "A product with no channel cannot be reached by anyone.");
@@ -415,7 +479,12 @@ export function mergeProduct(stored: unknown): ProductDefinition {
       security: { ...d.eligibility.security, ...s.eligibility?.security },
     },
     process: { ...d.process, ...s.process },
-    evidence: { ...d.evidence, ...s.evidence },
+    evidence: {
+      ...d.evidence, ...s.evidence,
+      documents: uniqueCodes(s.evidence?.documents ?? d.evidence.documents),
+      detailGroups: uniqueCodes(s.evidence?.detailGroups ?? d.evidence.detailGroups),
+      checks: normaliseBindings(s.evidence?.checks ?? d.evidence.checks, "application"),
+    },
     availability: { ...d.availability, ...s.availability },
   };
 }
@@ -457,6 +526,7 @@ export function projectToColumns(d: ProductDefinition) {
     interestPeriodUnit: d.pricing.ratePeriod,
     principalType: d.schedule.principalType,
     repaymentPeriod: d.schedule.installments * multiplier,
+    minRepaymentPeriod: d.schedule.minInstallments > 0 ? d.schedule.minInstallments * multiplier : null,
     repaymentPeriodUnit: unit,
     gracePeriodDays: d.schedule.graceDays,
     penaltyRate: d.pricing.penaltyRate,
@@ -514,6 +584,7 @@ export function definitionFromColumns(p: Record<string, unknown>): ProductDefini
       principalType: (["standard", "interest_first", "balloon"].includes(String(p.principalType)) ? p.principalType : "standard") as ScheduleBlock["principalType"],
       cycle,
       installments: num(p.repaymentPeriod, 1),
+      minInstallments: num(p.minRepaymentPeriod, 0),
       graceDays: num(p.gracePeriodDays, 0),
       skipDays: [],
       onSkippedDay: "next_business_day",

@@ -22,6 +22,8 @@
 //     rule instead of by a manager's memory.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { normaliseBindings, type CheckBinding } from "@/lib/workflow/checks";
+
 // ── KYC fields ────────────────────────────────────────────────────────────────
 
 /** The identity fields the console and the portal both render. */
@@ -56,7 +58,109 @@ export type KycFieldRule = {
   verify: boolean;
 };
 
+// ── Onboarding rails ──────────────────────────────────────────────────────────
+//
+// The four ways a stranger becomes a customer. A lender owns which of them they
+// have credentials for, which one the counter opens on, and what happens when it
+// fails — and BOTH the console and the customer app read this same block, so a
+// lender who runs IPRS-only gets an app that asks for one ID number and nothing
+// else, without anybody shipping a second screen.
+
+export const ONBOARDING_METHODS = [
+  {
+    key: "iprs",
+    label: "National registry (IPRS)",
+    blurb: "One ID number. The registry returns the person, and the name on file is the state's, not a typist's.",
+    needsVault: "IPRS",
+  },
+  {
+    key: "ocr",
+    label: "ID document scan (OCR)",
+    blurb: "A photo of the ID front. The card is read and the fields fill themselves. Free on every plan.",
+    needsVault: null,
+  },
+  {
+    key: "crb",
+    label: "Credit bureau (Metropol)",
+    blurb: "The bureau identifies the person and returns their credit standing in the same call.",
+    needsVault: "CRB",
+  },
+  {
+    key: "manual",
+    label: "Typed in by hand",
+    blurb: "An officer enters everything. Always available as a fallback; never the fastest.",
+    needsVault: null,
+  },
+] as const;
+
+export type OnboardingMethod = (typeof ONBOARDING_METHODS)[number]["key"];
+
+export type OnboardingConfig = {
+  /**
+   * Which rails this lender has. A method that is off is not offered, not
+   * attempted, and not mentioned — that is what makes the screen feel built for
+   * them rather than switched down from something bigger.
+   */
+  methods: Record<OnboardingMethod, boolean>;
+  /** The one the counter and the app open on. Must be enabled. */
+  primary: OnboardingMethod;
+  /**
+   * When the primary rail fails or finds nothing, may staff fall through to
+   * another enabled method? Off = a registry outage stops the counter, which
+   * some lenders genuinely want and most emphatically do not.
+   */
+  allowFallback: boolean;
+  /** Manual entry stays reachable even when it is not in the fallback chain. */
+  allowManualOverride: boolean;
+  /** The customer must consent before any third-party identity call is made. */
+  requireConsent: boolean;
+
+  ocr: {
+    /** Front alone, or both sides of the card. */
+    capture: "front" | "both";
+    /** Below this the read is shown for correction rather than accepted. */
+    minConfidence: number;
+    /** Fields the parser filled may still be edited before saving. */
+    allowEdit: boolean;
+  };
+
+  crb: {
+    /** How deep a pull to make at ONBOARDING — the cheapest that answers the question. */
+    depth: "score" | "standard" | "full";
+    /** Refuse to register anyone below this bureau score. 0 = never refuse. */
+    minScore: number;
+    /** Register them anyway and flag the file, rather than refusing. */
+    warnOnly: boolean;
+  };
+
+  /**
+   * The face of the person, and whether it must be proved live. Held here rather
+   * than in `kyc` because it is a step in the flow, not a field on a form.
+   */
+  selfie: { required: boolean; liveness: boolean; faceMatch: boolean };
+
+  /** A consented location snapshot is taken while the customer is standing there. */
+  geo: { ask: boolean; required: boolean; places: ("business" | "home")[] };
+
+  /** Which channels may onboard at all. */
+  channels: { console: boolean; portal: boolean; ussd: boolean; field: boolean };
+
+  /** What to do when the ID or phone already exists on this book. */
+  onDuplicate: "block" | "warn" | "open_existing";
+
+  /**
+   * Extra automated checks to run during onboarding — blacklist, AML, an early CRB
+   * pull. Ids from lib/workflow/checks.ts, surface "onboarding". This is what lets a
+   * lender put a bureau check at the DOOR rather than at the finance stage.
+   */
+  checks: CheckBinding[];
+
+  /** A new customer is not usable until a human has approved the KYC pack. */
+  requireReview: boolean;
+};
+
 export type BorrowerConfig = {
+  onboarding: OnboardingConfig;
   kyc: {
     fields: Record<KycFieldKey, KycFieldRule>;
     /** Which document a borrower may identify with. */
@@ -155,6 +259,24 @@ function defaultFieldRules(): Record<KycFieldKey, KycFieldRule> {
 }
 
 export const BORROWER_DEFAULTS: BorrowerConfig = {
+  onboarding: {
+    // OCR is the platform default because it is the only rail that costs a lender
+    // nothing and needs no credentials — a lender who signs up today can onboard a
+    // customer today. IPRS and CRB switch themselves on when their vault is filled.
+    methods: { iprs: false, ocr: true, crb: false, manual: true },
+    primary: "ocr",
+    allowFallback: true,
+    allowManualOverride: true,
+    requireConsent: true,
+    ocr: { capture: "front", minConfidence: 0.7, allowEdit: true },
+    crb: { depth: "score", minScore: 0, warnOnly: true },
+    selfie: { required: true, liveness: false, faceMatch: true },
+    geo: { ask: true, required: false, places: ["business", "home"] },
+    channels: { console: true, portal: true, ussd: false, field: true },
+    onDuplicate: "open_existing",
+    checks: [{ id: "duplicate.check", blocking: true, maxAgeDays: 0, threshold: null }],
+    requireReview: true,
+  },
   kyc: {
     fields: defaultFieldRules(),
     idDocument: "national_id",
@@ -260,6 +382,46 @@ export function validateBorrowerConfig(c: BorrowerConfig): ConfigIssue[] {
     bad("rules.reactivationFee.amount", "Set the reactivation fee amount, or switch it off.");
   }
 
+  // ── Onboarding rails ──
+  const o = c.onboarding;
+  if (!o.methods[o.primary]) {
+    bad("onboarding.primary", "The default onboarding method is switched off.");
+  }
+  if (!Object.values(o.methods).some(Boolean)) {
+    bad("onboarding.methods", "Choose at least one way to onboard a customer.");
+  }
+  // IPRS and CRB both identify a person BY their ID number. Hiding the field they
+  // key on is the configuration that produces a lookup screen with nothing to look up.
+  if ((o.methods.iprs || o.methods.crb) && c.kyc.fields.nationalId.hidden) {
+    bad("onboarding.methods", "Registry and bureau onboarding both key on the National ID, which is hidden in KYC.");
+  }
+  if (o.methods.ocr && c.kyc.fields.nationalId.hidden) {
+    bad("onboarding.methods", "The document scan reads the ID number, which is hidden in KYC.");
+  }
+  if (o.ocr.minConfidence < 0.3 || o.ocr.minConfidence > 1) {
+    bad("onboarding.ocr.minConfidence", "The OCR confidence bar must be between 0.3 and 1.");
+  }
+  if (o.methods.crb && o.crb.minScore > 0 && o.crb.warnOnly) {
+    bad("onboarding.crb.minScore", "A minimum bureau score is set but the check only warns — nobody would ever be refused.");
+  }
+  if (o.selfie.faceMatch && !o.selfie.required) {
+    bad("onboarding.selfie.faceMatch", "Face matching needs a selfie, which is not being collected.");
+  }
+  if (o.geo.required && !o.geo.ask) {
+    bad("onboarding.geo.required", "A location is required but is never asked for.");
+  }
+  if (o.geo.required && o.geo.places.length === 0) {
+    bad("onboarding.geo.places", "A location is required but no place is being pinned.");
+  }
+  if (!o.channels.console && !o.channels.portal && !o.channels.ussd && !o.channels.field) {
+    bad("onboarding.channels", "Onboarding is switched off everywhere — no customer could ever be registered.");
+  }
+  // Consent is not ours to waive on the lender's behalf where money changes hands
+  // with a third party over a named person.
+  if (!o.requireConsent && (o.methods.iprs || o.methods.crb)) {
+    bad("onboarding.requireConsent", "Registry and bureau lookups are made against a named person. Consent cannot be switched off.");
+  }
+
   // A required field that is also hidden can never be satisfied.
   for (const f of KYC_FIELDS) {
     const rule = c.kyc.fields[f.key];
@@ -291,7 +453,33 @@ export function mergeBorrowerConfig(stored: unknown): BorrowerConfig {
     if ("lockRequired" in f && f.lockRequired) fields[f.key].required = true;
   }
 
+  // A stored document may hold any subset of any block, so the onboarding half is
+  // read as partial-all-the-way-down rather than as the finished shape.
+  type PartialOnboarding = {
+    [K in keyof OnboardingConfig]?: OnboardingConfig[K] extends object
+      ? Partial<OnboardingConfig[K]>
+      : OnboardingConfig[K];
+  };
+  const so: PartialOnboarding = (s.onboarding ?? {}) as PartialOnboarding;
+  const methods = { ...d.onboarding.methods, ...so.methods };
+  // Manual is never fully removable: every other rail depends on a third party that
+  // will one day be down, and a counter with no way to serve the person in front of
+  // it is not a configuration a lender should be able to publish by accident.
+  methods.manual = methods.manual || !Object.entries(methods).some(([k, v]) => k !== "manual" && v);
+  const primary: OnboardingMethod = methods[so.primary as OnboardingMethod]
+    ? (so.primary as OnboardingMethod)
+    : (ONBOARDING_METHODS.map((m) => m.key).find((k) => methods[k]) ?? "manual");
+
   return {
+    onboarding: {
+      ...d.onboarding, ...so, methods, primary,
+      ocr: { ...d.onboarding.ocr, ...so.ocr },
+      crb: { ...d.onboarding.crb, ...so.crb },
+      selfie: { ...d.onboarding.selfie, ...so.selfie },
+      geo: { ...d.onboarding.geo, ...so.geo },
+      channels: { ...d.onboarding.channels, ...so.channels },
+      checks: normaliseBindings(so.checks ?? d.onboarding.checks, "onboarding"),
+    },
     kyc: { ...d.kyc, ...s.kyc, fields,
       passportPhoto: { ...d.kyc.passportPhoto, ...s.kyc?.passportPhoto },
       idPhoto: { ...d.kyc.idPhoto, ...s.kyc?.idPhoto } },

@@ -21,7 +21,7 @@ import Link from "next/link";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Users2, Loader2, AlertTriangle, CheckCircle2, ArrowLeft, IdCard, Hash, Wallet,
-  Gauge, ClipboardList, Paperclip, History, RotateCcw, Save,
+  Gauge, ClipboardList, Paperclip, History, RotateCcw, Save, DoorOpen,
 } from "lucide-react";
 import { useLoad } from "@/lib/hooks/useLoad";
 import {
@@ -31,15 +31,20 @@ import {
   KYC_FIELDS, validateBorrowerConfig,
   type BorrowerConfig, type ConfigIssue, type KycFieldKey,
 } from "@/lib/config/borrower";
+import {
+  mergeAttachmentConfig, attachmentsForScope, type AttachmentItem,
+} from "@/lib/config/attachments";
+import { OnboardingSection } from "./OnboardingSection";
 
 type Revision = { version: number; changed: string[]; createdAt: string };
 
 const SECTIONS = [
+  { key: "onboarding", label: "Onboarding", icon: DoorOpen, blurb: "How a stranger becomes a customer — the rails you have, and the one you open on." },
   { key: "kyc", label: "KYC & identity", icon: IdCard, blurb: "Which details you collect, which you verify, and which you never ask for." },
   { key: "account", label: "Account numbers", icon: Hash, blurb: "What a borrower's account number actually is." },
   { key: "limit", label: "Loan limits", icon: Wallet, blurb: "Where a new borrower's ceiling comes from, and how it grows." },
   { key: "scoring", label: "Credit scoring", icon: Gauge, blurb: "How you score a borrower — and how often you score the book." },
-  { key: "rules", label: "Onboarding rules", icon: ClipboardList, blurb: "Age, fees, dormancy, referees and the conditions of joining." },
+  { key: "rules", label: "Joining rules", icon: ClipboardList, blurb: "Age, fees, dormancy, referees and the conditions of joining." },
   { key: "attachments", label: "Attachments", icon: Paperclip, blurb: "Documents required at onboarding and on a loan application." },
 ] as const;
 
@@ -51,20 +56,52 @@ export default function BorrowerSettings() {
   const [saved, setSaved] = useState<BorrowerConfig | null>(null);
   const [version, setVersion] = useState(0);
   const [revisions, setRevisions] = useState<Revision[]>([]);
-  const [section, setSection] = useState<SectionKey>("kyc");
+  const [section, setSection] = useState<SectionKey>("onboarding");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [issues, setIssues] = useState<ConfigIssue[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
+  // The attachment catalogue and the connected rails are not part of this document,
+  // but no decision on this screen can be made sensibly without them: a lender is
+  // choosing which of THEIR documents to ask for, and which rails they can actually
+  // run. Both are read alongside and neither is written from here.
+  const [catalogue, setCatalogue] = useState<AttachmentItem[]>([]);
+  const [connected, setConnected] = useState<string[]>([]);
+
   const load = async () => {
     try {
-      const res = await fetch("/api/config/borrower");
-      const data = await res.json();
+      const [cRes, aRes, iRes] = await Promise.all([
+        fetch("/api/config/borrower"),
+        fetch("/api/config/attachments").catch(() => null),
+        fetch("/api/orgs/integrations").catch(() => null),
+      ]);
+
+      const data = await cRes.json();
       if (!data.success) { setError(data.message || "Could not load borrower settings."); return; }
       setCfg(data.value); setSaved(data.value); setVersion(data.version);
       setRevisions(data.history ?? []); setError(null);
+
+      const aData = aRes ? await aRes.json().catch(() => null) : null;
+      if (aData?.success) {
+        const merged = mergeAttachmentConfig(aData.value);
+        // Anything askable of a borrower or on a loan — the two lists this screen owns.
+        const codes = new Map<string, AttachmentItem>();
+        for (const i of [...attachmentsForScope(merged, "borrower"), ...attachmentsForScope(merged, "loan")]) {
+          codes.set(i.code, i);
+        }
+        setCatalogue([...codes.values()]);
+      }
+
+      const iData = iRes ? await iRes.json().catch(() => null) : null;
+      if (iData?.success) {
+        setConnected(
+          (iData.integrations ?? [])
+            .filter((r: { status: string }) => r.status !== "UNCONFIGURED" && r.status !== "DISABLED")
+            .map((r: { kind: string }) => r.kind),
+        );
+      }
     } catch { setError("Could not load borrower settings."); }
   };
   useLoad(load);
@@ -247,12 +284,13 @@ export default function BorrowerSettings() {
             <p className="t-meta mt-0.5 text-[12px]">{Active.blurb}</p>
           </div>
 
+          {section === "onboarding" && <OnboardingSection cfg={cfg} set={set} connected={connected} />}
           {section === "kyc" && <KycSection cfg={cfg} set={set} />}
           {section === "account" && <AccountSection cfg={cfg} set={set} />}
           {section === "limit" && <LimitSection cfg={cfg} set={set} />}
           {section === "scoring" && <ScoringSection cfg={cfg} set={set} />}
           {section === "rules" && <RulesSection cfg={cfg} set={set} />}
-          {section === "attachments" && <AttachmentsSection cfg={cfg} set={set} />}
+          {section === "attachments" && <AttachmentsSection cfg={cfg} set={set} catalogue={catalogue} />}
         </div>
       </div>
     </main>
@@ -582,26 +620,21 @@ function RulesSection({ cfg, set }: { cfg: BorrowerConfig; set: SetFn }) {
 }
 
 // ── Attachments ───────────────────────────────────────────────────────────────
-// The catalogue is platform-wide (DocumentKind); a lender chooses which apply
-// where. Products may require MORE on top of the application list, never less.
-const DOC_CATALOGUE: { key: string; label: string; hint: string }[] = [
-  { key: "MPESA_STATEMENT", label: "M-Pesa statement", hint: "6-month PDF — feeds the cashflow score" },
-  { key: "ID_FRONT", label: "ID — front", hint: "Read by the document parser" },
-  { key: "ID_BACK", label: "ID — back", hint: "Read by the document parser" },
-  { key: "SELFIE", label: "Selfie", hint: "Face-matched against the ID" },
-  { key: "BUSINESS_PHOTO", label: "Business photo", hint: "The premises being lent against" },
-  { key: "HOME_PHOTO", label: "Home photo", hint: "Residence verification" },
-  { key: "BUSINESS_LICENCE", label: "Business licence", hint: "Single business permit" },
-  { key: "KRA_PIN", label: "KRA PIN", hint: "Tax registration certificate" },
-  { key: "PAYSLIP", label: "Payslip", hint: "Salary-advance lending" },
-  { key: "EMPLOYMENT_LETTER", label: "Employment letter", hint: "Confirms the salary claim" },
-  { key: "BANK_STATEMENT", label: "Bank statement", hint: "For banked borrowers" },
-  { key: "SECURITY_PHOTO", label: "Security photo", hint: "The collateral itself" },
-  { key: "LOGBOOK", label: "Logbook", hint: "Asset finance / logbook loans" },
-  { key: "LOAN_FORM", label: "Signed loan form", hint: "The executed agreement" },
-];
-
-function AttachmentsSection({ cfg, set }: { cfg: BorrowerConfig; set: SetFn }) {
+//
+// This list used to be fourteen hard-coded rows every lender on the platform shared
+// and none of them could change. It is now the lender's OWN catalogue — the
+// `attachments` namespace — and this screen only decides WHERE each one is asked
+// for. Adding "Logbook + insurance certificate" is a row on the catalogue screen,
+// not a deploy.
+//
+// Products may require MORE on top of the application list, never fewer.
+function AttachmentsSection({
+  cfg, set, catalogue,
+}: {
+  cfg: BorrowerConfig;
+  set: SetFn;
+  catalogue: AttachmentItem[];
+}) {
   const toggle = (list: "onboarding" | "application", key: string) => {
     const cur = cfg.attachments[list];
     set("attachments", {
@@ -610,25 +643,67 @@ function AttachmentsSection({ cfg, set }: { cfg: BorrowerConfig; set: SetFn }) {
     });
   };
 
+  // A code that is still selected but has been switched off in the catalogue is not
+  // an error — it is a document this lender stopped asking for. Show it, so they can
+  // see why it is no longer being collected rather than wondering.
+  const stale = [...new Set([...cfg.attachments.onboarding, ...cfg.attachments.application])]
+    .filter((c) => !catalogue.some((i) => i.code === c));
+
   return (
     <div>
-      <div className="mb-2 grid grid-cols-[1fr_6rem_6rem] gap-2 px-3">
-        <span className="t-label">Document</span>
-        <span className="t-label text-center">Onboarding</span>
-        <span className="t-label text-center">Application</span>
-      </div>
-      <div className="space-y-1">
-        {DOC_CATALOGUE.map((d) => (
-          <div key={d.key} className="grid grid-cols-[1fr_6rem_6rem] items-center gap-2 rounded-xl px-3 py-2.5 odd:bg-[color:var(--ink)]/[0.02]">
-            <div>
-              <p className="text-[13px] font-semibold text-[color:var(--ink)]">{d.label}</p>
-              <p className="t-meta text-[11px]">{d.hint}</p>
-            </div>
-            <Toggle label="Onboarding" checked={cfg.attachments.onboarding.includes(d.key)} onChange={() => toggle("onboarding", d.key)} />
-            <Toggle label="Application" checked={cfg.attachments.application.includes(d.key)} onChange={() => toggle("application", d.key)} />
+      <p className="t-meta mb-3 text-[12px]">
+        Your own catalogue, from{" "}
+        <Link href="/console/settings/attachments" className="font-semibold underline">Attachment types</Link>.
+        Switch a document on here to ask for it; add or rename one there.
+      </p>
+
+      {catalogue.length === 0 ? (
+        <p className="t-meta rounded-xl bg-[color:var(--ink)]/[0.03] px-3 py-2.5 text-[12px]">
+          No attachment types are switched on for borrowers or loans yet.
+        </p>
+      ) : (
+        <>
+          <div className="mb-2 grid grid-cols-[1fr_6rem_6rem] gap-2 px-3">
+            <span className="t-label">Document</span>
+            <span className="t-label text-center">Onboarding</span>
+            <span className="t-label text-center">Application</span>
           </div>
-        ))}
-      </div>
+          <div className="space-y-1">
+            {catalogue.map((d) => (
+              <div key={d.code} className="grid grid-cols-[1fr_6rem_6rem] items-center gap-2 rounded-xl px-3 py-2.5 odd:bg-[color:var(--ink)]/[0.02]">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-[color:var(--ink)]">{d.name}</p>
+                  <p className="t-meta text-[11px]">
+                    {d.description}
+                    {d.description ? " · " : ""}{d.fileTypes.join(" ")}
+                    {d.allowMultiple ? " · several allowed" : ""}
+                  </p>
+                </div>
+                <Toggle
+                  label="Onboarding" checked={cfg.attachments.onboarding.includes(d.code)}
+                  disabled={!d.scopes.includes("borrower")}
+                  hint={d.scopes.includes("borrower") ? undefined : "Not a borrower-profile document."}
+                  onChange={() => toggle("onboarding", d.code)}
+                />
+                <Toggle
+                  label="Application" checked={cfg.attachments.application.includes(d.code)}
+                  disabled={!d.scopes.includes("loan")}
+                  hint={d.scopes.includes("loan") ? undefined : "Not a loan-application document."}
+                  onChange={() => toggle("application", d.code)}
+                />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {stale.length > 0 && (
+        <p className="t-meta mt-3 rounded-lg bg-[color:var(--ink)]/[0.03] px-2.5 py-2 text-[11px]">
+          {stale.join(", ")} {stale.length === 1 ? "is" : "are"} still selected but no longer in your
+          catalogue, so {stale.length === 1 ? "it is" : "they are"} not being asked for.
+        </p>
+      )}
+
       <p className="t-meta mt-3 text-[11px]">
         A loan product may require additional documents on top of the application list — never fewer.
       </p>

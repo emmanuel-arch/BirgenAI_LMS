@@ -1,26 +1,39 @@
 "use client";
 
-import { useCallback, useState } from "react";
+// ─────────────────────────────────────────────────────────────────────────────
+// WORKFLOWS — every approval chain in the business, not just the loan ones.
+//
+// The list used to show loan workflows because loan workflows were all there were.
+// Now a chain declares WHAT IT APPROVES, so a restructure, a waiver, a write-off, a
+// float movement and an expense each get a chain built for them — and the loan
+// settings screen can point at the right one by name instead of everyone sharing a
+// single undifferentiated "approval workflow".
+//
+// The counts matter: a workflow that eleven products route through is not one you
+// delete on a Tuesday afternoon, and the list is where that becomes obvious.
+// ─────────────────────────────────────────────────────────────────────────────
+import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import { useLoad } from "@/lib/hooks/useLoad";
-import { Loader2, AlertTriangle, CheckCircle2, GitBranch, Plus, Trash2 } from "lucide-react";
+import {
+  GitBranch, Loader2, AlertTriangle, CheckCircle2, Plus, Pencil, Trash2,
+  ShieldCheck, ChevronRight,
+} from "lucide-react";
+import { WORKFLOW_KINDS } from "@/components/workflows/WorkflowBuilder";
 
-type Stage = { title: string; accessTier: number; canFinalize: boolean; otpRequired: boolean; crbRequired: boolean; maxAmount: string };
-type Workflow = { id: string; title: string; stages: { id: string; title: string; order: number; accessTier: number; canFinalize: boolean; otpRequired: boolean; crbRequired: boolean; maxAmount: number | null }[] };
-
-const TIER_LABEL: Record<number, string> = { 1: "Initiator", 2: "Authorizer", 3: "Validator" };
-const emptyStage = (): Stage => ({ title: "", accessTier: 1, canFinalize: false, otpRequired: true, crbRequired: false, maxAmount: "" });
+type Workflow = {
+  id: string; title: string; description: string | null;
+  kind: string; multiApproval: boolean; isActive: boolean;
+  stages: { id: string; title: string; order: number; canFinalize: boolean; checkLabels: string[] }[];
+  newLoanProducts: number;
+  repeatLoanProducts: number;
+};
 
 export default function WorkflowsPage() {
   const [rows, setRows] = useState<Workflow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [title, setTitle] = useState("");
-  const [stages, setStages] = useState<Stage[]>([
-    { title: "Officer Review", accessTier: 1, canFinalize: false, otpRequired: false, crbRequired: true, maxAmount: "" },
-    { title: "Final Approval", accessTier: 3, canFinalize: true, otpRequired: true, crbRequired: false, maxAmount: "" },
-  ]);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -28,106 +41,146 @@ export default function WorkflowsPage() {
       const data = await res.json();
       if (!data.success) { setError(data.message || "Could not load workflows."); return; }
       setRows(data.workflows);
+      setError(null);
     } catch { setError("Could not load workflows."); }
   }, []);
   useLoad(load);
 
-  const save = async () => {
-    setSaving(true); setError(null); setNotice(null);
+  const remove = async (w: Workflow) => {
+    setBusy(true); setError(null); setNotice(null);
     try {
-      const res = await fetch("/api/console/workflows", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          stages: stages.map((s) => ({ ...s, maxAmount: s.maxAmount.trim() ? Number(s.maxAmount) : null })),
-        }),
-      });
+      const res = await fetch(`/api/console/workflows?id=${w.id}`, { method: "DELETE" });
       const data = await res.json();
-      if (!data.success) { setError(data.message || "Could not save."); return; }
-      setNotice(`Workflow "${title}" created — assign it to products.`);
-      setShowForm(false); setTitle("");
+      if (!data.success) { setError(data.message || "Could not delete."); return; }
+      setNotice(`"${w.title}" removed.`);
       await load();
-    } catch { setError("Could not save."); } finally { setSaving(false); }
+    } catch { setError("Could not delete."); } finally { setBusy(false); }
   };
 
-  const setStage = (i: number, patch: Partial<Stage>) =>
-    setStages((s) => s.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  // Grouped by what they approve, because that is how a lender looks for one.
+  const grouped = useMemo(() => {
+    if (!rows) return [];
+    return WORKFLOW_KINDS
+      .map((k) => ({ kind: k, items: rows.filter((w) => w.kind === k.key) }))
+      .filter((g) => g.items.length > 0);
+  }, [rows]);
 
   return (
-    <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <h1 className="text-xl font-bold flex items-center gap-2"><GitBranch className="h-5 w-5" style={{ color: "var(--brand)" }} /> Approval workflows</h1>
-          <button onClick={() => setShowForm((s) => !s)} className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
-            <Plus className="h-3.5 w-3.5" /> New workflow
-          </button>
+    <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="t-display flex items-center gap-2 text-[1.6rem]">
+            <GitBranch className="h-6 w-6" style={{ color: "var(--brand)" }} /> Approval workflows
+          </h1>
+          <p className="t-meta mt-1 max-w-2xl">
+            The chains a case moves along — loans, restructures, waivers, write-offs, payouts.
+            Each stage decides who may act, what must be checked, and what must be on file.
+          </p>
         </div>
-        <p className="mt-1 text-xs text-ash-500">Stages run in order; the last stage finalizes (books the loan). Without an assigned workflow, products use the default two-tier chain.</p>
+        <Link href="/console/workflows/new"
+          className="inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-[11px] font-bold text-white"
+          style={{ backgroundColor: "var(--brand)" }}>
+          <Plus className="h-3.5 w-3.5" /> New workflow
+        </Link>
+      </div>
 
-        {notice && <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50/90 px-3 py-2.5 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> {notice}</div>}
-        {error && <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
+      {notice && (
+        <div className="mt-4 flex items-start gap-2 rounded-xl bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-800 ring-1 ring-emerald-600/20">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> {notice}
+        </div>
+      )}
+      {error && (
+        <div className="mt-4 flex items-start gap-2 rounded-xl bg-red-500/10 px-3 py-2.5 text-sm text-red-800 ring-1 ring-red-600/20">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
+        </div>
+      )}
 
-        {showForm && (
-          <div className="glass mt-5 p-5">
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Workflow name (e.g. Business Loans 3-Tier)"
-              className="w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none placeholder:text-ash-400" />
-            <div className="mt-3 space-y-2">
-              {stages.map((s, i) => (
-                <div key={i} className="rounded-xl border border-ash-900/10 bg-paper/70 p-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-bold text-ash-400 w-5">{i + 1}.</span>
-                    <input value={s.title} onChange={(e) => setStage(i, { title: e.target.value })} placeholder="Stage title"
-                      className="flex-1 min-w-40 rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2 text-sm outline-none" />
-                    <select value={s.accessTier} onChange={(e) => setStage(i, { accessTier: Number(e.target.value) })}
-                      className="rounded-lg border border-ash-900/15 bg-paper/80 px-2 py-2 text-sm outline-none">
-                      {[1, 2, 3].map((t) => <option key={t} value={t}>{TIER_LABEL[t]}</option>)}
-                    </select>
-                    <input value={s.maxAmount} onChange={(e) => setStage(i, { maxAmount: e.target.value })} inputMode="numeric"
-                      placeholder="Max KES (finalize cap)" className="w-40 rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2 text-sm outline-none" />
-                    {stages.length > 1 && (
-                      <button onClick={() => setStages((x) => x.filter((_, j) => j !== i))} className="text-ash-400 hover:text-red-500"><Trash2 className="h-4 w-4" /></button>
-                    )}
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-ash-600">
-                    <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.canFinalize} onChange={(e) => setStage(i, { canFinalize: e.target.checked })} /> finalizes (books the loan)</label>
-                    <label className="flex items-center gap-1.5"><input type="checkbox" checked={s.otpRequired} onChange={(e) => setStage(i, { otpRequired: e.target.checked })} /> OTP required</label>
-                    <label className="flex items-center gap-1.5" title="A CRB (Metropol) check must exist for the borrower before this stage can be actioned."><input type="checkbox" checked={s.crbRequired} onChange={(e) => setStage(i, { crbRequired: e.target.checked })} /> CRB check required</label>
-                  </div>
-                </div>
-              ))}
+      {!rows && !error && (
+        <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-[color:var(--ink-faint)]" /></div>
+      )}
+
+      {rows?.length === 0 && (
+        <div className="glass mt-8 px-4 py-10 text-center">
+          <GitBranch className="mx-auto h-6 w-6 text-[color:var(--ink-faint)]" />
+          <p className="mt-2 text-[14px] font-semibold text-[color:var(--ink)]">No workflows yet</p>
+          <p className="t-meta mx-auto mt-1 max-w-md text-[12.5px]">
+            Without one, products fall back to a default two-tier chain. Build your own to
+            put a bureau check at risk review, a Ratiba mandate before finance signs, or a
+            finalize cap on a branch manager.
+          </p>
+          <Link href="/console/workflows/new"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[12px] font-bold text-white"
+            style={{ backgroundColor: "var(--brand)" }}>
+            <Plus className="h-3.5 w-3.5" /> Build your first workflow
+          </Link>
+        </div>
+      )}
+
+      <div className="mt-5 space-y-6">
+        {grouped.map(({ kind, items }) => (
+          <div key={kind.key}>
+            <div className="flex items-center gap-3 pb-2">
+              <span className="t-label shrink-0">{kind.label}</span>
+              <span className="h-px flex-1 bg-[color:var(--ink)]/[0.08]" />
             </div>
-            <div className="mt-3 flex gap-2">
-              <button onClick={() => setStages((s) => [...s, emptyStage()])}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-3 py-2 text-xs font-semibold text-ash-700 hover:bg-paper">
-                <Plus className="h-3.5 w-3.5" /> Add stage
-              </button>
-              <button onClick={save} disabled={saving}
-                className="inline-flex items-center gap-2 rounded-lg bg-invert px-5 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null} Create workflow
-              </button>
+
+            <div className="space-y-2.5">
+              {items.map((w) => {
+                const inUse = w.newLoanProducts + w.repeatLoanProducts;
+                return (
+                  <div key={w.id} className="glass flex flex-wrap items-center justify-between gap-3 p-4"
+                    style={w.isActive ? undefined : { opacity: 0.6 }}>
+                    <Link href={`/console/workflows/${w.id}`} className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-center gap-1.5 text-[14px] font-semibold text-[color:var(--ink)]">
+                        {w.title}
+                        {w.multiApproval && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/12 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-amber-700">
+                            <ShieldCheck className="h-2.5 w-2.5" /> One signer may sign twice
+                          </span>
+                        )}
+                        {!w.isActive && (
+                          <span className="rounded-full bg-[color:var(--ink)]/[0.07] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-[color:var(--ink-muted)]">
+                            Off
+                          </span>
+                        )}
+                      </p>
+                      <p className="t-meta mt-0.5 text-[11.5px]">
+                        {w.stages.length} stage{w.stages.length === 1 ? "" : "s"}
+                        {" · "}
+                        {w.stages.map((s) => s.title).join(" → ")}
+                      </p>
+                      {w.stages.some((s) => s.checkLabels.length > 0) && (
+                        <p className="t-meta mt-0.5 text-[11px]">
+                          Runs: {[...new Set(w.stages.flatMap((s) => s.checkLabels))].join(", ")}
+                        </p>
+                      )}
+                    </Link>
+
+                    <div className="flex shrink-0 items-center gap-2">
+                      {kind.key === "LOAN" && (
+                        <span className="rounded-lg bg-[color:var(--ink)]/[0.05] px-2 py-1 text-[10.5px] font-semibold text-[color:var(--ink-muted)]">
+                          {w.newLoanProducts} new · {w.repeatLoanProducts} repeat
+                        </span>
+                      )}
+                      <Link href={`/console/workflows/${w.id}`} aria-label={`Edit ${w.title}`}
+                        className="rounded-md p-1.5 text-[color:var(--ink-faint)] ring-1 ring-[color:var(--ink)]/10 hover:text-[color:var(--ink)]">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Link>
+                      <button type="button" onClick={() => remove(w)} disabled={busy || inUse > 0}
+                        title={inUse > 0 ? `${inUse} product route${inUse === 1 ? "s" : ""} through this — point them elsewhere first.` : undefined}
+                        aria-label={`Delete ${w.title}`}
+                        className="rounded-md p-1.5 text-[color:var(--ink-faint)] hover:text-red-500 disabled:opacity-30">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      <ChevronRight className="h-4 w-4 text-[color:var(--ink-faint)]" />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        )}
-
-        {!rows && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>}
-        {rows?.length === 0 && !showForm && <p className="mt-10 text-center text-sm text-ash-500">No custom workflows — products use the default two-tier chain.</p>}
-
-        <div className="mt-5 space-y-3">
-          {rows?.map((w) => (
-            <div key={w.id} className="glass p-4">
-              <p className="text-sm font-semibold">{w.title}</p>
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                {w.stages.map((s, i) => (
-                  <span key={s.id} className="flex items-center gap-1.5">
-                    <span className={`rounded-md px-2 py-1 text-[11px] font-semibold ${s.canFinalize ? "bg-emerald-100 text-emerald-700" : "bg-ash-900/5 text-ash-600"}`}>
-                      {s.title} · {TIER_LABEL[s.accessTier]}{s.otpRequired ? " · OTP" : ""}{s.crbRequired ? " · CRB" : ""}{s.maxAmount ? ` · ≤${Math.round(s.maxAmount / 1000)}k` : ""}
-                    </span>
-                    {i < w.stages.length - 1 && <span className="text-ash-300">→</span>}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </main>
+        ))}
+      </div>
+    </main>
   );
 }

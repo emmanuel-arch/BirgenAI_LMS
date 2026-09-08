@@ -19,6 +19,8 @@ import {
   // map. `History` was already being asked for by the Timeline tab and silently
   // falling back to a dot.
   Paperclip, History,
+  // Named by the Organization nav: the additional-details catalogue.
+  ListPlus,
   type LucideIcon,
 } from "lucide-react";
 
@@ -34,6 +36,8 @@ const ICONS: Record<string, LucideIcon> = {
   // Named by the cross-system doors — the customer portal and the ConnectDesk floor.
   Smartphone, Headphones, ArrowUpRight,
   Paperclip, History,
+  // Named by the Organization nav: the additional-details catalogue.
+  ListPlus,
   // `Infinity` is a global in TS, so the import is aliased; the registry still
   // names it "Infinity" like every other lucide icon.
   Infinity: InfinityIcon,

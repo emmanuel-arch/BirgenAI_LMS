@@ -1,158 +1,198 @@
 "use client";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PRODUCTS — the shelf, and the setup wizard behind it.
+// PRODUCTS — the shelf.
 //
-// A loan product is the single most consequential thing an admin configures: it
-// decides how interest is charged, how the schedule is shaped, what a borrower must
-// bring (a guarantor, security), and — the part the founder asked us to bring over
-// from ServiceSuite — WHICH APPROVAL WORKFLOW a new loan versus a repeat loan runs.
-// So the form is not a flat grid of inputs; it is a stepped setup an admin walks
-// through, the way ServiceSuite does it, one decision at a time.
+// This page used to be the shelf AND the wizard AND the template gallery, 525 lines
+// of it, with product creation happening in a dialog on top of the list. That is the
+// wrong shape for the most consequential object an admin configures: a dialog cannot
+// be linked to, cannot be left and returned to, cannot show a quote beside the form,
+// and tells the user by its very frame that this will take a moment when it takes an
+// afternoon.
 //
-// The same wizard creates AND edits: "New product" opens it empty, the pencil on any
-// card opens it pre-filled and PUTs by id. One code path, so an edited product can
-// never drift from a created one.
+// So the shelf is now only a shelf. "New product" goes to /console/products/new, the
+// pencil to /console/products/[id]/edit, and the card itself to the product's own
+// page. What remains here is the job a list actually has: show what is on sale, what
+// each one costs, what is riding on it, and which ones are switched off.
 // ─────────────────────────────────────────────────────────────────────────────
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
 import {
-  Loader2, AlertTriangle, CheckCircle2, Package, Plus, Pencil, ArrowLeft, ArrowRight,
-  Percent, Calendar, ShieldCheck, GitBranch, Coins, ChevronRight,
+  Loader2, AlertTriangle, CheckCircle2, Package, Plus, Pencil, Search,
+  ChevronRight, Layers,
 } from "lucide-react";
-import { Modal } from "@/components/ui/Modal";
 import { PRODUCT_TEMPLATES, templateBlanks } from "@/lib/products/templates";
-import { formToDefinition, formFromDefinition, EMPTY_FORM, type Form } from "@/lib/products/form";
 import TemplateGallery from "@/components/products/TemplateGallery";
-import VersionPanel from "@/components/products/VersionPanel";
+import { Toggle } from "@/components/settings/controls";
 
 type Product = {
   id: string; name: string; description: string | null;
-  minPrincipal: string | number; maxPrincipal: string | number; minLoanLimit: string | number | null;
-  interestRate: string | number; interestMethod: string; interestType: string; interestPeriodUnit: string;
-  principalType: string; repaymentPeriod: number; repaymentPeriodUnit: string;
-  gracePeriodDays: number; penaltyRate: string | number | null; repaymentOrder: string;
-  earlySettlementEnabled: boolean; earlySettlementDays: number | null; earlySettlementRate: string | number | null;
-  minCreditScore: number | null;
-  guarantorRequired: boolean; guarantorReborrow: boolean; securityRequired: boolean; securityCoverPct: number;
+  minPrincipal: string | number; maxPrincipal: string | number;
+  interestRate: string | number; interestMethod: string;
+  repaymentPeriod: number; repaymentPeriodUnit: string;
   disbursementMode: string; isActive: boolean; version?: number;
-  newWorkflowId: string | null; repeatWorkflowId: string | null;
+  guarantorRequired: boolean; securityRequired: boolean;
 };
 
-const fmtKES = (n: string | number) => `KES ${Math.round(Number(n)).toLocaleString()}`;
-
-// The wizard's form shape and both converters now live in lib/products/form.ts —
-// the single place the string-keyed form and the typed block definition meet.
-const EMPTY = EMPTY_FORM;
-
-function fromProduct(p: Product): Form {
-  return {
-    id: p.id, name: p.name, description: p.description ?? "",
-    principalType: p.principalType || "standard",
-    minPrincipal: String(Math.round(Number(p.minPrincipal))), maxPrincipal: String(Math.round(Number(p.maxPrincipal))),
-    minLoanLimit: p.minLoanLimit != null ? String(Math.round(Number(p.minLoanLimit))) : "",
-    interestType: p.interestType || "fixed", interestMethod: p.interestMethod || "flat",
-    interestRate: String(Number(p.interestRate)), interestPeriodUnit: p.interestPeriodUnit || "term",
-    earlySettlementEnabled: !!p.earlySettlementEnabled,
-    earlySettlementDays: p.earlySettlementDays != null ? String(p.earlySettlementDays) : "",
-    earlySettlementRate: p.earlySettlementRate != null ? String(Number(p.earlySettlementRate)) : "",
-    repaymentPeriod: String(p.repaymentPeriod), repaymentPeriodUnit: p.repaymentPeriodUnit || "week",
-    gracePeriodDays: String(p.gracePeriodDays ?? 0), penaltyRate: p.penaltyRate != null ? String(Number(p.penaltyRate)) : "",
-    repaymentOrder: p.repaymentOrder || "penalty,interest,principal,fees",
-    minCreditScore: p.minCreditScore != null ? String(p.minCreditScore) : "",
-    guarantorRequired: !!p.guarantorRequired, guarantorReborrow: !!p.guarantorReborrow,
-    securityRequired: !!p.securityRequired, securityCoverPct: String(p.securityCoverPct ?? 100),
-    disbursementMode: p.disbursementMode || "B2C_MPESA",
-    newWorkflowId: p.newWorkflowId ?? "", repeatWorkflowId: p.repeatWorkflowId ?? "",
-  };
-}
-
-const STEPS = [
-  { key: "basics", label: "Basics", icon: Package },
-  { key: "interest", label: "Interest", icon: Percent },
-  { key: "repayment", label: "Repayment", icon: Calendar },
-  { key: "requirements", label: "Requirements", icon: ShieldCheck },
-  { key: "workflow", label: "Workflow", icon: GitBranch },
-  { key: "review", label: "Review", icon: CheckCircle2 },
-] as const;
+const kes = (n: string | number) => `KES ${Math.round(Number(n)).toLocaleString()}`;
 
 export default function ProductsPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [workflows, setWorkflows] = useState<{ id: string; title: string }[]>([]);
-  const [editing, setEditing] = useState<Form | null>(null); // non-null = wizard open
-  // The full document behind whatever the wizard is editing, so blocks the wizard
-  // does not render still survive the publish.
-  const [baseDef, setBaseDef] = useState<ReturnType<typeof formToDefinition> | null>(null);
-  const [picking, setPicking] = useState(false); // template gallery open
-  const [historyFor, setHistoryFor] = useState<Product | null>(null);
+  const [q, setQ] = useState("");
+  const [picking, setPicking] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
-      const [pRes, wRes] = await Promise.all([fetch("/api/console/products"), fetch("/api/console/workflows")]);
-      const data = await pRes.json();
+      const res = await fetch("/api/console/products");
+      const data = await res.json();
       if (!data.success) { setError(data.message || "Could not load products."); return; }
       setProducts(data.products);
-      const wData = await wRes.json();
-      if (wData.success) setWorkflows(wData.workflows.map((w: { id: string; title: string }) => ({ id: w.id, title: w.title })));
+      setError(null);
     } catch { setError("Could not load products."); }
-  };
+  }, []);
   useLoad(load);
 
   const toggle = async (p: Product) => {
+    setNotice(null);
     await fetch("/api/console/products", {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: p.id, isActive: !p.isActive }),
     });
+    setNotice(
+      p.isActive
+        ? `${p.name} is off the shelf. Loans already booked on it are unaffected.`
+        : `${p.name} is back on the shelf.`,
+    );
     await load();
   };
 
+  const shown = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle || !products) return products ?? [];
+    return products.filter(
+      (p) => p.name.toLowerCase().includes(needle) || (p.description ?? "").toLowerCase().includes(needle),
+    );
+  }, [products, q]);
+
+  const live = products?.filter((p) => p.isActive).length ?? 0;
+
   return (
-    <main className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-bold flex items-center gap-2"><Package className="h-5 w-5" style={{ color: "var(--brand)" }} /> Products</h1>
-        <button onClick={() => { setPicking(true); setNotice(null); setError(null); }}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-invert px-4 py-2 text-xs font-semibold text-invert-fg hover:bg-invert-2">
-          <Plus className="h-3.5 w-3.5" /> New product
-        </button>
+    <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="t-display flex items-center gap-2 text-[1.6rem]">
+            <Package className="h-6 w-6" style={{ color: "var(--brand)" }} /> Products
+          </h1>
+          <p className="t-meta mt-1 max-w-2xl">
+            Everything you sell, and the terms it sells on. Each product is versioned —
+            changing a rate never rewrites what an existing borrower agreed to.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {products && (
+            <span className="rounded-lg bg-[color:var(--ink)]/[0.05] px-2.5 py-1.5 text-[11px] font-semibold text-[color:var(--ink-muted)]">
+              {live} on the shelf
+            </span>
+          )}
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[color:var(--ink-faint)]" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Find a product…"
+              className="w-40 rounded-lg border border-[color:var(--ink)]/10 bg-paper/70 py-1.5 pl-8 pr-2.5 text-[12px] outline-none placeholder:text-[color:var(--ink-faint)] focus:border-transparent focus:ring-2 focus:ring-[color:var(--brand)] sm:w-52"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setPicking(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-[11px] font-bold text-white"
+            style={{ backgroundColor: "var(--brand)" }}
+          >
+            <Plus className="h-3.5 w-3.5" /> New product
+          </button>
+        </div>
       </div>
 
-      {notice && <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50/90 px-3 py-2.5 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" /> {notice}</div>}
-      {error && <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2.5 text-sm text-red-700"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" /> {error}</div>}
+      {notice && (
+        <div className="mt-4 flex items-start gap-2 rounded-xl bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-800 ring-1 ring-emerald-600/20">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> {notice}
+        </div>
+      )}
+      {error && (
+        <div className="mt-4 flex items-start gap-2 rounded-xl bg-red-500/10 px-3 py-2.5 text-sm text-red-800 ring-1 ring-red-600/20">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {error}
+        </div>
+      )}
 
-      {!products && !error && <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-ash-400" /></div>}
-      {products?.length === 0 && !editing && <p className="mt-10 text-center text-sm text-ash-500">No products yet — create your first.</p>}
+      {!products && !error && (
+        <div className="mt-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-[color:var(--ink-faint)]" /></div>
+      )}
 
-      <div className="mt-5 space-y-3">
-        {products?.map((p) => (
-          <div key={p.id} className={`glass p-4 flex items-center justify-between gap-3 ${p.isActive ? "" : "opacity-60"}`}>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold truncate flex items-center gap-2">
+      {products?.length === 0 && (
+        <div className="glass mt-8 px-4 py-10 text-center">
+          <Layers className="mx-auto h-6 w-6 text-[color:var(--ink-faint)]" />
+          <p className="mt-2 text-[14px] font-semibold text-[color:var(--ink)]">Nothing on the shelf yet</p>
+          <p className="t-meta mx-auto mt-1 max-w-md text-[12.5px]">
+            Start from one of the templates — a working product you then edit — or build
+            one from nothing. Either way it takes eleven steps and you can leave halfway.
+          </p>
+          <button
+            type="button"
+            onClick={() => setPicking(true)}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[12px] font-bold text-white"
+            style={{ backgroundColor: "var(--brand)" }}
+          >
+            <Plus className="h-3.5 w-3.5" /> Create your first product
+          </button>
+        </div>
+      )}
+
+      <div className="mt-5 space-y-2.5">
+        {shown.map((p) => (
+          <div
+            key={p.id}
+            className="glass flex items-center justify-between gap-3 p-4"
+            style={p.isActive ? undefined : { opacity: 0.6 }}
+          >
+            <Link href={`/console/products/${p.id}`} className="min-w-0 flex-1">
+              <p className="flex flex-wrap items-center gap-1.5 text-[14px] font-semibold text-[color:var(--ink)]">
                 {p.name}
-                {p.guarantorRequired && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">GUARANTOR</span>}
-                {p.securityRequired && <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold text-sky-700">SECURED</span>}
+                {p.guarantorRequired && (
+                  <span className="rounded bg-amber-500/12 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">Guarantor</span>
+                )}
+                {p.securityRequired && (
+                  <span className="rounded bg-sky-500/12 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sky-700">Secured</span>
+                )}
               </p>
-              <p className="text-xs text-ash-500">
-                {fmtKES(p.minPrincipal)}–{fmtKES(p.maxPrincipal)} · {Number(p.interestRate)}% {p.interestMethod} · {p.repaymentPeriod} × {p.repaymentPeriodUnit} · {p.disbursementMode.replace(/_/g, " ")}
+              <p className="t-meta mt-0.5 text-[11.5px]">
+                {kes(p.minPrincipal)}–{kes(p.maxPrincipal)} · {Number(p.interestRate)}% {p.interestMethod} ·{" "}
+                {p.repaymentPeriod} × {p.repaymentPeriodUnit} · {p.disbursementMode.replace(/_/g, " ").toLowerCase()}
               </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              {/* The version is the product's most load-bearing fact once loans are
-                  booked against it, so it sits on the card rather than two clicks in. */}
-              <button onClick={() => setHistoryFor(p)}
-                className="rounded-md bg-ash-900/5 px-2 py-1 text-[10px] font-bold text-ash-500 hover:text-ash-800"
-                aria-label={`Version history for ${p.name}`}>
+            </Link>
+
+            <div className="flex shrink-0 items-center gap-2">
+              <Link
+                href={`/console/products/${p.id}`}
+                className="rounded-md bg-[color:var(--ink)]/[0.05] px-2 py-1 text-[10px] font-bold text-[color:var(--ink-muted)] hover:text-[color:var(--ink)]"
+              >
                 {p.version && p.version > 0 ? `v${p.version}` : "UNVERSIONED"}
-              </button>
-              <button onClick={() => { setEditing(fromProduct(p)); setBaseDef(null); setNotice(null); setError(null); }}
-                className="rounded-md border border-ash-900/10 bg-paper/70 p-1.5 text-ash-500 hover:text-ash-800" aria-label={`Edit ${p.name}`}>
+              </Link>
+              <Link
+                href={`/console/products/${p.id}/edit`}
+                aria-label={`Edit ${p.name}`}
+                className="rounded-md p-1.5 text-[color:var(--ink-faint)] ring-1 ring-[color:var(--ink)]/10 hover:text-[color:var(--ink)]"
+              >
                 <Pencil className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={() => toggle(p)}
-                className={`rounded-md px-2 py-1 text-[11px] font-semibold ${p.isActive ? "bg-emerald-100 text-emerald-700" : "bg-ash-900/5 text-ash-500"}`}>
-                {p.isActive ? "ACTIVE" : "INACTIVE"}
-              </button>
+              </Link>
+              <Toggle label={`${p.name} on the shelf`} checked={p.isActive} onChange={() => toggle(p)} />
+              <ChevronRight className="h-4 w-4 text-[color:var(--ink-faint)]" />
             </div>
           </div>
         ))}
@@ -165,361 +205,19 @@ export default function ProductsPage() {
           onClose={() => setPicking(false)}
           onPick={(def) => {
             setPicking(false);
-            setBaseDef(def);
-            setEditing(def ? formFromDefinition(def) : EMPTY);
-            setNotice(null); setError(null);
+            // A template is a starting definition, handed to the builder through
+            // sessionStorage rather than a query string — a whole product document
+            // does not belong in a URL, and the builder is the only reader.
+            if (def) {
+              try { sessionStorage.setItem("product-template", JSON.stringify(def)); }
+              catch { /* private mode: the builder simply opens blank */ }
+            } else {
+              try { sessionStorage.removeItem("product-template"); } catch { /* ignore */ }
+            }
+            router.push("/console/products/new");
           }}
-        />
-      )}
-
-      {editing && (
-        <ProductWizard
-          initial={editing}
-          baseDefinition={baseDef}
-          workflows={workflows}
-          onClose={() => { setEditing(null); setBaseDef(null); }}
-          onSaved={(name, isEdit, version) => {
-            setEditing(null); setBaseDef(null);
-            setNotice(`"${name}" published as v${version}${isEdit ? "" : " — your first version"}.`);
-            load();
-          }}
-        />
-      )}
-
-      {historyFor && (
-        <VersionPanel
-          productId={historyFor.id}
-          productName={historyFor.name}
-          onClose={() => setHistoryFor(null)}
         />
       )}
     </main>
-  );
-}
-
-// ── The wizard ───────────────────────────────────────────────────────────────
-
-const FIELD = "w-full rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-sm outline-none placeholder:text-ash-400";
-const LABEL = "text-xs font-semibold text-ash-600";
-
-function ProductWizard({ initial, baseDefinition, workflows, onClose, onSaved }: {
-  initial: Form;
-  /** The full document being edited, so untouched blocks survive a publish. */
-  baseDefinition?: ReturnType<typeof formToDefinition> | null;
-  workflows: { id: string; title: string }[];
-  onClose: () => void;
-  onSaved: (name: string, isEdit: boolean, version: number) => void;
-}) {
-  const [f, setF] = useState<Form>(initial);
-  const [step, setStep] = useState(0);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const isEdit = !!initial.id;
-  const set = <K extends keyof Form>(k: K) => (v: Form[K]) => setF((s) => ({ ...s, [k]: v }));
-  const stepKey = STEPS[step].key;
-
-  // Per-step gate — you can't advance past a step with a fatal gap.
-  const stepValid = (): string | null => {
-    if (stepKey === "basics") {
-      if (f.name.trim().length < 3) return "Give the product a name.";
-      if (Number(f.maxPrincipal) < Number(f.minPrincipal)) return "Maximum principal must be at least the minimum.";
-    }
-    if (stepKey === "interest") {
-      const r = Number(f.interestRate);
-      if (!Number.isFinite(r) || r < 0 || r > 100) return "Enter an interest rate between 0 and 100%.";
-    }
-    if (stepKey === "repayment") {
-      const n = Number(f.repaymentPeriod);
-      if (!Number.isInteger(n) || n < 1 || n > 120) return "Installments must be a whole number, 1–120.";
-    }
-    return null;
-  };
-
-  const next = () => {
-    const gap = stepValid();
-    if (gap) { setError(gap); return; }
-    setError(null);
-    setStep((s) => Math.min(STEPS.length - 1, s + 1));
-  };
-  const back = () => { setError(null); setStep((s) => Math.max(0, s - 1)); };
-
-  // Saving PUBLISHES A VERSION. There is deliberately no field-by-field update path:
-  // a product whose terms can be edited in place is a product whose past loans can no
-  // longer say what they agreed to. `baseDefinition` carries forward every block the
-  // wizard does not expose (rollover detail, skip days, evidence, availability) so
-  // editing the rate never silently resets a cap somebody set on purpose.
-  const save = async () => {
-    setSaving(true); setError(null);
-    try {
-      const definition = formToDefinition(f, baseDefinition ?? undefined);
-      const res = await fetch("/api/console/products/publish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...(isEdit ? { productId: f.id } : {}), definition }),
-      });
-      const data = await res.json();
-      if (res.status === 422) {
-        // The server speaks in definition paths ("pricing.rate"); show the messages,
-        // which are written to be read by whoever is filling the form in.
-        setError((data.issues ?? []).map((i: { message: string }) => i.message).join(" "));
-        return;
-      }
-      if (!data.success) { setError(data.message || "Could not save."); return; }
-      onSaved(f.name, isEdit, data.version);
-    } catch { setError("Could not save."); } finally { setSaving(false); }
-  };
-
-  // The stepper and the Back/Next row live in the modal's PINNED slots — a
-  // long step scrolls its fields, never the wizard's own controls.
-  return (
-    <Modal
-      width="xl"
-      title={isEdit ? "Edit product" : "New loan product"}
-      sub={f.name || "Set it up one step at a time."}
-      onClose={onClose}
-      subheader={
-        <div className="flex items-center gap-0 overflow-x-auto pb-1">
-          {STEPS.map((s, i) => {
-            const Icon = s.icon;
-            const active = i === step; const done = i < step;
-            return (
-              <div key={s.key} className="flex items-center">
-                {i > 0 && <span className={`mx-1.5 h-px w-4 ${done ? "bg-emerald-400" : "bg-ash-900/15"}`} />}
-                <button onClick={() => i < step && setStep(i)} disabled={i > step}
-                  className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap ${active ? "text-white" : done ? "text-emerald-700" : "text-ash-400"}`}
-                  style={active ? { backgroundColor: "var(--brand)" } : done ? { backgroundColor: "rgb(209 250 229)" } : undefined}>
-                  <Icon className="h-3 w-3" /> {s.label}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      }
-      footer={
-        <div className="flex items-center justify-between gap-2">
-          <button onClick={step === 0 ? onClose : back} className="inline-flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/70 px-4 py-2.5 text-sm text-ash-600">
-            {step === 0 ? "Cancel" : <><ArrowLeft className="h-4 w-4" /> Back</>}
-          </button>
-          {stepKey !== "review" ? (
-            <button onClick={next} className="inline-flex items-center gap-1.5 rounded-lg px-5 py-2.5 text-sm font-semibold text-white" style={{ backgroundColor: "var(--brand)" }}>
-              Next <ArrowRight className="h-4 w-4" />
-            </button>
-          ) : (
-            <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-invert px-5 py-2.5 text-sm font-semibold text-invert-fg hover:bg-invert-2 disabled:opacity-60">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} {isEdit ? "Save changes" : "Create product"}
-            </button>
-          )}
-        </div>
-      }
-    >
-      {error && <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-red-300 bg-red-50/90 px-3 py-2 text-xs text-red-700"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {error}</p>}
-
-      <div className="mt-4 space-y-3">
-        {stepKey === "basics" && <BasicsStep f={f} set={set} />}
-        {stepKey === "interest" && <InterestStep f={f} set={set} />}
-        {stepKey === "repayment" && <RepaymentStep f={f} set={set} />}
-        {stepKey === "requirements" && <RequirementsStep f={f} set={set} />}
-        {stepKey === "workflow" && <WorkflowStep f={f} set={set} workflows={workflows} />}
-        {stepKey === "review" && <ReviewStep f={f} workflows={workflows} />}
-      </div>
-    </Modal>
-  );
-}
-
-// ── Step bodies ──────────────────────────────────────────────────────────────
-
-type SetFn = <K extends keyof Form>(k: K) => (v: Form[K]) => void;
-
-function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className={LABEL}>{label}</span>
-      {hint && <span className="ml-1 text-[10px] text-ash-400">{hint}</span>}
-      <div className="mt-1">{children}</div>
-    </label>
-  );
-}
-
-function Toggle({ label, hint, value, onChange }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button type="button" onClick={() => onChange(!value)}
-      className="flex w-full items-center justify-between gap-3 rounded-lg border border-ash-900/15 bg-paper/80 px-3 py-2.5 text-left">
-      <span className="min-w-0">
-        <span className="block text-sm font-medium text-ash-800">{label}</span>
-        {hint && <span className="block text-[11px] text-ash-500">{hint}</span>}
-      </span>
-      <span className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${value ? "" : "bg-ash-300"}`} style={value ? { backgroundColor: "var(--brand)" } : undefined}>
-        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-paper transition-all ${value ? "left-[18px]" : "left-0.5"}`} />
-      </span>
-    </button>
-  );
-}
-
-const Pills = <T extends string>({ options, value, onChange }: { options: { v: T; label: string; sub?: string }[]; value: T; onChange: (v: T) => void }) => (
-  <div className="grid gap-2 sm:grid-cols-2">
-    {options.map((o) => (
-      <button key={o.v} type="button" onClick={() => onChange(o.v)}
-        className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${value === o.v ? "border-transparent text-white" : "border-ash-900/15 bg-paper/80 text-ash-700 hover:bg-paper"}`}
-        style={value === o.v ? { backgroundColor: "var(--brand)" } : undefined}>
-        <span className="block font-semibold">{o.label}</span>
-        {o.sub && <span className={`block text-[11px] ${value === o.v ? "text-white/80" : "text-ash-500"}`}>{o.sub}</span>}
-      </button>
-    ))}
-  </div>
-);
-
-function BasicsStep({ f, set }: { f: Form; set: SetFn }) {
-  return (
-    <>
-      <Row label="Product name"><input className={FIELD} placeholder="e.g. Biashara Boost" value={f.name} onChange={(e) => set("name")(e.target.value)} /></Row>
-      <Row label="Description" hint="borrower-facing"><input className={FIELD} placeholder="What this loan is for" value={f.description} onChange={(e) => set("description")(e.target.value)} /></Row>
-      <Row label="Product type" hint="how the schedule is shaped">
-        <Pills value={f.principalType} onChange={set("principalType")}
-          options={[
-            { v: "standard", label: "Standard", sub: "Principal + interest every installment" },
-            { v: "interest_first", label: "Interest-first", sub: "Interest until the final installment" },
-            { v: "balloon", label: "Balloon", sub: "Most principal in the last installment" },
-          ]} />
-      </Row>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Row label="Min principal"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><span className="text-xs text-ash-400">KES</span><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="numeric" value={f.minPrincipal} onChange={(e) => set("minPrincipal")(e.target.value.replace(/\D/g, ""))} /></div></Row>
-        <Row label="Max principal"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><span className="text-xs text-ash-400">KES</span><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="numeric" value={f.maxPrincipal} onChange={(e) => set("maxPrincipal")(e.target.value.replace(/\D/g, ""))} /></div></Row>
-        <Row label="Min loan limit" hint="floor"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><span className="text-xs text-ash-400">KES</span><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="numeric" placeholder="none" value={f.minLoanLimit} onChange={(e) => set("minLoanLimit")(e.target.value.replace(/\D/g, ""))} /></div></Row>
-      </div>
-      <p className="text-[11px] text-ash-400">The limit engine will not book below the minimum loan limit even when a thin cashflow supports less — below it, there is no loan.</p>
-    </>
-  );
-}
-
-function InterestStep({ f, set }: { f: Form; set: SetFn }) {
-  return (
-    <>
-      <Row label="Interest type">
-        <Pills value={f.interestType} onChange={set("interestType")}
-          options={[
-            { v: "fixed", label: "Fixed", sub: "The rate never moves" },
-            { v: "variable", label: "Variable", sub: "Repriced on rollover / reschedule" },
-          ]} />
-      </Row>
-      <Row label="Interest method">
-        <Pills value={f.interestMethod} onChange={set("interestMethod")}
-          options={[
-            { v: "flat", label: "Flat", sub: "On the original principal — equal installments" },
-            { v: "reducing", label: "Reducing balance", sub: "On the declining balance" },
-          ]} />
-      </Row>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Row label="Interest rate" hint="% for the whole term"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="decimal" value={f.interestRate} onChange={(e) => set("interestRate")(e.target.value.replace(/[^0-9.]/g, ""))} /><span className="text-xs text-ash-400">%</span></div></Row>
-        <Row label="Rate is quoted per">
-          <select className={`${FIELD} appearance-none`} value={f.interestPeriodUnit} onChange={(e) => set("interestPeriodUnit")(e.target.value)}>
-            <option value="term">Whole term</option><option value="month">Month</option><option value="week">Week</option><option value="day">Day</option>
-          </select>
-        </Row>
-      </div>
-      <Toggle label="Early-settlement rebate" hint="Reward a borrower who clears early" value={f.earlySettlementEnabled} onChange={set("earlySettlementEnabled")} />
-      {f.earlySettlementEnabled && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Row label="Within (days of disbursement)"><input className={FIELD} inputMode="numeric" placeholder="e.g. 30" value={f.earlySettlementDays} onChange={(e) => set("earlySettlementDays")(e.target.value.replace(/\D/g, ""))} /></Row>
-          <Row label="Interest waived" hint="% of outstanding interest"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="decimal" placeholder="e.g. 50" value={f.earlySettlementRate} onChange={(e) => set("earlySettlementRate")(e.target.value.replace(/[^0-9.]/g, ""))} /><span className="text-xs text-ash-400">%</span></div></Row>
-        </div>
-      )}
-    </>
-  );
-}
-
-function RepaymentStep({ f, set }: { f: Form; set: SetFn }) {
-  const orders = [
-    { v: "penalty,interest,principal,fees", label: "Penalty → Interest → Principal → Fees" },
-    { v: "fees,penalty,interest,principal", label: "Fees → Penalty → Interest → Principal" },
-    { v: "interest,principal,penalty,fees", label: "Interest → Principal → Penalty → Fees" },
-    { v: "principal,interest,penalty,fees", label: "Principal → Interest → Penalty → Fees" },
-  ];
-  return (
-    <>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Row label="Installments"><input className={FIELD} inputMode="numeric" value={f.repaymentPeriod} onChange={(e) => set("repaymentPeriod")(e.target.value.replace(/\D/g, ""))} /></Row>
-        <Row label="Every">
-          <select className={`${FIELD} appearance-none`} value={f.repaymentPeriodUnit} onChange={(e) => set("repaymentPeriodUnit")(e.target.value)}>
-            <option value="day">Day</option><option value="week">Week</option><option value="month">Month</option>
-          </select>
-        </Row>
-        <Row label="Grace days"><input className={FIELD} inputMode="numeric" value={f.gracePeriodDays} onChange={(e) => set("gracePeriodDays")(e.target.value.replace(/\D/g, ""))} /></Row>
-      </div>
-      <Row label="Penalty rate" hint="% on an overdue installment"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="decimal" placeholder="e.g. 5" value={f.penaltyRate} onChange={(e) => set("penaltyRate")(e.target.value.replace(/[^0-9.]/g, ""))} /><span className="text-xs text-ash-400">%</span></div></Row>
-      <Row label="Repayment order" hint="how a payment is applied, most-senior first">
-        <select className={`${FIELD} appearance-none`} value={f.repaymentOrder} onChange={(e) => set("repaymentOrder")(e.target.value)}>
-          {orders.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
-        </select>
-      </Row>
-    </>
-  );
-}
-
-function RequirementsStep({ f, set }: { f: Form; set: SetFn }) {
-  return (
-    <>
-      <Row label="Minimum credit score" hint="optional — leave empty for none"><input className={FIELD} inputMode="numeric" placeholder="e.g. 500" value={f.minCreditScore} onChange={(e) => set("minCreditScore")(e.target.value.replace(/\D/g, "").slice(0, 3))} /></Row>
-      <Toggle label="Guarantor required" hint="A loan on this product cannot book without a guarantor" value={f.guarantorRequired} onChange={set("guarantorRequired")} />
-      {f.guarantorRequired && (
-        <Toggle label="Guarantor may re-borrow" hint="May someone standing as a guarantor also take their own loan here?" value={f.guarantorReborrow} onChange={set("guarantorReborrow")} />
-      )}
-      <Toggle label="Security required" hint="Collateral must be pledged and verified before booking" value={f.securityRequired} onChange={set("securityRequired")} />
-      {f.securityRequired && (
-        <Row label="Security cover" hint="% of principal the collateral must cover"><div className="flex items-center gap-1.5 rounded-lg border border-ash-900/15 bg-paper/80 px-3"><input className="w-full bg-transparent py-2.5 text-sm outline-none" inputMode="numeric" value={f.securityCoverPct} onChange={(e) => set("securityCoverPct")(e.target.value.replace(/\D/g, ""))} /><span className="text-xs text-ash-400">%</span></div></Row>
-      )}
-    </>
-  );
-}
-
-function WorkflowStep({ f, set, workflows }: { f: Form; set: SetFn; workflows: { id: string; title: string }[] }) {
-  return (
-    <>
-      <Row label="Disburse via">
-        <select className={`${FIELD} appearance-none`} value={f.disbursementMode} onChange={(e) => set("disbursementMode")(e.target.value)}>
-          <option value="B2C_MPESA">M-Pesa B2C</option>
-          <option value="MANUAL">Manual (record reference)</option>
-          <option value="TO_THIRD_PARTY">Third party (e.g. school)</option>
-        </select>
-      </Row>
-      <Row label="New-loan approval workflow" hint="first loan on this product">
-        <select className={`${FIELD} appearance-none`} value={f.newWorkflowId} onChange={(e) => set("newWorkflowId")(e.target.value)}>
-          <option value="">Default (two-tier: Officer → Final)</option>
-          {workflows.map((w) => <option key={w.id} value={w.id}>{w.title}</option>)}
-        </select>
-      </Row>
-      <Row label="Repeat-loan approval workflow" hint="returning borrowers">
-        <select className={`${FIELD} appearance-none`} value={f.repeatWorkflowId} onChange={(e) => set("repeatWorkflowId")(e.target.value)}>
-          <option value="">Same as new-loan workflow</option>
-          {workflows.map((w) => <option key={w.id} value={w.id}>{w.title}</option>)}
-        </select>
-      </Row>
-      <p className="text-[11px] text-ash-400">Choosing the workflow here — per product, not per organisation — is what lets a small top-up run a light approval while a large secured loan runs the full chain.</p>
-    </>
-  );
-}
-
-function ReviewStep({ f, workflows }: { f: Form; workflows: { id: string; title: string }[] }) {
-  const wf = (id: string) => workflows.find((w) => w.id === id)?.title ?? "Default two-tier";
-  const line = (label: string, value: string) => (
-    <div className="flex items-start justify-between gap-3 py-1.5 text-sm">
-      <span className="text-ash-500">{label}</span>
-      <span className="text-right font-medium text-ash-800">{value}</span>
-    </div>
-  );
-  return (
-    <div className="rounded-xl border border-ash-900/10 bg-paper/60 px-4 divide-y divide-ash-900/5">
-      {line("Name", f.name || "—")}
-      {line("Amount", `${fmtKES(f.minPrincipal)} – ${fmtKES(f.maxPrincipal)}${f.minLoanLimit ? ` · floor ${fmtKES(f.minLoanLimit)}` : ""}`)}
-      {line("Interest", `${f.interestRate}% ${f.interestMethod} · ${f.interestType} · per ${f.interestPeriodUnit}`)}
-      {line("Repayment", `${f.repaymentPeriod} × ${f.repaymentPeriodUnit} · ${f.gracePeriodDays} grace day(s)${f.penaltyRate ? ` · ${f.penaltyRate}% penalty` : ""}`)}
-      {f.earlySettlementEnabled && line("Early settlement", `${f.earlySettlementRate || 0}% waived within ${f.earlySettlementDays || 0} days`)}
-      {line("Requirements", [f.guarantorRequired && "Guarantor", f.securityRequired && `Security ${f.securityCoverPct}%`, f.minCreditScore && `Score ≥ ${f.minCreditScore}`].filter(Boolean).join(" · ") || "None")}
-      {line("Disbursement", f.disbursementMode.replace(/_/g, " "))}
-      <div className="py-1.5 text-sm">
-        <div className="flex items-center gap-1.5 text-ash-500"><GitBranch className="h-3.5 w-3.5" /> Workflows</div>
-        <div className="mt-1 flex items-center gap-1.5 text-[13px] text-ash-700"><span className="rounded bg-ash-900/5 px-1.5 py-0.5 text-[10px] font-semibold">NEW</span> {wf(f.newWorkflowId)} <ChevronRight className="h-3 w-3 text-ash-300" /> <Coins className="h-3 w-3 text-ash-400" /></div>
-        <div className="mt-1 flex items-center gap-1.5 text-[13px] text-ash-700"><span className="rounded bg-ash-900/5 px-1.5 py-0.5 text-[10px] font-semibold">REPEAT</span> {f.repeatWorkflowId ? wf(f.repeatWorkflowId) : wf(f.newWorkflowId)}</div>
-      </div>
-    </div>
   );
 }

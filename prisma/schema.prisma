@@ -81,30 +81,30 @@ model PlatformAdmin {
 }
 
 model Org {
-  id        String    @id @default(uuid())
-  slug      String    @unique // subdomain: <slug>.birgenai.com
-  name      String
-  mode      OrgMode   @default(NATIVE)
-  status    OrgStatus @default(PENDING)
-  plan      OrgPlan   @default(STARTER)
-  country   String    @default("KE")
-  currency  String    @default("KES")
-  timezone  String    @default("Africa/Nairobi")
+  id                        String    @id @default(uuid())
+  slug                      String    @unique // subdomain: <slug>.birgenai.com
+  name                      String
+  mode                      OrgMode   @default(NATIVE)
+  status                    OrgStatus @default(PENDING)
+  plan                      OrgPlan   @default(STARTER)
+  country                   String    @default("KE")
+  currency                  String    @default("KES")
+  timezone                  String    @default("Africa/Nairobi")
   // Branding (white-label): accent drives --brand, assets in storage.
-  accent     String  @default("#F97316")
-  accentSoft String  @default("rgba(249,115,22,0.12)")
+  accent                    String    @default("#F97316")
+  accentSoft                String    @default("rgba(249,115,22,0.12)")
   // Optional second gradient stop (logo-derived). Null ⇒ derived from accent at render.
-  accent2    String?
-  tagline    String?
-  blurb      String?
-  logoUrl    String?
+  accent2                   String?
+  tagline                   String?
+  blurb                     String?
+  logoUrl                   String?
   // How large the logo renders relative to its default slot, in percent (50–200).
   // A mark with generous transparent padding (Micromart) needs >100 to read at
   // the same optical size as a tightly-cropped one (Techcrast).
-  logoScale  Int     @default(100)
-  heroUrl    String?
+  logoScale                 Int       @default(100)
+  heroUrl                   String?
   // First-run setup checklist ({ dismissed?: boolean, activationRequestedAt?: string })
-  onboardingState Json?
+  onboardingState           Json?
   // ── WHICH SYSTEMS THIS LENDER BOUGHT ──────────────────────────────────────
   // A string[] of SuiteApp ids: ["lms","portal","analytics","hr","accounting",
   // "callcenter","interchange"]. Set by the platform admin when the organisation
@@ -122,50 +122,50 @@ model Org {
   // here disappears for the whole organisation regardless of either.
   //
   // The only reader is src/lib/suite/entitlements.ts. Nothing else parses it.
-  systems Json?
+  systems                   Json?
   // Field-ops control: a borrower's business/home location SNAPSHOT must be on file
   // before money is released to them (you should know where your borrower's business
   // is before you lend against it, and a customer with no pin never appears on a
   // field officer's route). Defaults ON; a purely-digital lender can turn it off.
-  requireGeoForDisbursement Boolean @default(true)
+  requireGeoForDisbursement Boolean   @default(true)
   // Bridged-mode link
-  serviceSuiteEntityId Int?
+  serviceSuiteEntityId      Int?
   // Demo orgs power the guided showcase (test accounts, seeded lifecycle).
-  isDemo    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isDemo                    Boolean   @default(false)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
 
-  subscription  OrgSubscription?
-  integrations  OrgIntegration[]
-  branches      Branch[]
-  roles         Role[]
-  staff         StaffUser[]
-  borrowers     Borrower[]
-  products      Product[]
-  workflows     Workflow[]
-  applications  LoanApplication[]
-  offers        LoanOffer[]
-  guarantors    Guarantor[]
-  collateral    Collateral[]
-  documents     Document[]
-  invoices      Invoice[]
-  tuning        TuningProfile?
-  loans         Loan[]
-  usageEvents   UsageEvent[]
-  fieldVisits   FieldVisit[]
-  smsWallet     SmsWallet?
-  smsTopUps     SmsTopUp[]
-  reconExceptions ReconciliationException[]
-  promises      PromiseToPay[]
-  collectionCalls CollectionCall[]
-  tickets       CollectionTicket[]
-  smsCampaigns  SmsCampaign[]
-  emails        EmailMessage[]
-  metricDefs    MetricDefinition[]
-  ririQueries   RiriQueryLog[]
-  complianceRequests ComplianceRequest[]
-  charges       Charge[]
-  graduations   GraduationEvent[]
+  subscription        OrgSubscription?
+  integrations        OrgIntegration[]
+  branches            Branch[]
+  roles               Role[]
+  staff               StaffUser[]
+  borrowers           Borrower[]
+  products            Product[]
+  workflows           Workflow[]
+  applications        LoanApplication[]
+  offers              LoanOffer[]
+  guarantors          Guarantor[]
+  collateral          Collateral[]
+  documents           Document[]
+  invoices            Invoice[]
+  tuning              TuningProfile?
+  loans               Loan[]
+  usageEvents         UsageEvent[]
+  fieldVisits         FieldVisit[]
+  smsWallet           SmsWallet?
+  smsTopUps           SmsTopUp[]
+  reconExceptions     ReconciliationException[]
+  promises            PromiseToPay[]
+  collectionCalls     CollectionCall[]
+  tickets             CollectionTicket[]
+  smsCampaigns        SmsCampaign[]
+  emails              EmailMessage[]
+  metricDefs          MetricDefinition[]
+  ririQueries         RiriQueryLog[]
+  complianceRequests  ComplianceRequest[]
+  charges             Charge[]
+  graduations         GraduationEvent[]
   savingsAccounts     SavingsAccount[]
   savingsTransactions SavingsTransaction[]
   ririMemories        RiriMemory[]
@@ -190,18 +190,18 @@ model Org {
 // borrower data) — deliberately outside RLS; every read of them, and every
 // cross-tenant query they justify, goes through src/lib/pool/pool.ts alone.
 model SharingPool {
-  id         String   @id @default(uuid())
-  name       String   @unique
+  id         String              @id @default(uuid())
+  name       String              @unique
   legalBasis String
-  createdAt  DateTime @default(now())
+  createdAt  DateTime            @default(now())
   members    SharingPoolMember[]
 }
 
 model SharingPoolMember {
-  id       String   @id @default(uuid())
+  id       String      @id @default(uuid())
   poolId   String
-  orgId    String   @unique // an org belongs to at most one pool
-  joinedAt DateTime @default(now())
+  orgId    String      @unique // an org belongs to at most one pool
+  joinedAt DateTime    @default(now())
   pool     SharingPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
   org      Org         @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
@@ -232,16 +232,16 @@ enum IntegrationStatus {
 /// blob (master key in env: VAULT_MASTER_KEY) — secrets never live in env vars
 /// per tenant and never leave the server.
 model OrgIntegration {
-  id        String            @id @default(uuid())
-  orgId     String
-  kind      IntegrationKind
-  status    IntegrationStatus @default(UNCONFIGURED)
-  configEnc String // base64(iv || ciphertext || tag)
+  id         String            @id @default(uuid())
+  orgId      String
+  kind       IntegrationKind
+  status     IntegrationStatus @default(UNCONFIGURED)
+  configEnc  String // base64(iv || ciphertext || tag)
   lastTestAt DateTime?
   lastError  String?
   updatedBy  String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
 
   org Org @relation(fields: [orgId], references: [id])
 
@@ -250,24 +250,24 @@ model OrgIntegration {
 }
 
 model Branch {
-  id                String  @id @default(uuid())
+  id                String   @id @default(uuid())
   orgId             String
   name              String
   /// Null == the ROOT of the tree: the lender's head office. Exactly one per org.
   parentId          String?
-  levelName         String  @default("Branch") // org-defined hierarchy level
+  levelName         String   @default("Branch") // org-defined hierarchy level
   /// Short code an officer would actually say out loud ("NRB-CBD"). Optional.
   code              String?
   disbursementLimit Decimal? @db.Decimal(18, 2)
   lat               Float?
   lng               Float?
   radiusMeters      Int?
-  active            Boolean @default(true)
+  active            Boolean  @default(true)
   createdAt         DateTime @default(now())
 
-  org      Org      @relation(fields: [orgId], references: [id])
-  parent   Branch?  @relation("BranchTree", fields: [parentId], references: [id])
-  children Branch[] @relation("BranchTree")
+  org      Org         @relation(fields: [orgId], references: [id])
+  parent   Branch?     @relation("BranchTree", fields: [parentId], references: [id])
+  children Branch[]    @relation("BranchTree")
   staff    StaffUser[]
 
   @@index([orgId])
@@ -294,11 +294,11 @@ enum DataScope {
 }
 
 model Role {
-  id        String   @id @default(uuid())
-  orgId     String
-  title     String
-  rights    Json     @default("[]") // module-right keys
-  menu      Json     @default("[]") // visible menu keys
+  id     String @id @default(uuid())
+  orgId  String
+  title  String
+  rights Json   @default("[]") // module-right keys
+  menu   Json   @default("[]") // visible menu keys
 
   /// Defaults to ORG so that adding this column changes NOTHING for a role that
   /// existed before it: every role kept exactly the visibility it already had, and a
@@ -322,31 +322,31 @@ enum StaffStatus {
 }
 
 model StaffUser {
-  id           String      @id @default(uuid())
-  orgId        String
-  email        String
-  phone        String?
-  firstName    String
-  otherName    String?
-  passwordHash String?
-  roleId       String?
-  branchId     String?
+  id             String      @id @default(uuid())
+  orgId          String
+  email          String
+  phone          String?
+  firstName      String
+  otherName      String?
+  passwordHash   String?
+  roleId         String?
+  branchId       String?
   // Approval tiers (ServiceSuite Initiator/Authorizor/Validator parity)
-  isInitiator  Boolean     @default(false)
-  isAuthorizer Boolean     @default(false)
-  isValidator  Boolean     @default(false)
+  isInitiator    Boolean     @default(false)
+  isAuthorizer   Boolean     @default(false)
+  isValidator    Boolean     @default(false)
   // Field ops — relationship officers/agents get geolocated for nearest-agent
   // routing. lat/lng is their last known base (branch or live check-in).
-  isFieldAgent    Boolean   @default(false)
-  lat             Float?
-  lng             Float?
-  lastLocationAt  DateTime?
-  status       StaffStatus @default(INVITED)
-  lastLoginAt  DateTime?
-  otpSecret    String?
-  avatarSeed   String? // deterministic avatar for demo/console polish
-  title        String? // display job title (e.g. "Relationship Officer")
-  dob          DateTime? // date of birth — HR record, never used in a credit decision
+  isFieldAgent   Boolean     @default(false)
+  lat            Float?
+  lng            Float?
+  lastLocationAt DateTime?
+  status         StaffStatus @default(INVITED)
+  lastLoginAt    DateTime?
+  otpSecret      String?
+  avatarSeed     String? // deterministic avatar for demo/console polish
+  title          String? // display job title (e.g. "Relationship Officer")
+  dob            DateTime? // date of birth — HR record, never used in a credit decision
 
   /// Per-person access adjustment, layered on top of the role.
   ///
@@ -357,13 +357,13 @@ model StaffUser {
   /// people who existed before it. Two staff can share a role and still see
   /// different halves of ConnectDesk without inventing a second role for one of
   /// them. See src/lib/rbac/modules.ts for the vocabulary and the argument.
-  access       Json      @default("{}")
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  access    Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  org    Org     @relation(fields: [orgId], references: [id])
-  role   Role?   @relation(fields: [roleId], references: [id])
-  branch Branch? @relation(fields: [branchId], references: [id])
+  org            Org          @relation(fields: [orgId], references: [id])
+  role           Role?        @relation(fields: [roleId], references: [id])
+  branch         Branch?      @relation(fields: [branchId], references: [id])
   visitsAssigned FieldVisit[] @relation("VisitAgent")
 
   @@unique([orgId, email])
@@ -433,22 +433,22 @@ model KycSession {
   nationalId     String?
   provider       String    @default("simulation")
   // step results (0..100 confidence where applicable)
-  idQualityScore    Int?
-  idOcrName         String?
-  idOcrNumber       String?
-  idOcrDob          String?
-  livenessScore     Int?
-  livenessPassed    Boolean?
-  faceMatchScore    Int?
-  iprsMatched       Boolean?
-  iprsName          String?
+  idQualityScore Int?
+  idOcrName      String?
+  idOcrNumber    String?
+  idOcrDob       String?
+  livenessScore  Int?
+  livenessPassed Boolean?
+  faceMatchScore Int?
+  iprsMatched    Boolean?
+  iprsName       String?
   // Private-bucket object keys (src/lib/storage/provider.ts), never public URLs.
   // Read only through a short-lived signed URL. A `sim/` prefix means storage was
   // in simulation and no bytes were ever written.
-  idFrontKey        String?
-  idBackKey         String?
-  selfieKey         String?
-  portraitKey       String?
+  idFrontKey     String?
+  idBackKey      String?
+  selfieKey      String?
+  portraitKey    String?
   // rollup
   status         String    @default("IN_PROGRESS") // IN_PROGRESS | PENDING_REVIEW | VERIFIED | FAILED
   riskFlags      Json?
@@ -523,43 +523,52 @@ model Borrower {
   /// { name, relationship, phone } — who to call when the borrower cannot be
   /// reached. Captured from Customer-360; a collections tool, never a guarantor.
   nextOfKin  Json?
+
+  /// THE FIELDS THIS LENDER ASKED FOR THAT WE DID NOT SHIP.
+  ///
+  /// A flat map keyed by the stable `code` of an item in the `details` namespace
+  /// (lib/config/details.ts) — { "BUSINESS_NAME": "Wanjiku Grocers", "ROUTE": "58" }.
+  /// Keyed by code and not by title, so renaming a field on the settings screen
+  /// never orphans a year of capture. Values for a field the lender has since
+  /// removed simply stop being rendered; they are history, not an error.
+  details                Json?
   // KYC artifacts (private storage keys, not public URLs)
-  portraitKey     String? // white-background canonical portrait
-  selfieKey       String?
-  idFrontKey      String?
-  idBackKey       String?
-  faceMatchScore  Float?
-  livenessPassed  Boolean?
-  iprsVerified    Boolean?
-  kycStatus       KycStatus @default(NONE)
-  kycVerifiedAt   DateTime?
+  portraitKey            String? // white-background canonical portrait
+  selfieKey              String?
+  idFrontKey             String?
+  idBackKey              String?
+  faceMatchScore         Float?
+  livenessPassed         Boolean?
+  iprsVerified           Boolean?
+  kycStatus              KycStatus @default(NONE)
+  kycVerifiedAt          DateTime?
   // One-time consented location SNAPSHOTS (captured at onboarding/application with
   // the customer's explicit consent — never tracked afterwards). lat/lng is the
   // primary pin (locationType says which place it is); a second pin lives in
   // homeLat/homeLng when both business and home were captured.
-  lat             Float?
-  lng             Float?
-  locationType    String? // business | home
-  locationAddress String?
-  homeLat         Float?
-  homeLng         Float?
-  homeAddress     String?
-  geoConsentAt    DateTime? // when the customer consented to the location snapshot
+  lat                    Float?
+  lng                    Float?
+  locationType           String? // business | home
+  locationAddress        String?
+  homeLat                Float?
+  homeLng                Float?
+  homeAddress            String?
+  geoConsentAt           DateTime? // when the customer consented to the location snapshot
   // Risk & limits
-  creditScore       Int?
+  creditScore            Int?
   /// One of the four bands (src/lib/risk/bands.ts): PRIME | STRONG | WATCH | HIGH.
   /// Every engine — the thin-file cruncher, the behavioural scorer, early warning —
   /// speaks this one vocabulary, so an officer never has to translate between scales.
-  riskBand          String?
+  riskBand               String?
   /// 0–100, from their last two CLEARED loans: half "did they pay it all", half "did
   /// they pay it on the day". This is the number graduation is decided on, and it is
   /// written for every customer who has ever repaid — including the bad ones.
-  behaviouralScore  Float?
-  lastScoredAt      DateTime?
-  lastGraduationAt  DateTime?
-  loanLimit         Decimal? @db.Decimal(18, 2)
-  previousLoanLimit Decimal? @db.Decimal(18, 2)
-  graduationCount   Int      @default(0)
+  behaviouralScore       Float?
+  lastScoredAt           DateTime?
+  lastGraduationAt       DateTime?
+  loanLimit              Decimal?  @db.Decimal(18, 2)
+  previousLoanLimit      Decimal?  @db.Decimal(18, 2)
+  graduationCount        Int       @default(0)
   // Bridged link + suite SSO federation
   serviceSuiteBorrowerId Int?
   hubUserId              String? // birgenai.com account id (federated login)
@@ -603,17 +612,17 @@ model Borrower {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  org          Org               @relation(fields: [orgId], references: [id])
-  consents     Consent[]
-  kycChecks    KycCheck[]
-  applications LoanApplication[]
-  offers       LoanOffer[]
-  guarantors   Guarantor[]
-  collateral   Collateral[]
-  documents    Document[]
-  loans        Loan[]
-  fieldVisits  FieldVisit[]
-  savings      SavingsAccount?
+  org            Org               @relation(fields: [orgId], references: [id])
+  consents       Consent[]
+  kycChecks      KycCheck[]
+  applications   LoanApplication[]
+  offers         LoanOffer[]
+  guarantors     Guarantor[]
+  collateral     Collateral[]
+  documents      Document[]
+  loans          Loan[]
+  fieldVisits    FieldVisit[]
+  savings        SavingsAccount?
   standingOrders StandingOrder[]
 
   @@unique([orgId, phone])
@@ -678,24 +687,24 @@ enum DisbursementMode {
 }
 
 model Product {
-  id            String  @id @default(uuid())
-  orgId         String
-  name          String
-  description   String?
-  minPrincipal  Decimal  @db.Decimal(18, 2)
-  maxPrincipal  Decimal  @db.Decimal(18, 2)
-  interestRate  Decimal  @db.Decimal(9, 4)
-  interestMethod String  @default("flat") // flat | reducing (how the balance interest is computed)
+  id                     String           @id @default(uuid())
+  orgId                  String
+  name                   String
+  description            String?
+  minPrincipal           Decimal          @db.Decimal(18, 2)
+  maxPrincipal           Decimal          @db.Decimal(18, 2)
+  interestRate           Decimal          @db.Decimal(9, 4)
+  interestMethod         String           @default("flat") // flat | reducing (how the balance interest is computed)
   /// The pricing basis behind the rate — mirrors ServiceSuite's Interest Type, kept
   /// distinct from the flat/reducing METHOD above. fixed = rate never moves for the
   /// life of the loan; variable = repriced against a reference on rollover/reschedule.
-  interestType   String  @default("fixed") // fixed | variable
+  interestType           String           @default("fixed") // fixed | variable
   /// The repayment shape — ServiceSuite's Principal (Product) Type. standard amortises
   /// principal+interest across every installment; interest_first services interest until
   /// the final installment; balloon carries most principal to the last.
-  principalType  String  @default("standard") // standard | interest_first | balloon
-  interestPeriodUnit String @default("month")
-  repaymentPeriod    Int
+  principalType          String           @default("standard") // standard | interest_first | balloon
+  interestPeriodUnit     String           @default("month")
+  repaymentPeriod        Int
   /// THE SHORTEST TERM THIS PRODUCT WILL BOOK, in `repaymentPeriodUnit`s.
   ///
   /// Null means the term is fixed at `repaymentPeriod` — the old behaviour, and
@@ -709,34 +718,34 @@ model Product {
   /// prices at `interestRate / repaymentPeriod × term` — exact for flat interest,
   /// wrong for reducing balance. lib/decision/candidates.ts refuses to fan out a
   /// reducing-balance product for that reason.
-  minRepaymentPeriod Int?
-  repaymentPeriodUnit String @default("week")
-  gracePeriodDays    Int     @default(0)
-  penaltyRate        Decimal? @db.Decimal(9, 4)
+  minRepaymentPeriod     Int?
+  repaymentPeriodUnit    String           @default("week")
+  gracePeriodDays        Int              @default(0)
+  penaltyRate            Decimal?         @db.Decimal(9, 4)
   /// A settlement before `earlySettlementDays` from disbursement is rebated at
   /// `earlySettlementRate` (% of outstanding interest waived). Off by default.
-  earlySettlementEnabled Boolean  @default(false)
+  earlySettlementEnabled Boolean          @default(false)
   earlySettlementDays    Int?
-  earlySettlementRate    Decimal? @db.Decimal(9, 4)
+  earlySettlementRate    Decimal?         @db.Decimal(9, 4)
   /// The waterfall a payment is applied in, most-senior first. ServiceSuite's
   /// Repayment Order. Tokens: fees | penalty | interest | principal.
-  repaymentOrder     String  @default("penalty,interest,principal,fees")
+  repaymentOrder         String           @default("penalty,interest,principal,fees")
   /// The smallest amount this product will ever book, even if the limit engine
   /// derives less — below it, there is no loan (ServiceSuite Minimum Loan Limit).
-  minLoanLimit       Decimal? @db.Decimal(18, 2)
-  minCreditScore     Int?
-  guarantorRequired  Boolean @default(false)
+  minLoanLimit           Decimal?         @db.Decimal(18, 2)
+  minCreditScore         Int?
+  guarantorRequired      Boolean          @default(false)
   /// May a person who is standing as a guarantor on a live loan also take one of
   /// their own on this product? Off = a guarantor's exposure is frozen.
-  guarantorReborrow  Boolean @default(false)
-  securityRequired   Boolean @default(false)
+  guarantorReborrow      Boolean          @default(false)
+  securityRequired       Boolean          @default(false)
   /// Verified collateral must cover this percentage of the principal before a loan
   /// on this product may book. Only meaningful when securityRequired.
-  securityCoverPct   Int     @default(100)
-  disbursementMode   DisbursementMode @default(B2C_MPESA)
-  newWorkflowId      String?
-  repeatWorkflowId   String?
-  isActive           Boolean @default(true)
+  securityCoverPct       Int              @default(100)
+  disbursementMode       DisbursementMode @default(B2C_MPESA)
+  newWorkflowId          String?
+  repeatWorkflowId       String?
+  isActive               Boolean          @default(true)
 
   /// The published version these columns are a projection of. Bumped by
   /// lib/products/versioning.ts on every publish; 0 means the product predates
@@ -745,8 +754,8 @@ model Product {
 
   // Bridged link
   serviceSuiteProductId Int?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   org          Org               @relation(fields: [orgId], references: [id])
   applications LoanApplication[]
@@ -786,7 +795,7 @@ model ProductVersion {
   authorId  String?
   createdAt DateTime @default(now())
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product      Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
   loans        Loan[]
   applications LoanApplication[]
 
@@ -808,32 +817,105 @@ enum DisbursementRoute {
   LENDER_BRIDGE
 }
 
+/// WHAT A WORKFLOW APPROVES.
+///
+/// ServiceSuite carries a single "Loan/Product Workflow: Yes/No" switch whose only
+/// job is to decide whether the stage editor offers reschedule and Ratiba. That is
+/// the right instinct expressed as a boolean, which means everything that is not a
+/// loan — a redisbursement, a waiver, a float top-up, an expense — shares one
+/// undifferentiated "No". Naming the subject instead lets each after-book action in
+/// the `loans` namespace point at a workflow built for it.
+enum WorkflowKind {
+  LOAN // origination: a new or repeat loan application
+  RESTRUCTURE
+  TOPUP
+  WAIVER
+  WRITEOFF
+  REDISBURSEMENT
+  DISBURSEMENT // releasing money on an already-approved loan
+  RECONCILIATION // releasing a suspended payment
+  FLOAT
+  EXPENSE
+  OTHER
+}
+
 model Workflow {
   id          String  @id @default(uuid())
   orgId       String
   title       String
   description String?
-  createdAt   DateTime @default(now())
+
+  /// What this chain approves. Drives which stage options are offered and which
+  /// settings screens may select it.
+  kind WorkflowKind @default(LOAN)
+
+  /// May ONE person approve at more than one stage of the same case?
+  /// ServiceSuite's "Allow Multiple Approvals". Off is the four-eyes default: a
+  /// person who has already signed cannot sign again further up the chain.
+  multiApproval Boolean @default(false)
+
+  /// Off = it stays configured but is not offered anywhere.
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   org    Org             @relation(fields: [orgId], references: [id])
   stages WorkflowStage[]
 
   @@unique([orgId, title])
+  @@index([orgId, kind, isActive])
 }
 
 model WorkflowStage {
-  id          String  @id @default(uuid())
+  id          String   @id @default(uuid())
   workflowId  String
   title       String
   parentId    String? // stage tree (ServiceSuite ParentStage parity)
-  order       Int     @default(1)
-  accessTier  Int     @default(1) // 1 initiator · 2 authorizer · 3 validator
-  roleIds     Json    @default("[]")
-  canFinalize Boolean @default(false) // finalize → disbursement queue
-  canUpdate   Boolean @default(false)
-  otpRequired Boolean @default(true)
-  crbRequired Boolean @default(false) // a fresh CRB pull must exist to advance this stage
+  order       Int      @default(1)
+  accessTier  Int      @default(1) // 1 initiator · 2 authorizer · 3 validator
+  roleIds     Json     @default("[]")
+  canFinalize Boolean  @default(false) // finalize → disbursement queue
+  canUpdate   Boolean  @default(false)
+  otpRequired Boolean  @default(true)
+  crbRequired Boolean  @default(false) // a fresh CRB pull must exist to advance this stage
   maxAmount   Decimal? @db.Decimal(18, 2) // finalize amount cap
+
+  /// THE AUTOMATED CHECKS THIS STAGE RUNS — the column that replaces columns.
+  ///
+  /// ServiceSuite grew `RequestMpesaRatiba` as a bit on this table the day a lender
+  /// wanted a Ratiba mandate at their finance stage. The next request — CRB at risk
+  /// review, an AML screen before finalize, a float check before payout — is another
+  /// bit, another migration, another Razor conditional. And because the bit lives on
+  /// the STAGE, a lender who wants the bureau pull at onboarding instead cannot say so.
+  ///
+  /// This is an array of CheckBinding (lib/workflow/checks.ts): { id, blocking,
+  /// maxAgeDays, threshold }. The same shape the onboarding config and a product's
+  /// evidence block hold, so one runner serves all three and a lender can move a
+  /// check from the finance stage to the front door by dragging it.
+  checks Json @default("[]")
+
+  /// Attachment codes that must be on file before this stage may advance
+  /// (ServiceSuite ApprovalWorkflowStage.Attachments).
+  attachments Json @default("[]")
+
+  /// Additional-detail group codes (scope "approval") the approver fills in here
+  /// — ServiceSuite's ApprovalFormItems, given a home.
+  detailGroups Json @default("[]")
+
+  /// Named individuals who may act at this stage, over and above `roleIds`.
+  /// ServiceSuite ApprovalWorkflowStage.Users.
+  userIds Json @default("[]")
+
+  /// The loan may be rescheduled from this stage (ServiceSuite CanUpdate).
+  canReschedule Boolean @default(false)
+
+  /// Nobody acted for this long → the case is escalated. 0 = never.
+  slaHours Int @default(0)
+
+  /// Where an escalated or rejected case goes instead of simply stopping.
+  onTimeoutStageId  String?
+  onRejectStageId   String?
   /// WHERE THE MONEY GOES WHEN THIS STAGE FINALIZES. Only meaningful on a stage
   /// with `canFinalize`. Null = inherit the org's mode (NATIVE books here, BRIDGED
   /// posts to the lender) — which is exactly what every existing workflow did
@@ -865,81 +947,84 @@ enum ApplicationStatus {
 /// One row per application = one training row (features X now, outcome y
 /// backfilled). Mirrors the Hub's LmsApplication contract.
 model LoanApplication {
-  id         String            @id @default(uuid())
-  orgId      String
-  borrowerId String
-  productId  String?
+  id                     String            @id @default(uuid())
+  orgId                  String
+  borrowerId             String
+  productId              String?
   /// The product version the offer was priced against, so a decision can be
   /// reproduced even after the product moves on.
-  productVersionId String?
+  productVersionId       String?
   // Bridged-mode product reference (ServiceSuite Products.ID) + display name —
   // native orgs use productId instead.
-  productRef  String?
-  productName String?
+  productRef             String?
+  productName            String?
   // Application-time identity snapshot (the training row is self-contained).
-  phone        String?
-  nationalId   String?
-  borrowerName String?
-  hubUserId    String?
-  graduated      Boolean @default(false)
-  priorLoanCount Int     @default(0)
+  phone                  String?
+  nationalId             String?
+  borrowerName           String?
+  hubUserId              String?
+  graduated              Boolean           @default(false)
+  priorLoanCount         Int               @default(0)
   serviceSuiteBorrowerId Int?
-  amountRequested Decimal      @db.Decimal(18, 2)
-  status     ApplicationStatus @default(SUBMITTED)
-  stageTitle String?
-  currentStageId String?
+  amountRequested        Decimal           @db.Decimal(18, 2)
+  status                 ApplicationStatus @default(SUBMITTED)
+  stageTitle             String?
+  currentStageId         String?
   // Scoring (server-side recompute only)
-  score            Int?
-  pd               Decimal? @db.Decimal(6, 5)
-  scoreModelVersion String?
-  fusionEngine     String? // thin-file | origination | fused
-  decision         String? // APPROVE | REFER | DECLINE
-  reasonCodes      Json?
-  featuresSnapshot Json? // M-Pesa cashflow features (X)
+  score                  Int?
+  pd                     Decimal?          @db.Decimal(6, 5)
+  scoreModelVersion      String?
+  fusionEngine           String? // thin-file | origination | fused
+  decision               String? // APPROVE | REFER | DECLINE
+  reasonCodes            Json?
+  featuresSnapshot       Json? // M-Pesa cashflow features (X)
   /// The ceiling the limit engine derived at apply time (lib/lending/limits.ts):
   /// cashflow capacity × risk × the progressive-exposure ladder, inside product
   /// bounds. The amount requested was validated against it server-side.
-  approvedLimit    Decimal? @db.Decimal(18, 2)
-  consentId        String?
-  consent          Json? // application-time consent snapshot (versioned, IP-stamped)
-  consentVersion   String?
+  approvedLimit          Decimal?          @db.Decimal(18, 2)
+  consentId              String?
+  consent                Json? // application-time consent snapshot (versioned, IP-stamped)
+  consentVersion         String?
   // Fraud signal: a hash of the applying device's stable traits. The same
   // device applying as many different people is the classic ring pattern.
-  deviceFingerprint String?
+  deviceFingerprint      String?
 
   /// Whose application this is, and where it was taken. Stamped from the borrower at
   /// creation so the queue can be scoped without a join back through the borrower.
-  officerId String? // StaffUser.id
-  branchId  String?
+  officerId            String? // StaffUser.id
+  branchId             String?
   // Pay-to-institution products (§7 diversion control): the money goes to the
   // school's paybill, never the borrower's phone. Captured at application.
-  payeeName    String?
-  payeePaybill String?
-  payeeAccount String? // e.g. the student's admission number
+  payeeName            String?
+  payeePaybill         String?
+  payeeAccount         String? // e.g. the student's admission number
+  /// Additional-detail values captured on THIS application, keyed by item code —
+  /// the loan-scoped half of what `Borrower.details` holds for the person.
+  details              Json?
   // Consented one-time geo
-  lat             Float?
-  lng             Float?
-  locationType    String?
-  locationAddress String?
+  lat                  Float?
+  lng                  Float?
+  locationType         String?
+  locationAddress      String?
   // Bridged posting
-  postedToServiceSuite Boolean @default(false)
+  postedToServiceSuite Boolean   @default(false)
   serviceSuiteLoanId   String?
   postError            String?
   // Outcome label (y) — backfilled by the daily cron from the loan book
-  outcome           String    @default("PENDING") // PENDING | REPAID | DEFAULTED
-  outcomeObservedAt DateTime?
-  daysToDefault     Int?
-  decidedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  outcome              String    @default("PENDING") // PENDING | REPAID | DEFAULTED
+  outcomeObservedAt    DateTime?
+  daysToDefault        Int?
+  decidedAt            DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  org      Org        @relation(fields: [orgId], references: [id])
-  borrower Borrower   @relation(fields: [borrowerId], references: [id])
-  product  Product?   @relation(fields: [productId], references: [id])
+  org            Org             @relation(fields: [orgId], references: [id])
+  borrower       Borrower        @relation(fields: [borrowerId], references: [id])
+  product        Product?        @relation(fields: [productId], references: [id])
   productVersion ProductVersion? @relation(fields: [productVersionId], references: [id])
-  loan       Loan?
-  offer      LoanOffer?
-  guarantors Guarantor[]
+  loan           Loan?
+  offer          LoanOffer?
+  guarantors     Guarantor[]
 
   @@index([orgId, status])
   @@index([orgId, borrowerId])
@@ -955,14 +1040,14 @@ model LoanApplication {
 /// Every save is validated, clamped and written to the audit log — a scoring policy
 /// a lender cannot explain is a scoring policy a regulator will not accept.
 model TuningProfile {
-  id     String @id @default(uuid())
-  orgId  String @unique
+  id         String   @id @default(uuid())
+  orgId      String   @unique
   /// Points added per risk factor. See lib/intelligence/tuning.ts → Weights.
   weights    Json
   /// Band cut-offs and the thresholds the weights key off. → Thresholds.
   thresholds Json
   /// Bumped on every save, so a score can be traced to the policy that produced it.
-  version    Int    @default(1)
+  version    Int      @default(1)
   note       String?
   updatedBy  String?
   createdAt  DateTime @default(now())
@@ -1056,17 +1141,17 @@ model Guarantor {
   nationalId   String?
   relationship String? // "brother", "business partner", …
 
-  status GuarantorStatus @default(INVITED)
+  status           GuarantorStatus @default(INVITED)
   /// The exact agreement stood behind. Null until an offer exists to bind to.
-  offerTermsHash String?
+  offerTermsHash   String?
   /// Defaults to the whole repayable amount. A partial guarantee is a later feature.
-  amountGuaranteed Decimal? @db.Decimal(18, 2)
+  amountGuaranteed Decimal?        @db.Decimal(18, 2)
 
-  invitedAt  DateTime  @default(now())
-  invitedBy  String?
-  remindedAt DateTime?
-  consentedAt DateTime?
-  declinedAt  DateTime?
+  invitedAt        DateTime  @default(now())
+  invitedBy        String?
+  remindedAt       DateTime?
+  consentedAt      DateTime?
+  declinedAt       DateTime?
   /// Evidence of the signature: where from, on what, and which challenge proved possession.
   consentIp        String?
   consentUserAgent String?
@@ -1114,12 +1199,12 @@ model Collateral {
   loanId        String?
   borrowerId    String
 
-  kind             CollateralKind
-  description      String
-  estimatedValueKes Decimal       @db.Decimal(18, 2)
-  registrationRef  String? // logbook number, title deed, serial
+  kind              CollateralKind
+  description       String
+  estimatedValueKes Decimal        @db.Decimal(18, 2)
+  registrationRef   String? // logbook number, title deed, serial
   /// Proof — a logbook scan, a title deed — in the private documents bucket.
-  documentId       String?
+  documentId        String?
 
   status         CollateralStatus @default(REGISTERED)
   verifiedBy     String?
@@ -1188,9 +1273,9 @@ model LoanOffer {
   status    OfferStatus @default(OFFERED)
   expiresAt DateTime
 
-  acceptedAt DateTime?
-  declinedAt DateTime?
-  channel    OfferChannel?
+  acceptedAt        DateTime?
+  declinedAt        DateTime?
+  channel           OfferChannel?
   /// Evidence of the e-signature: where from, on what, and which challenge proved possession.
   acceptedIp        String?
   acceptedUserAgent String?
@@ -1220,37 +1305,37 @@ enum LoanStatus {
 }
 
 model Loan {
-  id            String     @id @default(uuid())
-  orgId         String
-  borrowerId    String
-  applicationId String?    @unique
-  productId     String
+  id                String     @id @default(uuid())
+  orgId             String
+  borrowerId        String
+  applicationId     String?    @unique
+  productId         String
   /// The exact product terms this loan was booked under. Null only for loans that
   /// predate versioning; every new booking stamps it.
-  productVersionId String?
-  principal     Decimal    @db.Decimal(18, 2)
-  interest      Decimal    @db.Decimal(18, 2)
-  loanAmount    Decimal    @db.Decimal(18, 2) // principal + interest (+fees)
-  balance       Decimal    @db.Decimal(18, 2)
-  status        LoanStatus @default(PENDING_DISBURSEMENT)
-  borrowDate    DateTime   @default(now())
+  productVersionId  String?
+  principal         Decimal    @db.Decimal(18, 2)
+  interest          Decimal    @db.Decimal(18, 2)
+  loanAmount        Decimal    @db.Decimal(18, 2) // principal + interest (+fees)
+  balance           Decimal    @db.Decimal(18, 2)
+  status            LoanStatus @default(PENDING_DISBURSEMENT)
+  borrowDate        DateTime   @default(now())
   expectedClearDate DateTime?
-  disbursedAt   DateTime?
-  clearedAt     DateTime?
-  createdBy     String? // StaffUser.id — the officer whose book this loan is on
+  disbursedAt       DateTime?
+  clearedAt         DateTime?
+  createdBy         String? // StaffUser.id — the officer whose book this loan is on
   /// The branch that owns this loan. Frozen at booking: a loan does not move branch
   /// because an officer transferred.
-  branchId      String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  branchId          String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
-  org          Org              @relation(fields: [orgId], references: [id])
-  borrower     Borrower         @relation(fields: [borrowerId], references: [id])
-  product      Product          @relation(fields: [productId], references: [id])
-  productVersion ProductVersion? @relation(fields: [productVersionId], references: [id])
-  application  LoanApplication? @relation(fields: [applicationId], references: [id])
-  installments Installment[]
-  disbursement Disbursement?
+  org            Org              @relation(fields: [orgId], references: [id])
+  borrower       Borrower         @relation(fields: [borrowerId], references: [id])
+  product        Product          @relation(fields: [productId], references: [id])
+  productVersion ProductVersion?  @relation(fields: [productVersionId], references: [id])
+  application    LoanApplication? @relation(fields: [applicationId], references: [id])
+  installments   Installment[]
+  disbursement   Disbursement?
   standingOrders StandingOrder[]
 
   @@index([orgId, status])
@@ -1293,35 +1378,35 @@ model Installment {
 // Ratiba callback. See src/lib/mpesa/ratiba.ts.
 
 enum StandingOrderStatus {
-  PENDING   // created; awaiting the customer's authorization on their handset
-  ACTIVE    // authorized — Safaricom debits on the frequency
+  PENDING // created; awaiting the customer's authorization on their handset
+  ACTIVE // authorized — Safaricom debits on the frequency
   CANCELLED // stopped by the customer or the lender
-  FAILED    // Safaricom rejected it, or the customer declined
+  FAILED // Safaricom rejected it, or the customer declined
 }
 
 model StandingOrder {
-  id         String  @id @default(uuid())
-  orgId      String
-  borrowerId String
-  loanId     String?
-  phone      String
-  amount     Decimal @db.Decimal(18, 2)
+  id          String              @id @default(uuid())
+  orgId       String
+  borrowerId  String
+  loanId      String?
+  phone       String
+  amount      Decimal             @db.Decimal(18, 2)
   /// WEEKLY | MONTHLY | ONCE | … — mapped to Ratiba's numeric frequency in ratiba.ts.
-  frequency  String
-  startDate  DateTime
-  endDate    DateTime?
-  reference  String
-  name       String
-  status     StandingOrderStatus @default(PENDING)
+  frequency   String
+  startDate   DateTime
+  endDate     DateTime?
+  reference   String
+  name        String
+  status      StandingOrderStatus @default(PENDING)
   /// Safaricom's standing-order id once it exists; null while pending or simulated.
   externalRef String?
   /// True when there were no Daraja credentials and the flow was simulated end to end.
-  simulated  Boolean @default(false)
-  raw        Json?
+  simulated   Boolean             @default(false)
+  raw         Json?
   /// StaffUser.id when an officer set it up; null when the customer did it themselves.
   createdById String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   org      Org      @relation(fields: [orgId], references: [id])
   borrower Borrower @relation(fields: [borrowerId], references: [id])
@@ -1345,25 +1430,25 @@ enum DisbursementState {
 }
 
 model Disbursement {
-  id        String            @id @default(uuid())
-  orgId     String
-  loanId    String            @unique
-  amount    Decimal           @db.Decimal(18, 2)
-  phone     String
-  state     DisbursementState @default(PENDING_MAKER)
-  makerId   String?
-  checkerId String?
-  b2cRef    String? // Daraja conversation/originator id
-  receiptRef String? // M-Pesa receipt (or manual ref)
+  id           String            @id @default(uuid())
+  orgId        String
+  loanId       String            @unique
+  amount       Decimal           @db.Decimal(18, 2)
+  phone        String
+  state        DisbursementState @default(PENDING_MAKER)
+  makerId      String?
+  checkerId    String?
+  b2cRef       String? // Daraja conversation/originator id
+  receiptRef   String? // M-Pesa receipt (or manual ref)
   // TO_THIRD_PARTY: who actually gets paid (frozen from the application at
   // booking). B2C to the borrower's phone is REFUSED when these are set.
   payeeName    String?
   payeePaybill String?
   payeeAccount String?
-  raw       Json?
-  failReason String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  raw          Json?
+  failReason   String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   loan Loan @relation(fields: [loanId], references: [id])
 
@@ -1489,9 +1574,9 @@ model RiriMessage {
   engine    String?
   engineWhy String?
   /// The analyst's own route (catalog | llm | engine | narrative | refused).
-  route String?
+  route     String?
   /// The exact statement that ran, when one did.
-  sql String?
+  sql       String?
 
   /// Chips, series, table, actions and suggestions — the structured half of an
   /// answer, kept as one blob because it is rendered, never queried.
@@ -1580,8 +1665,8 @@ model GraduationEvent {
   increase      Decimal @db.Decimal(18, 2)
 
   /// The behavioural score (0–100) and the band it fell in.
-  riskScore Float
-  riskBand  String
+  riskScore             Float
+  riskBand              String
   /// The two halves, kept separately — "they always pay, but always late" is a
   /// completely different customer from "they pay on time but rarely in full", and a
   /// blended score cannot tell you which one you graduated.
@@ -1632,14 +1717,31 @@ model Charge {
   id    String @id @default(uuid())
   orgId String
 
-  name String /// "Registration fee"
+  name        String /// "Registration fee"
   /// Short, stable, used as the M-Pesa AccountReference. Uppercase, no spaces.
-  code String
+  code        String
   description String?
 
-  /// A flat amount, or a percentage of the loan principal when `percentOf` is set.
-  amount    Decimal  @db.Decimal(18, 2)
-  isPercent Boolean  @default(false)
+  /// A flat amount, or a percentage of `percentOf` when `isPercent`.
+  amount    Decimal @db.Decimal(18, 2)
+  isPercent Boolean @default(false)
+
+  /// WHAT THE PERCENTAGE IS OF — ServiceSuite's "Percentage Reference".
+  ///
+  /// A 6% processing fee is a completely different price depending on whether the
+  /// six per cent is taken on the principal, on principal+interest, or on each
+  /// instalment, and their model leaves it to a `FeeRef` integer whose meaning lives
+  /// in a Razor <option> list. Ignored for flat fees, where the amount is the answer.
+  percentOf String @default("principal") // principal | principal_interest | instalment | outstanding_balance
+
+  /// Always charged, or offered for the applicant/officer to include.
+  /// ServiceSuite's ProductFees.IsMandatory.
+  isMandatory Boolean @default(true)
+
+  /// The income account this fee posts to in the journal (ServiceSuite JlAccount).
+  /// Free text rather than a relation: a lender's chart of accounts is theirs, and
+  /// most of them are mirroring a code from a general ledger we do not own.
+  glAccount String?
 
   /// Floor and ceiling for a PERCENTAGE fee (ServiceSuite ProductFees.Min/MaxValue).
   /// Micromart's school-fee product charges 5% but never less than 1,000 nor more
@@ -1707,20 +1809,20 @@ enum SavingsDirection {
 /// updated once written; a correction is a new, opposite row. `balanceAfter` freezes the
 /// running total at the moment of the entry so the statement is reproducible.
 model SavingsTransaction {
-  id         String           @id @default(uuid())
-  orgId      String
-  accountId  String
-  borrowerId String
-  direction  SavingsDirection
-  amount     Decimal          @db.Decimal(18, 2)
-  balanceAfter Decimal        @db.Decimal(18, 2)
+  id           String           @id @default(uuid())
+  orgId        String
+  accountId    String
+  borrowerId   String
+  direction    SavingsDirection
+  amount       Decimal          @db.Decimal(18, 2)
+  balanceAfter Decimal          @db.Decimal(18, 2)
   /// deposit | withdrawal | loan_offset_remainder | charge_sweep | adjustment
-  source     String
+  source       String
   /// The M-Pesa receipt or PaymentIntent id that brought the money, when there was one.
-  ref        String?
-  note       String?
-  createdById String? // staff actor on manual entries; null for automated
-  createdAt  DateTime         @default(now())
+  ref          String?
+  note         String?
+  createdById  String? // staff actor on manual entries; null for automated
+  createdAt    DateTime         @default(now())
 
   org     Org            @relation(fields: [orgId], references: [id])
   account SavingsAccount @relation(fields: [accountId], references: [id])
@@ -1755,20 +1857,20 @@ model PaymentIntent {
 
   /// What it is for, who it is for, and who asked — the three things that let a
   /// receipt land in the right place without anybody having to work it out later.
-  purpose     PaymentPurpose    @default(INSTALLMENT)
-  chargeId    String?
-  borrowerId  String?
-  beneficiary ChargeBeneficiary @default(LENDER)
+  purpose       PaymentPurpose    @default(INSTALLMENT)
+  chargeId      String?
+  borrowerId    String?
+  beneficiary   ChargeBeneficiary @default(LENDER)
   /// The M-Pesa AccountReference actually sent. Also how an unprompted C2B payment
   /// with the same reference finds its way home.
-  reference   String?
+  reference     String?
   /// Which surface it was raised from: c360 | collections | counter | field | portal | funnel.
-  channel     String?
+  channel       String?
   /// StaffUser.id of whoever pressed the button. Null when the customer paid themselves.
   requestedById String?
   /// Set once the money has been applied (installment allocated, fee recorded), so a
   /// duplicate callback cannot bank the same shilling twice.
-  settledAt   DateTime?
+  settledAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1783,16 +1885,16 @@ model PaymentIntent {
 
 /// Paybill C2B confirmations (webhooks) — allocation to schedule is a job.
 model C2BReceipt {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   orgId           String
   transId         String
-  amount          Decimal  @db.Decimal(18, 2)
+  amount          Decimal   @db.Decimal(18, 2)
   phone           String?
   billRef         String? // account number the payer typed
   allocatedLoanId String?
   allocatedAt     DateTime?
   raw             Json?
-  createdAt       DateTime @default(now())
+  createdAt       DateTime  @default(now())
 
   @@unique([orgId, transId])
   @@index([orgId, allocatedLoanId])
@@ -1980,17 +2082,17 @@ enum SmsState {
 }
 
 model SmsMessage {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   orgId       String
   phone       String
   message     String
   templateKey String? // otp | app_received | approved | disbursed | payment | reminder | arrears
-  state       SmsState @default(QUEUED)
+  state       SmsState  @default(QUEUED)
   provider    String?
   providerRef String?
-  cost        Decimal? @db.Decimal(9, 4)
+  cost        Decimal?  @db.Decimal(9, 4)
   sentAt      DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   @@index([orgId, state, createdAt])
 }
@@ -2099,25 +2201,25 @@ model SmsTopUp {
 // ── Intelligence & metering ──────────────────────────────────────────────────
 
 model ScoreSnapshot {
-  id            String   @id @default(uuid())
-  orgId         String
-  borrowerId    String?
-  applicationId String?
+  id                     String    @id @default(uuid())
+  orgId                  String
+  borrowerId             String?
+  applicationId          String?
   serviceSuiteBorrowerId Int? // bridged-mode borrower link (outcome backfill)
   serviceSuiteLoanId     String?
-  modelKind     String // thin-file | origination-v2 | pooled-v3 | behavioral-v1 | fused
-  modelVersion  String
-  score         Int?
-  pd            Decimal? @db.Decimal(6, 5)
-  riskBand      String?
-  features      Json?
-  reasons       Json?
-  loanContextAmount Decimal? @db.Decimal(18, 2)
+  modelKind              String // thin-file | origination-v2 | pooled-v3 | behavioral-v1 | fused
+  modelVersion           String
+  score                  Int?
+  pd                     Decimal?  @db.Decimal(6, 5)
+  riskBand               String?
+  features               Json?
+  reasons                Json?
+  loanContextAmount      Decimal?  @db.Decimal(18, 2)
   // Outcome label (y) — backfilled like LoanApplication
-  outcome           String    @default("PENDING")
-  outcomeObservedAt DateTime?
-  capturedBy    String? // apply | batch | hook
-  createdAt     DateTime @default(now())
+  outcome                String    @default("PENDING")
+  outcomeObservedAt      DateTime?
+  capturedBy             String? // apply | batch | hook
+  createdAt              DateTime  @default(now())
 
   @@index([orgId, borrowerId])
   @@index([orgId, modelKind, createdAt])
@@ -2163,21 +2265,21 @@ model PortfolioRun {
 }
 
 model GeoPin {
-  id            String   @id @default(uuid())
-  orgId         String
-  borrowerId    String?
-  applicationId String?
-  label         String
-  lat           Float
-  lng           Float
+  id             String   @id @default(uuid())
+  orgId          String
+  borrowerId     String?
+  applicationId  String?
+  label          String
+  lat            Float
+  lng            Float
   accuracyMeters Int?
-  locationType  String? // business | home
-  address       String?
-  phone         String?
-  source        String   @default("self-onboard") // self-onboard | ro-visit
-  note          String?
-  capturedBy    String?
-  createdAt     DateTime @default(now())
+  locationType   String? // business | home
+  address        String?
+  phone          String?
+  source         String   @default("self-onboard") // self-onboard | ro-visit
+  note           String?
+  capturedBy     String?
+  createdAt      DateTime @default(now())
 
   @@index([orgId])
 }
@@ -2200,14 +2302,14 @@ model MetricDefinition {
   metricId String
 
   /// What this lender calls it. Null = the catalogue's own label.
-  label String?
+  label    String?
   /// Extra words their staff use for it. Riri routes on these too.
   synonyms String[] @default([])
   /// A metric switched off is never quoted, routed to, or offered as a suggestion.
-  enabled Boolean @default(true)
+  enabled  Boolean  @default(true)
 
   /// The number they hold themselves to, in the metric's own unit (PAR 30 ≤ 5).
-  target Float?
+  target          Float?
   /// Which side of the target is good: "below" | "above".
   targetDirection String?
 
@@ -2246,10 +2348,10 @@ model RiriQueryLog {
   metricId String?
 
   /// The exact statement that ran, as the lender was shown it. Null when none did.
-  sql  String?
-  rows Int?
-  ms   Int?
-  ok   Boolean @default(true)
+  sql   String?
+  rows  Int?
+  ms    Int?
+  ok    Boolean @default(true)
   /// The guard's reason, or the database's error, verbatim. Never paraphrased.
   error String?
 
@@ -2307,9 +2409,9 @@ model Invoice {
   totalKes   Decimal @db.Decimal(18, 2)
   currency   String  @default("KES")
 
-  status   InvoiceStatus @default(ISSUED)
-  issuedAt DateTime      @default(now())
-  paidAt   DateTime?
+  status       InvoiceStatus @default(ISSUED)
+  issuedAt     DateTime      @default(now())
+  paidAt       DateTime?
   /// Hub PaymentIntent / receipt, once the wallet settles it.
   hubReference String?
 
@@ -2329,12 +2431,12 @@ model InvoiceLine {
   invoiceId String
 
   /// "subscription", or a UsageKind.
-  kind  String
-  label String
+  kind        String
+  label       String
   /// Units billed on this line (already net of the included allowance).
   qty         Int
   /// How many of this kind the plan covered for free. Shown, never charged.
-  includedQty Int @default(0)
+  includedQty Int     @default(0)
   /// The price as charged. A month with a mid-period reprice yields two lines.
   unitCostKes Decimal @db.Decimal(9, 4)
   amountKes   Decimal @db.Decimal(18, 2)
@@ -2361,11 +2463,11 @@ model OrgSubscription {
   currentPeriodEnd   DateTime
 
   /// Grant/revoke individual features regardless of plan: { "early_warning": true }
-  featureOverrides Json?
+  featureOverrides  Json?
   /// Raise included monthly quotas: { "crb": 200 }
   includedOverrides Json?
   /// Override the plan's staff-seat cap. Null = use the plan's.
-  seatsOverride Int?
+  seatsOverride     Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2571,8 +2673,8 @@ enum DeskMirrorState {
 
 /// One thing an agent did, on one case, at one moment.
 model DeskInteraction {
-  id     String @id @default(uuid())
-  orgId  String
+  id    String @id @default(uuid())
+  orgId String
 
   /// ServiceSuite's entity — 3002 (main book) or 3005 (Fintech). An identity
   /// boundary, not a label: the same loan id in each is a different loan.
@@ -2583,7 +2685,7 @@ model DeskInteraction {
   subjectName    String?
   subjectPhone   String?
 
-  kind        DeskInteractionKind
+  kind          DeskInteractionKind
   /// CollectBox.dbo.PaymentResponse.ID for CALL rows — their vocabulary, not ours.
   dispositionId Int?
   /// CollectBox.dbo.LoanCategories.ID — which queue the case was in when worked.
@@ -2594,8 +2696,8 @@ model DeskInteraction {
 
   /// Money committed (PTP) or referenced. Never money received — receipts are
   /// CollectBox's `PayedAmount` and are read, never written.
-  amount   Decimal?  @db.Decimal(18, 2)
-  dueDate  DateTime?
+  amount  Decimal?  @db.Decimal(18, 2)
+  dueDate DateTime?
 
   /// Who did it, in both vocabularies — our staff row, and the CollectBox agent
   /// id every collections fact on their side is keyed by.
@@ -2631,9 +2733,9 @@ model DeskInteraction {
 /// money and calls; this records PRESENCE, which CollectBox does not model at all
 /// (`UserMaster.LastLogin` is null for every agent on the live floor).
 model DeskShift {
-  id      String @id @default(uuid())
-  orgId   String
-  agentId Int
+  id        String @id @default(uuid())
+  orgId     String
+  agentId   Int
   agentName String
 
   startedAt DateTime  @default(now())
