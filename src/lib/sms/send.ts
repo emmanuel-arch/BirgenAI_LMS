@@ -20,6 +20,7 @@ import { meter } from "@/lib/billing/meter";
 import { getIntegration, type SmsConfig } from "@/lib/vault/integrations";
 import { normalizeMsisdn } from "@/lib/mpesa/daraja";
 import { fundSms, refundSmsCredit, type SmsFunding } from "./wallet";
+import { serviceSuiteOutbox, sendViaServiceSuite, type ServiceSuiteSmsTarget } from "./servicesuite";
 
 // Built-in transactional templates ({placeholders} substituted from vars).
 // Orgs override per key via the SmsTemplate table.
@@ -122,17 +123,49 @@ type ResolvedProvider = {
   cfg: SmsConfig;
   /** True when the message rides OUR Africa's Talking account — the only case that spends credits. */
   platform: boolean;
+  /** What to record on the row. Not always cfg.provider — the suite has no SmsConfig. */
+  providerName: string;
+  /** Set when the message rides the LENDER'S OWN ServiceSuite outbox. */
+  suite?: ServiceSuiteSmsTarget;
 };
 
+// ── RESOLUTION ORDER, AND WHY THE SUITE SITS WHERE IT DOES ──────────────────
+//   1. the org's own vault config    — a human configured this, for this org
+//   2. the org's ServiceSuite outbox — their book, their sender id
+//   3. our platform Africa's Talking — the shared account, our sender id
+//
+// (2) is NEW and it is deliberately ahead of (3). A bridged lender writing into
+// their own Notifications.dbo.SMS gets messages that arrive under THEIR
+// registered sender id, which is the only version a borrower can safely trust:
+// a verification code from a name the customer has never dealt with is
+// indistinguishable from a phishing attempt.
+//
+// (1) still outranks it, because an explicit configuration is a decision and
+// this is an inference. (3) remains the last resort for native lenders and for
+// bridged ones whose relay is not armed for writes.
 async function providerFor(orgId: string): Promise<ResolvedProvider | null> {
   const vault = await getIntegration(orgId, "SMS");
-  if (vault?.apiKey) return { cfg: vault, platform: false };
+  if (vault?.apiKey) return { cfg: vault, platform: false, providerName: vault.provider };
+
+  const suite = await serviceSuiteOutbox(orgId);
+  if (suite) {
+    return {
+      // A placeholder config: the suite needs no credentials from us, because the
+      // credentials live with the entity at the far end. Nothing reads these.
+      cfg: { provider: "custom", apiKey: "", endpoint: "servicesuite" },
+      platform: false,
+      providerName: "servicesuite",
+      suite,
+    };
+  }
+
   const apiKey = process.env.AFRICASTALKING_API_KEY?.trim();
   const username = process.env.AFRICASTALKING_USERNAME?.trim();
   if (apiKey && username) {
     return {
       cfg: { provider: "africastalking", apiKey, username, senderId: process.env.AFRICASTALKING_SENDER_ID?.trim() },
       platform: true,
+      providerName: "africastalking",
     };
   }
   return null;
@@ -189,14 +222,19 @@ type QueuedRow = { id: string; orgId: string; phone: string; message: string; te
  */
 async function dispatchRow(row: QueuedRow, resolved: ResolvedProvider, funding: SmsFunding): Promise<boolean> {
   try {
-    const sent = resolved.cfg.provider === "africastalking"
-      ? await sendViaAfricasTalking(resolved.cfg, row.phone, row.message)
-      : { ok: false, providerRef: null, cost: null, error: `Provider ${resolved.cfg.provider} not implemented yet` };
+    const sent = resolved.suite
+      // The lender's own outbox. "ok" means their queue accepted the row, which
+      // is the same guarantee their console gives their own operators — not a
+      // handset receipt.
+      ? await sendViaServiceSuite(resolved.suite, row.phone, row.message)
+      : resolved.cfg.provider === "africastalking"
+        ? await sendViaAfricasTalking(resolved.cfg, row.phone, row.message)
+        : { ok: false, providerRef: null, cost: null, error: `Provider ${resolved.cfg.provider} not implemented yet` };
     await prisma.smsMessage.update({
       where: { id: row.id },
       data: {
         state: sent.ok ? "SENT" : "FAILED",
-        provider: resolved.cfg.provider,
+        provider: resolved.providerName,
         providerRef: sent.providerRef,
         cost: sent.cost ?? undefined,
         sentAt: sent.ok ? new Date() : null,
@@ -211,7 +249,7 @@ async function dispatchRow(row: QueuedRow, resolved: ResolvedProvider, funding: 
     if (funding === "credit" || funding === "overdraft") await refundSmsCredit(row.orgId);
     return false;
   } catch {
-    await prisma.smsMessage.update({ where: { id: row.id }, data: { state: "FAILED", provider: resolved.cfg.provider } }).catch(() => {});
+    await prisma.smsMessage.update({ where: { id: row.id }, data: { state: "FAILED", provider: resolved.providerName } }).catch(() => {});
     if (funding === "credit" || funding === "overdraft") await refundSmsCredit(row.orgId);
     return false;
   }

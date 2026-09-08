@@ -31,7 +31,22 @@ export type ResolvedOrg = {
 };
 
 export async function resolveOrg(slug: string): Promise<ResolvedOrg | null> {
-  const s = (slug ?? "").trim().toLowerCase();
+  // ── A BLANK SLUG IS A CLIENT BUG, AND IT REACHED PRODUCTION ────────────────
+  // Twelve borrower routes resolve the lender from the request body. The build
+  // on portal.servicesuitecloud.com sends `lenderSlug: ""` — Vite inlined an
+  // env var that was set but empty, and the client's `??` default never fired —
+  // so every one of those routes answered 400 "Choose a lender" to real
+  // customers.
+  //
+  // Fixing the client is necessary and is done. This is the second half: a
+  // deployment that serves ONE lender should not be taken down by a stale
+  // bundle. PORTAL_DEFAULT_LENDER_SLUG names the lender this deployment stands
+  // for, and a blank slug resolves to it. Leave it unset on a genuinely
+  // multi-tenant deployment and the old strict behaviour returns.
+  //
+  // It is deliberately a FALLBACK, not an override: a request that names a
+  // lender still gets that lender, so this cannot silently cross books.
+  const s = ((slug ?? "").trim() || (process.env.PORTAL_DEFAULT_LENDER_SLUG ?? "").trim()).toLowerCase();
   if (!s) return null;
   // The Org registry is the one table with no orgId of its own, and we must read
   // it BEFORE we know which tenant we are — a chicken-and-egg the platform scope
