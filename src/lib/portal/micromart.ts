@@ -144,7 +144,13 @@ export async function micromartSignIn(
 
   // Nothing matched. Was that an answer, or was it silence?
   if (!results.some((r) => r.reachable)) return { kind: "unreachable" };
-  const message = results.find((r) => !r.ok && r.message)?.message ?? "";
+
+  // `.filter` with a type predicate, not `.find` with a boolean one: a boolean
+  // predicate narrows `r` INSIDE the callback but hands back the un-narrowed
+  // union, so reading `.message` off the result is a type error even though the
+  // callback just proved the property is there. Same shape as `hits` above.
+  const refusals = results.filter((r): r is Extract<Attempt, { ok: false }> => !r.ok);
+  const message = refusals.find((r) => r.message)?.message ?? "";
   return { kind: "none", message };
 }
 
