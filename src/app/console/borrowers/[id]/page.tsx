@@ -60,6 +60,7 @@ import { getBorrowerAttachmentsLive, type LiveAttachment } from "@/lib/lms/servi
 import { CustomerTimeline, type TimelineEvent } from "./CustomerTimeline";
 import { Customer360Workspace, type Section } from "./Customer360Workspace";
 import { readLiveCustomer360 } from "@/lib/lms/customer360";
+import { micromartLadder } from "@/lib/portal/micromart-ladder";
 import { readMasterFile } from "@/lib/lms/master-file";
 import { MasterFilePanel, masterFileBadge } from "./MasterFilePanel";
 import {
@@ -224,10 +225,57 @@ export default async function Customer360({ params }: { params: Promise<{ id: st
     prisma.staffUser.findMany({ where: { orgId }, select: { id: true, firstName: true, otherName: true } }),
     prisma.loanApplication.findMany({ where: { orgId, borrowerId: id }, select: { id: true, status: true, decision: true, amountRequested: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 20 }),
   ]);
+  // ── THE LENDER'S OWN LIMIT HISTORY ──────────────────────────────────────────
+  // GraduationEvent above is OUR cron's table, and it is empty for every bridged
+  // customer — so a Micromart borrower's timeline showed no limit movement at
+  // all, on the screen an officer opens to ask why a limit is what it is. Their
+  // ladder is in their own book.
+  //
+  // This uses the very same reader the customer's app uses, deliberately: if the
+  // two sides collapsed the lender's repeated rows differently, staff and
+  // customer would be looking at different ladders while talking to each other
+  // on the phone. Best-effort like every other live read — absent rather than
+  // fatal, because a slow relay must not take the customer off the screen.
+  const bridgedRungs =
+    live && org?.registry
+      ? await micromartLadder({
+          org: org.registry,
+          entityId: org.entityId,
+          borrowerId: live.profile.borrowerId,
+          max: 20,
+        })
+          .then((r) => (r.ok ? r.ladder.rungs : []))
+          .catch(() => [])
+      : [];
+
   const staffNm = new Map(staffRows.map((s) => [s.id, `${s.firstName ?? ""} ${s.otherName ?? ""}`.trim() || "Staff"]));
   const kesT = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
   const timeline: TimelineEvent[] = [];
-  for (const g of gradEvents) timeline.push({ id: `g-${g.id}`, kind: "limit", at: g.createdAt.toISOString(), title: `Limit raised to ${kesT(Number(g.newLimit))}`, detail: `from ${kesT(Number(g.previousLimit))} · ${g.riskBand} ${Math.round(g.riskScore)}/100`, actor: g.decidedBy === "cron" ? "graduation engine" : (g.decidedBy ? staffNm.get(g.decidedBy) ?? null : null), tone: "up" });
+  // "Limit raised" was written on every row including the ones that fell — the
+  // engine lowers limits too, and an officer reading "raised to 4,600" beside a
+  // drop is being told the opposite of what happened.
+  for (const g of gradEvents) {
+    const fell = Number(g.newLimit) < Number(g.previousLimit);
+    timeline.push({ id: `g-${g.id}`, kind: "limit", at: g.createdAt.toISOString(), title: `${fell ? "Limit lowered" : "Limit raised"} to ${kesT(Number(g.newLimit))}`, detail: `from ${kesT(Number(g.previousLimit))} · ${g.riskBand} ${Math.round(g.riskScore)}/100`, actor: g.decidedBy === "cron" ? "graduation engine" : (g.decidedBy ? staffNm.get(g.decidedBy) ?? null : null), tone: fell ? "down" : "up" });
+  }
+  for (const g of bridgedRungs) {
+    const fell = g.direction === "down";
+    timeline.push({
+      id: `bg-${g.id}`,
+      kind: "limit",
+      at: g.at,
+      title: `${fell ? "Limit lowered" : "Limit raised"} to ${kesT(g.newLimit)}`,
+      detail: [
+        `from ${kesT(g.previousLimit)}`,
+        g.riskBand,
+        g.graduationPercent != null ? `${g.graduationPercent}%` : null,
+        g.clearedLoans ? `${g.clearedLoans} cleared` : null,
+      ].filter(Boolean).join(" · "),
+      // Named for what it is, so nobody mistakes it for our engine's decision.
+      actor: `${org?.name ?? "lender"} graduation engine`,
+      tone: fell ? "down" : "up",
+    });
+  }
   for (const s of scores) timeline.push({ id: `s-${s.id}`, kind: "score", at: s.createdAt.toISOString(), title: `Scored ${s.score ?? "—"}${s.riskBand ? ` (${s.riskBand})` : ""}`, detail: `${s.modelKind} · ${s.modelVersion}`, actor: s.capturedBy ?? null });
   for (const a of apps) timeline.push({ id: `a-${a.id}`, kind: "approval", at: a.createdAt.toISOString(), title: `Application ${a.status.replace(/_/g, " ").toLowerCase()}`, detail: `${kesT(Number(a.amountRequested))}${a.decision ? ` · ${a.decision}` : ""}` });
   for (const c of calls) timeline.push({ id: `c-${c.id}`, kind: "interaction", at: c.createdAt.toISOString(), title: `Call — ${c.outcome.replace(/_/g, " ").toLowerCase()}`, detail: c.note, actor: staffNm.get(c.createdBy) ?? null });

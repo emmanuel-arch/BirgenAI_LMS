@@ -41,6 +41,7 @@ import {
   ArrowRight, KeyRound, Loader2, Lock, Mail, ShieldCheck, TriangleAlert, UserRound,
 } from "lucide-react";
 import CodeInput from "@/components/auth/CodeInput";
+import { useTheme } from "@/lib/theme/useTheme";
 
 type Mode = "sso" | "credentials" | "otp";
 
@@ -67,6 +68,7 @@ export default function SuiteDoorForm({
    */
   orgSlug: string | null;
 }) {
+  const { resolved } = useTheme();
   const [mode, setMode] = useState<Mode>(who ? "sso" : "credentials");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -127,12 +129,12 @@ export default function SuiteDoorForm({
     }
   };
 
-  const field = "flex items-center gap-2.5 rounded-xl border border-white/[0.12] bg-paper/[0.06] px-3.5 transition-colors focus-within:border-[color:var(--brand)] focus-within:bg-paper/[0.09]";
-  const input = "flex-1 bg-transparent py-3 text-[14px] text-white outline-none placeholder:text-white/35";
+  const field = "flex items-center gap-2.5 rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--canvas-bg)] px-3.5 transition-colors focus-within:border-[color:var(--brand)] focus-within:bg-[color:var(--paper)]";
+  const input = "flex-1 bg-transparent py-3 text-[14px] text-[color:var(--ink)] outline-none placeholder:text-[color:var(--ink-faint)]";
   const primary = "flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-[13.5px] font-bold text-white transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:hover:scale-100";
 
   return (
-    <div style={vars} className="rounded-2xl border border-white/[0.10] bg-paper/[0.05] p-4 backdrop-blur-xl">
+    <div style={vars} className="rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--panel-bg)] p-4 backdrop-blur-xl">
       {/* ── Already signed in: one button, their own name on it ───────────── */}
       {mode === "sso" && who && (
         <>
@@ -160,20 +162,20 @@ export default function SuiteDoorForm({
             <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
 
-          <p className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-[11px] text-white/40">
+          <p className="mt-2.5 flex items-center justify-center gap-1.5 text-center text-[11px] text-[color:var(--ink-muted)]">
             <KeyRound className="h-3 w-3" /> No password — one identity, every system you hold.
           </p>
 
           <div className="mt-3.5 flex items-center gap-3">
-            <span className="h-px flex-1 bg-paper/[0.09]" />
-            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/25">or</span>
-            <span className="h-px flex-1 bg-paper/[0.09]" />
+            <span className="h-px flex-1 bg-[color:var(--panel-border)]" />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--ink-faint)]">or</span>
+            <span className="h-px flex-1 bg-[color:var(--panel-border)]" />
           </div>
 
           <button
             type="button"
             onClick={() => { setMode("credentials"); setError(null); setNotice(null); }}
-            className="mt-3 w-full rounded-xl border border-white/[0.12] bg-paper/[0.04] px-4 py-2.5 text-[12.5px] font-semibold text-white/70 transition-colors hover:bg-paper/[0.08] hover:text-white"
+            className="mt-3 w-full rounded-xl border border-[color:var(--panel-border)] bg-[color:var(--panel-bg)] px-4 py-2.5 text-[12.5px] font-semibold text-[color:var(--ink-body)] transition-colors hover:bg-[color:var(--canvas-bg)] hover:text-[color:var(--ink)]"
           >
             Sign in as someone else
           </button>
@@ -186,12 +188,12 @@ export default function SuiteDoorForm({
           onSubmit={(e) => { e.preventDefault(); void submit(); }}
           className="space-y-2.5"
         >
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--ink-muted)]">
             {systemName} · staff access
           </p>
 
           <label className={field}>
-            <Mail className="h-4 w-4 shrink-0 text-white/35" />
+            <Mail className="h-4 w-4 shrink-0 text-[color:var(--ink-faint)]" />
             <input
               type="email"
               autoComplete="username"
@@ -205,7 +207,7 @@ export default function SuiteDoorForm({
           </label>
 
           <label className={field}>
-            <Lock className="h-4 w-4 shrink-0 text-white/35" />
+            <Lock className="h-4 w-4 shrink-0 text-[color:var(--ink-faint)]" />
             <input
               type="password"
               autoComplete="current-password"
@@ -223,14 +225,14 @@ export default function SuiteDoorForm({
           </button>
 
           <div className="flex items-center justify-between pt-1">
-            <Link href="/login" className="text-[11px] text-white/40 transition-colors hover:text-white/75">
+            <Link href="/login" className="text-[11px] text-[color:var(--ink-muted)] transition-colors hover:text-[color:var(--ink)]">
               Forgot your password?
             </Link>
             {who && (
               <button
                 type="button"
                 onClick={() => { setMode("sso"); setError(null); }}
-                className="text-[11px] text-white/40 transition-colors hover:text-white/75"
+                className="text-[11px] text-[color:var(--ink-muted)] transition-colors hover:text-[color:var(--ink)]"
               >
                 Back to {firstName ?? "your account"}
               </button>
@@ -242,12 +244,17 @@ export default function SuiteDoorForm({
       {/* ── Today's code ───────────────────────────────────────────────────── */}
       {mode === "otp" && (
         <div className="space-y-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">Enter today&rsquo;s code</p>
-          <p className="text-[12px] leading-relaxed text-white/55">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[color:var(--ink-muted)]">Enter today&rsquo;s code</p>
+          <p className="text-[12px] leading-relaxed text-[color:var(--ink-body)]">
             {notice ?? "Use today's code from your inbox — it works until midnight."}
           </p>
           <CodeInput
-            tone="dark"
+            // The one control in this form that cannot be driven by tokens: it
+            // draws six boxes with their own borders and carets, and it takes a
+            // tone rather than reading the theme itself. Passing the resolved
+            // theme keeps it in step with everything around it — the door is no
+            // longer dark-only.
+            tone={resolved}
             value={otp}
             onChange={setOtp}
             onComplete={(code) => void submit(code)}
@@ -266,7 +273,7 @@ export default function SuiteDoorForm({
           <button
             type="button"
             onClick={() => { setMode("credentials"); setOtp(""); setError(null); setNotice(null); }}
-            className="w-full text-center text-[11px] text-white/40 transition-colors hover:text-white/75"
+            className="w-full text-center text-[11px] text-[color:var(--ink-muted)] transition-colors hover:text-[color:var(--ink)]"
           >
             Use a different account
           </button>
@@ -274,7 +281,7 @@ export default function SuiteDoorForm({
       )}
 
       {error && (
-        <p className="mt-3 flex items-start gap-1.5 rounded-xl bg-rose-500/12 px-3 py-2 text-[11.5px] leading-snug text-rose-200 ring-1 ring-rose-400/25">
+        <p className="mt-3 flex items-start gap-1.5 rounded-xl bg-rose-500/10 px-3 py-2 text-[11.5px] leading-snug text-rose-700 ring-1 ring-rose-500/25 [[data-theme=dark]_&]:text-rose-200">
           <TriangleAlert className="mt-px h-3.5 w-3.5 shrink-0" /> {error}
         </p>
       )}

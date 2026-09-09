@@ -64,3 +64,14 @@ sp_sp_*.sql
 *.tmp.*
 diag.*
 probe.tmp.*
+
+# Media originals. `npm run media:archive` moves every downloaded JPEG/PNG here
+# after encoding, so public/ holds only what ships. 37 MB of source photography
+# does not belong in git history; the encoded WebP in public/ IS committed.
+media-src/
+
+# Executables are never part of a web build. public/nana.exe was 229 MB and
+# GitHub rejects any blob over 100 MB, so a single commit containing it made the
+# whole push fail. It is also served at a public URL from public/ — see the note
+# in the commit that removed it.
+*.exe

@@ -52,7 +52,8 @@ DECLARE
     'PromiseToPay','CollectionCall','CollectionTicket','SmsCampaign','EmailMessage',
     'MetricDefinition','RiriQueryLog','ComplianceRequest','Charge','GraduationEvent',
     'SavingsAccount','SavingsTransaction','RiriMemory','RiriThread','RiriMessage','StandingOrder',
-    'OrgConfig','OrgConfigRevision','ProductVersion'
+    'OrgConfig','OrgConfigRevision','ProductVersion',
+    'ConversationThread','ConversationMessage'
   ];
 BEGIN
   FOREACH t IN ARRAY tables LOOP

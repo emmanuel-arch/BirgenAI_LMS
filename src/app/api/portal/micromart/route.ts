@@ -154,7 +154,20 @@ export async function POST(req: NextRequest) {
 
   // The phone on the session is the NORMALISED one we authenticated with, not
   // anything the borrower record echoes back — same rule the PIN door follows.
-  await createBorrowerSession({ orgId: org.id, orgSlug: org.slug, phone });
+  //
+  // The ServiceSuite trio rides along because this is the ONLY moment we learn
+  // it: which of Micromart's books answered, and who this person is inside it.
+  // Applying for a loan needs all three, and re-deriving them later would mean
+  // asking their Login again with a password we correctly did not keep.
+  await createBorrowerSession({
+    orgId: org.id,
+    orgSlug: org.slug,
+    phone,
+    ssBorrowerId: r.data.borrowerId,
+    ssAccount: r.data.accountNo ?? phone,
+    ssEntityId: r.entityId,
+    ssToken: r.data.token,
+  });
 
   await prisma.auditLog.create({
     data: {
@@ -173,7 +186,10 @@ export async function POST(req: NextRequest) {
     entityId: r.entityId,
     // For the greeting only. The account number is the customer's own and is
     // already visible on every statement they hold.
-    name: r.data.fullname ?? null,
+    // Their Login returns the name in two parts. It read `r.data.fullname`,
+    // which their API has never returned, so every customer coming through this
+    // door was greeted with nothing.
+    name: [r.data.firstName, r.data.otherName].filter(Boolean).join(" ").trim() || null,
     accountNumber: r.data.accountNo ?? null,
   });
 }

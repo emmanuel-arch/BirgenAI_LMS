@@ -73,7 +73,7 @@ export default function SystemSwitch({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-2xl border border-white/[0.14] bg-white/[0.07] px-3 py-2 text-[12px] font-semibold text-white/85 backdrop-blur-xl transition-colors hover:border-white/25 hover:bg-white/[0.12] hover:text-white"
+        className="flex items-center gap-2 rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--panel-bg)] px-3 py-2 text-[12px] font-semibold text-[color:var(--ink-body)] backdrop-blur-xl transition-colors hover:bg-[color:var(--canvas-bg)] hover:text-[color:var(--ink)]"
       >
         <Grid2x2 className="h-3.5 w-3.5 shrink-0" />
         <span className="hidden sm:inline">{here?.short ?? "Systems"}</span>
@@ -83,9 +83,9 @@ export default function SystemSwitch({
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full z-50 mt-2 w-[min(21rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/[0.12] bg-[#0d0c12]/95 p-1.5 shadow-2xl backdrop-blur-2xl"
+          className="absolute right-0 top-full z-50 mt-2 w-[min(21rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-[color:var(--panel-border)] bg-[color:var(--paper)] p-1.5 shadow-2xl backdrop-blur-2xl"
         >
-          <p className="px-2.5 pb-1.5 pt-1 text-[9.5px] font-bold uppercase tracking-[0.16em] text-white/35">
+          <p className="px-2.5 pb-1.5 pt-1 text-[9.5px] font-bold uppercase tracking-[0.16em] text-[color:var(--ink-faint)]">
             Switch system
           </p>
           {rows.map(({ app, host }) => {
@@ -104,23 +104,23 @@ export default function SystemSwitch({
                 onClick={() => setOpen(false)}
                 aria-current={on ? "page" : undefined}
                 className={`group flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors ${
-                  on ? "bg-white/[0.09]" : "hover:bg-white/[0.06]"
+                  on ? "bg-[color:var(--canvas-bg)]" : "hover:bg-[color:var(--panel-bg)]"
                 }`}
               >
                 <span
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ring-white/10"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ring-[color:var(--panel-border)]"
                   style={{ backgroundColor: `${app.accent}2e` }}
                 >
                   <Icon className="h-4 w-4" style={{ color: app.accent }} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[12.5px] font-semibold text-white/90">{app.name}</span>
-                  <span className="block truncate text-[10.5px] text-white/40">{app.purpose}</span>
+                  <span className="block truncate text-[12.5px] font-semibold text-[color:var(--ink)]">{app.name}</span>
+                  <span className="block truncate text-[10.5px] text-[color:var(--ink-faint)]">{app.purpose}</span>
                 </span>
                 {on ? (
                   <Check className="h-3.5 w-3.5 shrink-0" style={{ color: app.accent }} />
                 ) : (
-                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-white/20 transition-colors group-hover:text-white/60" />
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-[color:var(--ink-faint)] transition-colors group-hover:text-[color:var(--ink-body)]" />
                 )}
               </Link>
             );
@@ -131,7 +131,7 @@ export default function SystemSwitch({
           <Link
             href="/suite"
             onClick={() => setOpen(false)}
-            className="mt-1 flex items-center justify-between gap-2 rounded-xl border-t border-white/[0.08] px-2.5 py-2.5 text-[11.5px] font-semibold text-white/50 transition-colors hover:text-white"
+            className="mt-1 flex items-center justify-between gap-2 rounded-xl border-t border-[color:var(--panel-border)] px-2.5 py-2.5 text-[11.5px] font-semibold text-[color:var(--ink-muted)] transition-colors hover:text-[color:var(--ink)]"
           >
             See every system you hold
             <ArrowUpRight className="h-3 w-3" />

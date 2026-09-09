@@ -11,6 +11,8 @@ import { resolveOrg } from "@/lib/tenancy";
 import { enterOrg } from "@/lib/db/context";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { listProducts } from "@/lib/lms/servicesuite";
+import { readBorrowerSession } from "@/lib/portal/session";
+import { micromartProducts, toShelfProduct, isSellable, type ShelfProduct } from "@/lib/portal/micromart-apply";
 
 export const runtime = "nodejs";
 
@@ -33,16 +35,39 @@ export async function POST(req: NextRequest) {
   if (org) enterOrg(org.id);
   if (!org) return NextResponse.json({ success: false, message: "Choose a lender." }, { status: 400 });
 
-  // NATIVE orgs always sell from our product builder. A BRIDGED org normally
-  // mirrors its lender's live shelf — but when it has products in OUR builder,
-  // those are a CURATED shelf and they win (the Micromart pilot sells exactly
-  // one product, MIROMART FINTECH, which lives in a separate ServiceSuite the
-  // portal cannot list from). Emptying the local shelf restores the live mirror.
   const local = await prisma.product.findMany({
     where: { orgId: org.id, isActive: true },
     orderBy: [{ minPrincipal: "asc" }, { name: "asc" }],
     take: 100,
   });
+
+  // ── THE LIVE SHELF, MERGED ────────────────────────────────────────────────
+  // A BRIDGED org's curated local shelf used to WIN outright, which meant the
+  // app could only ever sell what somebody had re-typed into our builder — and a
+  // product the lender adds tomorrow would need a deploy to reach a customer.
+  //
+  // So the two are merged, and each side owns what it is actually authoritative
+  // for:
+  //
+  //   THE LENDER'S BOOK decides WHAT IS ON THE SHELF and WHAT IT COSTS. It is
+  //   their catalogue and their price list. AvailableLoanProducts returns the
+  //   full commercial terms — verified live on 9 Sep 2026: rate, period, method,
+  //   principal bounds, minimum credit score — so there is nothing to guess at.
+  //
+  //   OUR ROW adds what only WE know: the disbursement mode, and the local
+  //   Product.id that the wizard and /api/portal/apply key off.
+  //
+  // A live product with no local row still appears, carrying `id: "ss:<id>"`,
+  // and /api/portal/apply resolves that form — so a product Micromart adds to
+  // their own shelf is sellable here before anybody creates a row for it.
+  const liveShelf = await micromartShelf(org, local);
+  if (liveShelf) {
+    return NextResponse.json({ success: true, connected: true, lender: org.name, products: liveShelf });
+  }
+
+  // Falling through to the previous behaviour: NATIVE orgs always sell from our
+  // builder, and a bridged org whose lender we could not reach sells from
+  // whatever we hold rather than from an empty shelf.
   if (org.mode === "NATIVE" || local.length > 0) {
     const products = local.map((p) => {
       // Whole-term rates ("term") read better the way the lender quotes them:
@@ -81,4 +106,83 @@ export async function POST(req: NextRequest) {
     // DB hiccup — let the borrower proceed with a manual amount.
     return NextResponse.json({ success: true, connected: false, lender: org.name, products: [] });
   }
+}
+
+/**
+ * Micromart's own catalogue, merged over whatever we hold locally.
+ *
+ * Returns null — meaning "use the local shelf" — in every case where the live
+ * read is not both possible and useful:
+ *
+ *   · the org is not bridged to Micromart's public API
+ *   · there is no borrower session, so no bearer token to call with
+ *   · Micromart could not be reached, or refused
+ *   · they answered with an empty catalogue
+ *
+ * That last one matters. An empty array from a lender's API is far more often a
+ * bad token or a wrong entity than a lender who has stopped lending, and
+ * REPLACING a working shelf with nothing would take the app's whole product
+ * range off the screen on a transient fault. Degrading to what we already hold
+ * is always the better failure.
+ */
+async function micromartShelf(
+  org: { id: string; slug: string; mode: string; entityId: number },
+  local: Awaited<ReturnType<typeof prisma.product.findMany>>,
+): Promise<ShelfProduct[] | null> {
+  if (org.mode !== "BRIDGED") return null;
+
+  // The token is minted by Micromart's Login and rides on the borrower session
+  // (lib/portal/session.ts). No session — a browser on the marketing page, say —
+  // means no token, and this endpoint is deliberately public, so the local shelf
+  // answers instead. Signed-in customers get the live one.
+  const session = await readBorrowerSession();
+  const usable = session?.orgId === org.id && session.ssEntityId && session.ssToken;
+  if (!usable) return null;
+
+  const res = await micromartProducts({
+    entityId: session.ssEntityId!,
+    phoneNumber: session.ssAccount ?? session.phone,
+    token: session.ssToken,
+  });
+  // Retired products come back from this endpoint too, carrying IsActive: 0.
+  // Filtering is not cosmetic — offering one leads a customer through a whole
+  // application their lender's own workflow will then refuse.
+  const sellable = res.ok ? res.products.filter(isSellable) : [];
+  if (!res.ok || sellable.length === 0) return null;
+
+  // Local rows, indexed by the lender's own product id — the only key the two
+  // sides share.
+  const byServiceSuiteId = new Map(
+    local.filter((p) => p.serviceSuiteProductId != null).map((p) => [p.serviceSuiteProductId!, p]),
+  );
+
+  return sellable.map((row) => {
+    const live = toShelfProduct(row);
+    const ours = byServiceSuiteId.get(row.ID);
+    if (!ours) return live;
+
+    // ── THE LENDER'S PRICE WINS ─────────────────────────────────────────────
+    // An earlier draft let OUR row override the rate, term and method on the
+    // reasoning that the live feed might not carry them. It does — verified —
+    // and the override was the wrong way round: our rows are a copy, taken by
+    // hand at some past date, and a rate Micromart changed this morning would
+    // have been silently overwritten with last month's on the very screen a
+    // customer accepts terms from.
+    //
+    // The local row is now additive only: the id the rest of the app keys off,
+    // and the disbursement mode, which is a fact about how WE pay out and has no
+    // counterpart on their side. If the two disagree on price, the lender is
+    // right by definition — it is their money.
+    return {
+      ...live,
+      id: ours.id,
+      liveOnly: false,
+      // Our name where we have curated one — theirs are occasionally internal
+      // ("MEM") — but never our price.
+      name: ours.name || live.name,
+      description: ours.description ?? live.description,
+      disbursementMode: ours.disbursementMode,
+      minCreditScore: live.minCreditScore ?? ours.minCreditScore,
+    };
+  });
 }

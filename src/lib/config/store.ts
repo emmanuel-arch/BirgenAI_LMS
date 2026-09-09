@@ -28,6 +28,9 @@ import {
 import {
   LOANS_DEFAULTS, mergeLoansConfig, validateLoansConfig, type LoansConfig,
 } from "./loans";
+import {
+  KYC_DEFAULTS, mergeKycConfig, validateKycConfig, type KycConfig,
+} from "./kyc";
 
 /** Every namespace the platform knows, and how each is filled forward + checked. */
 const NAMESPACES = {
@@ -60,6 +63,12 @@ const NAMESPACES = {
     defaults: LOANS_DEFAULTS as unknown,
     merge: mergeLoansConfig as (stored: unknown) => unknown,
     validate: validateLoansConfig as (c: unknown) => ConfigIssue[],
+  },
+  kyc: {
+    label: "Identity policy",
+    defaults: KYC_DEFAULTS as unknown,
+    merge: mergeKycConfig as (stored: unknown) => unknown,
+    validate: validateKycConfig as (c: unknown) => ConfigIssue[],
   },
 } as const;
 
@@ -95,6 +104,7 @@ export const readCreditPolicy = (orgId: string) => read<CreditPolicy>(orgId, "cr
 export const readAttachmentConfig = (orgId: string) => read<AttachmentConfig>(orgId, "attachments");
 export const readDetailsConfig = (orgId: string) => read<DetailsConfig>(orgId, "details");
 export const readLoansConfig = (orgId: string) => read<LoansConfig>(orgId, "loans");
+export const readKycConfig = (orgId: string) => read<KycConfig>(orgId, "kyc");
 
 export type PublishResult =
   | { ok: true; version: number; value: unknown }

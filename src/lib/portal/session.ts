@@ -30,6 +30,38 @@ export type BorrowerSession = {
   orgSlug: string;
   /** Digits-only msisdn (2547XXXXXXXX) — server-authoritative. */
   phone: string;
+
+  // ── WHO THEY ARE IN THE LENDER'S OWN BOOK ────────────────────────────────
+  // Present only when the session was minted by the Micromart password door,
+  // which is the only one that learns these — the OTP and PIN doors authenticate
+  // against our own Postgres and have no ServiceSuite identity to record.
+  //
+  // They live on the SESSION rather than on the Borrower row for two reasons.
+  // A Micromart customer of ten years may have no Borrower row here at all, so
+  // there is nothing to write them to; and `ssEntityId` is a property of the
+  // AUTHENTICATION — which of the books answered — not of the person, who may
+  // legitimately exist on more than one. Putting it on the row would make the
+  // last sign-in overwrite the fact for every other context.
+  //
+  // The application path (lib/portal/micromart-apply.ts) needs all three, and
+  // taking them from a signed one-hour token rather than from a request body is
+  // what stops a caller applying for a loan as somebody else.
+  /** Micromart's own Borrowers.ID. */
+  ssBorrowerId?: number | string;
+  /** Their account number, as their Login returned it. */
+  ssAccount?: string;
+  /** WHICH book answered — 3002 (Africa) or 3005 (Fintech). */
+  ssEntityId?: number;
+  /**
+   * Their bearer token, for the endpoints that require one — the live product
+   * shelf and the loan preview.
+   *
+   * It is a credential and it lives here rather than in the database on purpose:
+   * a token at rest in Postgres outlives the session it belongs to and has to be
+   * expired by something. On the cookie it expires with everything else, is
+   * never readable by script, and is destroyed by signing out.
+   */
+  ssToken?: string;
 };
 
 function secret(): Uint8Array {
@@ -62,8 +94,14 @@ export async function readBorrowerSession(): Promise<BorrowerSession | null> {
     const token = jar.get(BORROWER_COOKIE)?.value;
     if (!token) return null;
     const { payload } = await jwtVerify(token, secret(), { audience: AUDIENCE });
-    const { orgId, orgSlug, phone } = payload as unknown as BorrowerSession;
-    return orgId && phone ? { orgId, orgSlug, phone } : null;
+    const { orgId, orgSlug, phone, ssBorrowerId, ssAccount, ssEntityId, ssToken } =
+      payload as unknown as BorrowerSession;
+    // The ServiceSuite trio is carried through verbatim. It is absent on every
+    // session the OTP and PIN doors mint, and callers must treat it as optional
+    // rather than assuming the password door was used.
+    return orgId && phone
+      ? { orgId, orgSlug, phone, ssBorrowerId, ssAccount, ssEntityId, ssToken }
+      : null;
   } catch {
     return null; // expired / tampered / wrong audience — treat as anonymous
   }

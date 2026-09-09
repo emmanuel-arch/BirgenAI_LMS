@@ -32,8 +32,10 @@
 // It is `fixed inset-0 z-0` and `pointer-events-none`. Everything else in the
 // shell is a positioned sibling above it.
 // ─────────────────────────────────────────────────────────────────────────────
+import { useEffect, useState } from "react";
 import { useTheme } from "@/lib/theme/useTheme";
 import { useSkin } from "@/lib/theme/useSkin";
+import { metaFor } from "@/lib/theme/media.generated";
 
 export default function Backdrop({
   systemId,
@@ -49,13 +51,62 @@ export default function Backdrop({
   const { skin } = useSkin(systemId);
   const face = resolved === "dark" ? skin.dark : skin.light;
   const b = accent2 ?? accent;
+  const meta = metaFor(face.image);
+
+  // ── WHY THE PICTURE IS NOT PAINTED UNTIL IT HAS DECODED ────────────────────
+  // A background-image that appears the moment its bytes land hands the
+  // compositor a partly-decoded 2560px photograph to scale across the whole
+  // viewport — a visible hitch, on the largest and calmest layer on screen, at
+  // the exact moment a system is opening. Decoding first costs nothing that
+  // anybody waits for, because the LQIP below is already standing in.
+  //
+  // The state is WHICH picture has decoded, not whether one has. Storing a
+  // boolean forces a `setLoaded(false)` at the top of the effect to reset it
+  // when the skin changes — a synchronous setState in an effect body, which is a
+  // cascading render and which React's own lint rejects. Deriving `loaded` by
+  // comparison resets it for free: the moment `face.image` changes, the stored
+  // src no longer matches and the blur is showing again, in the same render
+  // rather than one after it.
+  const [decoded, setDecoded] = useState<string | null>(null);
+  const loaded = decoded !== null && decoded === face.image;
+  useEffect(() => {
+    const src = face.image;
+    if (!src) return;
+    let live = true;
+    const im = new Image();
+    im.src = src;
+    im.decode?.().then(
+      () => live && setDecoded(src),
+      // A decode failure is not worth surfacing: the ground and the accent wash
+      // are already a finished-looking floor. That is the whole promise this
+      // file makes about a skin whose artwork has not been delivered.
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [face.image]);
 
   return (
     <div aria-hidden className="pointer-events-none fixed inset-0 z-0" style={{ background: face.ground }}>
+      {/* The blur. A ~20px WebP inlined at build time, so it is not a request
+          and cannot be late — the floor is never a flat rectangle waiting for a
+          photograph. */}
+      {meta && (
+        <div
+          className="absolute inset-0 bg-cover bg-center transition-opacity duration-500"
+          style={{
+            backgroundImage: `url('${meta.lqip}')`,
+            opacity: loaded ? 0 : face.opacity,
+            filter: "blur(28px)",
+            transform: "scale(1.06)",
+          }}
+        />
+      )}
       {face.image && (
         <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url('${face.image}')`, opacity: face.opacity }}
+          className="absolute inset-0 bg-cover bg-center transition-opacity duration-700"
+          style={{ backgroundImage: `url('${face.image}')`, opacity: loaded ? face.opacity : 0 }}
         />
       )}
       <div

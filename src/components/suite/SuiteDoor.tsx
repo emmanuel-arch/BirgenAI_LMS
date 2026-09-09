@@ -1,82 +1,94 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // A SYSTEM'S FRONT DOOR.
 //
-// One component, six systems, six artworks. The card is identical everywhere —
+// One component, seven systems, seven plates. The card is identical everywhere —
 // same geometry, same type, same controls — and the ONLY things that change are
-// the artwork behind it, the accent, and the name. That is the suite's whole
-// design argument stated at the moment of arrival: these are separate products,
-// and they are obviously the same family.
+// the artwork, the accent and the name. That is the suite's whole design
+// argument stated at the moment of arrival: these are separate products, and
+// they are obviously the same family.
 //
-// ── WHAT CAME OFF THIS PAGE, AND WHY ─────────────────────────────────────────
-// Three things were struck off the marked-up screenshot, and each was there for
-// a reason that had stopped being true:
+// ── THE SPLIT, AND WHY THE OLD LAYOUT HAD TO GO ──────────────────────────────
+// This page used to be a sign-in card floating in the top-left corner of a
+// full-bleed photograph. The founder marked it up with two enormous question
+// marks drawn across the middle of the screen, and they were the right question:
+// two thirds of the widest surface in the product was doing nothing at all,
+// on the first screen anybody sees of a system they are being sold.
 //
-//   · "Signed in as Birgen Krosovic with BirgenAI ID." A green banner announcing
-//     the session, sitting directly above a button that already says "Continue
-//     as Birgen". The same fact, twice, in two sentences, one of them naming an
-//     internal product a lender has no reason to know. The button carries it.
-//     (See SuiteDoorForm — the banner is gone from there, not hidden here.)
+// The layout is now the one BirgenAI's own front door uses (see
+// BirgenAI/birgen-ai-frontend/src/app/login/page.tsx and its right-panel
+// component), because it is the correct answer to exactly this problem:
 //
-//   · The module chips — "Live floor · Work queue · Promises · Recoveries". A
-//     feature list under a password field. Nobody reads a menu of screens they
-//     cannot open yet, and it pushed the sign-out link below the fold on a
-//     phone.
+//   LEFT   does the WORK. The lockup, the form, the legal line. It sits on the
+//          theme's own paper and it is the half that exists on a phone.
+//   RIGHT  does the ARGUING. The system's plate, its mark, its name, a line
+//          that changes and the list of what is inside it. It is `hidden md:flex`
+//          — on a handset the door is the form and nothing else, which is right,
+//          because a phone-sized version of a persuasion panel is a phone-sized
+//          version of an advertisement.
 //
-//   · "THE CONNECTED SUITE / <mood copy> / All six systems →" in the far corner.
-//     It hard-coded a count onto a page served to lenders who bought four; it
-//     put prose where a control belonged; and it sat bottom-right, which on a
-//     handset is underneath everything. It is now a real system switcher in the
-//     TOP RIGHT — see SystemSwitch.
-//
-// ── THE SCRIM IS NOT DECORATION ──────────────────────────────────────────────
-// The artwork is a photograph. Its contrast in the top-left corner is whatever
-// the generator decided that day, and the sign-in card has to be legible on it
-// regardless. So the card never sits on the image: it sits on a scrim over the
-// image, and the scrim is a known quantity. Same rule as the console canvas.
+// ── WHAT THE THEME DOES AND DOES NOT TOUCH ───────────────────────────────────
+// The left half is fully themed: /suite is a staff route (see the STAFF_ROUTE
+// regex in lib/theme/useTheme), so a person who has set the suite to light gets
+// a light door, and this page was the last dark-only surface in the staff realm.
+// The right half stays dark in both — the reasoning is in SuiteDoorPanel, and it
+// comes down to the plate being a picture rather than a surface.
 //
 // ── SSO IS THE POINT, AND IT IS NOT THE ONLY DOOR ────────────────────────────
 // When a BirgenAI ID session already exists there is no password to type — one
 // button carrying the person's own first name, and they are through. That is
-// what makes "a front door per system, one identity" a demonstration rather
-// than a claim.
+// what makes "a front door per system, one identity" a demonstration rather than
+// a claim.
 //
 // But it is NOT the only state. Somebody who was simply sent
 // connectdesk.servicesuitecloud.com — the collections supervisor who has never
-// opened the lending console — arrives here with no session, and bouncing them
-// to a generic /login that has forgotten which system they asked for is how a
-// suite of products comes to feel like one product wearing several names. They
-// get the real email-and-password form, on this system's own artwork, in this
-// system's own colour. See SuiteDoorForm, which holds both states.
+// opened the lending console — arrives with no session, and bouncing them to a
+// generic /login that has forgotten which system they asked for is how a suite
+// of products comes to feel like one product wearing several names. They get the
+// real email-and-password form, on this system's own plate, in this system's own
+// colour, and it lands them in THIS system rather than on the launcher. See
+// SuiteDoorForm, which holds both states and posts to the one credential check
+// this application has.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { Fragment } from "react";
 import Link from "next/link";
 import type { Artwork } from "@/lib/suite/artwork";
 import type { SuiteApp } from "@/lib/suite/apps";
 import type { ResolvedSuiteApp } from "@/lib/suite/hosts";
 import SuiteDoorForm from "./SuiteDoorForm";
+import SuiteDoorPanel from "./SuiteDoorPanel";
 import SystemSwitch from "./SystemSwitch";
 
 /**
  * A heading that arrives one word at a time, out of focus.
  *
- * Lifted from the pattern the reference library uses for its testimonial copy,
- * and kept to exactly one element on the page. The temptation with an effect
- * this cheap is to put it on the subtitle too, and then on the card; at that
- * point the door has a loading animation rather than a moment of arrival.
+ * Kept to exactly one element on the page. The temptation with an effect this
+ * cheap is to put it on the subtitle too, and then on the card; at that point
+ * the door has a loading animation rather than a moment of arrival.
  *
  * It is CSS, not a client component. The whole point of this heading is that it
  * is legible from the server-rendered HTML before any JavaScript arrives, and a
- * word-splitting effect that needs React to run would have thrown that away for
+ * word-splitting effect that needed React to run would have thrown that away for
  * a flourish.
  */
 function Arriving({ text, className }: { text: string; className?: string }) {
+  const words = text.split(" ");
   return (
     <h1 className={className}>
-      {text.split(" ").map((word, i) => (
-        <span key={`${word}-${i}`} className="suite-word-in" style={{ animationDelay: `${0.18 + i * 0.07}s` }}>
-          {word}
-          {i < text.split(" ").length - 1 ? " " : ""}
-        </span>
+      {words.map((word, i) => (
+        // ── THE SPACE GOES BETWEEN THE SPANS, NOT INSIDE ONE ────────────────
+        // `.suite-word-in` is `display: inline-block`, and CSS removes a
+        // trailing space at the end of an inline-block's content. Putting the
+        // separator inside the span therefore rendered the heading as
+        // "Signin." — the largest type on the door, with a word join in it, on
+        // the first screen anybody sees of the product. A text node BETWEEN two
+        // inline-blocks is a real space and still breaks normally.
+        <Fragment key={`${word}-${i}`}>
+          <span className="suite-word-in" style={{ animationDelay: `${0.18 + i * 0.07}s` }}>
+            {word}
+          </span>
+          {i < words.length - 1 ? " " : null}
+        </Fragment>
       ))}
     </h1>
   );
@@ -85,7 +97,11 @@ function Arriving({ text, className }: { text: string; className?: string }) {
 export default function SuiteDoor({
   app, art, who, firstName, orgName, orgSlug, logoUrl, continueHref, hasArtwork, hosts,
 }: {
-  app: Pick<SuiteApp, "id" | "name" | "tagline" | "accent" | "modules"> & { icon: SuiteApp["icon"] };
+  app: Pick<SuiteApp, "id" | "name" | "tagline" | "accent" | "modules"> & {
+    icon: SuiteApp["icon"];
+    purpose?: string;
+    handoff?: string;
+  };
   art: Artwork;
   /** Signed-in person, or null. */
   who: string | null;
@@ -103,44 +119,39 @@ export default function SuiteDoor({
 }) {
   const Icon = app.icon;
 
-  return (
-    <main className="relative min-h-screen overflow-hidden px-5 py-5 sm:px-8">
-      {/* ── The artwork, or the gradient standing in for it ─────────────── */}
-      {/* `suite-drift` is a very slow parallax — 34 seconds for two percent of
-          travel. It is what stops a static photograph reading as a screenshot
-          of a sign-in page, and it is slow enough that nobody watching a demo
-          ever consciously notices it move. */}
-      <div
-        aria-hidden
-        className="suite-drift absolute inset-0 z-0 bg-cover bg-center"
-        style={hasArtwork ? { backgroundImage: `url('${art.file}')` } : { background: art.gradient }}
-      />
-      {/* The scrim. Darker on the left, where the card lives. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 z-[1]"
-        style={{ background: "linear-gradient(100deg, rgba(9,8,13,0.94) 0%, rgba(9,8,13,0.82) 34%, rgba(9,8,13,0.42) 66%, rgba(9,8,13,0.30) 100%)" }}
-      />
-      {/* A wash of the system's own colour, so the door is unmistakably its own. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 z-[2] opacity-70"
-        style={{ background: `radial-gradient(900px 620px at 88% 14%, ${app.accent}30 0%, transparent 62%)` }}
-      />
-      {/* The raking light. It drifts in once, over two seconds, and then stops —
-          a sign-in page that keeps moving is a sign-in page people mistrust. */}
-      <div
-        aria-hidden
-        className="suite-spotlight pointer-events-none absolute left-[62%] top-0 z-[2] h-[130%] w-[80%] rounded-full blur-[130px]"
-        style={{ background: `radial-gradient(closest-side, ${app.accent}3d, transparent)` }}
-      />
+  // ── WHAT THE PLATE SAYS WHILE SOMEBODY IS TYPING ───────────────────────────
+  // Assembled from the registry rather than written here, so a system whose
+  // purpose changes changes on its own door. The last line is the only one that
+  // is about the SUITE rather than this system, and it earns its place: it is
+  // the answer to "why am I being asked to sign in to a fourth thing", which is
+  // the actual question in the head of somebody who has just been sent this
+  // link.
+  const lines = [
+    app.tagline,
+    app.purpose,
+    app.handoff,
+    "Your existing sign-in opens this. One identity across every system your lender holds.",
+  ].filter((l): l is string => Boolean(l));
 
-      <div className="relative z-10 flex min-h-[calc(100vh-2.5rem)] flex-col">
+  return (
+    <main className="grid min-h-dvh grid-cols-1 md:grid-cols-2">
+      {/* ── LEFT: the work ─────────────────────────────────────────────────── */}
+      <div className="relative flex min-h-dvh flex-col bg-[color:var(--studio)] px-5 py-5 sm:px-8 md:min-h-0">
+        {/* A wash of the system's own colour, so even the plain half of the
+            door is unmistakably ITS door. Held very low — this is the half with
+            a form on it, and the form is the only thing that may be read. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-70"
+          style={{ background: `radial-gradient(900px 620px at 12% -10%, ${app.accent}1f 0%, transparent 60%)` }}
+        />
+
         {/* ── The corner bar ──────────────────────────────────────────────
-            WHERE you are on the left, WHERE ELSE you could be on the right.
-            The switcher replaces the paragraph that used to sit in the
-            bottom-right corner of this page. */}
-        <header className="flex shrink-0 items-center justify-between gap-3">
+            WHERE you are on the left, WHERE ELSE you could be on the right. The
+            switcher replaces the paragraph that used to sit in the bottom-right
+            corner of this page and hard-code "All six systems" onto a screen
+            served to lenders who bought four. */}
+        <header className="relative z-10 flex shrink-0 items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             {logoUrl ? (
               <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-1 shadow-sm">
@@ -149,15 +160,15 @@ export default function SuiteDoor({
               </span>
             ) : (
               <span
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-white/15"
-                style={{ backgroundColor: `${app.accent}2e`, color: app.accent }}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-[color:var(--panel-border)]"
+                style={{ backgroundColor: `${app.accent}24`, color: app.accent }}
               >
                 <Icon className="h-5 w-5" />
               </span>
             )}
             <div className="min-w-0">
-              <p className="truncate text-[15px] font-bold leading-tight text-white">{app.name}</p>
-              {orgName && <p className="truncate text-[11.5px] text-white/45">{orgName}</p>}
+              <p className="truncate text-[15px] font-bold leading-tight text-[color:var(--ink)]">{app.name}</p>
+              {orgName && <p className="truncate text-[11.5px] text-[color:var(--ink-faint)]">{orgName}</p>}
             </div>
           </div>
 
@@ -165,24 +176,25 @@ export default function SuiteDoor({
         </header>
 
         {/* ── The card ─────────────────────────────────────────────────── */}
-        <div className="flex flex-1 items-center py-8">
+        <div className="relative z-10 flex flex-1 items-center justify-center py-10">
           <div className="w-full max-w-[400px]">
             <Arriving
               text={who ? "Welcome back." : "Sign in."}
-              className="text-[30px] font-bold leading-[1.1] tracking-[-0.024em] text-white"
+              className="text-[30px] font-bold leading-[1.1] tracking-[-0.024em] text-[color:var(--ink)]"
             />
             {/* The tagline, not the stat line. What was here before was a
                 sentence of live-sounding numbers — "93,000 cases, 26 agents" —
                 which is a claim a sign-in page cannot stand behind: they were
                 typed into a registry months ago and nothing re-reads them. The
-                numbers belong on the launcher, where they are actually read
-                from the server on render. */}
-            <p className="mt-2.5 max-w-[34ch] text-[13px] leading-relaxed text-white/55">{app.tagline}</p>
+                numbers belong on the launcher, where they are actually read from
+                the server on render. */}
+            <p className="mt-2.5 max-w-[34ch] text-[13px] leading-relaxed text-[color:var(--ink-muted)]">
+              {app.tagline}
+            </p>
 
             {/* The sign-in half is a client island — see SuiteDoorForm. The
-                artwork, the scrim and the lockup above stay server-rendered, so
-                the door is legible from the HTML alone before any JavaScript
-                arrives. */}
+                lockup above it stays server-rendered, so the door is legible
+                from the HTML alone before any JavaScript arrives. */}
             <div className="mt-6">
               <SuiteDoorForm
                 systemName={app.name}
@@ -197,14 +209,35 @@ export default function SuiteDoor({
             {who && (
               <Link
                 href="/api/auth/logout"
-                className="mt-3 block text-center text-[11px] text-white/35 transition-colors hover:text-white/70"
+                className="mt-3 block text-center text-[11px] text-[color:var(--ink-faint)] transition-colors hover:text-[color:var(--ink-body)]"
               >
                 Sign out entirely
               </Link>
             )}
           </div>
         </div>
+
+        {/* The legal line. It belongs at the foot of the half that carries the
+            form, which is also the only half that exists on a phone. */}
+        <footer className="relative z-10 shrink-0 pb-1 pt-3">
+          <p className="mx-auto max-w-[42ch] text-center text-[10.5px] leading-relaxed text-[color:var(--ink-faint)]">
+            Staff access is monitored and logged. Signing in confirms you are authorised to use
+            this system on behalf of {orgName ?? "your organisation"}.
+          </p>
+        </footer>
       </div>
+
+      {/* ── RIGHT: the argument ────────────────────────────────────────────── */}
+      <SuiteDoorPanel
+        name={app.name}
+        accent={app.accent}
+        icon={<Icon className="h-9 w-9" />}
+        lines={lines}
+        modules={app.modules}
+        artFile={art.file}
+        gradient={art.gradient}
+        hasArtwork={hasArtwork}
+      />
     </main>
   );
 }

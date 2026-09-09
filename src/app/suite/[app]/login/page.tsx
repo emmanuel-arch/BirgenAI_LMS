@@ -92,7 +92,20 @@ export default async function SatelliteLogin({ params }: { params: Promise<{ app
 
   return (
     <SuiteDoor
-      app={{ id: app.id, name: app.name, tagline: app.tagline, accent: app.accent, modules: app.modules, icon: app.icon }}
+      // `purpose` and `handoff` are new here: they are what the plate on the
+      // right half of the door rotates through. Read from the registry rather
+      // than written into the component, so a system whose purpose changes
+      // changes on its own front door.
+      app={{
+        id: app.id,
+        name: app.name,
+        tagline: app.tagline,
+        purpose: app.purpose,
+        handoff: app.handoff,
+        accent: app.accent,
+        modules: app.modules,
+        icon: app.icon,
+      }}
       art={art}
       who={who}
       firstName={firstName}

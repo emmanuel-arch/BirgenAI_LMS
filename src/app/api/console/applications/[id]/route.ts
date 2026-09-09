@@ -11,7 +11,7 @@
 // Adverse actions (decline) are always a HUMAN decision here — the model only
 // ever routes to REFERRED (DPA human-in-the-loop).
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma, type DisbursementRoute } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
@@ -26,12 +26,12 @@ import { buildSchedule } from "@/lib/lending/schedule";
 import { computeApprovedLimit } from "@/lib/lending/limits";
 import { resolveDisbursementRoute } from "@/lib/lending/disbursement-route";
 import { crbGateDecision, CRB_FRESH_DAYS } from "@/lib/crb/stage-gate";
+import { resolveStageChain, STAGE_OFFICER } from "@/lib/workflow/chain";
+import { announce } from "@/lib/conversation/threads";
 
 export const runtime = "nodejs";
 
 const LIVE = ["SUBMITTED", "AI_PRESCREEN", "OFFICER_REVIEW", "REFERRED"];
-const STAGE_OFFICER = "virtual:officer";
-const STAGE_FINAL = "virtual:final";
 
 // GET — the full dossier behind one application, for the decision page. Everything an
 // officer needs to APPROVE, REDUCE or REJECT on one screen: who they are (photo + ID),
@@ -187,6 +187,30 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   }
 
   const tiers = session.user.tiers ?? { initiator: false, authorizer: false, validator: false };
+
+  // ── SAYING IT TO THE CUSTOMER, NOT JUST TO THE FILE ──────────────────────
+  // Every branch below already wrote an audit row, and an audit row is for us.
+  // `tell` puts the same fact into the borrower's own conversation, where they
+  // will actually read it — the difference between a process that IS transparent
+  // and one that merely keeps records.
+  //
+  // It never opens a thread (see announce()): a customer who has not written in
+  // is served by the tracker screen, and manufacturing conversations nobody
+  // asked for would fill the officer queue with cases needing no answer.
+  //
+  // Never allowed to fail the action. An announcement that throws must not undo
+  // an approval that has already been written — the money decision is the real
+  // one, and a missing chat line is recoverable.
+  const tell = (event: Parameters<typeof announce>[0]["event"], text: string, data?: Record<string, unknown>) =>
+    announce({
+      orgId: app.orgId,
+      borrowerId: app.borrowerId,
+      applicationId: app.id,
+      event,
+      body: text,
+      eventData: data as Prisma.InputJsonValue,
+    }).catch(() => false);
+
   const audit = (a: string, meta: Record<string, unknown>) =>
     prisma.auditLog.create({
       data: { orgId: app.orgId, actorId: session.user!.id, actorType: "staff", action: a, entity: "LoanApplication", entityId: app.id, meta: meta as Prisma.InputJsonValue, ip: req.headers.get("x-forwarded-for") },
@@ -202,6 +226,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       data: { status: "DECLINED", stageTitle: "Declined", decidedAt: new Date() },
     });
     await audit("application.decline", { note: body.note ?? null, stage: app.currentStageId ?? STAGE_OFFICER });
+    // Into the customer's own thread, if they have one open. The note is
+    // deliberately included: a decline the borrower cannot see a reason for is
+    // the single most common cause of a call to the office, and the reason is
+    // already written — it was just never shown to the person it is about.
+    await tell("decision.made",
+      body.note?.trim()
+        ? `Your application was declined. ${body.note.trim()}`
+        : "Your application was declined. Open this conversation if you would like to ask why.",
+      { decision: "DECLINED" });
     return NextResponse.json({ success: true, status: "DECLINED" });
   }
 
@@ -218,42 +251,23 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       data: { status: "REFERRED", stageTitle: "Sent back for review", currentStageId: null },
     });
     await audit("application.send-back", { note: body.note ?? null, from: app.currentStageId ?? STAGE_OFFICER });
+    // This is the one the customer most needs to hear, because it is the one
+    // they can DO something about — and the note names the thing to fix.
+    await tell("stage.returned",
+      body.note?.trim()
+        ? `We need something before this can go further: ${body.note.trim()}`
+        : "Your application has been sent back for review. We will be in touch about what is needed.",
+      { stageTitle: "Sent back for review" });
     return NextResponse.json({ success: true, status: "REFERRED", stageTitle: "Sent back for review" });
   }
 
   // ── Approve: advance the product's workflow (or the virtual two-tier default) ─
-  // Resolve the stage chain: product.newWorkflowId (repeatWorkflowId for repeat
-  // borrowers) → org workflow stages ordered by `order`; no workflow → virtual.
-  type StageDef = { id: string; title: string; accessTier: number; canFinalize: boolean; otpRequired: boolean; crbRequired: boolean; maxAmount: number | null; disbursementRoute: DisbursementRoute | null };
-  let chain: StageDef[] = [
-    { id: STAGE_OFFICER, title: "Officer Review", accessTier: 1, canFinalize: false, otpRequired: false, crbRequired: false, maxAmount: null, disbursementRoute: null },
-    { id: STAGE_FINAL, title: "Final Approval", accessTier: 3, canFinalize: true, otpRequired: true, crbRequired: false, maxAmount: null, disbursementRoute: null },
-  ];
-  if (app.productId) {
-    const product = await prisma.product.findUnique({
-      where: { id: app.productId },
-      select: { newWorkflowId: true, repeatWorkflowId: true },
-    });
-    const isRepeat = app.graduated || app.priorLoanCount > 0;
-    const workflowId = (isRepeat ? product?.repeatWorkflowId : product?.newWorkflowId) ?? product?.newWorkflowId;
-    if (workflowId) {
-      const stages = await prisma.workflowStage.findMany({
-        where: { workflowId, workflow: { orgId: app.orgId } },
-        orderBy: { order: "asc" },
-      });
-      if (stages.length > 0) {
-        chain = stages.map((s) => ({
-          id: s.id, title: s.title, accessTier: s.accessTier, canFinalize: s.canFinalize,
-          otpRequired: s.otpRequired, crbRequired: s.crbRequired, maxAmount: s.maxAmount != null ? Number(s.maxAmount) : null,
-          disbursementRoute: s.disbursementRoute,
-        }));
-      }
-    }
-  }
-
-  // Locate the current stage; unknown/stale ids (workflow was edited) restart at stage 1.
-  const idx = Math.max(0, chain.findIndex((s) => s.id === (app.currentStageId ?? chain[0].id)));
-  const stageDef = chain[idx];
+  // The chain now comes from lib/workflow/chain.ts rather than being resolved
+  // here, because the CUSTOMER's tracker screen (/api/portal/track) renders the
+  // same stages. Two copies of this would be two answers, and the first time
+  // they drifted the app would tell a borrower their loan was somewhere their
+  // officer could not see it.
+  const { chain, index: idx, current: stageDef } = await resolveStageChain(app);
   const stage = stageDef.id;
 
   const tierOk =
@@ -339,6 +353,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       data: { currentStageId: next.id, status: "OFFICER_REVIEW", stageTitle: next.title },
     });
     await audit("application.approve", { stage, stageTitle: stageDef.title, next: next.id, note: body.note ?? null });
+    // The stage names are the LENDER'S own words — "Risk Review", "Customer
+    // Service" — not a sanitised customer-facing set. A borrower being told the
+    // real name of the desk their file is on is the whole point; inventing
+    // friendlier labels here would put the app and the console back out of step.
+    await tell("stage.advanced", `Your application has moved to ${next.title}.`, {
+      from: stageDef.title,
+      to: next.title,
+      step: idx + 2,
+      of: chain.length,
+    });
     return NextResponse.json({ success: true, status: "OFFICER_REVIEW", stageTitle: next.title });
   }
 
@@ -360,6 +384,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       await audit("application.finalize", {
         stage, note: body.note ?? null, loanId: booked.loanId,
         route: routing.route, routeSource: routing.source,
+      });
+      await tell("decision.made", "Your loan has been approved and is being prepared for disbursement.", {
+        decision: "APPROVED", loanId: booked.loanId,
       });
       return NextResponse.json({ success: true, status: "APPROVED", booked });
     } catch (err) {
@@ -447,6 +474,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       borrowerRegistered: ensured.created,
       route: routing.route, routeSource: routing.source,
     });
+    await tell("decision.made", "Your loan has been approved and sent to the lender for disbursement.", {
+      decision: "APPROVED", serviceSuiteLoanId: res.loanId,
+    });
     return NextResponse.json({ success: true, status: "APPROVED", posted: true, serviceSuiteLoanId: res.loanId });
   }
 
@@ -457,5 +487,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     data: { status: "APPROVED", stageTitle: "Approved (lender's ServiceSuite workflow)", decidedAt: new Date() },
   });
   await audit("application.finalize", { stage, note: body.note ?? null, bridged: true });
+  await tell("decision.made", "Your loan has been approved. The lender is preparing the payout.", {
+    decision: "APPROVED",
+  });
   return NextResponse.json({ success: true, status: "APPROVED" });
 }

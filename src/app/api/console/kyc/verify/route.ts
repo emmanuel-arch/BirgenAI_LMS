@@ -57,6 +57,8 @@ import {
 import { matchNames, nameGatePasses, identityBinding } from "@/lib/kyc/namematch";
 import { putKycObject, getObjectDataUrl, storageMode, InvalidImageError, MAX_IMAGE_BYTES, type KycAssetKind } from "@/lib/storage/provider";
 import { attachKycSession } from "@/lib/kyc/attach";
+import { readKycConfig } from "@/lib/config/store";
+import { decideKyc } from "@/lib/config/kyc";
 
 export const runtime = "nodejs";
 
@@ -361,8 +363,28 @@ export async function POST(req: NextRequest) {
     });
     if (!finalBind.passed) flags.push("identity-unbound");
 
-    const faceReview = (s.faceMatchScore ?? 0) >= 80 && (s.faceMatchScore ?? 0) < 92;
-    const status = flags.length > 0 ? "FAILED" : faceReview ? "PENDING_REVIEW" : "VERIFIED";
+    // ── THE SAME POLICY THE PORTAL USES ───────────────────────────────────
+    // This branch carried its own copy of the thresholds, identical to the one
+    // in /api/portal/kyc. Two copies of a risk policy is two policies, and the
+    // moment a lender tuned one the counter and the app would verify the same
+    // person differently — which is the exact failure a customer notices and an
+    // auditor asks about.
+    //
+    // `identity-unbound` is NOT part of that policy and stays where it is: it is
+    // a binding check specific to the counter (does this card belong to the
+    // borrower whose file the officer opened?), it has no portal equivalent, and
+    // it is never configurable away.
+    const { value: kycPolicy } = await readKycConfig(orgId);
+    const verdict = decideKyc(kycPolicy, {
+      idQualityScore: s.idQualityScore,
+      faceMatchScore: s.faceMatchScore,
+      livenessScore: s.livenessScore,
+      livenessPassed: s.livenessPassed,
+      iprsMatched: s.iprsMatched,
+    });
+    flags.push(...verdict.flags);
+    // An unbound identity is terminal regardless of what the lender configured.
+    const status = flags.includes("identity-unbound") ? "FAILED" : verdict.status;
 
     await prisma.kycSession.update({
       where: { id: s.id },

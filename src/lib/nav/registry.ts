@@ -83,6 +83,12 @@ export const NAV_REGISTRY: NavModule[] = [
       // The gate between a registered customer and their money. Sits under Borrowers
       // because that is where the officer who created the problem will look for it.
       { key: "kyc-queue", label: "KYC Verification", href: "/console/kyc", icon: "ShieldCheck", right: "borrowers.view" },
+      // ── WHAT THE CUSTOMER IS ACTUALLY ASKING ────────────────────────────
+      // Directly under the KYC queue on purpose: the commonest reason a
+      // borrower writes in is a check that referred them, and the officer
+      // working that queue is the one who can answer. Before this screen the
+      // only reply channel was outbound SMS to a shortcode nobody reads.
+      { key: "conversations", label: "Customer Messages", href: "/console/conversations", icon: "MessagesSquare", right: "borrowers.view" },
       // The step AFTER the identity gate: a verified customer's statement becomes a
       // score. It lives here — not under Intelligence — because it is the next thing
       // the onboarding officer does, in order.
@@ -269,6 +275,10 @@ export const NAV_REGISTRY: NavModule[] = [
       // and the fields we did not ship that this lender needs.
       { key: "loan-settings", label: "Loan Settings", href: "/console/settings/loans", icon: "Landmark", right: "settings.view" },
       { key: "attachments", label: "Attachment Types", href: "/console/settings/attachments", icon: "Paperclip", right: "settings.view" },
+      // Where the machine stops and a person starts. Sits in Settings rather
+      // than beside the KYC queue because it governs every future check, not
+      // the ones sitting in the queue today.
+      { key: "identity-policy", label: "Identity Policy", href: "/console/settings/identity", icon: "ScanFace", right: "settings.view" },
       { key: "details", label: "Additional Details", href: "/console/settings/details", icon: "ListPlus", right: "settings.view" },
       { key: "branding", label: "Branding", href: "/console/settings/branding", icon: "Palette", right: "branding.manage" },
       { key: "settings", label: "Settings & Vault", href: "/console/settings", icon: "Settings2", right: "settings.view", exact: true },

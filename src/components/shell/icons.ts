@@ -21,6 +21,10 @@ import {
   Paperclip, History,
   // Named by the Organization nav: the additional-details catalogue.
   ListPlus,
+  // Customer Messages. Deliberately NOT MessageSquare, which is already spoken
+  // for by outbound comms — the two sit five rows apart in the sidebar and one
+  // is the lender talking AT a customer while the other is a conversation.
+  MessagesSquare, ScanFace,
   type LucideIcon,
 } from "lucide-react";
 
@@ -38,6 +42,7 @@ const ICONS: Record<string, LucideIcon> = {
   Paperclip, History,
   // Named by the Organization nav: the additional-details catalogue.
   ListPlus,
+  MessagesSquare, ScanFace,
   // `Infinity` is a global in TS, so the import is aliased; the registry still
   // names it "Infinity" like every other lucide icon.
   Infinity: InfinityIcon,

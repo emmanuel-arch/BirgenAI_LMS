@@ -20,13 +20,33 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Images } from "lucide-react";
 import { useTheme } from "@/lib/theme/useTheme";
 import { useSkin } from "@/lib/theme/useSkin";
-import { SKINS, type SkinFace } from "@/lib/theme/skins";
+import { SKINS, thumbFor, type SkinFace } from "@/lib/theme/skins";
 
-/** The same three layers Backdrop paints, at thumbnail scale. */
+/**
+ * The same three layers Backdrop paints, at thumbnail scale.
+ *
+ * ── IT DRAWS THE THUMBNAIL, NOT THE WALLPAPER ────────────────────────────────
+ * This menu renders EVERY skin at once — sixteen of them, as a 20px swatch on
+ * the button and a 48px tile in the list. Pointing those at `face.image` asks
+ * the browser for sixteen 2560px wallpapers, up to 300 KB each, to paint
+ * something the size of a postage stamp. It is invisible on a laptop on an
+ * office connection and it is several megabytes on a branch machine, spent the
+ * moment somebody opens a menu they may close again immediately.
+ *
+ * `npm run media` generates a 480x300 `-thumb` beside every wallpaper for this
+ * one purpose. The full file is fetched when a skin is actually CHOSEN, by
+ * Backdrop, and not before.
+ *
+ * The fallback to `face.image` is not laziness: a skin added by hand to
+ * CUSTOM_SKINS before anybody has run the pipeline has no thumbnail, and drawing
+ * the full picture is the right answer there — it is one tile, and a menu that
+ * renders a grey box for a wallpaper that exists is the sort of thing that reads
+ * as a broken feature.
+ */
 function swatchStyle(face: SkinFace, accent: string): React.CSSProperties {
   const layers = [
     `radial-gradient(120% 120% at 88% 0%, ${accent}, transparent 62%)`,
-    face.image ? `url('${face.image}')` : null,
+    face.image ? `url('${thumbFor(face) ?? face.image}')` : null,
     face.ground,
   ].filter(Boolean) as string[];
   return {
@@ -122,7 +142,7 @@ export default function SkinMenu({ systemId, accent }: { systemId: string; accen
           {/* Where the next one comes from. An admin who has just been told they
               can add themes should not have to be told twice where. */}
           <p className="px-2.5 pb-1 pt-2 text-[10px] leading-snug text-[color:var(--ink-faint)]">
-            Add your own in <code className="font-mono">public/themes/</code> — a light and a dark file each.
+            Add your own in <code className="font-mono">public/themes/</code> — one file each, then <code className="font-mono">npm run media</code>.
           </p>
         </div>
       )}

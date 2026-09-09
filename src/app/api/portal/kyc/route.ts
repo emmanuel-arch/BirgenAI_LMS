@@ -28,10 +28,42 @@ import {
 import { matchNames, nameGatePasses } from "@/lib/kyc/namematch";
 import { putKycObject, getObjectDataUrl, storageMode, InvalidImageError, MAX_IMAGE_BYTES, type KycAssetKind } from "@/lib/storage/provider";
 import { attachKycSession } from "@/lib/kyc/attach";
+import { readKycConfig } from "@/lib/config/store";
+import { decideKyc } from "@/lib/config/kyc";
+import { findOrOpenThread, postMessage } from "@/lib/conversation/threads";
 
 export const runtime = "nodejs";
 
 type Step = "id" | "facematch" | "iprs" | "finalize";
+
+/**
+ * The name comparison from step "id", read back at finalize.
+ *
+ * It is not a column on KycSession — it was written into the ID_OCR check's
+ * payload — so rather than add one, the last check for this session is read.
+ *
+ * `verdict` sits at the TOP LEVEL of that payload, because the writer spreads
+ * the NameMatch in: `{ check: "name-gate", ...name, documentName, registryName }`.
+ * Reading it as `payload.name.verdict` compiles perfectly and returns undefined
+ * for ever, which would silently mean the `nameBorderline` signal never fires
+ * for anybody — a configurable review gate that is switched off by a typo.
+ *
+ * A missing or malformed payload yields null, which `decideKyc` treats as "the
+ * comparison did not run" rather than as a partial match: an absent signal must
+ * never be scored as a failing one.
+ */
+async function lastNameVerdict(
+  orgId: string,
+  sessionId: string,
+): Promise<"exact" | "strong" | "partial" | "none" | null> {
+  const check = await prisma.kycCheck.findFirst({
+    where: { orgId, sessionId, kind: "ID_OCR" },
+    orderBy: { createdAt: "desc" },
+    select: { payload: true },
+  });
+  const v = (check?.payload as { verdict?: unknown } | null)?.verdict;
+  return v === "exact" || v === "strong" || v === "partial" || v === "none" ? v : null;
+}
 
 /**
  * Resume the caller's own KYC session, or start one. Scoped to the verified
@@ -242,14 +274,31 @@ export async function POST(req: NextRequest) {
   if (step === "finalize") {
     const s = await prisma.kycSession.findUnique({ where: { id: session.id } });
     if (!s) return NextResponse.json({ success: false, message: "Session expired." }, { status: 404 });
-    // Rollup decision.
-    const flags: string[] = [];
-    if ((s.idQualityScore ?? 0) < 70) flags.push("low-id-quality");
-    if ((s.faceMatchScore ?? 0) < 80) flags.push("face-mismatch");
-    if (s.iprsMatched !== true) flags.push("iprs-unmatched");
-    const faceReview = (s.faceMatchScore ?? 0) >= 80 && (s.faceMatchScore ?? 0) < 92;
 
-    const status = flags.length > 0 ? "FAILED" : faceReview ? "PENDING_REVIEW" : "VERIFIED";
+    // ── THE ROLLUP IS THE LENDER'S POLICY NOW, NOT FIVE CONSTANTS ──────────
+    // This branch used to hard-code the thresholds and, worse, made every one of
+    // them TERMINAL: a blurry photograph, a face scored 79, an unreachable
+    // registry all landed the customer on FAILED with no queue, no notification
+    // and nobody to ask. A machine refusing somebody's identity with no human
+    // anywhere in the loop is the thing this now fixes.
+    //
+    // lib/config/kyc.ts holds the bands and the per-signal outcome, defaults
+    // preserve the old numbers exactly, and everything that used to refuse now
+    // defaults to REVIEW.
+    const { value: kycPolicy } = await readKycConfig(org.id);
+    const verdict = decideKyc(kycPolicy, {
+      idQualityScore: s.idQualityScore,
+      faceMatchScore: s.faceMatchScore,
+      livenessScore: s.livenessScore,
+      livenessPassed: s.livenessPassed,
+      iprsMatched: s.iprsMatched,
+      // The name comparison ran at step "id" and its verdict was written to the
+      // ID_OCR check rather than onto the session, so it is read back here. A
+      // partial name match is one of the six configurable signals.
+      nameVerdict: await lastNameVerdict(org.id, s.id),
+    });
+    const { status, flags } = verdict;
+
     const updated = await prisma.kycSession.update({
       where: { id: s.id },
       data: { status, riskFlags: flags as unknown as Prisma.InputJsonValue, completedAt: new Date() },
@@ -270,7 +319,62 @@ export async function POST(req: NextRequest) {
       catch (err) { console.error("[kyc] attach failed:", err); }
     }
 
-    return NextResponse.json({ success: true, sessionId: s.id, mode, step, status, flags, session: updated });
+    // ── THE DOOR OUT OF A REFERRAL ────────────────────────────────────────
+    // A referred or refused case with no way to ask about it is a wall with a
+    // name on it. So a conversation is opened, pinned to the identity check,
+    // carrying the reasons in the customer's own language — and the officer
+    // working the KYC queue answers it from the console beside that queue.
+    //
+    // Only for a customer who HAS a borrower row: a thread needs somebody to
+    // belong to, and a first-time applicant who has not enrolled yet is served
+    // by the retake path on the screen instead.
+    let conversationId: string | null = null;
+    if (status !== "VERIFIED" && existing && kycPolicy.review.openConversation) {
+      try {
+        const thread = await findOrOpenThread({
+          orgId: org.id,
+          borrowerId: existing.id,
+          kind: "KYC_REVIEW",
+          subject: "About my ID check",
+          stageTitle: status === "FAILED" ? "Identity refused" : "Identity review",
+        });
+        conversationId = thread.id;
+        await postMessage({
+          orgId: org.id,
+          threadId: thread.id,
+          authorType: "system",
+          authorName: "Micro Eazy",
+          body:
+            (status === "FAILED"
+              ? "We could not verify your ID automatically. "
+              : "Your ID has been sent to our team for a quick look. ") +
+            verdict.signals.map((f) => f.customerSays).join(" "),
+          event: "kyc.referred",
+          // The KEYS, never the scores. A customer told their face matched at
+          // 79 has been handed the number to beat, and the next attempt is
+          // tuned rather than honest.
+          eventData: { status, signals: verdict.flags },
+        });
+      } catch (err) {
+        // Never fail the verification over the conversation. The case is already
+        // in the console's KYC queue, which is the part that must not be lost.
+        console.error("[kyc] referral thread failed:", err);
+      }
+    }
+
+    return NextResponse.json({
+      success: true, sessionId: s.id, mode, step, status, flags, session: updated,
+      // What the customer is actually shown. `customerSays` is written beside
+      // the policy so a lender who changes an outcome cannot leave behind a
+      // message describing the old one.
+      reasons: verdict.signals.map((f) => ({ key: f.key, says: f.customerSays, fixable: f.fixable })),
+      // Only offered when EVERY firing signal is one a better photograph could
+      // fix — sending somebody to retake a selfie six times for a registry miss
+      // is the cruellest possible loop.
+      retakeable: verdict.retakeable,
+      maxRetakes: kycPolicy.review.maxRetakes,
+      conversationId,
+    });
   }
 
   return NextResponse.json({ success: false, message: "Unknown step." }, { status: 400 });

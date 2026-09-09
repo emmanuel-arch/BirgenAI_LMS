@@ -176,6 +176,8 @@ model Org {
   configs             OrgConfig[]
   deskInteractions    DeskInteraction[]
   deskShifts          DeskShift[]
+  threads             ConversationThread[]
+  threadMessages      ConversationMessage[]
 }
 
 // ── Cross-entity data sharing ─────────────────────────────────────────────────
@@ -624,6 +626,7 @@ model Borrower {
   fieldVisits    FieldVisit[]
   savings        SavingsAccount?
   standingOrders StandingOrder[]
+  threads        ConversationThread[]
 
   @@unique([orgId, phone])
   @@index([orgId, nationalId])
@@ -2754,4 +2757,147 @@ model DeskShift {
 
   @@index([orgId, agentId, startedAt])
   @@index([orgId, endedAt])
+}
+
+// ── The conversation ─────────────────────────────────────────────────────────
+//
+// THE THING THIS PLATFORM DID NOT HAVE.
+//
+// Six systems, 139 routes, a full workflow engine — and no way for a customer to
+// say "the photo of my ID was blurry, here is a better one" and for the officer
+// holding that case to answer. Everything that looked like messaging was one of
+// three other things:
+//
+//   RiriThread       staff talking to the ASSISTANT. Nobody outside the office.
+//   DeskInteraction  an agent RECORDING what they did to a case. A log, not a
+//                    conversation — the customer never sees a row of it.
+//   SmsMessage       outbound only. A customer who replies to an SMS is replying
+//                    to a shortcode nobody reads.
+//
+// So a customer whose liveness check failed had exactly one channel: ring the
+// office and hope the person who answers can find them. That is the gap this
+// closes, and it is the reason the loan tracker is worth building — a stage bar
+// that shows "Referred to an officer" with no way to ASK is worse than no stage
+// bar at all, because it names a wall without a door.
+//
+// ── WHY THIS IS NOT SmsMessage WITH AN INBOUND FLAG ─────────────────────────
+// Because a conversation has a SUBJECT and a STATE and SMS has neither. The
+// whole value here is that a thread is pinned to the thing it is about — this
+// application, at this stage, on this KYC referral — so the officer opening it
+// is looking at the case and the message together, and the customer is not
+// asked "which loan?" by the institution that already knows.
+//
+// ── WHY BOTH SIDES GET AN UNREAD COUNTER ────────────────────────────────────
+// They are counted separately because they are answered separately. One shared
+// "unread" makes a staff member's read mark the customer's message read too,
+// and then the queue is empty while three people are still waiting.
+
+enum ThreadKind {
+  APPLICATION // about one loan application, at whatever stage it is at
+  KYC_REVIEW // an identity check that a machine referred to a human
+  LOAN // about a running loan
+  REPAYMENT // a payment question or a dispute about one
+  GENERAL // the customer just wrote in
+}
+
+/// Who owes the next move. This is the queue, and it is deliberately not a
+/// boolean "open": "we replied and asked for a document" and "they replied and
+/// we have not looked" are the same `open` and completely different problems.
+enum ThreadState {
+  AWAITING_STAFF // the customer wrote last — this is the work queue
+  AWAITING_CUSTOMER // staff answered and asked for something back
+  RESOLVED // closed by staff. The customer can still reopen by writing.
+}
+
+model ConversationThread {
+  id         String @id @default(uuid())
+  orgId      String
+  borrowerId String
+
+  kind    ThreadKind  @default(GENERAL)
+  state   ThreadState @default(AWAITING_STAFF)
+  subject String
+
+  /// What this is about. All optional and all indexed: a thread pinned to an
+  /// application is the common case, but somebody asking a general question
+  /// before they have applied is a customer we especially want to answer.
+  applicationId String?
+  loanId        String?
+
+  /// The workflow stage the case was at when the thread was opened, captured as
+  /// TEXT rather than as a stage id. A stage can be renamed or deleted out of a
+  /// lender's workflow, and a conversation that then reads "stage 4f3c-…" has
+  /// lost the one piece of context that made it worth keeping.
+  stageTitle String?
+
+  /// Who is holding it. Denormalised name so a queue renders without a join per
+  /// row, and so a departed staff member's threads still say who answered.
+  assignedStaffId   String?
+  assignedStaffName String?
+
+  /// The list view, precomputed. A thread list that has to open every thread to
+  /// draw itself is a thread list that gets slower as the lender gets busier.
+  lastAt         DateTime @default(now())
+  lastPreview    String?
+  lastAuthorType String? // borrower | staff | system
+
+  /// Counted per side because they are cleared per side. See the header.
+  unreadForStaff    Int @default(0)
+  unreadForBorrower Int @default(0)
+
+  closedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  org      Org                   @relation(fields: [orgId], references: [id])
+  borrower Borrower              @relation(fields: [borrowerId], references: [id])
+  messages ConversationMessage[]
+
+  @@index([orgId, state, lastAt])
+  @@index([orgId, borrowerId, lastAt])
+  @@index([orgId, applicationId])
+  @@index([orgId, assignedStaffId, state])
+}
+
+/// One message. Either side may have written it — or neither.
+///
+/// `authorType = "system"` is the third voice and it is what makes the thread a
+/// TRANSPARENT record rather than a chat box: when the case advances a stage,
+/// when a decision lands, when a KYC check is referred, a system message is
+/// written into the thread the customer is already reading. So the answer to
+/// "what happened to my loan?" and the answer to "what did you say to me?" are
+/// the same scroll, in order, with no reconstruction.
+model ConversationMessage {
+  id       String @id @default(uuid())
+  orgId    String
+  threadId String
+
+  authorType String // borrower | staff | system
+  authorId   String?
+  authorName String
+
+  body String
+
+  /// Document ids (see model Document). Ids, never blobs: the file lives in
+  /// storage under the org's own prefix and is served through the same signed
+  /// URL every other document uses, so a message attachment inherits retention
+  /// and erasure without a second code path.
+  attachments Json @default("[]")
+
+  /// For authorType = "system": what actually happened, machine-readable, so the
+  /// app can render it as a stage chip rather than as a sentence somebody has to
+  /// parse. e.g. "stage.advanced", "kyc.referred", "offer.signed", "disbursed".
+  event     String?
+  eventData Json?
+
+  /// Read receipts, per side, for the same reason the counters are.
+  readByStaffAt    DateTime?
+  readByBorrowerAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  thread ConversationThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  org    Org                @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, threadId, createdAt])
 }

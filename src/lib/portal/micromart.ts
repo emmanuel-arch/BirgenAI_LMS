@@ -74,12 +74,36 @@ export function micromartBooks(preferred?: number): number[] {
   return books;
 }
 
-/** What Micromart's Login hands back. Only the fields we actually read. */
+/**
+ * What Micromart's Login hands back.
+ *
+ * ── VERIFIED AGAINST A LIVE RESPONSE, 9 SEP 2026 ───────────────────────────
+ * The keys are exactly: message, borrowerId, accountNo, firstName, otherName,
+ * token. This type previously declared `fullname` and `phoneNumber`, neither of
+ * which their API returns — so the greeting built from `r.data.fullname` was
+ * `null` for every customer who has ever used the password door, silently and
+ * with no error anywhere.
+ */
 export type MicromartBorrower = {
   borrowerId: number | string;
   accountNo?: string;
-  fullname?: string;
-  phoneNumber?: string;
+  firstName?: string;
+  otherName?: string;
+  message?: string;
+  /**
+   * A bearer token for their OTHER endpoints. AvailableLoanProducts and
+   * LoanPreview both want it (their own PWA sends it on each), and Login is the
+   * only place it is ever issued — so a request that needs it and does not have
+   * it cannot go and get one without the password, which we correctly did not
+   * keep.
+   *
+   * It rides on our borrower session cookie: httpOnly, signed, server-read-only,
+   * and expiring on the same one-hour clock. Their API also rotates it via an
+   * `X-New-Token` response header, which we do not currently follow — a rotation
+   * we ignore simply means the original stays valid for its own lifetime, and
+   * the customer re-authenticates when our cookie expires anyway.
+   */
+  token?: string;
 };
 
 type Attempt =

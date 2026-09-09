@@ -25,6 +25,7 @@ import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { resolveScope, canSeeBorrower } from "@/lib/rbac/scope";
 import { attachKycSession } from "@/lib/kyc/attach";
+import { announce } from "@/lib/conversation/threads";
 
 export const runtime = "nodejs";
 
@@ -103,6 +104,24 @@ export async function POST(req: NextRequest) {
       ip: req.headers.get("x-forwarded-for"),
     },
   }).catch(() => {});
+
+  // ── CLOSING THE LOOP THE REFERRAL OPENED ────────────────────────────────
+  // The customer was told their ID had gone to a person. This is that person
+  // deciding, so it belongs in the same conversation rather than in an audit row
+  // they will never see — otherwise the last thing the app ever says about their
+  // identity is "we are looking at it", and they find out it cleared by
+  // discovering they can suddenly apply.
+  //
+  // The officer's NOTE is deliberately not forwarded: it is written for the
+  // permanent record and for a regulator, in internal language, and it is often
+  // about the customer rather than to them.
+  await announce({
+    orgId,
+    borrowerId: borrower.id,
+    event: "kyc.cleared",
+    body: "Your ID has been checked by our team and cleared. Nothing else is needed from you.",
+    eventData: { by: "staff", overrode },
+  }).catch(() => false);
 
   const name = `${borrower.firstName ?? ""} ${borrower.otherName ?? ""}`.trim() || borrower.phone;
   return NextResponse.json({

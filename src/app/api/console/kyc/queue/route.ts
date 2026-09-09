@@ -26,6 +26,7 @@ import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
 import { resolveScope, borrowerScopeWhere, canSeeBorrower } from "@/lib/rbac/scope";
 import { sendSms } from "@/lib/sms/send";
+import { announce } from "@/lib/conversation/threads";
 
 export const runtime = "nodejs";
 
@@ -194,6 +195,18 @@ export async function POST(req: NextRequest) {
   await prisma.auditLog.create({
     data: { orgId, actorId: session.user.id, actorType: "staff", action: "kyc.link-sent", entity: "Borrower", entityId: borrower.id },
   }).catch(() => {});
+
+  // The SMS goes to a handset that may be flat, out of credit, or in a coverage
+  // hole, and it is gone the moment it is deleted. The same instruction in the
+  // conversation survives all of that and sits where the customer already went
+  // looking — beside the reasons their check was referred in the first place.
+  await announce({
+    orgId,
+    borrowerId: borrower.id,
+    event: "kyc.referred",
+    body: "We have sent you a link to take your ID photos again. Better light and a flat, dark surface make the most difference.",
+    eventData: { by: "staff", action: "link-sent" },
+  }).catch(() => false);
 
   return NextResponse.json({ success: true, message: `Verification link sent to ${borrower.phone}.` });
 }
