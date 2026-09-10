@@ -13,18 +13,21 @@
 //
 // ── HOW MICROMART'S OWN SYSTEM DOES IT ──────────────────────────────────────
 // It never talks to Africa's Talking from application code. Every message is a
-// ROW, and something else drains the queue:
+// ROW in `Notifications.dbo.SMS`, and a drainer empties the queue — verified
+// live on 10 Sep 2026, where payment confirmations were going from written to
+// `isSent = 1` inside a minute.
 //
-//     insert into Notifications.dbo.SMS
-//       (smsMessage, smsto, EntityId, CreateDate, isSent, ScheduleDate, SmsProviderId)
-//     values (@sms, @Phone, @entityId, GETDATE(), 0, GETDATE(), 5)
+// Nothing writes that row by hand. Application code and triggers alike call
 //
-// That is `sp_restBorrowerPin`, verbatim. The SENDER ID IS A PROPERTY OF THE
-// ENTITY — the drainer looks up the entity's Africa's Talking credentials and
-// sends under the sender id registered to them. So the way to make a message
-// arrive as "MICROMART" is not to configure a sender anywhere in this codebase.
-// It is to write the row with the right EntityId and let their own pipeline do
-// what it already does for every other message they send.
+//     EXEC [Notifications].dbo.[sp_InsertsmsAndEmails] @receiver, @body, @entityId
+//
+// which is what `RepaymentTrigger` on `INCOMINGC2B` calls after allocating a
+// repayment. The SENDER ID IS A PROPERTY OF THE ENTITY — the drainer looks up
+// the entity's Africa's Talking credentials and sends under the sender id
+// registered to them. So the way to make a message arrive as "MICROMART" is not
+// to configure a sender anywhere in this codebase. It is to hand their own
+// procedure the right EntityId and let their pipeline do what it already does
+// for every other message they send.
 //
 // This module does exactly that and nothing else.
 //
@@ -45,10 +48,35 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import mssql from "mssql";
 import { resolveOrgById } from "@/lib/tenancy";
-import { execNonQuery, writePathState } from "@/lib/enterprise/mssql";
+import { callStoredProc, writePathState } from "@/lib/enterprise/mssql";
 
-/** ServiceSuite's own provider id for Africa's Talking. Read from sp_restBorrowerPin. */
-const SMS_PROVIDER_ID = 5;
+/**
+ * THE ENTRY POINT THEIR OWN DATABASE USES.
+ *
+ * This module used to hand-write the INSERT that `sp_restBorrowerPin` performs,
+ * including a hardcoded `SmsProviderId = 5`. That was copied from one procedure
+ * and is not what the rest of the system does. `RepaymentTrigger` — the trigger
+ * on `INCOMINGC2B` that fires on every repayment Micromart takes — sends its
+ * confirmation like this:
+ *
+ *     EXEC [Notifications].dbo.[sp_InsertsmsAndEmails] @Phone, @sms, @EntityId
+ *
+ * and that procedure does two things the hand-written INSERT did not:
+ *
+ *   · It resolves the provider PER ENTITY, from
+ *     `Serviceconnect.dbo.BsEntity.SmsProviderId`, defaulting to 1. Hardcoding 5
+ *     is right for Micromart today and silently wrong for the next entity whose
+ *     book is bridged — and wrong in the way that is hardest to see, because the
+ *     row is written, looks correct, and is drained by the wrong sender.
+ *   · It stamps `CreatedBy = 101`, which is the marker their operators use to
+ *     tell system-generated traffic from a console blast.
+ *
+ * Calling their procedure rather than reproducing its body also means a change
+ * they make to it — a new provider, a suppression rule, a units check — applies
+ * to our messages the same day it applies to theirs. Reproducing the INSERT
+ * opts us out of every future fix.
+ */
+const OUTBOX_PROC = "Notifications.dbo.sp_InsertsmsAndEmails";
 
 export type ServiceSuiteSmsTarget = {
   /** The registry entry carrying the connection string. */
@@ -90,8 +118,18 @@ async function resolve(orgId: string): Promise<ServiceSuiteSmsTarget | null> {
     // message in no book at all, which is worse than not sending it.
     if (!Number.isInteger(org.entityId) || org.entityId <= 0) return null;
 
+    // ── WHAT COUNTS AS "REACHABLE" HERE ─────────────────────────────────────
+    // `armed` is the general write posture. It is not the only way this one
+    // call can go through: a read-only relay carrying an ALLOWLIST will run a
+    // named procedure while still refusing arbitrary SQL, and the outbox
+    // procedure is exactly what such a list is for.
+    //
+    // Requiring `armed === true` meant a correctly-configured narrow door
+    // reported as no door at all — hasSmsProvider() answered false, the OTP
+    // route told the customer "We couldn't send the code right now", and the
+    // procedure that would have sent it was never called.
     const write = await writePathState(org.registry);
-    if (write.armed !== true) return null;
+    if (write.armed !== true && write.allowedProcs === 0) return null;
 
     return { org: org.registry, entityId: org.entityId, orgId, name: org.name };
   } catch {
@@ -114,24 +152,30 @@ export async function sendViaServiceSuite(
 ): Promise<{ ok: boolean; providerRef: string | null; cost: number | null; error: string | null }> {
   if (!target.org) return { ok: false, providerRef: null, cost: null, error: "No ServiceSuite registry entry" };
   try {
-    await execNonQuery(
+    await callStoredProc(
       target.org,
-      `INSERT INTO Notifications.dbo.SMS
-         (smsMessage, smsto, EntityId, CreateDate, isSent, ScheduleDate, SmsProviderId)
-       VALUES (@msg, @to, @entity, GETDATE(), 0, GETDATE(), @provider)`,
+      OUTBOX_PROC,
       [
-        // An explicit length, not VarChar(MAX): the relay's type codec carries
-        // `length` as a plain number, and MAX is a sentinel that has to survive
-        // an encode/decode round trip to mean the same thing on the far side.
-        // An SMS is a few hundred characters; 2000 is generous and unambiguous.
-        { name: "msg", type: mssql.VarChar(2000), value: message },
         // ServiceSuite stores MSISDNs bare — 254XXXXXXXXX, no plus. normalizeMsisdn
         // upstream already produces that shape; this strips a leading + defensively
         // because one wrong character here means the message goes nowhere and
         // nothing reports it.
-        { name: "to", type: mssql.VarChar(15), value: phone.replace(/^\+/, "") },
-        { name: "entity", type: mssql.Int, value: target.entityId },
-        { name: "provider", type: mssql.Int, value: SMS_PROVIDER_ID },
+        //
+        // The parameter is varchar(50) on their side and `smsto` is varchar(20).
+        // A 12-digit MSISDN fits both with room to spare, but the narrowness is
+        // worth remembering: an overflow here aborts the whole transaction with
+        // no partial state and no log line.
+        { name: "receiver", type: mssql.VarChar(50), value: phone.replace(/^\+/, "") },
+        // An explicit length, not VarChar(MAX): the relay's type codec carries
+        // `length` as a plain number, and MAX is a sentinel that has to survive
+        // an encode/decode round trip to mean the same thing on the far side.
+        // An SMS is a few hundred characters; 2000 is generous and unambiguous,
+        // and `smsMessage` is varchar(max) at the far end so nothing truncates.
+        { name: "bodyMessage", type: mssql.VarChar(2000), value: message },
+        // Which book. This is the whole reason the message arrives as MICROMART:
+        // the procedure reads the entity's provider, and the drainer reads the
+        // entity's registered sender id.
+        { name: "companyid", type: mssql.Int, value: target.entityId },
       ],
       { timeoutMs: 20000 },
     );

@@ -49,6 +49,7 @@ import { enterOrg } from "@/lib/db/context";
 import { borrowerFor, otpRequired } from "@/lib/portal/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { micromartAccount, micromartLoans } from "@/lib/portal/micromart-account";
+import { micromartSavings, micromartScore, type PortalScore, type SavingsPosition } from "@/lib/portal/micromart-standing";
 
 export const runtime = "nodejs";
 
@@ -155,6 +156,11 @@ export async function POST(req: NextRequest) {
   let avgDailySales: number | null = null;
   let bookSource: "native" | "lender" | "unavailable" = "unavailable";
   let firstName = borrower?.firstName ?? null;
+  // The two figures a customer opens the app to look at, and which nothing was
+  // answering. See lib/portal/micromart-standing.ts for where each one lives
+  // and why neither could come from AccountPreview.
+  let savings: SavingsPosition | null = null;
+  let liveScore: PortalScore | null = null;
 
   if (org.mode === "NATIVE") {
     bookSource = "native";
@@ -200,6 +206,24 @@ export async function POST(req: NextRequest) {
       avgDailySales = acct.account.avgDailySales;
       firstName = acct.account.firstName ?? firstName;
 
+      // ── SAVINGS AND SCORE ────────────────────────────────────────────
+      // Both need the ServiceSuite borrower id, which only exists once the
+      // customer has authenticated against the lender — and both go over SQL
+      // rather than their API, because their API exposes neither.
+      //
+      // In parallel, and each independently best-effort: Home's whole design
+      // is that one weak answer degrades a section rather than the screen, and
+      // the score in particular is a model call that must never be able to
+      // hold up somebody's balance.
+      const ssId = Number(session.ssBorrowerId ?? acct.account.borrowerId) || 0;
+      if (org.registry && ssId > 0) {
+        const entity = session.ssEntityId ?? org.entityId;
+        [savings, liveScore] = await Promise.all([
+          micromartSavings(org.registry, ssId),
+          micromartScore(org.registry, entity, ssId),
+        ]);
+      }
+
       if (loans.ok) {
         const open = loans.loans.filter((l) => !l.cleared && l.balance > 0);
         const l = open[0] ?? null;
@@ -243,13 +267,40 @@ export async function POST(req: NextRequest) {
     activeLoan,
     schedule,
 
-    // OUR 900-point score, which is the one the Score screen explains.
-    score: borrower?.creditScore ?? null,
-    band: borrower?.riskBand ?? null,
+    // ── THE 900-POINT SCORE ───────────────────────────────────────────────
+    // One number on one scale, whichever book the customer is on.
+    //
+    // For a BRIDGED customer it comes from the deployed behavioural model,
+    // which is the only thing on this system that speaks 300–900: their
+    // `Borrowers.RiskScore` is NULL across most of the book, and their
+    // `CreditScore` column is average daily sales (see `avgDailySales` below).
+    // Rendering either as a score would put a plausible-looking number on a
+    // gauge that nobody could reconcile with anything.
+    //
+    // For a NATIVE customer it stays our own stored figure. Both arrive here
+    // on the same scale, so the screen does not branch.
+    score: liveScore?.score ?? borrower?.creditScore ?? null,
+    scoreMax: 900,
+    band: liveScore?.band ?? borrower?.riskBand ?? null,
+    // How to colour the gauge, and what moved the number. The app's own footer
+    // promises that every decision on the screen can be explained on request —
+    // this is that promise kept in the response rather than in a support call.
+    scoreTone: liveScore?.tone ?? null,
+    scoreDrivers: liveScore?.drivers ?? [],
     // Theirs, on their own scale, labelled. Never mixed with the above.
     // THEIR `CreditScore` field, correctly named: average daily sales in
     // shillings. An affordability signal, not a competing score.
     avgDailySales,
+
+    // ── SAVINGS ───────────────────────────────────────────────────────────
+    // Null means "we could not ask", exactly as `bookSource` does for the
+    // balance. A zero BALANCE inside a present object means "you have saved
+    // nothing yet", which is a different and true statement. The screen has to
+    // be able to tell them apart, so the shape carries the difference rather
+    // than collapsing both to 0.
+    savings: savings
+      ? { balance: savings.balance, lastAmount: savings.lastAmount, lastAt: savings.lastAt }
+      : null,
 
     // ── AUTO-REPAY ────────────────────────────────────────────────────────
     // Our own M-Pesa Ratiba integration debits into OUR books, so it is

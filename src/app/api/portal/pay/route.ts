@@ -12,13 +12,30 @@ import { enterOrg } from "@/lib/db/context";
 import { borrowerFor, otpRequired } from "@/lib/portal/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { initiateStkPush } from "@/lib/mpesa/daraja";
-import { micromartRepay } from "@/lib/portal/micromart-account";
+import { micromartAccount, micromartRepay } from "@/lib/portal/micromart-account";
+import { explainAllocation, isPayPurpose, type PayPurpose } from "@/lib/portal/pay-purpose";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  let body: { lenderSlug?: string; nationalId?: string; amount?: number };
+  let body: { lenderSlug?: string; nationalId?: string; amount?: number; purpose?: string };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
+
+  // ── THE STATED PURPOSE ────────────────────────────────────────────────────
+  // What the customer believed they were paying for. It does NOT route the
+  // money — the lender's own RepaymentTrigger decides that, and no endpoint on
+  // their side accepts a destination. See lib/portal/pay-purpose.ts for the
+  // rule and for why pretending otherwise would be the worst thing this
+  // feature could do.
+  //
+  // It is captured because it is the first question asked in any dispute, and
+  // because it is what makes the confirmation honest: the response says where
+  // the money will actually land, derived from the trigger's own logic.
+  //
+  // An unrecognised value falls back to "repayment" rather than 400ing. This is
+  // a money screen: a client that sends a purpose we have not shipped yet
+  // should still be able to take the payment.
+  const purpose: PayPurpose = isPayPurpose(body.purpose) ? body.purpose : "repayment";
 
   const nationalId = (body.nationalId ?? "").trim();
   if (!nationalId) {
@@ -63,6 +80,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: "Enter how much you want to pay." }, { status: 400 });
     }
 
+    // Their current balance, so the confirmation can state where this payment
+    // will actually land. Read before the prompt goes out, because afterwards
+    // is too late to tell somebody their "savings" cleared a loan.
+    //
+    // Best-effort: a failed read costs the customer the split, not the payment.
+    // `null` and `0` are kept apart — 0 means "you owe nothing", null means "we
+    // could not ask", and only the first is safe to describe.
+    const acct = await micromartAccount(verified.ssToken);
+    const outstanding = acct.ok ? acct.account.outstanding : null;
+    const allocation = outstanding == null ? null : explainAllocation(purpose, amount, outstanding);
+
     const r = await micromartRepay({
       token: verified.ssToken,
       amount,
@@ -73,7 +101,36 @@ export async function POST(req: NextRequest) {
     });
 
     if (r.kind === "pushed") {
-      return NextResponse.json({ success: true, amount, message: r.message, pushed: true });
+      // The stated purpose, filed against the customer. Not for routing — for
+      // the conversation that happens if the allocation is ever questioned.
+      await prisma.auditLog.create({
+        data: {
+          orgId: org.id,
+          actorId: String(verified.ssBorrowerId ?? ""),
+          actorType: "borrower",
+          action: "portal.pay.stk",
+          ip: clientIp(req),
+          meta: {
+            purpose,
+            amount,
+            entityId: verified.ssEntityId,
+            outstandingAtRequest: outstanding,
+            predicted: allocation ? { toLoan: allocation.toLoan, toSavings: allocation.toSavings } : null,
+          },
+        },
+      }).catch(() => {});
+
+      return NextResponse.json({
+        success: true,
+        amount,
+        purpose,
+        message: r.message,
+        pushed: true,
+        // Where the lender's own trigger will put it. Null when the balance
+        // could not be read — the screen then says only that the prompt is on
+        // its way, which is the honest reduced statement.
+        allocation,
+      });
     }
     if (r.kind === "shadowed") {
       // Reported as a REFUSAL, not as a success. A customer told "check your

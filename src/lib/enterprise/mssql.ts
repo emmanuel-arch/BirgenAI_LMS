@@ -13,7 +13,7 @@
 
 import mssql, { type ConnectionPool, type config as MssqlConfig } from "mssql";
 import { getMssqlConfig, type OrgDef } from "./connections";
-import { relayEnabled, relayQuery, isRoadFailure, relayWritesArmed } from "./relay";
+import { relayEnabled, relayQuery, isRoadFailure, relayWriteCapability } from "./relay";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TWO WAYS TO REACH THE SAME SERVER, CHOSEN ONCE, HERE.
@@ -304,6 +304,16 @@ export type WritePathState = {
   relay: "armed" | "read-only" | "unknown" | "none";
   /** Will a write be accepted? null when nothing on any road could tell us. */
   armed: boolean | null;
+  /**
+   * How many stored procedures the relay will run BY NAME even while read-only.
+   *
+   * A read-only relay holding an allowlist is not the same posture as a bare
+   * read-only one: arbitrary SQL is still refused, but a named procedure — the
+   * SMS outbox is the first — goes through. Callers that need one of those must
+   * be able to tell the two apart, otherwise they report a capability as absent
+   * while the door it needs is standing open.
+   */
+  allowedProcs: number;
   /** One sentence, for the screen. */
   detail: string;
 };
@@ -312,35 +322,42 @@ export async function writePathState(org: OrgDef): Promise<WritePathState> {
   const direct = directConfigured(org) && directMode() !== "off";
   if (!relayEnabled()) {
     return direct
-      ? { direct, relay: "none", armed: true, detail: "Writing over a direct connection to the lender's server." }
+      ? { direct, relay: "none", armed: true, allowedProcs: 0, detail: "Writing over a direct connection to the lender's server." }
       : {
           direct,
           relay: "none",
           armed: false,
+          allowedProcs: 0,
           detail: "No road to the lender's server is configured on this deployment — neither a direct connection nor a relay.",
         };
   }
 
-  const armed = await relayWritesArmed();
+  const { armed, allowedProcs } = await relayWriteCapability();
   if (armed === true) {
-    return { direct, relay: "armed", armed: true, detail: "The relay is armed for writes." };
+    return { direct, relay: "armed", armed: true, allowedProcs, detail: "The relay is armed for writes." };
   }
   if (armed === false) {
     // Direct still wins when it is ahead of the relays, because that is the road
     // the write will actually take.
-    return direct && directMode() === "first"
-      ? { direct, relay: "read-only", armed: true, detail: "Writing over the direct connection; the relay behind it is read-only." }
-      : {
-          direct,
-          relay: "read-only",
-          armed: false,
-          detail: "The relay is read-only. Set SQL_RELAY_ALLOW_WRITES=true on the relay host to arm writes.",
-        };
+    if (direct && directMode() === "first") {
+      return { direct, relay: "read-only", armed: true, allowedProcs, detail: "Writing over the direct connection; the relay behind it is read-only." };
+    }
+    return {
+      direct,
+      relay: "read-only",
+      armed: false,
+      allowedProcs,
+      detail:
+        allowedProcs > 0
+          ? `The relay is read-only, but will run ${allowedProcs} named procedure${allowedProcs === 1 ? "" : "s"}. Arbitrary writes need SQL_RELAY_ALLOW_WRITES=true on the relay host.`
+          : "The relay is read-only. Set SQL_RELAY_ALLOW_WRITES=true on the relay host to arm writes, or permit one procedure by name with SQL_RELAY_ALLOW_PROCS.",
+    };
   }
   return {
     direct,
     relay: "unknown",
     armed: direct ? true : null,
+    allowedProcs,
     detail: direct
       ? "Writing over the direct connection; the relay did not report whether it is armed."
       : "The relay did not say whether it is armed for writes — the attempt will tell us.",

@@ -186,18 +186,38 @@ export function relayRoadState(): { endpoints: string[]; active: string | null }
  * button on a guess.
  */
 export async function relayWritesArmed(): Promise<boolean | null> {
+  return (await relayWriteCapability()).armed;
+}
+
+/**
+ * The fuller answer: is the relay armed, and does it hold a NARROW allowlist of
+ * procedures it will run even while read-only?
+ *
+ * A read-only relay with an allowlist is a real and deliberate posture — it is
+ * how the borrower OTP reaches Micromart's own SMS outbox without turning a
+ * public endpoint into an unrestricted write proxy onto a live shared database.
+ * Collapsing that to `armed: false` would make every caller report the
+ * capability as absent, which is how the SMS path stayed dark while the door it
+ * needed was standing open.
+ *
+ * `allowedProcs` is a COUNT — the relay does not publish the names on an
+ * unauthenticated endpoint, and no caller needs them. It says only "a narrow
+ * door exists, so attempt the call and let the refusal be the answer".
+ */
+export async function relayWriteCapability(): Promise<{ armed: boolean | null; allowedProcs: number }> {
   for (const base of roadsToTry()) {
     try {
       const res = await fetch(`${base}/health`, { cache: "no-store", signal: AbortSignal.timeout(2500) });
       if (!res.ok) continue;
-      const body = (await res.json()) as { writes?: unknown };
-      if (typeof body.writes === "boolean") return body.writes;
-      return null; // it answered, but this relay predates the field
+      const body = (await res.json()) as { writes?: unknown; allowedProcs?: unknown };
+      const allowedProcs = typeof body.allowedProcs === "number" ? body.allowedProcs : 0;
+      if (typeof body.writes === "boolean") return { armed: body.writes, allowedProcs };
+      return { armed: null, allowedProcs }; // it answered, but this relay predates the field
     } catch {
       /* try the next road */
     }
   }
-  return null;
+  return { armed: null, allowedProcs: 0 };
 }
 
 function relaySecret(): string {

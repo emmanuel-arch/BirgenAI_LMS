@@ -70,6 +70,44 @@ const PORT = Number(process.env.SQL_RELAY_PORT || 8787);
 const HOST = process.env.SQL_RELAY_HOST || "127.0.0.1";
 const SECRET = (process.env.SERVICESUITE_RELAY_SECRET ?? "").trim();
 const ALLOW_WRITES = process.env.SQL_RELAY_ALLOW_WRITES === "true";
+
+// ── THE NARROW DOOR ─────────────────────────────────────────────────────────
+// A comma-separated list of stored procedures that may be executed EVEN WHEN
+// the relay is otherwise read-only. Nothing else changes: `exec` (arbitrary
+// SQL) stays refused, and every `proc` not on this list stays refused.
+//
+// WHY THIS EXISTS RATHER THAN JUST SETTING SQL_RELAY_ALLOW_WRITES=true.
+// The borrower app needs exactly one write to go live: the row that puts a
+// verification code in Micromart's own SMS outbox. Without it a customer asking
+// for a code is told "We couldn't send the code right now", which is the
+// front door of the product failing.
+//
+// Arming the relay wholesale buys that one capability at the price of turning a
+// public HTTPS endpoint into an unrestricted write proxy onto a LIVE, SHARED
+// lender database — one that also runs their ServiceSuite. The blast radius of
+// a leaked relay secret goes from "somebody read the book" to "somebody wrote
+// to it". That trade is not worth making for an SMS row.
+//
+// An allowlist of procedure NAMES is the proportionate version. The names are
+// fixed here, on the machine that owns the socket; a caller cannot add to them,
+// cannot pass arbitrary SQL, and cannot reach a procedure nobody listed. The
+// procedure itself decides what the parameters are allowed to do — which is the
+// same guarantee ServiceSuite gives its own callers.
+//
+// Matching is case-insensitive and compares the FULL name as given, so
+// `Notifications.dbo.sp_InsertsmsAndEmails` does not also admit some other
+// catalogue's procedure of the same short name.
+const ALLOW_PROCS = new Set(
+  (process.env.SQL_RELAY_ALLOW_PROCS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+/** Is this specific request permitted on a relay that is not armed for writes? */
+function allowedWhileReadOnly(kind: RelayRequest["kind"], name: string): boolean {
+  return kind === "proc" && ALLOW_PROCS.has(name.trim().toLowerCase());
+}
 /** Bigger than any single read the suite issues; small enough that a body cannot be used to exhaust memory. */
 const MAX_BODY = 512 * 1024;
 
@@ -122,7 +160,19 @@ const server = createServer(async (req, res) => {
   // this endpoint is public, and "which hosts can I see" is not something an
   // unauthenticated caller gets to ask. Use `npm run relay:check` for that.
   if (req.method === "GET" && (url === "/health" || url === "/")) {
-    return send(res, 200, { ok: true, service: "sql-relay", since: started.toISOString(), served, refused });
+    return send(res, 200, {
+      ok: true,
+      service: "sql-relay",
+      since: started.toISOString(),
+      served,
+      refused,
+      writes: ALLOW_WRITES,
+      // A COUNT, never the names. The caller needs to know that a narrow door
+      // exists so it can attempt a permitted procedure instead of reporting the
+      // capability as absent; it does not need to know which procedures, and
+      // this endpoint is unauthenticated.
+      allowedProcs: ALLOW_PROCS.size,
+    });
   }
 
   if (req.method !== "POST" || !url.startsWith("/query")) {
@@ -162,13 +212,21 @@ const server = createServer(async (req, res) => {
     });
   }
 
-  if ((reqBody.kind === "exec" || reqBody.kind === "proc") && !ALLOW_WRITES) {
+  if (
+    (reqBody.kind === "exec" || reqBody.kind === "proc") &&
+    !ALLOW_WRITES &&
+    !allowedWhileReadOnly(reqBody.kind, reqBody.sql)
+  ) {
     refused++;
     return send(res, 403, {
       ok: false,
+      // Naming the allowlist matters: without it, an operator who has already
+      // listed a procedure and mistyped the name reads this as "writes are off"
+      // and goes looking in the wrong place.
       error:
         `This relay is read-only. A "${reqBody.kind}" request was refused. ` +
-        `Set SQL_RELAY_ALLOW_WRITES=true on the relay host to arm writes.`,
+        `Arm writes with SQL_RELAY_ALLOW_WRITES=true, or permit this one ` +
+        `procedure by name with SQL_RELAY_ALLOW_PROCS — on the relay host.`,
     });
   }
 
@@ -263,6 +321,13 @@ async function warmPools() {
 server.listen(PORT, HOST, async () => {
   console.log(`\n\x1b[1mSQL relay\x1b[0m listening on http://${HOST}:${PORT}`);
   console.log(`  writes:   ${ALLOW_WRITES ? "\x1b[33mARMED\x1b[0m" : "\x1b[32mrefused (read-only)\x1b[0m"}`);
+  // Printed in full at startup, on the operator's own console. This is the one
+  // place the names belong: whoever restarts the relay must be able to see
+  // exactly which doors they just opened, without reading the .env back.
+  if (ALLOW_PROCS.size > 0) {
+    console.log(`  allowed:  \x1b[33m${ALLOW_PROCS.size} procedure(s)\x1b[0m even while read-only`);
+    for (const p of ALLOW_PROCS) console.log(`              \x1b[2m${p}\x1b[0m`);
+  }
   console.log(`\n  \x1b[2mwarming connection pools…\x1b[0m`);
   await warmPools();
   console.log(`\n  Publish it:   \x1b[1mtailscale funnel ${PORT}\x1b[0m`);
