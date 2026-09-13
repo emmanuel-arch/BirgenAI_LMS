@@ -1,0 +1,161 @@
+{
+  "pack": "platform.ratiba",
+  "owner": "platform",
+  "version": 1,
+  "authority": "platform",
+  "audience": ["customer", "staff", "developer"],
+  "lang": "en",
+  "description": "M-PESA Ratiba — what it is, how a customer sets one up, who answers which support question, and what a lender must hold before integrating. Every fact here is traceable to Safaricom's own API agreement rather than to how we happen to have built it, so it stays true when our screens change.",
+  "source": {
+    "title": "Agreement between Safaricom PLC and the Company relating to the M-PESA Ratiba APIs",
+    "issuer": "Safaricom PLC",
+    "dated": "2024 form, executed 2026",
+    "ref": "reports/M-PESA Ratiba Standing order API Agreement.docx"
+  },
+  "entries": [
+    {
+      "category": "what-it-is",
+      "question": "What is M-PESA Ratiba?",
+      "variants": [
+        "what is ratiba",
+        "ratiba ni nini",
+        "standing order mpesa",
+        "automatic payment mpesa",
+        "recurring payment safaricom",
+        "what does ratiba do"
+      ],
+      "answer": "Ratiba is M-PESA's standing-order service. It lets you set up a payment that repeats on its own — your loan repayment, for example — instead of you remembering to send it each time. You create the subscription once, M-PESA notifies you before each one falls due, and you can see and manage all of them in one place.",
+      "url": "https://www.safaricom.co.ke/personal/m-pesa/m-pesa-services/m-pesa-ratiba",
+      "effective_from": "2026-01-01",
+      "review_by": "2027-01-01"
+    },
+    {
+      "category": "how-to",
+      "question": "Do I need to dial *334# to use Ratiba?",
+      "variants": [
+        "how do I access ratiba",
+        "ussd code for ratiba",
+        "*334#",
+        "334",
+        "naingiaje ratiba",
+        "ratiba code",
+        "how do I set up a standing order",
+        "where do I find ratiba on my phone"
+      ],
+      "answer": "You can use either. Ratiba lives on *334# on your phone, and also inside the M-PESA app — both take you to the same subscriptions, so use whichever is easier for you. If we set the standing order up for you when you took the loan, it is already there; *334# is how you check it, change the amount, or stop it.",
+      "url": "https://www.safaricom.co.ke/personal/m-pesa/m-pesa-services/m-pesa-ratiba",
+      "effective_from": "2026-01-01",
+      "review_by": "2027-01-01"
+    },
+    {
+      "category": "how-to",
+      "question": "How do I stop or change my Ratiba standing order?",
+      "variants": [
+        "cancel ratiba",
+        "stop automatic payment",
+        "nataka kusimamisha ratiba",
+        "change my standing order amount",
+        "deactivate ratiba",
+        "unsubscribe ratiba"
+      ],
+      "answer": "Your standing order is yours to control: dial *334# or open the M-PESA app, find the subscription, and change or cancel it there. Activation and deactivation are handled by Safaricom, so it takes effect on their side straight away. One thing worth knowing before you stop it — cancelling the standing order does not cancel what you owe. The instalment is still due on its date, you will just be paying it manually.",
+      "effective_from": "2026-01-01",
+      "review_by": "2027-01-01"
+    },
+    {
+      "category": "support",
+      "question": "My Ratiba payment did not go through — who do I ask?",
+      "variants": [
+        "ratiba failed",
+        "payment did not go out",
+        "standing order did not work",
+        "ratiba haikufanya kazi",
+        "my subscription failed",
+        "double charged ratiba"
+      ],
+      "answer": "It depends which half went wrong, and the split is a real one rather than us passing you around. Anything about the M-PESA transaction itself — whether it went out, what your M-PESA statement shows, activating or deactivating the subscription — is Safaricom's to answer, and they support Ratiba directly. Anything about your loan — whether the money reached your balance, what is still owed, what happens now — is ours, and I can check that with you right now.",
+      "effective_from": "2026-01-01",
+      "review_by": "2027-01-01"
+    },
+    {
+      "category": "support",
+      "question": "Ratiba took the money but my loan balance has not changed",
+      "variants": [
+        "paid but balance same",
+        "money gone but loan not reduced",
+        "nililipa lakini balance haijabadilika",
+        "payment not reflecting"
+      ],
+      "answer": "Let me look at your account. A Ratiba payment reaches us and is applied to your loan first, with anything left over going to your savings — that allocation is automatic and nobody, including us, redirects it. If the money left your M-PESA and your balance here has not moved, that is a genuine gap and worth raising as a case so somebody follows it to the end rather than you checking back.",
+      "effective_from": "2026-01-01",
+      "review_by": "2027-01-01"
+    },
+    {
+      "category": "cost",
+      "question": "Does Ratiba cost me anything?",
+      "variants": [
+        "ratiba charges",
+        "is ratiba free",
+        "bei ya ratiba",
+        "fee for standing order"
+      ],
+      "answer": "Ratiba is a Safaricom service and any transaction charge on it is theirs, not ours — we do not add a fee for paying us this way. Safaricom publishes its own tariff, and your M-PESA message shows the cost of each transaction. We charge nothing for setting up, changing or cancelling a standing order.",
+      "url": "https://www.safaricom.co.ke/personal/m-pesa/m-pesa-services/m-pesa-ratiba",
+      "effective_from": "2026-01-01",
+      "review_by": "2026-12-01"
+    },
+    {
+      "category": "lender",
+      "question": "What does a lender need before it can offer Ratiba?",
+      "variants": [
+        "how do we integrate ratiba",
+        "ratiba requirements for lenders",
+        "can we offer standing orders",
+        "what do I need for ratiba",
+        "ratiba onboarding"
+      ],
+      "answer": "Four things, and only one of them is technical. You sign Safaricom's M-PESA Ratiba API agreement, which is non-exclusive and runs for twelve months before renewing automatically. You procure your own paybill and M-PESA accounts — Safaricom does not provide those as part of the integration. You carry your own legal and tax compliance, including data protection. And you integrate directly to the Ratiba API, which Safaricom hosts and operates at their cost. Use of the service also falls under the M-PESA Ratiba and Lipa na M-PESA terms, which the agreement incorporates by reference.",
+      "effective_from": "2026-01-01",
+      "review_by": "2027-01-01"
+    },
+    {
+      "category": "lender",
+      "question": "Who handles customer support for Ratiba — us or Safaricom?",
+      "variants": [
+        "who answers ratiba queries",
+        "support boundary ratiba",
+        "do we support ratiba",
+        "escalate ratiba issue"
+      ],
+      "answer": "The agreement draws the line explicitly, which is why our assistant can route on it rather than guess. Safaricom provides customer service for the M-PESA side: transaction status, M-PESA statements, and Ratiba activation and deactivation. Everything outside an M-PESA transaction — the lending relationship, the balance, the schedule, the dispute — sits with the lender. In practice that means a customer asking 'did it go out' goes to Safaricom and a customer asking 'why do I still owe this' stays with us.",
+      "effective_from": "2026-01-01",
+      "review_by": "2027-01-01"
+    },
+    {
+      "category": "lender",
+      "question": "What does Safaricom take responsibility for under the Ratiba agreement?",
+      "variants": [
+        "safaricom obligations ratiba",
+        "who hosts the ratiba api",
+        "who pays for ratiba",
+        "ratiba marketing"
+      ],
+      "answer": "Safaricom hosts the API and the infrastructure behind it, bears the cost of developing and operating the Ratiba service for the term, markets the service to its own stakeholders, and provides customer support for M-PESA transactions, statements and subscription activation. Hosting may attract fees Safaricom sets from time to time. The integration cost on your side is yours.",
+      "effective_from": "2026-01-01",
+      "review_by": "2027-01-01"
+    },
+    {
+      "category": "developer",
+      "question": "How does Ratiba differ from an STK push?",
+      "variants": [
+        "stk vs ratiba",
+        "difference between stk push and standing order",
+        "which mpesa api for recurring",
+        "recurring collection api"
+      ],
+      "answer": "An STK push asks the customer to approve one payment, now — they get a prompt and enter their PIN. Ratiba is a standing order: the customer authorises a repeating payment once, and it runs on its schedule without a prompt each time. For a loan book that makes Ratiba the better fit for instalments and STK the better fit for an ad-hoc or early repayment. Both reach the same paybill; what differs is who initiates and when.",
+      "effective_from": "2026-01-01",
+      "review_by": "2027-01-01"
+    }
+  ]
+}

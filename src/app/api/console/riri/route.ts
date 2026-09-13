@@ -41,6 +41,7 @@ import { routeQuestion, ENGINE_LABEL, ENGINE_EVIDENCE, type Engine } from "@/lib
 import { analyze } from "@/lib/riri/analyst";
 import { answerSupport } from "@/lib/riri/support";
 import { logRiriQuery } from "@/lib/riri/log";
+import { checkTraps, mustRefuse, trapIds } from "@/lib/riri/traps";
 import { askAssistant, rememberExchange, sanitizeHistory } from "@/lib/riri/assistant";
 import { lmsHost } from "@/lib/riri/providers/lms";
 import { appendExchange } from "@/lib/riri/threads";
@@ -129,6 +130,49 @@ export async function POST(req: NextRequest) {
     });
   };
 
+  // ── THE GROUNDING TRAPS ────────────────────────────────────────────────────
+  //
+  // Six areas where this book's data reads as an answer and is not one — the
+  // clearance column that is NULL on all 344,332 rows, the penalties that have not
+  // fired since June, the KYC reader that simulates at 96% confidence. See
+  // lib/riri/traps.ts for why better retrieval makes this WORSE rather than better.
+  //
+  // Checked BEFORE the paywall on purpose. Refusing to hand somebody a wrong number
+  // is not a premium feature, and a lender on the smallest package must not be the
+  // one who gets the confident zero.
+  const traps = checkTraps(question);
+  const refusal = mustRefuse(traps);
+
+  if (refusal) {
+    const answer = refusal.trap.say;
+    void logRiriQuery({
+      orgId, staffId, model: engine, question, route: "refused",
+      ok: false, error: `trap:${refusal.trap.id}`,
+    });
+    const filed = await file(answer, { route: "refused" });
+    return NextResponse.json({
+      success: true, ...stamp, model: engine, mode: "live", route: "refused",
+      answer, kind: "support",
+      evidence: "Refused — the underlying data cannot answer this",
+      traps: trapIds(traps),
+      actions: [], suggestions: [],
+      threadId: filed?.threadId ?? body.threadId ?? null,
+      threadTitle: filed?.title ?? null,
+    });
+  }
+
+  /**
+   * A caveat is appended deterministically rather than asked of the model.
+   *
+   * The temptation is to put the warning in the grounding and let the model work it
+   * in, which reads better. It also means the one sentence that stops a figure being
+   * believed is subject to the model deciding it was not important this time. These
+   * six are exactly the cases where the number looks clean and is not, so the
+   * sentence is welded on where nothing can drop it.
+   */
+  const withCaveats = (answer: string): string =>
+    traps.length === 0 ? answer : [answer, ...traps.map((h) => `\n---\n${h.trap.say}`)].join("\n");
+
   // ── SUPPORT IS NOT SOLD, AND IS NOT GATED ──────────────────────────────────
   //
   // Every other engine needs `riri.use` and the `riri` plan feature. Support needs
@@ -146,12 +190,13 @@ export async function POST(req: NextRequest) {
       lang: body.lang === "sw" || body.lang === "en" ? body.lang : undefined,
     });
 
+    const answer = withCaveats(r.answer);
     void logRiriQuery({ orgId, staffId, model: engine, question, route: "knowledge", metricId: r.articleId ?? null, ok: true });
-    const filed = await file(r.answer, { route: "knowledge", data: { actions: r.actions, suggestions: r.suggestions } });
+    const filed = await file(answer, { route: "knowledge", data: { actions: r.actions, suggestions: r.suggestions } });
 
     return NextResponse.json({
       success: true, ...stamp, model: engine, mode: "live", route: "knowledge",
-      answer: r.answer, kind: "support",
+      answer, kind: "support", traps: trapIds(traps),
       actions: r.actions, suggestions: r.suggestions,
       threadId: filed?.threadId ?? body.threadId ?? null,
       threadTitle: filed?.title ?? null,
@@ -201,7 +246,8 @@ export async function POST(req: NextRequest) {
         ok: r.ok, error: r.error ?? null,
       });
 
-      const filed = await file(r.answer, {
+      const answer = withCaveats(r.answer);
+      const filed = await file(answer, {
         route: r.route, sql: r.sql ?? null,
         data: { chips: r.chips ?? null, series: r.series ?? null, table: r.table ?? null, rows: r.rows ?? null, ms: r.ms ?? null } as Prisma.InputJsonValue,
       });
@@ -209,7 +255,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true, ...stamp, model: engine,
         mode: "live", // reads real rows — no credential, no simulation
-        answer: r.answer,
+        answer,
+        traps: trapIds(traps),
         kind: r.kind,
         route: r.route,
         chips: r.chips ?? null,
@@ -247,10 +294,12 @@ export async function POST(req: NextRequest) {
       void rememberExchange(host, staffId, question, r.answer, r.subjectId);
     }
 
-    const filed = await file(r.answer, { route: "assistant" });
+    const answer = withCaveats(r.answer);
+    const filed = await file(answer, { route: "assistant" });
 
     return NextResponse.json({
-      success: true, ...stamp, model: engine, mode: r.mode, answer: r.answer,
+      success: true, ...stamp, model: engine, mode: r.mode, answer,
+      traps: trapIds(traps),
       kind: "reasoning", route: "assistant",
       threadId: filed?.threadId ?? body.threadId ?? null,
       threadTitle: filed?.title ?? null,

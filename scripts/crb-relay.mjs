@@ -122,6 +122,145 @@ const CRB_RELAY_ALLOWED_HOSTS = ["api.metropol.co.ke"];
  */
 const WHITELISTED_EGRESS = ["102.214.69.233", "102.210.148.110"];
 
+// ── WHERE MICROMART'S BUREAU CALLS MAY ORIGINATE ─────────────────────────────
+// STANDING RULE, set by the founder 11 Sep 2026: a Metropol call on Micromart's
+// behalf leaves from `salesmaster` or from `services`. No other node, ever.
+//
+// WHY THIS IS ENFORCED HERE AND NOT LEFT AS A DEPLOYMENT CONVENTION.
+// Until now the egress address was only PRINTED at boot. Nothing stopped the
+// relay serving bureau traffic from a box that was never registered — and the
+// failure mode of getting that wrong is the worst one in this codebase: the
+// call is dropped at Metropol's edge with no response, no `api_code` and
+// nothing in any log, which looks exactly like the bureau being down. An
+// operator can lose a day to it. A relay that refuses the call outright, and
+// says why, turns a silent outage into a one-line answer.
+//
+// The rule is enforced on the EGRESS IP rather than on a hostname, because the
+// egress IP is the thing Metropol actually checks. A hostname is what we call
+// the box; the address is what the bureau sees, and the two come apart exactly
+// when it matters — an exit node, a dropped OpenVPN TAP adapter, a restored VM.
+const ALLOWED_ORIGINS = [
+  {
+    node: "salesmaster",
+    egress: "102.214.69.233",
+    // check-host.ps1 on the box: Metropol :22225 open. `npm run test:crb:prod`:
+    // 8/8 services ENTITLED against production. On the 2026-08-27 form.
+    verified: "8/8 ENTITLED against production :22225, 28 Aug 2026",
+  },
+  {
+    // MICROMART'S SITE. `lms` is a guest spun up inside the `services` box, so
+    // "the Micromart site" is two tailnet nodes sharing one 102.210.148.0/24 —
+    // and they do NOT present the same address to the internet.
+    //
+    // Measured from the workstation on 11 Sep 2026 (`tailscale status --json`,
+    // CurAddr per peer), which reads the endpoint the peer actually presents
+    // rather than what a form says:
+    //
+    //     lms       100.92.236.116  ->  102.210.148.110:41641   ON the form
+    //     services  100.72.35.56    ->  102.210.148.124:41641   NOT on the form
+    //
+    // So of the two hosts at Micromart's site, the one Metropol will answer is
+    // `lms`. This is the entry that makes the founder's "salesmaster or the
+    // Micromart site" rule actually work.
+    node: "lms",
+    egress: "102.210.148.110",
+    verified: "CurAddr 102.210.148.110:41641, 11 Sep 2026; on the 2026-08-27 form",
+  },
+  {
+    node: "services",
+    egress: "102.210.148.124",
+    // Named in the founder's rule, so it is permitted — but it is NOT on the
+    // 2026-08-27 form, and the address above shows why that was never a typo:
+    // .110 and .124 are two different hosts at one site, and .110 is `lms`.
+    //
+    // The relay will serve from here because the rule says so, and the boot
+    // banner says the calls will be dropped at Metropol's edge until the
+    // registration is corrected. That is a bureau-side task, not a code change.
+    // Prefer `lms` for bureau traffic at this site until it is settled.
+    verified: null,
+  },
+];
+
+/**
+ * The relay's own address, and whether it is permitted to make bureau calls.
+ *
+ * Re-read periodically rather than once at boot: `salesmaster` egresses over an
+ * OpenVPN TAP adapter, and if that adapter drops the box keeps running and
+ * starts presenting a completely different address. A value measured at boot
+ * would still say "allowed" hours after it stopped being true.
+ *
+ * FAIL CLOSED WHEN NOTHING IS KNOWN, OPEN ON A TRANSIENT. Never having
+ * determined the address means refusing — an unverified egress is the exact
+ * condition this gate exists for. But a lookup that merely FAILED, while a
+ * recent good reading is still in hand, keeps serving: ipify being unreachable
+ * for a minute must not take the bureau link down with it.
+ */
+const ORIGIN_TTL_MS = 5 * 60_000;
+const ORIGIN_GRACE_MS = 60 * 60_000;
+const origin = { ip: null, allowed: null, checkedAt: 0, inFlight: null };
+
+async function resolveOrigin() {
+  const fresh = Date.now() - origin.checkedAt < ORIGIN_TTL_MS;
+  if (fresh && origin.ip) return origin;
+  if (origin.inFlight) return origin.inFlight;
+
+  origin.inFlight = (async () => {
+    try {
+      const r = await fetch("https://api.ipify.org", { signal: AbortSignal.timeout(8_000) });
+      const ip = (await r.text()).trim();
+      origin.ip = ip;
+      origin.allowed = ALLOWED_ORIGINS.find((o) => o.egress === ip) ?? null;
+      origin.checkedAt = Date.now();
+    } catch {
+      // Keep whatever we had. `checkedAt` deliberately does NOT advance, so the
+      // grace window in gateOrigin() measures from the last GOOD reading.
+    } finally {
+      origin.inFlight = null;
+    }
+    return origin;
+  })();
+
+  return origin.inFlight;
+}
+
+/** `{ ok: true }`, or the refusal an operator can act on without guessing. */
+async function gateOrigin() {
+  const o = await resolveOrigin();
+
+  if (!o.ip) {
+    return {
+      ok: false,
+      reason:
+        "This relay has not been able to determine its own public address, so it cannot " +
+        "confirm it is one of the two hosts permitted to call the bureau. Refusing rather " +
+        "than making a call that would be dropped at Metropol's edge with no response.",
+    };
+  }
+
+  const stale = Date.now() - o.checkedAt;
+  if (!o.allowed) {
+    const names = ALLOWED_ORIGINS.map((a) => `${a.node} (${a.egress})`).join(" or ");
+    return {
+      ok: false,
+      reason:
+        `Bureau calls may originate only from ${names}. This host egresses from ${o.ip}. ` +
+        `Move the CRB relay to a permitted node, or — if this IS one of them — an exit node ` +
+        `or a dropped VPN adapter has changed its egress address.`,
+    };
+  }
+
+  if (stale > ORIGIN_GRACE_MS) {
+    return {
+      ok: false,
+      reason:
+        `This host's egress address was last confirmed ${Math.round(stale / 60_000)} minutes ago ` +
+        `and cannot be re-checked. Refusing rather than assuming it is still ${o.ip}.`,
+    };
+  }
+
+  return { ok: true };
+}
+
 const crbSign = (secret, ts, body) =>
   createHmac("sha256", secret).update(`${ts}.${body}`).digest("hex");
 
@@ -292,6 +431,17 @@ const server = createServer(async (req, res) => {
     return send(res, 400, { ok: false, error: "Malformed request." });
   }
 
+  // Rule 6. The caller is authentic — but this BOX may not be one Metropol will
+  // answer. Checked after the signature so an unauthenticated caller learns
+  // nothing about our topology, and before the outbound call so an unregistered
+  // host fails loudly here instead of silently at the bureau's edge.
+  const gate = await gateOrigin();
+  if (!gate.ok) {
+    refused++;
+    console.warn(`  ✗ refused — ${gate.reason}`);
+    return send(res, 403, { ok: false, error: gate.reason });
+  }
+
   // Rule 3. The caller named a URL; this is where that name stops being trusted.
   if (!isAllowedBureauUrl(reqBody.url)) {
     refused++;
@@ -364,10 +514,50 @@ server.listen(PORT, HOST, async () => {
   // SOURCE address of the call, so an operator's first question is always "is
   // this box the whitelisted one?" — answer it on boot rather than after an
   // hour of reading E-codes that never arrive.
-  try {
-    const r = await fetch("https://api.ipify.org", { signal: AbortSignal.timeout(8_000) });
-    const ip = (await r.text()).trim();
-    const known = WHITELISTED_EGRESS.includes(ip);
+  console.log(`  origin rule:      ${ALLOWED_ORIGINS.map((a) => a.node).join(" or ")} only`);
+
+  {
+    const o = await resolveOrigin();
+    const ip = o.ip;
+
+    if (!ip) {
+      console.log("  egress IP:        \x1b[31m(could not determine — no route to api.ipify.org)\x1b[0m");
+      console.log(
+        `\n  \x1b[31m✗ REFUSING ALL BUREAU CALLS until this box can confirm its own address.\x1b[0m`,
+      );
+    } else {
+      const known = WHITELISTED_EGRESS.includes(ip);
+
+      console.log(
+        `  egress IP:        ${ip}  ${known ? "\x1b[32m✓ on the 2026-08-27 whitelist\x1b[0m" : "\x1b[33m⚠ NOT on the whitelist form\x1b[0m"}`,
+      );
+
+      // The origin rule and the bureau's own whitelist are two different gates
+      // and they can disagree. Print them separately — "permitted to try" and
+      // "will actually be answered" have different fixes, and collapsing them
+      // into one line is how `services` gets deployed and quietly fails.
+      if (o.allowed) {
+        console.log(
+          `  origin:           \x1b[32m✓ ${o.allowed.node}\x1b[0m — permitted to make bureau calls`,
+        );
+        if (!o.allowed.verified) {
+          console.log(
+            `\n  \x1b[33m⚠ Permitted by the standing rule, but this address is NOT on Metropol's\n` +
+              `    2026-08-27 form. Calls will leave this box and be dropped at the bureau's\n` +
+              `    edge with no api_code until the registration is corrected. Confirm with:\n` +
+              `        Test-NetConnection api.metropol.co.ke -Port 22225\x1b[0m`,
+          );
+        }
+      } else {
+        console.log(`  origin:           \x1b[31m✗ not a permitted origin\x1b[0m`);
+        console.log(
+          `\n  \x1b[31m✗ REFUSING ALL BUREAU CALLS. Micromart's bureau traffic may originate only\n` +
+            `    from ${ALLOWED_ORIGINS.map((a) => `${a.node} (${a.egress})`).join(" or ")}.\n` +
+            `    This host egresses from ${ip}. Move the relay, or check for an exit node\n` +
+            `    or a dropped VPN adapter if this was meant to be one of them.\x1b[0m`,
+        );
+      }
+    }
 
     // The near-miss case is worth calling out separately, because it is the one
     // that actually happened: the `services` box egresses from 102.210.148.124
@@ -376,11 +566,8 @@ server.listen(PORT, HOST, async () => {
     // wrong machine was chosen, when the likelier truth is a wrong digit on a
     // form, and the two have completely different fixes.
     const slash24 = (a) => a.split(".").slice(0, 3).join(".");
-    const neighbour = WHITELISTED_EGRESS.find((w) => slash24(w) === slash24(ip));
-
-    console.log(
-      `  egress IP:        ${ip}  ${known ? "\x1b[32m✓ on the 2026-08-27 whitelist\x1b[0m" : "\x1b[33m⚠ NOT on the whitelist form\x1b[0m"}`,
-    );
+    const known = ip ? WHITELISTED_EGRESS.includes(ip) : true;
+    const neighbour = ip ? WHITELISTED_EGRESS.find((w) => slash24(w) === slash24(ip)) : undefined;
 
     if (!known && neighbour) {
       console.log(
@@ -400,8 +587,6 @@ server.listen(PORT, HOST, async () => {
           `  Confirm with:  Test-NetConnection api.metropol.co.ke -Port 22225\x1b[0m`,
       );
     }
-  } catch {
-    console.log("  egress IP:        (could not determine — no route to api.ipify.org)");
   }
 
   console.log(`\n  Publish it:   \x1b[1mtailscale funnel ${PORT}\x1b[0m`);

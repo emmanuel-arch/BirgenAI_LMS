@@ -97,16 +97,132 @@ const ALLOW_WRITES = process.env.SQL_RELAY_ALLOW_WRITES === "true";
 // Matching is case-insensitive and compares the FULL name as given, so
 // `Notifications.dbo.sp_InsertsmsAndEmails` does not also admit some other
 // catalogue's procedure of the same short name.
-const ALLOW_PROCS = new Set(
+//
+// ── WHY THE LIST IS IN THIS FILE AND NOT ONLY IN .env ───────────────────────
+// It used to be env alone. Env alone has three holes, and all three matter on a
+// shared lender database:
+//
+//   1. NO CEILING. Whoever can edit `.env` on the relay host can name any
+//      procedure in the catalogue — `sp_ApproveLoan`, `sp_WriteOff`, anything —
+//      and the relay would run it. A list in the file is a bound that an
+//      operator, a bad paste or a leaked RDP session cannot raise.
+//   2. NO ORG SCOPE. `SQL_RELAY_ALLOW_PROCS` admitted a procedure NAME on every
+//      org the relay can route to. The same relay reaches Micromart AND Axe, so
+//      a door opened for one lender's outbox was open on the other lender's
+//      server too.
+//   3. NO PARAMETER SHAPE. A procedure is only as narrow as its arguments, and
+//      nothing checked which arguments a caller could pass.
+//
+// So the posture is now TWO KEYS THAT MUST BOTH TURN:
+//
+//   · WRITE_ALLOWLIST below is the CEILING — the complete set of writes this
+//     proxy is ever capable of, pinned in source, reviewed in git.
+//   · SQL_RELAY_ALLOW_PROCS is the SWITCH — per host, which of those grants are
+//     actually live here. Unset means NONE. Adding a name that is not pinned
+//     below does nothing at all; it cannot widen the ceiling.
+//
+// Deploying this file therefore changes no host's posture on its own, which is
+// the property that lets it be rolled out without a maintenance window.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** One permitted write. Everything not described by one of these is refused. */
+type WriteGrant = {
+  /** Org slugs this grant covers. A grant is never global across lenders. */
+  readonly orgs: readonly string[];
+  /** Full procedure name, exactly as the caller must send it. */
+  readonly proc: string;
+  /** The ONLY parameter names accepted. An unrecognised one refuses the call. */
+  readonly params: readonly string[];
+  /** Why this door exists. Read at every review; do not add a grant without one. */
+  readonly why: string;
+};
+
+const WRITE_ALLOWLIST: readonly WriteGrant[] = [
+  {
+    // Both Micromart books live on the same ServiceSuite instance and both send
+    // under their own registered sender id, so the grant covers the pair. Axe is
+    // deliberately absent: nothing in this product writes to Axe's outbox.
+    orgs: ["micromart", "micromart-fintech"],
+    proc: "Notifications.dbo.sp_InsertsmsAndEmails",
+    // From src/lib/sms/servicesuite.ts — their own RepaymentTrigger calls the
+    // procedure positionally as (@receiver, @body, @entityId); these are the
+    // names the relay client binds. Anything else is a caller that has drifted.
+    params: ["receiver", "bodyMessage", "companyid"],
+    why:
+      "The borrower verification code. Puts one row in Micromart's own outbox so " +
+      "the SMS arrives under THEIR sender id rather than ours — a code from an " +
+      "unknown sender is indistinguishable from phishing.",
+  },
+  // Add the next grant here, with its `why`, and only after the same question
+  // has been answered out loud: what is the worst a caller holding the relay
+  // secret could do with this procedure and arbitrary parameters?
+];
+
+/** The per-host switch. Narrows the ceiling; can never raise it. */
+const ENABLED_PROCS = new Set(
   (process.env.SQL_RELAY_ALLOW_PROCS ?? "")
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean),
 );
 
-/** Is this specific request permitted on a relay that is not armed for writes? */
-function allowedWhileReadOnly(kind: RelayRequest["kind"], name: string): boolean {
-  return kind === "proc" && ALLOW_PROCS.has(name.trim().toLowerCase());
+/** Grants pinned in the file AND switched on for this host. */
+const ACTIVE_GRANTS = WRITE_ALLOWLIST.filter((g) => ENABLED_PROCS.has(g.proc.toLowerCase()));
+
+/** Names an operator enabled that no grant defines — always an error worth printing. */
+const UNKNOWN_ENABLED = [...ENABLED_PROCS].filter(
+  (name) => !WRITE_ALLOWLIST.some((g) => g.proc.toLowerCase() === name),
+);
+
+/**
+ * Is this specific request permitted on a relay that is not armed for writes?
+ *
+ * Returns the reason for a refusal rather than a bare false, because the three
+ * ways to fail here — wrong procedure, right procedure on the wrong lender,
+ * unexpected parameter — look identical from the caller's side and have
+ * completely different fixes.
+ */
+function checkGrant(req: RelayRequest): { ok: true } | { ok: false; reason: string } {
+  // `exec` is arbitrary SQL. No allowlist can make that narrow, so it is never
+  // reachable through this path at any setting — only SQL_RELAY_ALLOW_WRITES.
+  if (req.kind !== "proc") {
+    return { ok: false, reason: `"${req.kind}" is arbitrary SQL and is never covered by the allowlist.` };
+  }
+
+  const name = req.sql.trim().toLowerCase();
+  const grant = ACTIVE_GRANTS.find((g) => g.proc.toLowerCase() === name);
+  if (!grant) {
+    const pinned = WRITE_ALLOWLIST.some((g) => g.proc.toLowerCase() === name);
+    return {
+      ok: false,
+      reason: pinned
+        ? `"${req.sql}" is in the allowlist but is not switched on for this host (SQL_RELAY_ALLOW_PROCS).`
+        : `"${req.sql}" is not in this relay's write allowlist.`,
+    };
+  }
+
+  if (!grant.orgs.includes(req.orgSlug)) {
+    return {
+      ok: false,
+      reason: `"${grant.proc}" is permitted for ${grant.orgs.join(", ")} — not for "${req.orgSlug}".`,
+    };
+  }
+
+  const permitted = new Set(grant.params.map((p) => p.toLowerCase()));
+  const unexpected = (req.params ?? [])
+    .map((p) => p.name)
+    .filter((n) => !permitted.has(n.trim().toLowerCase()));
+  if (unexpected.length > 0) {
+    // Missing parameters are the procedure's business — it has defaults and its
+    // own validation. An EXTRA one is ours: it means the caller is not the
+    // caller this grant was written for.
+    return {
+      ok: false,
+      reason: `"${grant.proc}" accepts only ${grant.params.join(", ")} — refused unexpected: ${unexpected.join(", ")}.`,
+    };
+  }
+
+  return { ok: true };
 }
 /** Bigger than any single read the suite issues; small enough that a body cannot be used to exhaust memory. */
 const MAX_BODY = 512 * 1024;
@@ -171,7 +287,7 @@ const server = createServer(async (req, res) => {
       // exists so it can attempt a permitted procedure instead of reporting the
       // capability as absent; it does not need to know which procedures, and
       // this endpoint is unauthenticated.
-      allowedProcs: ALLOW_PROCS.size,
+      allowedProcs: ACTIVE_GRANTS.length,
     });
   }
 
@@ -212,22 +328,23 @@ const server = createServer(async (req, res) => {
     });
   }
 
-  if (
-    (reqBody.kind === "exec" || reqBody.kind === "proc") &&
-    !ALLOW_WRITES &&
-    !allowedWhileReadOnly(reqBody.kind, reqBody.sql)
-  ) {
-    refused++;
-    return send(res, 403, {
-      ok: false,
-      // Naming the allowlist matters: without it, an operator who has already
-      // listed a procedure and mistyped the name reads this as "writes are off"
-      // and goes looking in the wrong place.
-      error:
-        `This relay is read-only. A "${reqBody.kind}" request was refused. ` +
-        `Arm writes with SQL_RELAY_ALLOW_WRITES=true, or permit this one ` +
-        `procedure by name with SQL_RELAY_ALLOW_PROCS — on the relay host.`,
-    });
+  if ((reqBody.kind === "exec" || reqBody.kind === "proc") && !ALLOW_WRITES) {
+    const grant = checkGrant(reqBody);
+    if (!grant.ok) {
+      refused++;
+      // The specific reason, not a flat "read-only". An operator who has already
+      // listed a procedure and mistyped the name, or pointed it at the wrong
+      // lender, reads a flat refusal as "writes are off" and goes looking in the
+      // wrong place. None of these strings name a credential or a connection.
+      console.warn(`  ✗ ${reqBody.orgSlug} ${reqBody.kind} refused — ${grant.reason}`);
+      return send(res, 403, {
+        ok: false,
+        error:
+          `This relay is read-only and the request is not covered by its write ` +
+          `allowlist. ${grant.reason} The allowlist is pinned in sql-relay.ts and ` +
+          `switched on per host with SQL_RELAY_ALLOW_PROCS; env alone cannot widen it.`,
+      });
+    }
   }
 
   const params: QueryParam[] = (reqBody.params ?? []).map((p) => ({
@@ -324,9 +441,34 @@ server.listen(PORT, HOST, async () => {
   // Printed in full at startup, on the operator's own console. This is the one
   // place the names belong: whoever restarts the relay must be able to see
   // exactly which doors they just opened, without reading the .env back.
-  if (ALLOW_PROCS.size > 0) {
-    console.log(`  allowed:  \x1b[33m${ALLOW_PROCS.size} procedure(s)\x1b[0m even while read-only`);
-    for (const p of ALLOW_PROCS) console.log(`              \x1b[2m${p}\x1b[0m`);
+  if (ACTIVE_GRANTS.length > 0) {
+    console.log(`  allowed:  \x1b[33m${ACTIVE_GRANTS.length} write grant(s)\x1b[0m even while read-only`);
+    for (const g of ACTIVE_GRANTS) {
+      console.log(`              \x1b[2m${g.proc}\x1b[0m`);
+      console.log(`                \x1b[2morgs:   ${g.orgs.join(", ")}\x1b[0m`);
+      console.log(`                \x1b[2mparams: ${g.params.join(", ")}\x1b[0m`);
+    }
+  } else {
+    console.log(`  allowed:  \x1b[32mno write grants active\x1b[0m`);
+  }
+  // A name in SQL_RELAY_ALLOW_PROCS that matches no grant is silent otherwise —
+  // the operator believes a door is open and every call 403s with a message
+  // about an allowlist they think they edited. Say it once, loudly, at boot.
+  if (UNKNOWN_ENABLED.length > 0) {
+    console.log(
+      `\n  \x1b[33m⚠ SQL_RELAY_ALLOW_PROCS names ${UNKNOWN_ENABLED.length} procedure(s) with no grant in\n` +
+        `    sql-relay.ts, so they are NOT enabled and cannot be:\x1b[0m`,
+    );
+    for (const n of UNKNOWN_ENABLED) console.log(`      \x1b[2m${n}\x1b[0m`);
+    console.log(
+      `    \x1b[2mFix the spelling, or add a reviewed grant to WRITE_ALLOWLIST and redeploy.\x1b[0m`,
+    );
+  }
+  if (ALLOW_WRITES) {
+    console.log(
+      `\n  \x1b[33m⚠ SQL_RELAY_ALLOW_WRITES=true — the allowlist is BYPASSED and this relay will\n` +
+        `    run arbitrary SQL against a live lender database. Break-glass only.\x1b[0m`,
+    );
   }
   console.log(`\n  \x1b[2mwarming connection pools…\x1b[0m`);
   await warmPools();
