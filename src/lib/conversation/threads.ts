@@ -20,9 +20,10 @@
 // ── THE STATE MACHINE ───────────────────────────────────────────────────────
 // Three states, and the transition is decided by WHO WROTE, never passed in:
 //
-//   borrower writes → AWAITING_STAFF     (this is the work queue)
-//   staff writes    → AWAITING_CUSTOMER
-//   system writes   → state unchanged
+//   borrower writes  → AWAITING_STAFF     (this is the work queue)
+//   assistant writes → AWAITING_STAFF     (Riri handing a customer over, on their behalf)
+//   staff writes     → AWAITING_CUSTOMER
+//   system writes    → state unchanged
 //
 // A system message must not move the state, and that is the subtle one. When a
 // case advances a stage we write a system message into the thread so the
@@ -46,7 +47,15 @@ export const MAX_BODY = 4000;
 /** What the thread list shows under the subject. */
 const PREVIEW_CHARS = 140;
 
-export type AuthorType = "borrower" | "staff" | "system";
+/**
+ * `assistant` is Riri handing a customer over (lib/riri/portal/triage.ts). It is a
+ * fourth voice, not a flavour of `system`, because it moves the queue the way a
+ * CUSTOMER does: she writes on the customer's behalf, at their request, so the
+ * thread becomes the officer's move exactly as if the customer had typed it. A
+ * `system` note would leave the state alone and the case would sit outside the
+ * work queue — which is the one place an escalation must never sit.
+ */
+export type AuthorType = "borrower" | "staff" | "system" | "assistant";
 
 /** The machine-readable half of a system message. The app renders these as
  *  chips rather than as prose, so adding one here without teaching the client
@@ -60,7 +69,9 @@ export type SystemEvent =
   | "kyc.referred"
   | "kyc.cleared"
   | "offer.signed"
-  | "disbursed";
+  | "disbursed"
+  /** Riri handed the customer to the team; eventData carries the case ref and intent. */
+  | "riri.escalated";
 
 function preview(body: string): string {
   const flat = body.replace(/\s+/g, " ").trim();
@@ -135,8 +146,10 @@ export async function postMessage(args: {
   const body = args.body.trim().slice(0, MAX_BODY);
 
   // Who owes the next move. System messages leave it alone — see the header.
+  // Riri's hand-off is written on the customer's behalf, so it queues like theirs.
+  const onCustomersBehalf = args.authorType === "borrower" || args.authorType === "assistant";
   const state: ThreadState | undefined =
-    args.authorType === "borrower" ? "AWAITING_STAFF"
+    onCustomersBehalf ? "AWAITING_STAFF"
     : args.authorType === "staff" ? "AWAITING_CUSTOMER"
     : undefined;
 
@@ -155,7 +168,8 @@ export async function postMessage(args: {
         // The author has by definition read their own message. Marking it here
         // stops a staff reply landing in the staff unread queue.
         readByStaffAt: args.authorType === "staff" ? new Date() : null,
-        readByBorrowerAt: args.authorType === "borrower" ? new Date() : null,
+        // The customer watched Riri write the hand-off in their own dock.
+        readByBorrowerAt: onCustomersBehalf ? new Date() : null,
       },
       select: { id: true, createdAt: true },
     }),
@@ -169,14 +183,14 @@ export async function postMessage(args: {
         // A staff reply clears the customer's obligation to be chased, and vice
         // versa. `increment` rather than a recount: the count is a queue depth,
         // not a fact worth a second query on every write.
-        ...(args.authorType === "borrower"
+        ...(onCustomersBehalf
           ? { unreadForStaff: { increment: 1 } }
           : args.authorType === "staff"
             ? { unreadForBorrower: { increment: 1 }, unreadForStaff: 0 }
             : { unreadForBorrower: { increment: 1 } }),
         // Writing into a resolved thread reopens it. A customer replying to a
         // closed case is not a closed case.
-        ...(args.authorType === "borrower" ? { closedAt: null } : {}),
+        ...(onCustomersBehalf ? { closedAt: null } : {}),
       },
     }),
   ]);

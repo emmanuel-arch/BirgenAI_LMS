@@ -25,6 +25,8 @@ import {
   // for by outbound comms — the two sit five rows apart in the sidebar and one
   // is the lender talking AT a customer while the other is a conversation.
   MessagesSquare, ScanFace,
+  // Riri Knowledge — the training console.
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,6 +45,7 @@ const ICONS: Record<string, LucideIcon> = {
   // Named by the Organization nav: the additional-details catalogue.
   ListPlus,
   MessagesSquare, ScanFace,
+  Sparkles,
   // `Infinity` is a global in TS, so the import is aliased; the registry still
   // names it "Infinity" like every other lucide icon.
   Infinity: InfinityIcon,

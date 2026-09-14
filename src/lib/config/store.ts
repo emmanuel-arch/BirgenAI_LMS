@@ -31,6 +31,9 @@ import {
 import {
   KYC_DEFAULTS, mergeKycConfig, validateKycConfig, type KycConfig,
 } from "./kyc";
+import {
+  RIRI_DEFAULTS, mergeRiriConfig, validateRiriConfig, type RiriConfig,
+} from "./riri";
 
 /** Every namespace the platform knows, and how each is filled forward + checked. */
 const NAMESPACES = {
@@ -70,6 +73,12 @@ const NAMESPACES = {
     merge: mergeKycConfig as (stored: unknown) => unknown,
     validate: validateKycConfig as (c: unknown) => ConfigIssue[],
   },
+  riri: {
+    label: "Riri knowledge",
+    defaults: RIRI_DEFAULTS as unknown,
+    merge: mergeRiriConfig as (stored: unknown) => unknown,
+    validate: validateRiriConfig as (c: unknown) => ConfigIssue[],
+  },
 } as const;
 
 export type Namespace = keyof typeof NAMESPACES;
@@ -105,6 +114,18 @@ export const readAttachmentConfig = (orgId: string) => read<AttachmentConfig>(or
 export const readDetailsConfig = (orgId: string) => read<DetailsConfig>(orgId, "details");
 export const readLoansConfig = (orgId: string) => read<LoansConfig>(orgId, "loans");
 export const readKycConfig = (orgId: string) => read<KycConfig>(orgId, "kyc");
+export const readRiriConfig = (orgId: string) => read<RiriConfig>(orgId, "riri");
+
+/**
+ * The document as it was published at `version` — what "roll back" publishes.
+ * Null when that version does not exist for this org.
+ */
+export async function revisionValue(orgId: string, ns: Namespace, version: number): Promise<unknown | null> {
+  const row = await runWithOrg(orgId, () =>
+    prisma.orgConfigRevision.findFirst({ where: { orgId, namespace: ns, version }, select: { value: true } }),
+  );
+  return row ? NAMESPACES[ns].merge(row.value) : null;
+}
 
 export type PublishResult =
   | { ok: true; version: number; value: unknown }

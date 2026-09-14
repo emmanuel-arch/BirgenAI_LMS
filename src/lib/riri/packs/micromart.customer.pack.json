@@ -1,0 +1,76 @@
+{
+  "pack": "micromart.customer",
+  "owner": "KE/LENDER/STARTERPACK",
+  "version": 1,
+  "authority": "tenant",
+  "audience": ["customer", "staff"],
+  "lang": "en",
+  "description": "STARTER PACK — assembled by the platform from Micromart Africa's own published loan terms and the live product and fee sheet read on 13 Sep 2026. It is served to Micromart's customers until Micromart publishes its own version from Settings → Riri knowledge, and every answer it produces is stamped as an unreviewed starter so a wrong fee can be traced to this file rather than argued about. The owner is a placeholder until Micromart states its KRA PIN.",
+  "entries": [
+    {
+      "category": "products",
+      "question": "What loans does Micromart offer?",
+      "variants": ["products gani", "what can I borrow", "which loans do you have", "loan products", "nipe products zenu", "mikopo gani mnatoa", "what is chap chap", "micro eazy loan", "monthly loan"],
+      "answer": "On the Micromart shelf in this app there are three products. Micro Chap Chap is the entry loan, from KSh 5,000 to KSh 10,900, repaid weekly over up to 10 weeks. Micro Eazy and Micro Eazy Monthly start from KSh 10,901. Which ones you can choose depends on your limit — a product unlocks once your limit reaches its minimum, and a locked one shows you the reason.",
+      "effective_from": "2026-09-13",
+      "review_by": "2026-12-01"
+    },
+    {
+      "category": "pricing",
+      "question": "What interest does Micro Chap Chap charge?",
+      "variants": ["chap chap interest", "interest rate", "interest", "riba ya chap chap", "how much interest", "what is the rate", "riba ni ngapi", "riba"],
+      "answer": "Micro Chap Chap is priced at 8.25% for each week you choose to take, up to 10 weeks. So the fewer weeks you choose, the less interest you pay: KSh 10,000 over 5 weeks is KSh 4,125 in interest. The loan overview prices your exact amount and weeks before you agree, and that figure is the one that counts.",
+      "effective_from": "2026-09-13",
+      "review_by": "2026-12-01"
+    },
+    {
+      "category": "fees",
+      "question": "What fees does Micromart charge on a loan?",
+      "variants": ["fees", "charges", "processing fee", "how much are the fees", "hidden charges", "ada", "makato", "service fee", "why was money deducted"],
+      "answer": "As of Micromart's fee sheet on 13 September 2026: on Micro Chap Chap there is a processing fee of KSh 400, a service fee of KSh 50, the KSh 100 credit bureau fee, and an instalment fee of KSh 350 that is spread across your repayments. On Micro Eazy and Micro Eazy Monthly the processing fee is 6% of the amount (never less than KSh 650 or more than KSh 6,000), plus the KSh 50 service fee and the KSh 100 credit bureau fee, paid before the money is sent. Every fee for your exact amount is listed on the loan overview before you agree — nothing is added afterwards.",
+      "effective_from": "2026-09-13",
+      "review_by": "2026-12-01"
+    },
+    {
+      "category": "fees",
+      "question": "Why is there a KSh 100 CRB fee?",
+      "variants": ["crb fee", "credit bureau fee", "metropol fee", "why pay 100", "ada ya crb"],
+      "answer": "The KSh 100 credit bureau fee pays for the two reports Micromart requests from Metropol for your application: the identity report and the standard credit report.",
+      "effective_from": "2026-09-01",
+      "review_by": "2026-12-01"
+    },
+    {
+      "category": "repaying",
+      "question": "What happens if I pay late?",
+      "variants": ["late payment", "late fee", "penalty", "i will be late", "nitachelewa kulipa", "faini", "what if i miss a payment", "overdue"],
+      "answer": "Under Micromart's loan terms, an instalment not paid on time attracts a late fee of 20% of the overdue amount, and never more than the principal due on that instalment. A late payment also lowers your score. If you can see you will be late, tell the team before the due date — talking early is always better than missing a payment.",
+      "effective_from": "2026-09-01",
+      "review_by": "2026-12-01"
+    },
+    {
+      "category": "repaying",
+      "question": "Where does my repayment go?",
+      "variants": ["payment allocation", "does my payment go to savings", "can i pay into savings", "where does my money go", "pesa yangu inaenda wapi", "pay towards savings"],
+      "answer": "Every payment is applied to your loan first, and anything left over goes to your savings with Micromart. That happens automatically on Micromart's side — nobody, including the team, can send a payment somewhere else. If a screen asks what a payment is for, it is labelling it, not directing it.",
+      "effective_from": "2026-09-01",
+      "review_by": "2027-03-01"
+    },
+    {
+      "category": "applying",
+      "question": "What happens after I apply to Micromart?",
+      "variants": ["after applying", "how long does approval take", "when will i get the money", "application process", "nitapata pesa lini", "baada ya kuomba"],
+      "answer": "Your application goes to Micromart's Risk desk first, which checks your credit bureau report, and then to Customer Service for the final check before the money is sent to your M-PESA. You can see which desk it is on at any time under Application. Nobody can promise a time for a decision, but you will see every move as it happens.",
+      "effective_from": "2026-09-13",
+      "review_by": "2026-12-01"
+    },
+    {
+      "category": "contact",
+      "question": "How do I contact Micromart?",
+      "variants": ["contact", "email", "website", "customer care", "how do i reach you", "mawasiliano", "office"],
+      "answer": "You can email Micromart at info@micromartafrica.com or visit micromartafrica.com. The quickest route for anything about your own account is right here — ask me, and if it needs a person I will pass it to the team with everything I already checked.",
+      "url": "http://micromartafrica.com",
+      "effective_from": "2026-09-01",
+      "review_by": "2027-03-01"
+    }
+  ]
+}

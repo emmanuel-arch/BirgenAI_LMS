@@ -26,12 +26,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   MessagesSquare, Send, Loader2, AlertCircle, CheckCircle2, GitBranch,
-  Clock, UserCheck, Inbox, RefreshCw,
+  Clock, UserCheck, Inbox, RefreshCw, Sparkles,
 } from "lucide-react";
 import { PageHeader } from "@/components/shell/PageHeader";
+import { RiriAvatar } from "@/components/riri/RiriAvatar";
+import { FirstResponsePanel } from "./FirstResponsePanel";
 
 type ThreadState = "AWAITING_STAFF" | "AWAITING_CUSTOMER" | "RESOLVED";
-type Author = "borrower" | "staff" | "system";
+/** `assistant` is Riri handing a customer over, with her triage note. */
+type Author = "borrower" | "staff" | "system" | "assistant";
 
 type Row = {
   id: string;
@@ -98,6 +101,49 @@ function ago(iso: string): string {
   const hrs = Math.round(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.round(hrs / 24)}d ago`;
+}
+
+/**
+ * Riri's triage note, drawn as sections.
+ *
+ * The note is plain text by design (the customer's app renders the same row), with
+ * section headings ending in a colon. Parsing those back into blocks here costs a
+ * dozen lines and turns a wall of text into something an officer scans in three
+ * seconds: what they asked, what she checked, what needs you.
+ */
+function RiriTriage({ name, body, at }: { name: string; body: string; at: string }) {
+  const lines = body.split("\n");
+  const [head, ...rest] = lines;
+  const blocks: { title: string; lines: string[] }[] = [];
+  for (const l of rest) {
+    if (!l.trim()) continue;
+    if (/^[A-Z][^•“]{2,60}:$/.test(l.trim())) blocks.push({ title: l.trim().slice(0, -1), lines: [] });
+    else if (blocks.length) blocks[blocks.length - 1].lines.push(l.trim());
+    else blocks.push({ title: "", lines: [l.trim()] });
+  }
+  return (
+    <div className="flex gap-2.5">
+      <span className="mt-0.5 h-8 w-8 shrink-0 overflow-hidden rounded-full ring-2 ring-white shadow">
+        <RiriAvatar size={32} animated={false} />
+      </span>
+      <div className="min-w-0 flex-1 rounded-2xl border border-violet-200 bg-violet-50/60 px-3.5 py-3">
+        <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-violet-900">
+          <Sparkles className="h-3.5 w-3.5" /> {head || `${name} · first response`}
+        </p>
+        <div className="mt-2 space-y-2">
+          {blocks.map((b, i) => (
+            <div key={i} className={b.title === "What needs a person" ? "rounded-lg bg-white px-2.5 py-2 ring-1 ring-violet-200" : ""}>
+              {b.title && <p className="text-[10.5px] font-semibold uppercase tracking-wide text-violet-700/80">{b.title}</p>}
+              {b.lines.map((l, j) => (
+                <p key={j} className={`text-[12.5px] leading-relaxed ${b.title === "What needs a person" ? "font-semibold text-ash-900" : "text-ash-700"}`}>{l}</p>
+              ))}
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] text-ash-500">{ago(at)}</p>
+      </div>
+    </div>
+  );
 }
 
 export function ConversationsClient({ openId }: { openId: string | null }) {
@@ -190,6 +236,9 @@ export function ConversationsClient({ openId }: { openId: string | null }) {
         </button>
       </PageHeader>
 
+      {/* What Riri answered before anything reached this queue. */}
+      <FirstResponsePanel />
+
       {listErr && (
         <div className="flex items-start gap-2 rounded-lg bg-rose-50 p-3 text-[13px] text-rose-700">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -245,6 +294,11 @@ export function ConversationsClient({ openId }: { openId: string | null }) {
                 </span>
               </div>
 
+              {t.lastAuthor === "assistant" && (
+                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-violet-50 px-1.5 py-0.5 text-[10.5px] font-semibold text-violet-700">
+                  <Sparkles className="h-3 w-3" /> Triaged by Riri
+                </span>
+              )}
               {t.preview && (
                 <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-relaxed text-ash-600">
                   {t.lastAuthor === "staff" ? "You: " : ""}
@@ -337,7 +391,11 @@ export function ConversationsClient({ openId }: { openId: string | null }) {
                 )}
 
                 {detail?.messages.map((m) =>
-                  m.author === "system" ? (
+                  m.author === "assistant" ? (
+                    // RIRI'S HAND-OFF. Addressed to you, and the customer reads the
+                    // same note — so it is a case summary, not a speech bubble.
+                    <RiriTriage key={m.id} name={m.authorName} body={m.body} at={m.at} />
+                  ) : m.author === "system" ? (
                     // The workflow's own voice, rendered as context rather than
                     // as a participant — the customer sees the identical row.
                     <div key={m.id} className="flex justify-center">

@@ -44,9 +44,19 @@ import { logRiriQuery } from "@/lib/riri/log";
 import { checkTraps, mustRefuse, trapIds } from "@/lib/riri/traps";
 import { askAssistant, rememberExchange, sanitizeHistory } from "@/lib/riri/assistant";
 import { lmsHost } from "@/lib/riri/providers/lms";
+import { servicesuiteHost } from "@/lib/riri/providers/servicesuite";
+import { resolveOrgById } from "@/lib/tenancy";
 import { appendExchange } from "@/lib/riri/threads";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { SYSTEM_SCREENS } from "@/lib/riri/system-map";
+import { describeScreen, isScreenQuestion, isWhyBlockedQuestion, resolveScreen } from "@/lib/riri/core/context";
+import { resolveAcross, signHandoff } from "@/lib/riri/core/destination";
+import { appManifestPublic, handoffSecret } from "@/lib/riri/federation";
+import { detectLang } from "@/lib/riri/knowledge";
+
+/** "the customer app", "borrower app", "what customers see" — a question about the OTHER system. */
+const ABOUT_CUSTOMER_APP = /\b(?:customer(?:'s|s')? app|borrower(?:'s|s')? app|micro ?eazy app|the app customers|what (?:the )?customers? see|portal app|customer portal)\b/i;
 
 export const runtime = "nodejs";
 
@@ -65,6 +75,8 @@ export async function POST(req: NextRequest) {
     threadId?: string | null;
     /** false ⇒ answer but do not file it (the Calls app's one-shot lookups). */
     save?: boolean;
+    /** The console route the officer is on. Resolved against the system map; never believed. */
+    route?: string;
   };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
 
@@ -82,6 +94,62 @@ export async function POST(req: NextRequest) {
   const [rights, ent] = await Promise.all([getRights(session), entitlementsFor(orgId)]);
   const features = new Set<string>(ent.features);
   const access = { rights, features };
+
+  // ── SCREEN AWARENESS (plan §03) ────────────────────────────────────────────
+  // The route names where the officer is standing; the MAP states what that is.
+  // "What am I looking at?" and "why can't I do this?" are answered from the
+  // screen's own entry — purpose, verbs, implications, and the difference between
+  // the screen's right and the actor's — before any engine is consulted.
+  const screen = resolveScreen(SYSTEM_SCREENS, body.route);
+  const lang = body.lang === "sw" || body.lang === "en" ? body.lang : detectLang(question);
+  if (screen && (isScreenQuestion(question) || isWhyBlockedQuestion(question))) {
+    const blocked = screen.right && !rights.has("*") && !rights.has(screen.right);
+    const answer = isWhyBlockedQuestion(question)
+      ? blocked
+        ? lang === "sw"
+          ? `Jukumu lako halina ruhusa ya **${screen.right}**, ambayo **${screen.title}** inahitaji. Muulize meneja wa tawi lako au msimamizi — wanaweza kukupa ruhusa hiyo katika Roles & Rights, au wakufanyie.`
+          : `Your role doesn't hold **${screen.right}**, which **${screen.title}** needs. Ask your branch manager or an administrator — they can grant it in Roles & Rights, or do it for you.`
+        : `${lang === "sw" ? "Ruhusa zako zinaruhusu skrini hii." : "Your role does have access to this screen."} ${describeScreen(screen, lang).split("\n").slice(0, 1).join("")}\n\n${(screen.implications ?? []).map((i) => `- ${i}`).join("\n") || (lang === "sw" ? "Ikiwa kitufe kimefifia, mara nyingi ni hali ya rekodi yenyewe — si ruhusa." : "If a control is greyed out, it is usually the state of the record itself — not your permissions.")}`
+      : describeScreen(screen, lang);
+    void logRiriQuery({ orgId, staffId, model: "support", question, route: "screen", metricId: `screen:${screen.id}`, ok: true });
+    return NextResponse.json({
+      success: true, engine: "support", engineLabel: ENGINE_LABEL.support, engineWhy: "Answered from the screen you are on",
+      evidence: `Read from the system map — ${screen.title}`, confidence: "certain", alternative: null, routed: true,
+      model: "support", mode: "live", route: "screen", kind: "support", answer, traps: [],
+      actions: [], suggestions: screen.asks.filter((a) => a.includes(" ")).slice(0, 2),
+      threadId: body.threadId ?? null, threadTitle: null,
+    });
+  }
+
+  // ── CROSS-SYSTEM AUTOPILOT (plan §06) ──────────────────────────────────────
+  // "Show me where customers repay in the app" is a destination in ANOTHER system.
+  // It resolves against that system's published map, and the door is a SIGNED link
+  // that lands with "Riri brought you here from the console because you asked…".
+  // Never auto-followed: crossing into another product is offered as a button.
+  const secret = handoffSecret();
+  if (ABOUT_CUSTOMER_APP.test(question) && secret) {
+    const res = resolveAcross(question.replace(ABOUT_CUSTOMER_APP, " "), [appManifestPublic()], "lms");
+    if (res.kind !== "none") {
+      const options = res.kind === "one" ? [res.destination] : res.options;
+      const actions = await Promise.all(options.map(async (d) => {
+        const token = await signHandoff({ from: "lms", fromTitle: "the lending console", to: d.system, href: d.screen.href, question }, secret);
+        const url = new URL(d.href);
+        url.searchParams.set("riri", token);
+        return { kind: "navigate" as const, label: `Open ${d.screen.title} in the customer app`, href: url.toString() };
+      }));
+      const d = options[0];
+      const answer = `In the customer app that's **${d.screen.title}** — ${d.screen.purpose}` +
+        (d.screen.implications?.length ? `\n\nWhat customers are told there:\n${d.screen.implications.map((i) => `- ${i}`).join("\n")}` : "") +
+        `\n\nThe link opens it with a note saying I sent you, so it's never a mystery where you landed.`;
+      void logRiriQuery({ orgId, staffId, model: "support", question, route: "handoff", metricId: `app:${d.screen.id}`, ok: true });
+      return NextResponse.json({
+        success: true, engine: "support", engineLabel: ENGINE_LABEL.support, engineWhy: "Resolved against the customer app's published map",
+        evidence: "Federated map — the Micro Eazy app", confidence: res.kind === "one" ? "certain" : "unsure", alternative: null, routed: true,
+        model: "support", mode: "live", route: "handoff", kind: "support", answer, traps: [],
+        actions, suggestions: [], threadId: body.threadId ?? null, threadTitle: null,
+      });
+    }
+  }
 
   // ── WHICH ENGINE ───────────────────────────────────────────────────────────
   // An explicit id wins (legacy prefs, deep links, the user's own correction).
@@ -274,12 +342,17 @@ export async function POST(req: NextRequest) {
     // The session carries the slug; it says the lender's name out loud, and
     // "techcrast" is not what anyone calls Techcrast Software Solutions.
     const org = await prisma.org.findUnique({ where: { id: orgId }, select: { name: true } });
-    const host = lmsHost({
+    const lms = lmsHost({
       orgId, lenderName: org?.name ?? "your lender", staffId, rights,
       // A platform admin acting as this lender is not a StaffUser — without this
       // the founder would be addressed as an anonymous "colleague".
       session: { name: session.user.name, role: session.user.role },
     });
+    // A BRIDGED lender's loans live in their own ServiceSuite, not in our Postgres.
+    // The ServiceSuite host reads the customer's money from THEIR book, so Riri is
+    // never handed "no active loans" about somebody with a live balance.
+    const resolved = subjectId ? await resolveOrgById(orgId).catch(() => null) : null;
+    const host = resolved?.mode === "BRIDGED" ? servicesuiteHost({ org: resolved, base: lms }) : lms;
     const r = await askAssistant(host, question, {
       subject: subjectId ? { kind: "borrower", id: subjectId } : null,
       history: sanitizeHistory(body.history),

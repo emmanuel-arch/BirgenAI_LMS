@@ -46,7 +46,9 @@ export async function GET() {
   const [metrics, log] = await Promise.all([
     metricsFor(orgId),
     prisma.ririQueryLog.findMany({
-      where: { orgId },
+      // Customer first-response rows have their own panel on Conversations; this
+      // log is the staff record of what the book was asked.
+      where: { orgId, model: { not: "customer" } },
       orderBy: { createdAt: "desc" },
       take: 50,
       select: { id: true, question: true, model: true, route: true, metricId: true, sql: true, rows: true, ms: true, ok: true, error: true, createdAt: true },

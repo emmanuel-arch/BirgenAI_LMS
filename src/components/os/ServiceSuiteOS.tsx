@@ -35,7 +35,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { X, Navigation, PenLine, UserRound } from "lucide-react";
 import { useVoice } from "@/lib/hooks/useVoice";
 import { RiriAvatar } from "@/components/riri/RiriAvatar";
@@ -123,6 +123,16 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
 
   const nav = useOsNav();
   const router = useRouter();
+  // Where the officer is standing — sent with every question so "what am I looking
+  // at?" is answerable (plan §03). The server resolves it against the map; a route
+  // it does not recognise is simply no screen.
+  const pathname = usePathname();
+
+  /** Navigate — in place for a console route, in a new tab for another system's signed link. */
+  const goTo = useCallback((href: string) => {
+    if (/^https?:\/\//i.test(href)) window.open(href, "_blank", "noopener");
+    else router.push(href);
+  }, [router]);
 
   // ── Conversation ───────────────────────────────────────────────────────────
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -287,6 +297,7 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
           // arrives from a one-tap correction or a legacy deep link.
           model: forceEngine ?? "auto",
           threadId,
+          route: pathname,
           ...(voice.lang === "sw-KE" ? { lang: "sw" } : {}),
           ...(subjectRef.current ? { subject: subjectRef.current } : {}),
           ...(history.length ? { history } : {}),
@@ -318,7 +329,8 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
         // the billing page because they asked what their PAR was would be the
         // rudest thing this product does.
         const first: Action | undefined = (data.actions ?? [])[0];
-        if (autoGo && data.engine === "support" && first?.href) {
+        // A signed link into another system is never auto-followed — plan §06.
+        if (autoGo && data.engine === "support" && first?.href && !/^https?:\/\//i.test(first.href)) {
           setFlight(first.label);
           router.push(first.href);
         }
@@ -326,7 +338,7 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
     } catch {
       patch((x) => ({ ...x, loading: false, error: "Network error. Try again." }));
     } finally { setBusy(false); }
-  }, [busy, nav, threadId, turns, voice, voiceOn, autoGo, router]);
+  }, [busy, nav, threadId, turns, voice, voiceOn, autoGo, router, pathname]);
 
   /** Start over: a fresh thread, nothing carried across. */
   const newConversation = useCallback(() => {
@@ -655,7 +667,7 @@ export default function ServiceSuiteOS({ orgName, userName }: { orgName: string;
                     onAsk={(q) => void ask(q)}
                     onReask={(q, engine) => void ask(q, engine)}
                     onUnpin={() => { setPinned(null); subjectRef.current = null; }}
-                    onNavigate={(href) => { setFlight(null); router.push(href); }}
+                    onNavigate={(href) => { setFlight(null); goTo(href); }}
                   />
                 )}
 

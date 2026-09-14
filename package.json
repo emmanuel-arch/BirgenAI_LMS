@@ -36,6 +36,7 @@
     "test:school-fees": "tsx scripts/verify-school-fees.ts",
     "test:riri": "tsx scripts/verify-riri.ts",
     "test:knowledge": "tsx scripts/verify-knowledge.ts",
+    "test:first-response": "tsx scripts/verify-first-response.ts",
     "test:scope": "tsx scripts/verify-scope.ts",
     "test:kyc-gate": "tsx scripts/verify-kyc-gate.ts",
     "test:support": "tsx scripts/verify-support.ts",

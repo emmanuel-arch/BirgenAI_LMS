@@ -280,6 +280,9 @@ export const NAV_REGISTRY: NavModule[] = [
       // the ones sitting in the queue today.
       { key: "identity-policy", label: "Identity Policy", href: "/console/settings/identity", icon: "ScanFace", right: "settings.view" },
       { key: "details", label: "Additional Details", href: "/console/settings/details", icon: "ListPlus", right: "settings.view" },
+      // Where a lender trains Riri on their own facts (Riri Ecosystem AI plan,
+      // Sprint 4): upload a pack, validate, preview, version, roll back.
+      { key: "riri-knowledge", label: "Riri Knowledge", href: "/console/settings/riri", icon: "Sparkles", right: "settings.view" },
       { key: "branding", label: "Branding", href: "/console/settings/branding", icon: "Palette", right: "branding.manage" },
       { key: "settings", label: "Settings & Vault", href: "/console/settings", icon: "Settings2", right: "settings.view", exact: true },
       // Which of Metropol's fourteen reports this lender buys, and what that
