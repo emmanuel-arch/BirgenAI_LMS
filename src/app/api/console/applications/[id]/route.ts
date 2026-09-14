@@ -428,10 +428,21 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // Units must line up with the lender's RepaymentPeriodType (day/week/month), and
   // "fortnight" has no equivalent there — our own column stores those as weeks, so
   // an offer still carrying "fortnight" is an inconsistency we decline to guess at.
+  //
+  // An application from the customer app carries no LoanOffer: the customer
+  // chose the term and accepted the lender's terms at apply time, and the priced
+  // plan is on `details.plan`. Without reading it here, every app loan would be
+  // booked at the product ceiling — a customer who accepted 5 weeks at 41.25%
+  // booked at 10 weeks and 82.5%.
+  const portalPlan = ((app.details ?? null) as { plan?: { termCount?: unknown; termUnit?: unknown } } | null)?.plan;
+  const planUnit = String(portalPlan?.termUnit ?? "").toLowerCase().replace(/s$/, "");
+  const planCount = Number(portalPlan?.termCount);
   const selectedPeriod =
     signedOffer && ["day", "week", "month"].includes(signedOffer.termUnit) && signedOffer.termCount > 0
       ? signedOffer.termCount
-      : null;
+      : !signedOffer && ["day", "week", "month"].includes(planUnit) && Number.isInteger(planCount) && planCount > 0
+        ? planCount
+        : null;
 
   if (isPostingEnabled() && postingOrg && ssProductId && borrowerRow?.phone) {
     const entityId = getEntityId(postingOrg);

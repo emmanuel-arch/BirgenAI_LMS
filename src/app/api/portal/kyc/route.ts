@@ -28,13 +28,25 @@ import {
 import { matchNames, nameGatePasses } from "@/lib/kyc/namematch";
 import { putKycObject, getObjectDataUrl, storageMode, InvalidImageError, MAX_IMAGE_BYTES, type KycAssetKind } from "@/lib/storage/provider";
 import { attachKycSession } from "@/lib/kyc/attach";
-import { readKycConfig } from "@/lib/config/store";
+import { readKycConfig, readBorrowerConfig } from "@/lib/config/store";
 import { decideKyc } from "@/lib/config/kyc";
 import { findOrOpenThread, postMessage } from "@/lib/conversation/threads";
+import { challengesFor, judgeLiveness, CHALLENGES } from "@/lib/kyc/liveness";
+import { portalContract } from "@/lib/portal/journey";
 
 export const runtime = "nodejs";
 
-type Step = "id" | "facematch" | "iprs" | "finalize";
+/**
+ *   id                  photograph the front → OCR → registry → name gate
+ *   id-back             the back of the card, when the lender asks for both sides
+ *   iprs-lookup         the registry rail: one typed ID number, the registry returns the person
+ *   facematch           the selfie against the portrait on the card
+ *   liveness-challenges the two gestures this session must perform
+ *   liveness            one frame per gesture, judged and matched to the selfie
+ *   iprs                what the registry already said (no second bill)
+ *   finalize            the lender's identity policy decides
+ */
+type Step = "id" | "id-back" | "iprs-lookup" | "facematch" | "liveness-challenges" | "liveness" | "iprs" | "finalize";
 
 /**
  * The name comparison from step "id", read back at finalize.
@@ -97,6 +109,8 @@ export async function POST(req: NextRequest) {
       bytes?: number; brightness?: number; blurVar?: number; image?: string;
       /** Active liveness: one frame per issued challenge, in order. */
       frames?: { challenge?: string; bytes?: number; image?: string }[];
+      /** The customer's own permission for a third-party lookup, given on screen. */
+      consent?: boolean;
     };
   };
   try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid request." }, { status: 400 }); }
@@ -133,7 +147,7 @@ export async function POST(req: NextRequest) {
   const bytes = Number(body.payload?.bytes) || 0;
   const p = body.payload ?? {};
 
-  const writeCheck = (kind: "ID_QUALITY" | "ID_OCR" | "FACE_MATCH" | "IPRS" | "PORTRAIT_STANDARDIZE", passed: boolean | null, score: number | null, payload: unknown) =>
+  const writeCheck = (kind: "ID_QUALITY" | "ID_OCR" | "FACE_MATCH" | "IPRS" | "LIVENESS" | "PORTRAIT_STANDARDIZE", passed: boolean | null, score: number | null, payload: unknown) =>
     prisma.kycCheck.create({
       data: {
         orgId: org.id, sessionId: session.id, kind, passed, score, provider: mode,
@@ -172,9 +186,14 @@ export async function POST(req: NextRequest) {
       const lookupId = readId || typedId;
 
       // 2. ASK THE NATIONAL REGISTRY WHO THAT NUMBER BELONGS TO.
-      // On the portal the CUSTOMER gives consent themselves, in the funnel.
-      const iprs = await performIprs(seed, lookupId, ocr.fullName, `portal:${org.slug}`, sim);
-      await writeCheck("IPRS", iprs.matched, iprs.matched ? 100 : 0, iprs);
+      // On the portal the CUSTOMER gives consent themselves, in the funnel. A
+      // registry-rail customer who has already been looked up by this number is
+      // not billed a second time for the photograph of the same card.
+      const reuse = session.iprsMatched != null && session.iprsName && session.nationalId === lookupId;
+      const iprs = reuse
+        ? { matched: session.iprsMatched === true, name: session.iprsName, dob: session.idOcrDob, gender: null, note: "Already confirmed against the registry.", engine: "reused" as const }
+        : await performIprs(seed, lookupId, ocr.fullName, `portal:${org.slug}`, sim);
+      if (!reuse) await writeCheck("IPRS", iprs.matched, iprs.matched ? 100 : 0, iprs);
 
       // 3. THE GATE: the name on the card must be the name the registry holds.
       const name = matchNames(ocr.fullName, iprs.name);
@@ -205,6 +224,81 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    if (step === "id-back") {
+      // The back of the card, for a lender whose compliance regime asks for both
+      // sides. Quality-gated like the front; stored only once it passes.
+      const quality = assessIdQuality(`${seed}:back`, bytes, { brightness: p.brightness, blurVar: p.blurVar });
+      await writeCheck("ID_QUALITY", quality.passed, quality.score, { ...quality, side: "back" });
+      if (!quality.passed) {
+        return NextResponse.json({ success: true, sessionId: session.id, mode, capabilities, step, quality, retake: true });
+      }
+      const idBackKey = await store("id-back");
+      if (idBackKey) await prisma.kycSession.update({ where: { id: session.id }, data: { idBackKey } }).catch(() => {});
+      return NextResponse.json({ success: true, sessionId: session.id, mode, capabilities, step, quality, stored: Boolean(idBackKey) });
+    }
+
+    if (step === "iprs-lookup") {
+      // ── THE REGISTRY RAIL ────────────────────────────────────────────────
+      // One ID number, and the national registry returns the person. The name
+      // on file is the state's, not a typist's. Consent is the customer's own,
+      // given on the screen, and a lookup without it is not made.
+      const typed = (body.nationalId ?? "").replace(/\D/g, "");
+      if (typed.length < 6 || typed.length > 10) {
+        return NextResponse.json({ success: false, field: "nationalId", message: "Enter the ID number on the front of your card." }, { status: 400 });
+      }
+      if (p.consent !== true) {
+        return NextResponse.json({ success: false, field: "consent", message: "Give your permission for the registry check first." }, { status: 400 });
+      }
+      const iprs = await performIprs(`${org.id}:${typed}`, typed, null, `portal:${org.slug}`, sim);
+      await writeCheck("IPRS", iprs.matched, iprs.matched ? 100 : 0, { ...iprs, rail: "iprs" });
+      await prisma.kycSession.update({
+        where: { id: session.id },
+        data: { nationalId: typed, iprsMatched: iprs.matched, iprsName: iprs.name, ...(iprs.dob ? { idOcrDob: iprs.dob } : {}) },
+      }).catch(() => {});
+      return NextResponse.json({
+        success: true, sessionId: session.id, mode, capabilities, step,
+        iprs: {
+          matched: iprs.matched,
+          engine: iprs.engine,
+          name: iprs.name,
+          dob: iprs.dob,
+          gender: iprs.gender,
+          note: iprs.note,
+        },
+        message: iprs.matched ? undefined : iprs.note || "We could not find that ID number in the national registry.",
+      });
+    }
+
+    if (step === "liveness-challenges") {
+      return NextResponse.json({
+        success: true, sessionId: session.id, mode, capabilities, step,
+        challenges: challengesFor(session.id).map((key) => ({ key, ...CHALLENGES[key] })),
+      });
+    }
+
+    if (step === "liveness") {
+      // The selfie these frames must match is read back from the vault — a
+      // client that could send its own reference face could match anything.
+      const held = await prisma.kycSession.findUnique({ where: { id: session.id }, select: { selfieKey: true } });
+      const selfie = held?.selfieKey ? await getObjectDataUrl(held.selfieKey) : null;
+      const verdict = await judgeLiveness(session.id, p.frames ?? [], selfie);
+      await writeCheck("LIVENESS", verdict.passed, verdict.score, verdict);
+      await prisma.kycSession.update({
+        where: { id: session.id },
+        data: { livenessPassed: verdict.passed, livenessScore: verdict.score },
+      }).catch(() => {});
+      return NextResponse.json({
+        success: true, sessionId: session.id, mode, capabilities, step,
+        liveness: {
+          passed: verdict.passed,
+          engine: verdict.engine,
+          // Which gesture failed and why, in words. Never the score to beat.
+          frames: verdict.frames.map((f) => ({ challenge: f.challenge, passed: f.passed, says: f.says })),
+        },
+        retake: !verdict.passed,
+      });
+    }
+
     if (step === "facematch") {
       // The source face is read back from OUR bucket, never taken from the browser —
       // a forged client could otherwise send the selfie as both images and match itself.
@@ -230,12 +324,18 @@ export async function POST(req: NextRequest) {
       const portraitKey = await store("portrait");
       const standardized = portraitIsStandardized(mode);
       await writeCheck("PORTRAIT_STANDARDIZE", true, null, { portraitKey, whiteBackground: standardized, stored: storageMode() });
+      // A lender who runs ACTIVE liveness gets its verdict from the liveness step
+      // alone. Folding the selfie's passive capture check into those columns would
+      // let a customer who never performed the gestures arrive at finalize with
+      // "liveness passed" already written.
+      const activeLiveness = (await readBorrowerConfig(org.id)).value.onboarding.selfie.liveness;
       await prisma.kycSession.update({
         where: { id: session.id },
         data: {
           faceMatchScore: fm.score,
-          livenessPassed: fm.capture ? fm.capture.passed : fm.passed,
-          livenessScore: fm.score,
+          ...(activeLiveness
+            ? {}
+            : { livenessPassed: fm.capture ? fm.capture.passed : fm.passed, livenessScore: fm.score }),
           ...(selfieKey ? { selfieKey } : {}),
           ...(portraitKey ? { portraitKey } : {}),
         },
@@ -285,19 +385,61 @@ export async function POST(req: NextRequest) {
     // lib/config/kyc.ts holds the bands and the per-signal outcome, defaults
     // preserve the old numbers exactly, and everything that used to refuse now
     // defaults to REVIEW.
-    const { value: kycPolicy } = await readKycConfig(org.id);
-    const verdict = decideKyc(kycPolicy, {
-      idQualityScore: s.idQualityScore,
-      faceMatchScore: s.faceMatchScore,
-      livenessScore: s.livenessScore,
-      livenessPassed: s.livenessPassed,
-      iprsMatched: s.iprsMatched,
-      // The name comparison ran at step "id" and its verdict was written to the
-      // ID_OCR check rather than onto the session, so it is read back here. A
-      // partial name match is one of the six configurable signals.
-      nameVerdict: await lastNameVerdict(org.id, s.id),
-    });
-    const { status, flags } = verdict;
+    const [{ value: kycPolicy }, contract] = await Promise.all([readKycConfig(org.id), portalContract(org)]);
+
+    // ── ONLY THE LEGS THIS LENDER RUNS ────────────────────────────────────
+    // A lender who never asks for a selfie must not have every customer
+    // referred for a face that was never photographed; a lender who DOES run
+    // liveness must not pass somebody who never performed it. The liveness
+    // verdict is read from the LIVENESS check itself, not from a column a
+    // different step also writes.
+    const liveCheck = contract.flags.liveness
+      ? await prisma.kycCheck.findFirst({
+          where: { orgId: org.id, sessionId: s.id, kind: "LIVENESS" },
+          orderBy: { createdAt: "desc" },
+          select: { passed: true, score: true },
+        })
+      : null;
+
+    // The ID photograph is the only evidence a registry-rail customer holds the
+    // card they typed. A lender that requires it gets it, whatever the rail.
+    const idPhotoMissing = contract.flags.idPhotoRequired && !s.idFrontKey && !s.idOcrNumber;
+
+    const verdict = decideKyc(
+      kycPolicy,
+      {
+        // On the registry and manual rails there is no quality score, because no
+        // photograph of the card was graded — score it as passed only when a
+        // photo is not required at all.
+        idQualityScore: s.idQualityScore ?? (idPhotoMissing ? 0 : 100),
+        faceMatchScore: s.faceMatchScore,
+        livenessScore: contract.flags.liveness ? (liveCheck?.score ?? null) : s.livenessScore,
+        livenessPassed: contract.flags.liveness ? (liveCheck?.passed ?? null) : s.livenessPassed,
+        iprsMatched: s.iprsMatched,
+        // The name comparison ran at step "id" and its verdict was written to the
+        // ID_OCR check rather than onto the session, so it is read back here. A
+        // partial name match is one of the six configurable signals.
+        nameVerdict: await lastNameVerdict(org.id, s.id),
+      },
+      { face: contract.flags.faceMatch, liveness: contract.flags.liveness },
+    );
+
+    // ── THE LENDER'S OWN SIGN-OFF ─────────────────────────────────────────
+    // "A person signs off the KYC pack" is a rule the lender set, and it applies
+    // to a customer at home exactly as it does at the counter. Every machine
+    // check can pass and the customer still waits for a named officer.
+    let status: "VERIFIED" | "PENDING_REVIEW" | "FAILED" = verdict.status;
+    const flags = [...verdict.flags];
+    const signals = [...verdict.signals.map((f) => ({ key: f.key as string, says: f.customerSays, fixable: f.fixable }))];
+    if (status === "VERIFIED" && contract.flags.requireReview) {
+      status = "PENDING_REVIEW";
+      flags.push("manualReview");
+      signals.push({
+        key: "manualReview",
+        says: "Every new customer's identity is signed off by a member of our team before money moves.",
+        fixable: false,
+      });
+    }
 
     const updated = await prisma.kycSession.update({
       where: { id: s.id },
@@ -348,12 +490,12 @@ export async function POST(req: NextRequest) {
             (status === "FAILED"
               ? "We could not verify your ID automatically. "
               : "Your ID has been sent to our team for a quick look. ") +
-            verdict.signals.map((f) => f.customerSays).join(" "),
+            signals.map((f) => f.says).join(" "),
           event: "kyc.referred",
           // The KEYS, never the scores. A customer told their face matched at
           // 79 has been handed the number to beat, and the next attempt is
           // tuned rather than honest.
-          eventData: { status, signals: verdict.flags },
+          eventData: { status, signals: flags },
         });
       } catch (err) {
         // Never fail the verification over the conversation. The case is already
@@ -367,7 +509,7 @@ export async function POST(req: NextRequest) {
       // What the customer is actually shown. `customerSays` is written beside
       // the policy so a lender who changes an outcome cannot leave behind a
       // message describing the old one.
-      reasons: verdict.signals.map((f) => ({ key: f.key, says: f.customerSays, fixable: f.fixable })),
+      reasons: signals,
       // Only offered when EVERY firing signal is one a better photograph could
       // fix — sending somebody to retake a selfie six times for a registry miss
       // is the cruellest possible loop.

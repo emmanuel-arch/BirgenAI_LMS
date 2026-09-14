@@ -150,6 +150,58 @@ export async function detectFace(imageDataUrl: string): Promise<FaceQuality | nu
   }
 }
 
+// ── One frame of an active-liveness challenge ────────────────────────────────
+
+export type FramePose = {
+  faces: number;
+  confidence: number;
+  yaw: number;
+  pitch: number;
+  smiling: boolean | null;
+  eyesOpen: boolean | null;
+  sharpness: number;
+  brightness: number;
+};
+
+/**
+ * The pose, expression and quality of ONE frame, for a challenge-response check.
+ *
+ * `Attributes: ["ALL"]` because the challenges need Smile and EyesOpen, which the
+ * DEFAULT set does not return. It costs the same single DetectFaces call. Null on
+ * any failure — the caller falls back to the seeded simulation and records that it
+ * did, exactly as the face-match seam does.
+ */
+export async function detectFramePose(imageDataUrl: string): Promise<FramePose | null> {
+  try {
+    const out = (await callRekognition("DetectFaces", {
+      Image: { Bytes: bytesOf(imageDataUrl) },
+      Attributes: ["ALL"],
+    })) as {
+      FaceDetails?: {
+        Confidence?: number;
+        Pose?: { Yaw?: number; Pitch?: number };
+        Smile?: { Value?: boolean; Confidence?: number };
+        EyesOpen?: { Value?: boolean; Confidence?: number };
+        Quality?: { Brightness?: number; Sharpness?: number };
+      }[];
+    };
+    const d = out.FaceDetails ?? [];
+    const f = d[0];
+    return {
+      faces: d.length,
+      confidence: Math.round(f?.Confidence ?? 0),
+      yaw: f?.Pose?.Yaw ?? 0,
+      pitch: f?.Pose?.Pitch ?? 0,
+      smiling: f?.Smile?.Value != null && (f.Smile.Confidence ?? 0) > 70 ? f.Smile.Value : null,
+      eyesOpen: f?.EyesOpen?.Value != null && (f.EyesOpen.Confidence ?? 0) > 70 ? f.EyesOpen.Value : null,
+      sharpness: f?.Quality?.Sharpness ?? 0,
+      brightness: f?.Quality?.Brightness ?? 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ── Face comparison: is the person at the counter the person on the card? ────
 
 export type FaceCompare = {

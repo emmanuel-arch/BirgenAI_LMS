@@ -17,13 +17,15 @@
 //
 // ── WHERE THE MONEY COMES FROM ──────────────────────────────────────────────
 // NATIVE org → our own Loan/Installment tables.
-// BRIDGED org (Micromart) → THEIR book, over their public API, using the bearer
-// token the customer's own sign-in produced.
+// BRIDGED org (Micromart) → THEIR book, read over keyed SQL through the relay —
+// the same road the console's Customer-360 uses — with their public API as the
+// fallback for a password session whose SQL read failed.
 //
-// That second path is the one that matters here and it did not exist. my-loan
-// answers `{ found: false, bridged: true }` for every non-native org, so Home
-// and Repay were rendering samples not for want of wiring but because our side
-// held no loan to wire to.
+// It used to be the API only, and the API needs the bearer token only the
+// PASSWORD door receives. Every customer who came in by SMS code therefore had
+// their book marked "unavailable" and was told Micromart could not be reached,
+// while the console read the same book live in the same minute. See
+// lib/portal/micromart-book.ts.
 //
 // ── `CreditScore` IS NOT A CREDIT SCORE ─────────────────────────────────────
 // AccountPreview returns `CreditScore: 30000` and it is a MISNOMER in their
@@ -50,6 +52,7 @@ import { borrowerFor, otpRequired } from "@/lib/portal/session";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { micromartAccount, micromartLoans } from "@/lib/portal/micromart-account";
 import { micromartSavings, micromartScore, type PortalScore, type SavingsPosition } from "@/lib/portal/micromart-standing";
+import { findBookBorrower, readBookPosition, type BookPosition } from "@/lib/portal/micromart-book";
 
 export const runtime = "nodejs";
 
@@ -87,6 +90,7 @@ export async function POST(req: NextRequest) {
     select: {
       id: true, firstName: true, otherName: true, kycStatus: true, erasedAt: true,
       loanLimit: true, creditScore: true, riskBand: true, graduationCount: true,
+      nationalId: true, serviceSuiteBorrowerId: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -154,7 +158,13 @@ export async function POST(req: NextRequest) {
   } | null = null;
   let schedule: { seq: number; due: string; amount: number; status: string }[] = [];
   let avgDailySales: number | null = null;
-  let bookSource: "native" | "lender" | "unavailable" = "unavailable";
+  // "onboarding" — a bridged customer who is not on the lender's book yet (a new
+  // borrower mid-KYC or mid-first-application). Their figures are ours: the limit
+  // the statement cruncher assigned, and nothing owed. That is a true position,
+  // not an outage, and must not render as one.
+  let bookSource: "native" | "lender" | "onboarding" | "unavailable" = "unavailable";
+  /** Why the book is unavailable, so the screen says the right sentence. */
+  let bookIssue: "unreachable" | "ambiguous" | "mismatch" | null = null;
   let firstName = borrower?.firstName ?? null;
   // The two figures a customer opens the app to look at, and which nothing was
   // answering. See lib/portal/micromart-standing.ts for where each one lives
@@ -191,8 +201,90 @@ export async function POST(req: NextRequest) {
         status: i.status,
       }));
     }
-  } else if (session.ssToken) {
-    // ── THE LENDER'S BOOK ────────────────────────────────────────────────
+  } else {
+    // ── THE LENDER'S BOOK, OVER SQL ──────────────────────────────────────
+    // The pair must travel together: an id only means something inside its
+    // entity, and 3002 and 3005 hold different people on the same numbers.
+    const fromSession = Number(session.ssBorrowerId) > 0 && session.ssEntityId
+      ? { entity: session.ssEntityId, id: Number(session.ssBorrowerId) }
+      : null;
+    const entity = fromSession?.entity ?? org.entityId;
+    let ssId: number | null = fromSession?.id ?? borrower?.serviceSuiteBorrowerId ?? null;
+    let position: BookPosition | null = null;
+    let sqlRead = false;
+
+    if (org.registry && entity) {
+      try {
+        if (ssId) position = await readBookPosition(org.registry, entity, ssId);
+        if (!position) {
+          // No id held, or the one held is no longer on this entity: match the
+          // phone the session proved, disambiguated only by the ID they proved.
+          const who = await findBookBorrower(org.registry, entity, session.phone, borrower?.nationalId);
+          ssId = who.kind === "found" ? who.borrowerId : null;
+          if (who.kind === "ambiguous") bookIssue = "ambiguous";
+          if (ssId) position = await readBookPosition(org.registry, entity, ssId);
+        }
+        sqlRead = true;
+      } catch {
+        position = null;
+        ssId = fromSession?.id ?? null;
+      }
+    }
+
+    // A record on this number that carries a DIFFERENT national ID from the one
+    // this customer proved is somebody else's account. Never shown.
+    if (
+      position && borrower?.nationalId && position.nationalId &&
+      position.nationalId.replace(/\s/g, "") !== borrower.nationalId.replace(/\s/g, "")
+    ) {
+      position = null;
+      bookIssue = "mismatch";
+    }
+
+    if (position) {
+      bookSource = "lender";
+      limit = position.loanLimit || limit;
+      outstanding = position.outstanding;
+      loanCount = position.openLoans;
+      firstName = position.firstName ?? firstName;
+      if (position.activeLoan) {
+        const l = position.activeLoan;
+        activeLoan = {
+          ref: String(l.id),
+          product: l.product,
+          balance: l.balance,
+          loanAmount: l.principal,
+          expectedClearDate: l.clearDate,
+          // The instalment breakdown lives in loanSchedule, a 1.95M-row heap
+          // with no index on the loan — not a read Home may make per open. No
+          // invented "next due" in its place, for the reason below.
+          nextDue: null,
+        };
+      }
+      const ssKey = position.borrowerId;
+      if (org.registry) {
+        [savings, liveScore] = await Promise.all([
+          micromartSavings(org.registry, ssKey),
+          micromartScore(org.registry, entity, ssKey),
+        ]);
+      }
+      // Link our row to the record we just matched, so the next open is a
+      // primary-key read and the console opens the same person.
+      if (borrower && !borrower.serviceSuiteBorrowerId && !fromSession && entity === org.entityId) {
+        await prisma.borrower
+          .update({ where: { id: borrower.id }, data: { serviceSuiteBorrowerId: ssKey } })
+          .catch(() => {});
+      }
+    } else if (sqlRead && !bookIssue) {
+      // Read cleanly and not there: a new borrower, not a failure.
+      bookSource = "onboarding";
+      savings = { balance: 0, lastAmount: null, lastAt: null };
+    }
+  }
+
+  if (bookSource === "unavailable" && !bookIssue && org.mode !== "NATIVE" && session.ssToken) {
+    // ── THE FALLBACK: THEIR PUBLIC API ───────────────────────────────────
+    // Only for a password session whose SQL read could not run.
     const [acct, loans] = await Promise.all([
       micromartAccount(session.ssToken),
       micromartLoans(session.ssToken),
@@ -246,6 +338,7 @@ export async function POST(req: NextRequest) {
     // acct not ok → bookSource stays "unavailable" and the screen says so
     // rather than showing zeroes, which read as "you owe nothing".
   }
+  if (bookSource === "unavailable" && !bookIssue) bookIssue = "unreachable";
 
   return NextResponse.json({
     success: true,
@@ -260,6 +353,7 @@ export async function POST(req: NextRequest) {
     // nothing", and showing the first as the second is how a customer with
     // arrears is told they are clear.
     bookSource,
+    bookIssue: bookSource === "unavailable" ? bookIssue : null,
     limit,
     outstanding,
     available: Math.max(limit - outstanding, 0),

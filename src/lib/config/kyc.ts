@@ -283,6 +283,13 @@ export function decideKyc(
     iprsMatched: boolean | null;
     nameVerdict?: "exact" | "strong" | "partial" | "none" | null;
   },
+  /**
+   * Which legs the LENDER actually runs. A lender who never asks for a selfie
+   * must not have every customer referred for "face does not match" — a score of
+   * null there means the step was never offered, not that it failed. The registry
+   * leg is not in this list on purpose: it can never be switched off (see header).
+   */
+  applies: { face: boolean; liveness: boolean } = { face: true, liveness: false },
 ): KycVerdict {
   const fired: Signal[] = [];
   const raise = (key: SignalKey) => {
@@ -299,14 +306,28 @@ export function decideKyc(
 
   if ((s.idQualityScore ?? 0) < cfg.thresholds.idQualityFloor) raise("idQualityLow");
 
-  if (face < cfg.thresholds.faceNoMatchBelow) raise("faceNoMatch");
-  else if (face < cfg.thresholds.faceMatchAtOrAbove) raise("faceBorderline");
+  if (applies.face) {
+    if (face < cfg.thresholds.faceNoMatchBelow) raise("faceNoMatch");
+    else if (face < cfg.thresholds.faceMatchAtOrAbove) raise("faceBorderline");
+  }
 
   // `livenessPassed` is authoritative when the provider set it; the score is the
-  // fallback for providers that return one without a verdict. A null-on-both
-  // means the check did not run, which is not a failure to report here — the
-  // capability flags on the route say whether liveness was available at all.
-  if (s.livenessPassed === false || (s.livenessPassed == null && s.livenessScore != null && s.livenessScore < cfg.thresholds.livenessFloor)) {
+  // fallback for providers that return one without a verdict. When the lender
+  // runs liveness, a null-on-both means the customer never completed it — which
+  // IS a failure, because the step was required.
+  // A caller that does not say (the console) keeps the old, lenient reading: only
+  // an explicit failure or a low score raises.
+  if (applies.liveness) {
+    if (
+      s.livenessPassed !== true &&
+      (s.livenessPassed === false || s.livenessScore == null || s.livenessScore < cfg.thresholds.livenessFloor)
+    ) {
+      raise("livenessFailed");
+    }
+  } else if (
+    s.livenessPassed === false ||
+    (s.livenessPassed == null && s.livenessScore != null && s.livenessScore < cfg.thresholds.livenessFloor)
+  ) {
     raise("livenessFailed");
   }
 

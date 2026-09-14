@@ -13,6 +13,7 @@ import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { listProducts } from "@/lib/lms/servicesuite";
 import { readBorrowerSession } from "@/lib/portal/session";
 import { micromartProducts, toShelfProduct, isSellable, type ShelfProduct } from "@/lib/portal/micromart-apply";
+import { sqlShelf } from "@/lib/portal/shelf";
 
 export const runtime = "nodejs";
 
@@ -60,9 +61,52 @@ export async function POST(req: NextRequest) {
   // A live product with no local row still appears, carrying `id: "ss:<id>"`,
   // and /api/portal/apply resolves that form — so a product Micromart adds to
   // their own shelf is sellable here before anybody creates a row for it.
+  // ── THE FEE SHEET AND THE TERM RANGE, FROM THE LENDER'S OWN TABLES ─────────
+  // Read over the SQL road for every bridged org that has one, whichever way the
+  // shelf itself was obtained: their API does not return fees, and a quote that
+  // omits a KSh 650 processing fee is the "cheap until you apply" pricing this
+  // app exists to stop.
+  const sql = org.mode === "BRIDGED" && org.bridgedReady && org.registry
+    ? await sqlShelf(org.registry, org.entityId).catch(() => null)
+    : null;
+  const mirrorFor = (ssId: number) => local.find((p) => p.serviceSuiteProductId === ssId);
+
   const liveShelf = await micromartShelf(org, local);
   if (liveShelf) {
-    return NextResponse.json({ success: true, connected: true, lender: org.name, products: liveShelf });
+    const enriched = liveShelf.map((p) => {
+      const s = sql?.find((x) => x.serviceSuiteProductId === p.serviceSuiteProductId);
+      const m = mirrorFor(p.serviceSuiteProductId);
+      return {
+        ...p,
+        charges: s?.charges ?? [],
+        minRepaymentPeriod: m?.minRepaymentPeriod ?? (p.interestMethod === "flat" ? 1 : p.repaymentPeriod),
+      };
+    });
+    return NextResponse.json({ success: true, connected: true, lender: org.name, products: enriched });
+  }
+
+  // ── NO LENDER TOKEN: the same live shelf, over SQL ─────────────────────────
+  // A customer who came in through the code has no Micromart token. They used to
+  // fall through to our mirrors below, which carry no Micro Chap Chap — so a new
+  // customer with a limit under KSh 10,901 saw nothing they could borrow. The
+  // lender's shelf decides what is on sale; our mirror only lends its id (so the
+  // application binds to our workflow) and the disbursement mode.
+  if (sql && sql.length > 0) {
+    const products = sql.map((s) => {
+      const m = mirrorFor(s.serviceSuiteProductId);
+      return m
+        ? {
+            ...s,
+            id: m.id,
+            liveOnly: false,
+            name: m.name || s.name,
+            description: m.description ?? s.description,
+            disbursementMode: m.disbursementMode,
+            minRepaymentPeriod: m.minRepaymentPeriod ?? s.minRepaymentPeriod,
+          }
+        : s;
+    });
+    return NextResponse.json({ success: true, connected: true, lender: org.name, products });
   }
 
   // Falling through to the previous behaviour: NATIVE orgs always sell from our
@@ -89,7 +133,9 @@ export async function POST(req: NextRequest) {
         disbursementMode: p.disbursementMode,
         repaymentPeriod: p.repaymentPeriod,
         repaymentUnit: p.repaymentPeriodUnit,
+        minRepaymentPeriod: p.minRepaymentPeriod ?? p.repaymentPeriod,
         minCreditScore: p.minCreditScore,
+        charges: [],
       };
     });
     return NextResponse.json({ success: true, connected: true, lender: org.name, products });
