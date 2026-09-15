@@ -22,7 +22,8 @@ import type { RiriScreen } from "./core/context";
 /** Bump when the console map changes shape or content materially. */
 export const LMS_MAP_VERSION = 41;
 
-export const PORTAL_BASE = () => (process.env.PORTAL_APP_URL ?? "https://portal.servicesuitecloud.com").replace(/\/$/, "");
+// The Micro Eazy app. Not portal.servicesuitecloud.com — that is Micromart's own PWA.
+export const PORTAL_BASE = () => (process.env.PORTAL_APP_URL?.trim() || "https://microeazy.servicesuitecloud.com").replace(/\/$/, "");
 export const CONSOLE_BASE = () => (process.env.CONSOLE_APP_URL ?? "https://lms.servicesuitecloud.com").replace(/\/$/, "");
 
 export function lmsManifest(): RiriMapManifest {

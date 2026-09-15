@@ -46,13 +46,14 @@ const PLATFORM_LABELS = [
   // this host, so every home-screen icon already in customers' hands would open
   // onto that lender's portal. An installed base cannot be un-pointed.
   "microeazy",
-  // The BORROWER PWA's host — portal.servicesuitecloud.com, a separate Vercel
-  // project from this one (see ecosystem/registry.json → pwa.deploy).
+  // Micromart's own customer PWA — portal.servicesuitecloud.com, a separate
+  // Vercel project from this one (see ecosystem/registry.json → pwa.deploy).
+  // Not the fintech app: that is microeazy.servicesuitecloud.com, above.
   //
   // It is reserved here even though this deployment never serves it, and that is
   // the point: reservation is decided when a lender picks a slug, which happens
   // in THIS app. Without the entry a lender signing up as "portal" would be
-  // handed a subdomain that DNS already points at the borrower app — the two
+  // handed a subdomain that DNS already points at a live customer app — the two
   // would fight for the host, and the winner would be whichever project last
   // claimed the domain in Vercel. Exactly the collision that took
   // microeazy.servicesuitecloud.com off the air.
@@ -136,11 +137,12 @@ export function hrefFor(app: SuiteApp): string {
 }
 
 /**
- * Where the BORROWER APP is served from — the deployed PWA, not our copy of it.
+ * Where the BORROWER APP is served from — the deployed Micro Eazy app
+ * (`micro-eazy-app`), not a route in this deployment.
  *
- * BORROWER_PORTAL_ORIGIN overrides it (a staging build, or the day the rebuild
- * in `micro-eazy-app` takes the hostname over). The default is the live host,
- * because that is where a lender's customers are today.
+ * BORROWER_PORTAL_ORIGIN overrides it (a staging build). The default is the
+ * live host, microeazy.servicesuitecloud.com, because that is where a lender's
+ * Fintech customers are.
  */
 function borrowerPortalOrigin(): string {
   const raw = process.env.BORROWER_PORTAL_ORIGIN?.trim();
@@ -188,11 +190,10 @@ export function deepLinkFor(systemId: string, path: string): string | null {
   // have already installed. Staff who open "the customer portal" mean the app
   // their borrowers are actually holding.
   //
-  // It reads its OWN variable rather than SUITE_PORTAL_ORIGIN, and the
-  // distinction is real: SUITE_PORTAL_ORIGIN is the launcher's tile and points
-  // at microeazy.servicesuitecloud.com, which is this deployment's consumer
-  // route. Pointing a staff deep-link there would show an officer our copy of
-  // the app instead of the one on the customer's phone.
+  // It reads its OWN variable rather than SUITE_PORTAL_ORIGIN: that one moves
+  // the launcher's tile, this one moves where staff land. Both default to the
+  // Micro Eazy app at microeazy.servicesuitecloud.com — never portal., which is
+  // Micromart's own PWA.
   if (systemId === "portal") return `${borrowerPortalOrigin()}${tail}`;
   // An external system has no in-app route either — its declared production host
   // is the honest answer whether or not an origin has been configured yet.

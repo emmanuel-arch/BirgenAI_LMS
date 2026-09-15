@@ -32,8 +32,8 @@ export type ResolvedOrg = {
 
 export async function resolveOrg(slug: string): Promise<ResolvedOrg | null> {
   // ── A BLANK SLUG IS A CLIENT BUG, AND IT REACHED PRODUCTION ────────────────
-  // Twelve borrower routes resolve the lender from the request body. The build
-  // on portal.servicesuitecloud.com sends `lenderSlug: ""` — Vite inlined an
+  // Twelve borrower routes resolve the lender from the request body. A Micro
+  // Eazy app build (early Sep 2026) sent `lenderSlug: ""` — Vite inlined an
   // env var that was set but empty, and the client's `??` default never fired —
   // so every one of those routes answered 400 "Choose a lender" to real
   // customers.

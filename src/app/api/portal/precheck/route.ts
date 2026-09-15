@@ -9,9 +9,10 @@
 //   new               send the code; onboarding under the lender's own rules
 //   local             they began with us already; send the code and resume
 //   fintech           an account exists on this lender's book; sign in instead
-//   africa-active     the account is on Micromart's field book; the other portal
+//   africa-active     the account is on Micromart's field book; call support
 //   africa-portal     same, and not scheduled to move
 //   africa-pipeline   settled on the field book; moves to Fintech on `eligibleOn`
+//                     (every africa-* answer carries `support`, never a link)
 //   both              on two books; a case is opened and the customer given a ref
 //   unreachable       we could not ask — NEVER treated as "new"
 //
@@ -34,8 +35,15 @@ export const runtime = "nodejs";
 /** Micromart's own contact lines, printed on their loan agreement. */
 const MICROMART_SUPPORT = { phone: "+254 20 2 736 622", email: "info@micromartafrica.com" };
 
-/** The other portal — Micromart Africa's own customer app. */
-const AFRICA_PORTAL = process.env.MICROMART_AFRICA_PORTAL_URL?.trim() || "https://pwa.servicesuitecloud.com/";
+/**
+ * Where a Micromart Africa (3002) customer is sent: customer support, by phone.
+ *
+ * NOT a link to another app. This used to hand them to "the other portal", but
+ * Micromart's customer PWA (portal.servicesuitecloud.com) is Fintech-only since
+ * 15 Sep 2026 and itself refers 3002 customers to this number, and the two apps
+ * are deliberately not linked to each other.
+ */
+const AFRICA_SUPPORT = { phone: "0740961275", email: "info@micromartafrica.com" };
 
 export async function POST(req: NextRequest) {
   let body: { lenderSlug?: string; phone?: string };
@@ -142,7 +150,7 @@ export async function POST(req: NextRequest) {
     ...answer,
     lender: org.name,
     ...(answer.route === "africa-active" || answer.route === "africa-portal" || answer.route === "africa-pipeline"
-      ? { portalUrl: AFRICA_PORTAL }
+      ? { support: AFRICA_SUPPORT }
       : {}),
   });
 }

@@ -175,7 +175,7 @@ ok("take me to my score → the Score screen", (() => { const r = ask("take me t
 ok("take me to repay → /repay", ask("take me to repay").actions[0]?.href === "/repay");
 ok("isScreenQuestion does not swallow a real question", !isScreenQuestion("what is ratiba") && isScreenQuestion("what am I looking at?") && isScreenQuestion("hii ni nini"));
 ok("routes resolve to the most specific screen", resolveScreen(APP_SCREENS, "/messages/abc-123")?.id === "app-thread" && resolveScreen(APP_SCREENS, "/messages")?.id === "app-messages");
-ok("a full URL is reduced to its path", normaliseRoute("https://portal.servicesuitecloud.com/repay?x=1") === "/repay");
+ok("a full URL is reduced to its path", normaliseRoute("https://microeazy.servicesuitecloud.com/repay?x=1") === "/repay");
 ok("an unknown route is no screen, not a guess", resolveScreen(APP_SCREENS, "/nowhere") === null);
 ok("the lender home resolves to Home only by the map's own rule", resolveScreen(APP_SCREENS, "/") ?.id === "app-home");
 

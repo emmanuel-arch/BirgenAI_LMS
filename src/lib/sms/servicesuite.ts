@@ -2,7 +2,7 @@
 // SMS THROUGH THE LENDER'S OWN SERVICESUITE OUTBOX.
 //
 // ── THE PROBLEM THIS SOLVES ─────────────────────────────────────────────────
-// A borrower on portal.servicesuitecloud.com asks for a code and gets
+// A borrower on the Micro Eazy app asks for a code and gets
 // `delivered: false`, because providerFor() finds nothing: Micromart have no
 // SMS config in our vault, and the platform Africa's Talking key is unset.
 //

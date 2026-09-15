@@ -143,16 +143,17 @@ export const SATELLITE_LABELS: readonly string[] = [
 ];
 
 /**
- * The BORROWER APP's own host — portal.servicesuitecloud.com.
+ * The BORROWER APP's own host — microeazy.servicesuitecloud.com.
  *
- * Not in SATELLITE_HOSTS, and not `satelliteHost("portal")`, because it is not
- * this deployment. The customer portal a lender's borrowers actually use is a
- * SEPARATE Vercel project (ecosystem/registry.json → `pwa`), live on this host
- * since 1 Sep 2026; `microeazy.servicesuitecloud.com` is this application's own
- * consumer route. Two labels, two projects, because only one Vercel project can
- * hold a hostname.
- *
+ * Not `satelliteHost("portal")` in spirit, because it is not this deployment:
+ * the Micro Eazy app customers install is the SEPARATE `micro-eazy-app` Vercel
+ * project (ecosystem/registry.json → `app`), and that project holds this host.
  * A staff member who opens the portal from the console is going to the thing
- * their CUSTOMERS see, which is the deployed app — not our copy of it.
+ * their CUSTOMERS see, which is the deployed app — not a route in this one.
+ *
+ * NOT portal.servicesuitecloud.com. Since 15 Sep 2026 that host is Micromart's
+ * own customer PWA (ecosystem/registry.json → `pwa`), which serves both
+ * Micromart books from their public API. Every road to the fintech app leads
+ * here; nothing in this suite links a Fintech customer to `portal.`.
  */
-export const BORROWER_PORTAL_HOST = `portal.${SUITE_DOMAIN}`;
+export const BORROWER_PORTAL_HOST = `microeazy.${SUITE_DOMAIN}`;
