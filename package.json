@@ -113,7 +113,8 @@
     "crb:all": "tsx scripts/crb-pull-all.ts",
     "ratiba:test": "tsx scripts/ratiba-test.ts",
     "ratiba:diagnose": "tsx scripts/ratiba-diagnose.ts",
-    "products:sync": "tsx scripts/sync-live-products.ts"
+    "products:sync": "tsx scripts/sync-live-products.ts",
+    "crb:entitlement": "tsx scripts/crb-entitlement.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

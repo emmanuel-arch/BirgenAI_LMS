@@ -36,23 +36,30 @@
 // reasons). Verified live against api.metropol.co.ke:5555/v2_1 on the test key
 // pair for reports 1, 2, 3, 11 and 12 plus the health check.
 //
-// ── WHAT MICROMART ARE ACTUALLY ENTITLED TO (2 Sep 2026) ─────────────────────
-// The whole catalogue was pulled one report at a time against a real subject on
-// production keys, through the CRB relay (npm run crb:all). Twelve of the
-// fourteen answered:
+// ── WHAT MICROMART ARE ACTUALLY ENTITLED TO (re-swept 16 Sep 2026) ───────────
+// `npm run crb:entitlement` probes every report type with a dummy identity that
+// exists on no production file. An ENTITLED subscription answers E017 "identity
+// not found"; an UNENTITLED one answers E029 "unauthorized report" before the
+// subject is ever considered. So entitlement is measurable WITHOUT BUYING A
+// REPORT, which is why it can be re-run whenever a contract might have changed
+// rather than once a quarter when somebody is brave enough to pay.
 //
-//   ANSWERED   1, 2, 3, 5, 6, 8, 10, 11, 12, 13, 14, 16
-//   REFUSED    22  Accounts Info (12-month history) — E029, unauthorized report.
-//                  Not a bug and not a transport failure: this lender's contract
-//                  does not include it. Anything that needs a month-by-month
-//                  arrears trend must come from report 12's `metro_score_trend`
-//                  (12 points) instead, which they DO get.
-//   NO JSON     4  PDF Credit Report — a binary document, no JSON endpoint, and
-//                  deliberately outside the orchestrated pull.
+//   ENTITLED   1, 2, 3, 4, 5, 6, 8, 10, 11, 12, 13, 14, 16   (13 of 14)
+//   REFUSED    22  Accounts Info (12-month history) — E029. Not a bug and not a
+//                  transport failure: this contract does not include it.
+//                  Anything needing a month-by-month arrears trend must come
+//                  from report 12's `metro_score_trend` (12 points) instead.
+//
+// ── REPORT 4 IS ENTITLED, AND THIS FILE USED TO SAY OTHERWISE ────────────────
+// The 2 Sep sweep never called report 4 — it was assumed to be a binary document
+// outside the JSON API, and recorded as "NO JSON". The 16 Sep probe called it:
+// it answers over the same JSON envelope in 666ms, returning the PDF base64 in a
+// `report` field (guide §4.3.4). It remains `wired: false` because nothing
+// downstream renders a bureau-supplied PDF yet — but "not wired" and "not
+// available" are different claims, and only one of them was true.
 //
 // Entitlement is per contract and can change without notice, so this is a record
-// of what was true on that date, not a constant to branch on. Re-run the sweep
-// rather than trusting this list if a report starts refusing.
+// of what was true on that date, not a constant to branch on.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Report type codes, exactly as Metropol number them (§5.1). 7, 9, 15, 17, 20, 21 do not exist. */
@@ -174,7 +181,9 @@ export const CRB_REPORTS: CrbReportDef[] = [
     endpoint: "/report/pdf",
     method: "POST",
     answers: "Give me the bureau's own signed document for the file.",
-    yields: ["Binary PDF of the full credit report"],
+    // Entitled and answering (16 Sep 2026 probe). The PDF arrives base64-encoded
+    // inside the ordinary JSON envelope, under `report`, with `encoding`.
+    yields: ["Base64 PDF of the full credit report", "Metropol's own reference number"],
     needsLoanAmount: true,
     needsReportReason: true,
     wired: false,
