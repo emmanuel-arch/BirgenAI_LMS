@@ -110,6 +110,43 @@ export async function signedPost(
   }
 }
 
+/**
+ * A signed POST that returns the RAW Response.
+ *
+ * `signedPost` parses JSON, which is right for every exchange call and wrong for
+ * exactly one: a report requested as a PDF comes back as bytes, and parsing it
+ * as JSON destroys it. This keeps the same signing and the same timeout, and
+ * hands the caller the Response so it can decide what the body is.
+ */
+export async function signedPostRaw(
+  who: MemberIdentity,
+  path: string,
+  body: unknown,
+  opts: { timeoutMs?: number } = {},
+): Promise<Response> {
+  const payload = JSON.stringify(body);
+  const headers = signRequest({
+    method: "POST",
+    path,
+    body: payload,
+    memberCode: who.code,
+    secretKeyHex: who.secretKey,
+  });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 120_000);
+  try {
+    return await fetch(`${registryUrl()}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...headers },
+      body: payload,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** An unsigned POST — only /api/consent, which a member calls from onboarding. */
 export async function plainPost(path: string, body: unknown, opts: { timeoutMs?: number } = {}) {
   const controller = new AbortController();

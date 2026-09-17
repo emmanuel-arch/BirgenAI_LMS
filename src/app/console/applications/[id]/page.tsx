@@ -16,7 +16,7 @@ import { useLoad } from "@/lib/hooks/useLoad";
 import {
   ArrowLeft, Loader2, AlertTriangle, CheckCircle2, XCircle, Undo2, ShieldAlert, MapPin,
   ScanFace, Gauge, TrendingUp, TrendingDown, Minus, Users, BadgeCheck, Landmark, IdCard,
-  FileSearch,
+  FileSearch, Download, Share2,
 } from "lucide-react";
 import { REPORT_REASON } from "@/lib/crb/catalogue";
 import { OfferPanel } from "../OfferPanel";
@@ -107,6 +107,13 @@ export default function ApplicationDetailPage() {
   // action to resume once it lands, so the officer never leaves this page.
   const [crbGate, setCrbGate] = useState<CrbGate | null>(null);
   const [crbResult, setCrbResult] = useState<string | null>(null);
+  // The Interchange request is deliberately SEPARATE state from the stage-gate
+  // CRB run: one is a step in an approval, the other is an officer buying a
+  // document. Sharing `acting` would grey out the approve buttons while a PDF
+  // renders, which is not what is happening.
+  const [icBusy, setIcBusy] = useState(false);
+  const [icNote, setIcNote] = useState<string | null>(null);
+  const [icError, setIcError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -158,6 +165,56 @@ export default function ApplicationDetailPage() {
    * application's exposure and with reason NEW_APPLICATION, because that is what
    * this pull actually is, and Metropol records the reason we declare.
    */
+  /**
+   * Buy a report THROUGH THE INTERCHANGE and hand the officer the PDF.
+   *
+   * The response is bytes, not JSON, so it becomes a blob and is clicked as a
+   * download rather than navigated to — the officer stays on the application
+   * they were reading. The receipt headers (log entry, pulls billed, latency)
+   * are surfaced, because a member paying per pull should see what a press of
+   * this button cost and be able to find it in the message log.
+   */
+  const requestInterchangeReport = async (reportType = 8) => {
+    setIcBusy(true); setIcNote(null); setIcError(null);
+    try {
+      const res = await fetch("/api/console/interchange/report", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: id, reportType, format: "pdf", loanAmount: d?.application.amountRequested }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setIcError(j.message || "The Interchange could not return this report.");
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get("content-disposition") ?? "";
+      const named = /filename="([^"]+)"/.exec(disposition)?.[1];
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = named ?? `interchange-report-${reportType}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+
+      const seq = res.headers.get("x-interchange-log-seq");
+      const billed = res.headers.get("x-interchange-billed-pulls");
+      const ms = res.headers.get("x-interchange-ms");
+      setIcNote(
+        [
+          "Report downloaded",
+          billed ? `${billed} bureau pull${billed === "1" ? "" : "s"} billed` : null,
+          seq ? `logged as entry #${seq}` : null,
+          ms ? `${ms}ms` : null,
+        ].filter(Boolean).join(" · "),
+      );
+    } catch {
+      setIcError("The Interchange could not be reached.");
+    } finally {
+      setIcBusy(false);
+    }
+  };
   const runCrb = async () => {
     if (!crbGate) return;
     setActing("crb"); setError(null); setCrbResult(null);
@@ -265,6 +322,51 @@ export default function ApplicationDetailPage() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+
+          {/* The Interchange — bureau reach as a network service.
+              This button buys Metropol's report 8 THROUGH the Registry:
+              tokenised, consented, gated, logged, and returned as a rendered
+              PDF. A member with no Metropol contract of their own presses the
+              same button and it works, which is the entire point. */}
+          <div className="glass p-4">
+            <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-ash-400">
+              <Share2 className="h-3 w-3" /> The Interchange
+            </p>
+            <p className="mt-1.5 text-[12px] leading-snug text-ash-600">
+              Request the bureau file across the network. The ID is tokenised before it leaves this
+              server, the borrower&rsquo;s consent is checked and quoted, and the call is written to the
+              hash-chained message log.
+            </p>
+
+            <button
+              disabled={icBusy || !b.nationalId}
+              onClick={() => requestInterchangeReport(8)}
+              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              style={{ backgroundColor: "var(--brand)" }}
+            >
+              {icBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {icBusy ? "Requesting..." : "Request CRB report"}
+            </button>
+            <p className="mt-1.5 text-center text-[10px] text-ash-400">
+              Metropol report 8 · Credit Info · billed per pull
+            </p>
+
+            {!b.nationalId && (
+              <p className="mt-2 text-[11px] text-amber-700">
+                No national ID on file — a bureau identifies people by ID, so nothing can be requested.
+              </p>
+            )}
+            {icNote && (
+              <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50/80 px-2.5 py-1.5 text-[11px] text-emerald-800">
+                <BadgeCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {icNote}
+              </p>
+            )}
+            {icError && (
+              <p className="mt-2 flex items-start gap-1.5 rounded-lg border border-red-300 bg-red-50/80 px-2.5 py-1.5 text-[11px] text-red-700">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {icError}
+              </p>
             )}
           </div>
         </div>

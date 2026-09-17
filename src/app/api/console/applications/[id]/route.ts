@@ -15,7 +15,7 @@ import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { requireRight } from "@/lib/rbac/authz";
 import { prisma } from "@/lib/prisma";
-import { MERGED_CRB_ONLY } from "@/lib/crb/rows";
+import { MERGED_CRB_ONLY, CRB_GATE_ROWS } from "@/lib/crb/rows";
 import { bookLoanFromApplication } from "@/lib/lending/book";
 import { isPostingEnabled, ensureBorrower, postLoan } from "@/lib/lms/servicesuite";
 import { getPostingOrg, getEntityId } from "@/lib/enterprise/connections";
@@ -289,7 +289,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   // needed.
   if (stageDef.crbRequired && app.borrowerId) {
     const lastCrb = await prisma.kycCheck.findFirst({
-      where: { orgId: app.orgId, borrowerId: app.borrowerId, kind: "CRB", ...MERGED_CRB_ONLY },
+      where: { orgId: app.orgId, borrowerId: app.borrowerId, kind: "CRB", ...CRB_GATE_ROWS },
       orderBy: { createdAt: "desc" }, select: { id: true, createdAt: true },
     });
     const gate = crbGateDecision(lastCrb?.createdAt ?? null);

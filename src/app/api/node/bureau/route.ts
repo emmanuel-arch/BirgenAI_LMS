@@ -149,11 +149,25 @@ export async function POST(request: Request) {
     );
   }
 
+  // ── TWO DIFFERENT "SLUGS", AND THEY ARE NOT THE SAME NAMESPACE ────────────
+  // `member.org` is a CONNECTION slug from lib/enterprise/connections — which
+  // ServiceSuite database to read — and it is "micromart-fintech". The LMS org
+  // that owns the vault, the CRB integration and the billing is slug
+  // "micromart". Looking the tenant up by the connection slug finds nothing and
+  // fails with NO_ORG, which reads like a missing tenant rather than a mixed-up
+  // identifier. The bureau tenant is therefore named explicitly.
+  const orgSlug = process.env.INTERCHANGE_BUREAU_ORG_SLUG?.trim() || "micromart";
   const org = await runAsPlatform(() =>
-    prisma.org.findFirst({ where: { slug: member.org }, select: { id: true, name: true } }),
+    prisma.org.findFirst({ where: { slug: orgSlug }, select: { id: true, name: true } }),
   );
   if (!org) {
-    return NextResponse.json({ error: "NO_ORG", message: `No org for ${member.org}.` }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "NO_ORG",
+        message: `No LMS org with slug "${orgSlug}". Set INTERCHANGE_BUREAU_ORG_SLUG to the tenant whose Metropol contract this node spends.`,
+      },
+      { status: 500 },
+    );
   }
 
   const cfg = await runAsPlatform(() => getIntegration(org.id, "CRB"));
