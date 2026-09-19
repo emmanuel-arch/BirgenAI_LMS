@@ -63,6 +63,17 @@ export type SatelliteHost = {
    * already held) OR an email-and-password form. Same page, both audiences,
    * and the product asserts itself either way.
    *
+   * ── IT IS NOW ONE DOOR, NOT SIX ────────────────────────────────────────
+   * Each system used to serve its own `/suite/<id>/login`. Those pages are
+   * gone with the launcher they belonged to (lib/suite/landing.ts): they
+   * were an unfinished second sign-in surface sitting in front of a finished
+   * one, and a lender's staff met the worse of the two first.
+   *
+   * So every staff host now serves `/login` — the same card, which reads the
+   * HOST to decide which system's artwork it wears and where it lets you
+   * out. A lender's own branded door is `/login`'s sibling at `/<org-slug>`,
+   * which is the address their credentials carry.
+   *
    * NULL = no door: the bare host serves `path` directly. That is the
    * consumer app, whose installed start_url is this host and which must never
    * show a staff sign-in card. See the microeazy entry below.
@@ -71,7 +82,7 @@ export type SatelliteHost = {
 };
 
 export const SATELLITE_HOSTS: readonly SatelliteHost[] = [
-  { id: "lms", label: "lms", path: "/console", door: "/suite/lms/login" },
+  { id: "lms", label: "lms", path: "/console", door: "/login" },
   // The consumer app's own door, not the generic portal root: this host is what
   // the INSTALLED Micro Eazy app launches into.
   //
@@ -81,10 +92,10 @@ export const SATELLITE_HOSTS: readonly SatelliteHost[] = [
   // putting a staff sign-in card in front of that would break the installed app
   // for the entire installed base at once.
   { id: "portal", label: "microeazy", path: "/microeazy", door: null },
-  { id: "analytics", label: "analytics", path: "/analytics", door: "/suite/analytics/login" },
-  { id: "hr", label: "peoplehub", path: "/people", door: "/suite/hr/login" },
-  { id: "accounting", label: "ledgerly", path: "/books", door: "/suite/accounting/login" },
-  { id: "callcenter", label: "connectdesk", path: "/desk", door: "/suite/callcenter/login" },
+  { id: "analytics", label: "analytics", path: "/analytics", door: "/login" },
+  { id: "hr", label: "peoplehub", path: "/people", door: "/login" },
+  { id: "accounting", label: "ledgerly", path: "/books", door: "/login" },
+  { id: "callcenter", label: "connectdesk", path: "/desk", door: "/login" },
 ] as const;
 
 /** The production host for a system id, e.g. "connectdesk.servicesuitecloud.com". */
@@ -97,6 +108,30 @@ export function satelliteHost(id: string): string {
 /** This system's home path, or null if this label is not one of the six. */
 export function pathForLabel(label: string): string | null {
   return SATELLITE_HOSTS.find((h) => h.label === label)?.path ?? null;
+}
+
+/**
+ * Which SYSTEM a host names — "connectdesk" → "callcenter". Null for anything
+ * that is not one of the six, including localhost and the bare apex.
+ *
+ * This is what turns "the door they knocked on" into a landing (lib/suite/
+ * landing.ts) and into a choice of artwork on the sign-in card. Both need the
+ * same answer, and a second copy of this table is how they would drift.
+ */
+export function systemIdForLabel(label: string): string | null {
+  return SATELLITE_HOSTS.find((h) => h.label === label)?.id ?? null;
+}
+
+/**
+ * The leading label of a Host header, lowercased, port stripped.
+ * "connectdesk.servicesuitecloud.com:3000" → "connectdesk".
+ *
+ * Lives here rather than in proxy.ts because the sign-in route needs the same
+ * parse to decide where a person lands, and two spellings of "read the
+ * subdomain" is one more than this deployment can keep honest.
+ */
+export function hostLabel(host: string | null | undefined): string {
+  return (host ?? "").split(":")[0].trim().toLowerCase().split(".")[0];
 }
 
 /**

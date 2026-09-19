@@ -14,6 +14,10 @@ import { createPlatformSession } from "@/lib/platform-auth";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { issueDailyLoginOtp, verifyDailyLoginOtp } from "@/lib/otp";
 import { withDbRetry, isTransientDbError, wakingUpResponse } from "@/lib/db/retry";
+import { hostLabel, systemIdForLabel } from "@/lib/suite/labels";
+import { visibleSystemIds } from "@/lib/suite/access";
+import { staffLanding } from "@/lib/suite/landing";
+import { parseAccess } from "@/lib/rbac/modules";
 
 export const runtime = "nodejs";
 
@@ -85,7 +89,10 @@ export async function POST(req: NextRequest) {
         status: "ACTIVE",
         ...(body.orgSlug ? { org: { slug: body.orgSlug } } : {}),
       },
-      include: { role: { select: { id: true, title: true } }, org: { select: { id: true, slug: true, status: true, isDemo: true } } },
+      include: {
+        role: { select: { id: true, title: true } },
+        org: { select: { id: true, slug: true, status: true, isDemo: true, systems: true } },
+      },
       orderBy: { createdAt: "asc" },
     }));
 
@@ -149,12 +156,27 @@ export async function POST(req: NextRequest) {
       tiers: { initiator: staff.isInitiator, authorizer: staff.isAuthorizer, validator: staff.isValidator },
     });
 
-    // /suite, not /console. An organisation's people are not all lending
-    // officers — the collections supervisor, the accountant and the HR manager
-    // each have their own system, and dropping every one of them into the
-    // lending console means five of the six systems are reached by knowing a URL.
-    // The launcher shows each person exactly the doors they hold rights to.
-    return NextResponse.json({ success: true, orgSlug: staff.org.slug, destination: "/suite" });
+    // ── STRAIGHT INTO A SYSTEM ───────────────────────────────────────────────
+    // This used to answer "/suite" — a launcher page that every staff member
+    // passed through on the way to the system they were already going to. It is
+    // gone; the grid moved into the identity menu at the top-right of each
+    // system, which is where somebody who wants to SWITCH will look for it.
+    //
+    // So sign-in ends inside a product. Which one is the host's decision first
+    // (connectdesk.servicesuitecloud.com has already said what it wants) and the
+    // person's entitlements second — the collections supervisor who signs in at
+    // the LMS host does not hold the console, and is put on the collections
+    // floor rather than shown a refusal. See lib/suite/landing.ts.
+    //
+    // Computed from the row we already hold rather than through getRights():
+    // that reads the session, and the session is one line old. The answer is the
+    // same one visibleSystemIds() gives every layout, from the same two inputs.
+    const denied = new Set(parseAccess(staff.access).deny ?? []);
+    const visible = visibleSystemIds(staff.org.systems, denied);
+    const knocked = systemIdForLabel(hostLabel(req.headers.get("host")));
+    const destination = staffLanding(visible, knocked);
+
+    return NextResponse.json({ success: true, orgSlug: staff.org.slug, destination });
   });
   } catch (err) {
     if (isTransientDbError(err)) return wakingUpResponse();

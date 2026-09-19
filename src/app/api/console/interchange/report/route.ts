@@ -135,11 +135,32 @@ export async function POST(req: NextRequest) {
   // ── Is this deployment on the network at all? ─────────────────────────────
   const org = await prisma.org.findUnique({ where: { id: orgId }, select: { slug: true, name: true } });
   const memberCode = memberCodeForOrgSlug(org?.slug ?? "");
-  if (!interchangeConfigured() || !memberCode || !hasMemberIdentity(memberCode)) {
+  // ── THREE DIFFERENT FAULTS, THREE DIFFERENT SENTENCES ────────────────────
+  // This used to answer "This lender is not connected to the Interchange yet"
+  // for all three, which is the kind of message that costs an afternoon: it
+  // reads as a commercial fact about the lender, so nobody goes looking for the
+  // environment variable that is actually missing. Two of the three are a
+  // deployment that has not been configured, and only the third is about the
+  // lender at all.
+  if (!interchangeConfigured()) {
     return fail(
-      "This lender is not connected to the Interchange yet, so reports cannot be requested through it.",
+      "This deployment is not wired to the Interchange. Set INTERCHANGE_URL and INTERCHANGE_NODE_KEYS on the server.",
+      503,
+      { code: "NOT_CONFIGURED" },
+    );
+  }
+  if (!memberCode) {
+    return fail(
+      `${org?.name ?? "This lender"} is not a member of the Interchange, so reports cannot be requested through it.`,
       503,
       { code: "NOT_A_MEMBER" },
+    );
+  }
+  if (!hasMemberIdentity(memberCode)) {
+    return fail(
+      `This server holds no signing key for ${memberCode}, so it cannot ask the Interchange as ${org?.name ?? "this lender"}. Add it to INTERCHANGE_NODE_KEYS.`,
+      503,
+      { code: "NO_NODE_KEY" },
     );
   }
 
@@ -151,9 +172,8 @@ export async function POST(req: NextRequest) {
     // unblinded here — the Registry cannot learn the number.
     const subjectToken = await deriveToken(who, "national_id", borrower.nationalId);
 
-    const consent = await issueConsent({
+    const consent = await issueConsent(who, {
       subjectToken,
-      memberCode,
       capturedVia: "LMS_CONSOLE",
       wordingVersion: consentRow?.version,
       evidence: {

@@ -492,9 +492,9 @@ export type FeedItem = Interaction & { subjectLabel: string };
 /**
  * The whole floor's activity, newest first — not one customer's.
  *
- * This is what the ConnectDesk wall board and the `/suite` launcher's live rail
- * read. It answers "what is happening in this business right now" across systems,
- * which is a question no screen Micromart currently owns can answer at all.
+ * This is what the ConnectDesk wall board reads. It answers "what is happening
+ * in this business right now" across systems, which is a question no screen
+ * Micromart currently owns can answer at all.
  */
 export async function getActivityFeed(org: OrgDef, opts: { limit?: number; agentId?: number; orgId?: string } = {}): Promise<FeedItem[]> {
   const limit = Math.min(Math.max(opts.limit ?? 40, 1), 200);

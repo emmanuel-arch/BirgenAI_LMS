@@ -233,9 +233,8 @@ async function interchangeExposure(
     // Registry as a random point, and finalized here. It never crosses.
     const subjectToken = await deriveToken(who, "national_id", nationalId);
 
-    const consent = await issueConsent({
+    const consent = await issueConsent(who, {
       subjectToken,
-      memberCode,
       capturedVia: "PWA",
       evidence: { surface: "portal/credit-file", capturedAt: new Date().toISOString() },
     });

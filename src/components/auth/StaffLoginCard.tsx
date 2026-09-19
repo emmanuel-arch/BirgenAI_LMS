@@ -3,9 +3,9 @@
 import { useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Lock, Mail, ArrowRight, AlertTriangle, KeyRound, MailCheck, ShieldCheck } from "lucide-react";
 import type { LenderBrand } from "@/lib/lms/branding";
+import type { DoorArt } from "@/lib/suite/doors";
 import { logoMetrics } from "@/lib/lms/logo";
 import CodeInput from "@/components/auth/CodeInput";
 import AuthAmbient from "@/components/auth/AuthAmbient";
@@ -29,6 +29,18 @@ import AccessSeal, { type SealState } from "@/components/auth/AccessSeal";
 // sits immediately after the step label, so "STAFF ACCESS 🔒" reads as one object.
 // Pushed to the right margin it was a decoration floating in whitespace; beside
 // the words it is a padlock ON the words, which is the whole point of it.
+//
+// ── TWO DOORS, ONE CARD ──────────────────────────────────────────────────────
+// Given `art`, the same card is set into a LENDER'S OWN PHOTOGRAPH: their people
+// at their counter down the left, the card in a lane just right of centre. See
+// lib/suite/doors.ts for why the lane is per-photograph rather than a constant.
+//
+// The card itself does not change — same crown, same fields, same seal, same
+// order — with ONE exception: it drops its internal logo, because on a photo
+// door the lender's mark is already set large over the picture a few centimetres
+// to the left. Two copies of the same logo on one screen is the thing that makes
+// a good door look assembled rather than designed. Without artwork the card
+// keeps its logo and the page is exactly what it was.
 type Mode = "signin" | "otp" | "forgot" | "reset";
 
 // MICRO EAZY'S PALETTE, sampled from the mark rather than eyeballed.
@@ -42,7 +54,17 @@ type Mode = "signin" | "otp" | "forgot" | "reset";
 const ME_NAVY = "#00306b";
 const ME_GREEN = "#4aa900";
 
-export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }) {
+export default function StaffLoginCard({
+  brand,
+  art = null,
+  systemName = null,
+}: {
+  brand?: LenderBrand | null;
+  /** The lender's own photograph for this door, or null for the plain card. */
+  art?: DoorArt | null;
+  /** Which system this door opens — "Lending Console", "ConnectDesk". */
+  systemName?: string | null;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
@@ -94,10 +116,15 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
       // door to open, so it goes straight through.
       // WHERE TO SEND THEM IS THE SERVER'S DECISION, not this card's. The same
       // form admits the platform administrator (→ /platform, the estate) and a
-      // lender's staff (→ /suite, their own doors), and only the server knows
-      // which it just authenticated. Defaulting to /suite keeps an older backend
-      // that returns no destination working.
-      const to = typeof data.destination === "string" ? data.destination : "/suite";
+      // lender's staff (→ straight into a system they hold, chosen by the host
+      // they knocked on and their entitlements — see lib/suite/landing.ts), and
+      // only the server knows which it just authenticated.
+      //
+      // The fallback is the lending console rather than the old /suite launcher,
+      // which no longer exists: a backend too old to return a destination is
+      // also too old to have deleted that page, but sending anybody to a 404 on
+      // the way IN is the one failure mode worth spending a constant on.
+      const to = typeof data.destination === "string" ? data.destination : "/console";
       if (withOtp) {
         setSealed(true);
         setTimeout(() => router.replace(to), 620);
@@ -212,17 +239,33 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
           : focusField === "password" ? "shielded"
             : focusField === "email" ? "open" : "locked";
 
-  return (
-    <div className="min-h-screen relative text-ash-900" style={accentVars}>
-      <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
-      <AuthAmbient accent={accent} accent2={accent2} />
-
-      <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-10">
-        <motion.div
-          initial={{ opacity: 0, y: 16, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          className="glass w-full max-w-md overflow-hidden rounded-3xl bg-paper/75 shadow-2xl shadow-ash-900/10"
+  // The card, independent of what it is set into. Rendered once and placed
+  // either on the ambient background (no artwork) or into the photograph's lane.
+  const card = (
+        // A PLAIN DIV WITH A CSS ENTRANCE, not a motion component. A motion
+        // component ships `opacity: 0` in the server HTML and lifts it on the
+        // first animation frame after hydration — so anything that stops
+        // JavaScript running leaves the ONE element on the estate that must
+        // always appear invisible on a page that otherwise looks fine. See the
+        // `.card-rise` note in globals.css.
+        <div
+          className={
+            "card-rise " +
+            (art
+              ? // ── OVER A PHOTOGRAPH, THE CARD IS OPAQUE ──────────────────────
+                // And deliberately NOT `.glass`. That class sets `background`
+                // outright (globals.css), so it wins over a Tailwind `bg-paper/94`
+                // and the card renders at the glass tint whatever opacity is asked
+                // for — which is the washed-out grey slab this replaced. On a
+                // translucent card the picture also reads straight through the
+                // input fields, and a bright highlight behind a placeholder is a
+                // placeholder nobody can read.
+                //
+                // So: solid paper, a white hairline to lift it off the photograph,
+                // and a long soft shadow so it floats rather than sits.
+                "w-full max-w-md overflow-hidden rounded-3xl border border-white/60 bg-paper shadow-[0_30px_90px_-24px_rgba(0,0,0,0.75)]"
+              : "glass w-full max-w-md overflow-hidden rounded-3xl bg-paper/75 shadow-2xl shadow-ash-900/10")
+          }
         >
           {/* Brand-lit crown — a thin gradient seam so every door feels bespoke.
               On the un-branded door this is now navy→green rather than the old
@@ -232,20 +275,26 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
           <div className="px-6 pt-7 pb-7 sm:px-8 sm:pt-8 sm:pb-8">
             {/* THE LOCKUP. The mark, then a hairline in its own colours — structure
                 that costs one element and makes the mark read as a masthead instead
-                of an image that happens to be at the top of a form. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={logoSrc}
-              alt={brand?.name ?? "Micro Eazy"}
-              style={{ maxWidth: logo.maxWidth, maxHeight: logo.maxHeight, width: "auto", height: "auto", marginBottom: logo.marginBottom }}
-              className="mx-auto block"
-              onError={(e) => (((e.target as HTMLImageElement).src = logoFallback))}
-            />
-            <div
-              aria-hidden
-              className="mx-auto mt-5 h-px w-full max-w-[15rem]"
-              style={{ background: `linear-gradient(90deg, transparent, ${accent2}66 30%, ${accent}66 70%, transparent)` }}
-            />
+                of an image that happens to be at the top of a form.
+                Suppressed on a photo door, where the mark is already set large
+                over the picture beside it. */}
+            {!art && (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={logoSrc}
+                  alt={brand?.name ?? "Micro Eazy"}
+                  style={{ maxWidth: logo.maxWidth, maxHeight: logo.maxHeight, width: "auto", height: "auto", marginBottom: logo.marginBottom }}
+                  className="mx-auto block"
+                  onError={(e) => (((e.target as HTMLImageElement).src = logoFallback))}
+                />
+                <div
+                  aria-hidden
+                  className="mx-auto mt-5 h-px w-full max-w-[15rem]"
+                  style={{ background: `linear-gradient(90deg, transparent, ${accent2}66 30%, ${accent}66 70%, transparent)` }}
+                />
+              </>
+            )}
 
             {/* Heading lockup: label, then seal. On the sign-in and second-factor
                 steps the eyebrow IS the heading — the logo above has already said
@@ -262,7 +311,20 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
             {/* The hairline above already carries 20px, so the label sits closer to
                 it than it used to sit to the bare logo — the rule is what separates
                 the masthead from the form now, not empty space. */}
-            <div className={soloEyebrow ? "mt-6" : "mt-4"}>
+            <div className={art ? "" : soloEyebrow ? "mt-6" : "mt-4"}>
+              {/* WHICH DOOR THIS IS. It matters more than it looks: a supervisor
+                  sent connectdesk.servicesuitecloud.com and a manager sent
+                  lms.servicesuitecloud.com see the SAME card, and on a photo
+                  door — where the logo has been suppressed in favour of the
+                  masthead beside it — this line is the only thing on the card
+                  that says which system is behind it. Rendered whenever the page
+                  knows the answer; the plain door simply carries it under the
+                  logo instead. */}
+              {systemName && (
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-ash-400">
+                  {systemName}
+                </p>
+              )}
               {/* The seal rides WITH the label, not opposite it — so it stays in the
                   lockup at every step, and the heading (when a step has one) flows
                   underneath the pair rather than beside a floating glyph. */}
@@ -296,9 +358,8 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
               </div>
             )}
 
-            <AnimatePresence mode="wait">
               {mode === "signin" && (
-                <motion.div key="signin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                <div key="signin" className="step-in">
                   <div className="mt-5 space-y-3">
                     <div className={wrap}>
                       <Mail className="h-4 w-4 text-ash-400 shrink-0" />
@@ -330,11 +391,11 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
                   <p className="mt-4 flex items-center gap-1.5 text-[11px] text-ash-400">
                     <ShieldCheck className="h-3 w-3 shrink-0" /> Two-factor protected · every action audited
                   </p>
-                </motion.div>
+                </div>
               )}
 
               {mode === "otp" && (
-                <motion.div key="otp" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
+                <div key="otp" className="step-in">
                   {/* No centrepiece here any more. The 132px vault door was the most
                       elaborate thing on the screen and it guarded the LEAST important
                       moment — a person copying six digits out of their inbox. The six
@@ -358,21 +419,21 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
                     No email? The code from earlier today still works — check your inbox and spam.
                   </p>
                   <button onClick={() => { setMode("signin"); setOtp(""); setError(null); setNotice(null); setFallbackCode(null); }} className="mt-3 w-full text-center text-xs text-ash-500 hover:text-ash-800">Back to sign in</button>
-                </motion.div>
+                </div>
               )}
 
               {mode === "forgot" && (
-                <motion.div key="forgot" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                <div key="forgot" className="step-in">
                   <div className="mt-5"><div className={wrap}><Mail className="h-4 w-4 text-ash-400 shrink-0" /><input value={email} onChange={(e) => setEmail(e.target.value)} onFocus={() => setFocusField("email")} onBlur={() => setFocusField(null)} inputMode="email" placeholder="Work email" onKeyDown={(e) => e.key === "Enter" && requestCode()} className={input} /></div></div>
                   <button onClick={requestCode} disabled={loading} className={primaryBtn} style={primaryStyle}>
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />} Send reset code
                   </button>
                   <button onClick={() => { setMode("signin"); setError(null); setNotice(null); }} className="mt-4 w-full text-center text-xs text-ash-500 hover:text-ash-800">Back to sign in</button>
-                </motion.div>
+                </div>
               )}
 
               {mode === "reset" && (
-                <motion.div key="reset" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                <div key="reset" className="step-in">
                   <div className="mt-5 space-y-3">
                     <CodeInput value={code} onChange={setCode} length={6} disabled={loading} autoFocus />
                     <div className={wrap}><Lock className="h-4 w-4 text-ash-400 shrink-0" /><input value={nextPass} onChange={(e) => setNextPass(e.target.value)} onFocus={() => setFocusField("password")} onBlur={() => setFocusField(null)} type="password" placeholder="New password (10+ chars)" onKeyDown={(e) => e.key === "Enter" && confirmReset()} className={input} /></div>
@@ -381,15 +442,112 @@ export default function StaffLoginCard({ brand }: { brand?: LenderBrand | null }
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Update password
                   </button>
                   <button onClick={() => { setMode("signin"); setError(null); setNotice(null); }} className="mt-4 w-full text-center text-xs text-ash-500 hover:text-ash-800">Back to sign in</button>
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
 
             <p className="mt-6 text-center text-[11px] text-ash-400">
               Powered by <span className="font-semibold text-ash-500">BirgenAI</span>
             </p>
           </div>
-        </motion.div>
+        </div>
+  );
+
+  // ── THE PLAIN DOOR ─────────────────────────────────────────────────────────
+  // Unchanged, and still what every lender without a photograph of their own
+  // gets: the card centred on the ambient background.
+  if (!art) {
+    return (
+      <div className="min-h-screen relative text-ash-900" style={accentVars}>
+        <div aria-hidden className="fixed inset-0 z-0 bg-[url('/images/white-background.png')] bg-cover bg-center" />
+        <AuthAmbient accent={accent} accent2={accent2} />
+        <div className="relative z-10 min-h-screen flex items-center justify-center px-4 py-10">{card}</div>
+      </div>
+    );
+  }
+
+  // ── THE LENDER'S OWN DOOR ──────────────────────────────────────────────────
+  // Their room down the left, their mark over it, the card in the lane the
+  // photograph leaves free.
+  return (
+    <div className="relative min-h-screen overflow-hidden text-ash-900" style={accentVars}>
+      {/* The photograph, not a CSS background: an <img> gets `alt` (a sign-in
+          page a screen reader cannot describe is a sign-in page with an
+          undescribed room in it), it gets fetchpriority, and object-position is
+          a real per-photograph value rather than a background-position guess.
+          eslint-disable: next/image would want a loader and a layout shift
+          budget for a full-bleed decorative plate that is already built to the
+          exact size it is served at. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={art.file}
+        alt={art.alt}
+        fetchPriority="high"
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ objectPosition: art.focal }}
+      />
+
+      {/* THE SCRIM, and it is two scrims doing two different jobs.
+          Horizontally: transparent across the left half so the lender's people
+          are seen at full contrast — the whole point of putting them there —
+          then deepening under the card's lane so a white card has something to
+          sit against. Vertically: a short wash at the top so the mark reads over
+          whatever the picture does up there. On a phone, where the card centres
+          over the middle of the frame, the flat layer underneath does the work
+          instead and both gradients stop mattering. */}
+      <div aria-hidden className="absolute inset-0 bg-ash-950/45 lg:hidden" />
+      <div
+        aria-hidden
+        className="absolute inset-0 hidden lg:block"
+        style={{
+          background:
+            "linear-gradient(100deg, rgba(8,10,14,0.30) 0%, rgba(8,10,14,0.12) 28%, rgba(8,10,14,0.34) 52%, rgba(8,10,14,0.62) 72%, rgba(8,10,14,0.68) 100%)",
+        }}
+      />
+      <div
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-40"
+        style={{ background: "linear-gradient(180deg, rgba(8,10,14,0.55), transparent)" }}
+      />
+
+      {/* THE MASTHEAD — the lender's mark, their name, and one line of their own
+          words, over their own room. This is the branding the card gave up. */}
+      <header className="absolute left-0 top-0 z-20 flex items-center gap-3.5 px-6 pt-6 sm:px-9 sm:pt-8">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={logoSrc}
+          alt=""
+          className="h-9 w-auto max-w-[13rem] object-contain drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] sm:h-11"
+          onError={(e) => (((e.target as HTMLImageElement).src = logoFallback))}
+        />
+        <span className="hidden h-8 w-px bg-white/30 sm:block" />
+        <span className="hidden sm:block">
+          <span className="block text-[15px] font-semibold leading-tight text-white drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)]">
+            {brand?.name ?? "Micro Eazy"}
+          </span>
+          <span className="block text-[12px] leading-tight text-white/75 drop-shadow-[0_1px_6px_rgba(0,0,0,0.6)]">
+            {art.line}
+          </span>
+        </span>
+      </header>
+
+      {/* THE LANE. Three columns on a laptop — photograph, card, margin — with
+          the two outer fractions supplied by the photograph so the card lands
+          where that particular frame leaves room. One centred column below it,
+          because a phone has no lane. */}
+      {/* The fractions ride in as CSS custom properties WITH their unit, and the
+          grid template is a `lg:` arbitrary class rather than an inline style.
+          An inline `grid-template-columns` would outrank every media query and
+          impose the three-column lane on a phone, where the outer columns would
+          squeeze the card to nothing. */}
+      <div
+        className="relative z-10 grid min-h-screen place-items-center px-4 py-24 lg:place-items-stretch lg:px-0 lg:py-0 lg:[grid-template-columns:var(--door-lead)_minmax(20rem,27rem)_var(--door-trail)]"
+        style={{ "--door-lead": `${art.lead}fr`, "--door-trail": `${art.trail}fr` } as CSSProperties}
+      >
+        <div aria-hidden className="hidden lg:block" />
+        <div className="flex w-full max-w-md items-center justify-center lg:col-start-2 lg:max-w-none lg:px-6 lg:py-10">
+          {card}
+        </div>
+        <div aria-hidden className="hidden lg:block" />
       </div>
     </div>
   );

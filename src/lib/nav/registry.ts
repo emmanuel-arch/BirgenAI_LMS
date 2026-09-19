@@ -324,16 +324,15 @@ export const NAV_REGISTRY: NavModule[] = [
       { key: "billing", label: "Package & Usage", href: "/console/billing", icon: "Crown", right: "billing.view" },
     ],
   },
-  {
-    // The connected-suite launcher — one BirgenAI ID across Lending, HR, Accounting
-    // and the Call-Center. No right: every signed-in staffer can reach their systems.
-    key: "suite",
-    label: "Connected Suite",
-    icon: "KeyRound",
-    items: [
-      { key: "suite-sso", label: "BirgenAI ID / SSO", href: "/suite", icon: "KeyRound" },
-    ],
-  },
+  // ── NO "CONNECTED SUITE" MODULE ────────────────────────────────────────────
+  // There used to be one, holding a single item that opened /suite — the
+  // launcher page. Both are gone (lib/suite/landing.ts): switching systems is
+  // now the grid in the identity menu, top-right of every system, which is
+  // where people look for it and where it costs no sidebar row.
+  //
+  // Deliberately not replaced by a sidebar item pointing at the menu, because a
+  // navigation entry whose destination is another control on the same screen is
+  // furniture.
   {
     key: "riri",
     label: ASSISTANT_NAME,

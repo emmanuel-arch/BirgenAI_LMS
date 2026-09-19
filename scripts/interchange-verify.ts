@@ -167,9 +167,8 @@ async function main() {
     `${unconsented.status} ${String(unconsented.json.outcome ?? "")}`,
   );
 
-  const consent = await issueConsent({
+  const consent = await issueConsent(who, {
     subjectToken: subject,
-    memberCode: CALLER,
     scopes: MANDATORY_SCOPES,
     capturedVia: "PWA",
   });

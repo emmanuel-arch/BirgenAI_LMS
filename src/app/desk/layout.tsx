@@ -18,6 +18,7 @@ import { prisma } from "@/lib/prisma";
 import { getRights, getDeniedModules } from "@/lib/rbac/authz";
 import { resolveSuite, hrefFor } from "@/lib/suite/hosts";
 import { visibleSystemIds } from "@/lib/suite/access";
+import { landingExcept } from "@/lib/suite/landing";
 import { suiteApp } from "@/lib/suite/apps";
 import { deskNavFor, DESK_IDENTITY } from "@/lib/desk/nav";
 import { collectBoxOrg, isCollectBoxConfigured } from "@/lib/collectbox/client";
@@ -53,12 +54,20 @@ export default async function DeskLayout({ children }: { children: React.ReactNo
   // signed-in user to a sign-in page to tell them their company does not have a
   // system reads as a broken session, which is the wrong support ticket.
   const visible = visibleSystemIds(org.systems, denied);
-  if (!visible.includes("callcenter")) redirect("/suite");
+  if (!visible.includes("callcenter")) redirect(landingExcept(visible, "callcenter"));
 
   // ConnectDesk works a lender's arrears book. That is a collections right, not
-  // a lending one — sending someone without it back to the console they came
-  // from is more useful than a 403 page.
-  if (!rights.has("collections.view") && !rights.has("collections.manage")) redirect("/console");
+  // a lending one — sending someone without it on to a system they DO hold is
+  // more useful than a 403 page.
+  //
+  // It used to send them to /console unconditionally, and that was a live
+  // infinite redirect: somebody holding ConnectDesk but not the console (which
+  // is exactly the shape of a collections-only seat) bounced here → /console →
+  // "you do not hold lms" → back here. Routing the refusal through the same
+  // landing rule as every other one is what makes the loop unconstructible.
+  if (!rights.has("collections.view") && !rights.has("collections.manage")) {
+    redirect(landingExcept(visible, "callcenter"));
+  }
 
   // How much is sitting unworked today. Best-effort: a slow or unreachable
   // CollectBox must not stop the whole system rendering, so the badge simply

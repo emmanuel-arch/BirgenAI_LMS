@@ -205,15 +205,47 @@ const ymd = (d: Date) => {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
 };
 
+/**
+ * Which credentials a standing-order request should be signed with.
+ *
+ * ── RATIBA FIRST, STK ONLY AS A FALLBACK ─────────────────────────────────────
+ * Standing Order is subscribed PER DARAJA APP, and a lender's collections app is
+ * not necessarily the one it is enabled on. Micromart is the case in point,
+ * proven on production on 19 Sep 2026 (`npm run ratiba:diagnose`):
+ *
+ *   entity 3002 · paybill 4038021 — STK works, Standing Order 401s
+ *   entity 3005 · paybill 4329635 — Standing Order 200, "accepted for processing"
+ *
+ * This function used to read MPESA_STK unconditionally, which on Micromart means
+ * 4038021 — the app Ratiba is NOT on. Every mandate the console requested was
+ * therefore refused with "Unauthorised-Invalid Access Token", and it read as a
+ * broken integration rather than as the wrong app.
+ *
+ * The STK fallback stays because it is right for the common case: a lender
+ * running both products on one app has no MPESA_RATIBA entry to make, and should
+ * not have to make a duplicate one to use a feature.
+ */
+async function ratibaCredentials(orgId: string) {
+  const dedicated = await getIntegration(orgId, "MPESA_RATIBA").catch(() => null);
+  if (dedicated?.consumerKey && dedicated.shortCode) return { cfg: dedicated, source: "ratiba" as const };
+  const stk = await getIntegration(orgId, "MPESA_STK");
+  return stk ? { cfg: stk, source: "stk" as const } : null;
+}
+
 export async function createStandingOrder(
   orgId: string,
   orgSlug: string,
   args: { phone: string; amount: number; accountReference: string; name: string; startDate: Date; endDate: Date; frequency: RatibaFrequency; description?: string },
 ): Promise<StandingOrderResult> {
-  const cfg = await getIntegration(orgId, "MPESA_STK");
-  if (!cfg) return { ok: false, message: "M-Pesa is not configured for this organization (Settings → Vault)." };
+  const resolved = await ratibaCredentials(orgId);
+  if (!resolved) return { ok: false, message: "M-Pesa is not configured for this organization (Settings → Vault)." };
+  const { cfg, source } = resolved;
   try {
-    const token = await getToken(`stk:${orgId}`, cfg.consumerKey, cfg.consumerSecret, cfg.environment);
+    // The token cache is keyed by SOURCE as well as org: the two apps have
+    // different consumer keys, and a cache key of `stk:<org>` shared between them
+    // would hand a Ratiba request the collections app's token — which is exactly
+    // the 401 this change exists to stop.
+    const token = await getToken(`${source}:${orgId}`, cfg.consumerKey, cfg.consumerSecret, cfg.environment);
     // Buy Goods vs Paybill decides the receiver identifier type, exactly as STK does.
     const isBuyGoods = (cfg.transactionType ?? "CustomerPayBillOnline") === "CustomerBuyGoodsOnline";
     const body = {

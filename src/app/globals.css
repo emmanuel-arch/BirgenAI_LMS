@@ -460,3 +460,53 @@ body {
      this leaves the door blank rather than still. */
   .suite-spotlight, .suite-word-in { opacity: 1; filter: none; transform: none; }
 }
+
+/* ── THE SIGN-IN CARD'S ENTRANCE ─────────────────────────────────────────────
+   A CSS animation rather than framer-motion's `initial`/`animate`, and the
+   reason is not taste.
+
+   A motion component renders its `initial` state into the SERVER HTML — here
+   `opacity: 0` — and only lifts it once JavaScript has hydrated and the first
+   frame has run. Anything that stops that happening leaves the sign-in card
+   invisible on a page that is otherwise fine: a hydration error, a blocked
+   bundle, a runtime that does not tick requestAnimationFrame. It is the one
+   element on the estate that absolutely must appear, and it was the one element
+   whose appearance depended on JavaScript succeeding.
+
+   Keyframes do not have that failure mode. The animation is declared in the
+   stylesheet, runs off the compositor, needs no bundle, and ends at the state
+   the card should be in — so the worst case is that it appears without moving.
+   Which is exactly what the reduced-motion block below asks for anyway. */
+@keyframes card-rise {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+.card-rise {
+  animation: card-rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* `both` holds the FROM state before the animation starts, so simply removing
+     the animation would hold the card at opacity 0 forever. It has to be reset. */
+  .card-rise { animation: none; opacity: 1; transform: none; }
+}
+
+/* The step-to-step fade inside the sign-in card (sign-in → today's code →
+   recovery). Same argument as `.card-rise` above: these panels were motion
+   components whose `initial` state is `opacity: 0` in the server HTML, so a card
+   that rendered but did not hydrate was a branded rectangle with nothing in it.
+   Exit animations go with them, which costs 200ms of cross-fade and buys a form
+   that cannot be invisible. */
+@keyframes step-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.step-in {
+  animation: step-in 0.22s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-in { animation: none; opacity: 1; transform: none; }
+}

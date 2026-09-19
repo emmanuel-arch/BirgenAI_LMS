@@ -17,6 +17,7 @@ import { entitlementsFor } from "@/lib/billing/entitlements";
 import { navFor } from "@/lib/nav/registry";
 import { resolveSuite, linkCrossSystem } from "@/lib/suite/hosts";
 import { visibleSystemIds } from "@/lib/suite/access";
+import { landingExcept } from "@/lib/suite/landing";
 import { realmsFor, brandFor } from "@/lib/suite/realms";
 import { activeRealm } from "@/lib/suite/realm-server";
 import Shell from "@/components/shell/Shell";
@@ -46,7 +47,7 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
   // PeopleHub and Ledgerly), and "unusual" is not "impossible". Hiding the tile
   // on the launcher is a courtesy; this refusal is the control.
   const visible = visibleSystemIds(org.systems, denied);
-  if (!visible.includes("lms")) redirect("/suite");
+  if (!visible.includes("lms")) redirect(landingExcept(visible, "lms"));
 
   // The sidebar, resolved twice over: first by what this person may see, then by
   // where each system actually LIVES. Cross-system items carry a system id and a

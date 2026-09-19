@@ -1309,13 +1309,20 @@ export const SYSTEM_SCREENS: SystemScreen[] = [
   },
 
   // ── Connected Suite ────────────────────────────────────────────────────────
+  // There is no longer a launcher PAGE to send anybody to. The grid moved into
+  // the identity menu in the top-right corner of every system, so the href here
+  // is the console — the system most people asking this question are standing
+  // in — and the answer tells them where the control is rather than navigating
+  // them to a screen that no longer exists.
   {
     id: "suite",
-    href: "/suite",
-    title: "Connected Suite",
+    href: "/console",
+    title: "Switching systems (BirgenAI ID)",
     module: "suite",
-    purpose: "One BirgenAI ID across every system — lending, HR, accounting and the call centre — signed in once.",
-    does: ["Launch a connected system with no second password", "Switch between systems", "See who you are signed in as"],
+    purpose:
+      "One BirgenAI ID across every system — lending, HR, accounting and the call centre — signed in once. "
+      + "To move between them, open the identity menu in the top-right corner: every system you hold is listed there.",
+    does: ["Open a connected system with no second password", "Switch between systems from the top-right identity menu", "See who you are signed in as"],
     asks: [
       "suite", "sso", "single sign on", "birgenai id", "other systems", "hr system",
       "accounting", "call center", "switch system", "mifumo mingine",

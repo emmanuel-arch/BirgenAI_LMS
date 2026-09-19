@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getRights, getDeniedModules } from "@/lib/rbac/authz";
 import { resolveSuite, hrefFor } from "@/lib/suite/hosts";
 import { visibleSystemIds } from "@/lib/suite/access";
+import { landingExcept } from "@/lib/suite/landing";
 import { suiteApp } from "@/lib/suite/apps";
 import { PEOPLE_IDENTITY, PEOPLE_NAV, satelliteNavFor } from "@/lib/suite/satellites";
 import SuiteShell from "@/components/suite/SuiteShell";
@@ -37,7 +38,7 @@ export default async function PeopleLayout({ children }: { children: React.React
   // signed-in user to a sign-in page to tell them their company does not have a
   // system reads as a broken session, which is the wrong support ticket.
   const visible = visibleSystemIds(org.systems, denied);
-  if (!visible.includes("hr")) redirect("/suite");
+  if (!visible.includes("hr")) redirect(landingExcept(visible, "hr"));
 
   const lms = suiteApp("lms");
   return (

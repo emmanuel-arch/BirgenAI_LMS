@@ -211,21 +211,32 @@ export function leavesDeployment(systemId: string): boolean {
 }
 
 /**
- * The system's own branded sign-in door.
+ * The system's staff sign-in door.
  *
  * Where a system has been split onto its own origin the door lives over there
- * too — analytics.servicesuitecloud.com serves /suite/analytics/login from its
- * own deployment — so this composes with originFor() rather than always
- * returning a local path.
+ * too — analytics.servicesuitecloud.com serves its own /login from its own
+ * deployment — so this composes with originFor() rather than always returning a
+ * local path.
+ *
+ * ── IT IS /login FOR EVERY SYSTEM NOW ──────────────────────────────────────
+ * Each one used to have a page of its own at /suite/<id>/login. Those were
+ * deleted with the launcher: a half-finished second sign-in surface standing in
+ * front of a finished one, which meant a lender's staff met the worse of the two
+ * first. The single card reads the HOST to decide which system's artwork it
+ * wears and where it lets you out, so arriving at connectdesk.… still opens a
+ * ConnectDesk door and still ends on the collections floor.
  *
  * Null for systems that have no staff door: the Customer Portal (borrowers) and
  * the Interchange (external, its own member gate).
  */
 export function doorHrefFor(app: SuiteApp): string | null {
   if (app.external || app.door === false) return null;
-  const path = `/suite/${app.id}/login`;
   const origin = originFor(app);
-  return origin ? `${origin}${path}` : path;
+  // On its own origin the host already names the system, so the bare /login
+  // there IS that system's door. In this deployment the host does not, so the
+  // system is named on the query string and the card picks up its artwork from
+  // there instead.
+  return origin ? `${origin}/login` : `/login?system=${encodeURIComponent(app.id)}`;
 }
 
 /** True once a system has been split onto its own origin. */

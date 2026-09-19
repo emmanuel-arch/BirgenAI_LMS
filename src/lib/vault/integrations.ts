@@ -145,6 +145,19 @@ type ConfigFor = {
   MPESA_STK: MpesaStkConfig;
   MPESA_B2C: MpesaB2cConfig;
   MPESA_C2B: MpesaStkConfig;
+  /**
+   * M-Pesa Ratiba / Standing Order. The SAME shape as STK — same OAuth, same
+   * shortcode field, same transaction type — because it is the same Daraja API
+   * with a different product enabled on it.
+   *
+   * It is a separate entry because it is frequently a separate APP. Standing
+   * Order is subscribed per Daraja app, and a lender running collections on one
+   * app and mandates on another (which Micromart does — 3002 for STK, 3005 for
+   * Ratiba) cannot express that with one set of credentials. Where a lender runs
+   * both on one app this is simply absent and the STK entry is used instead; see
+   * ratibaCredentials() in lib/mpesa/daraja.
+   */
+  MPESA_RATIBA: MpesaStkConfig;
   SMS: SmsConfig;
   SMTP: SmtpConfig;
   CRB: CrbConfig;

@@ -88,9 +88,8 @@ async function main() {
   const subjectToken = await deriveToken(who, "national_id", app.borrower.nationalId);
   console.log(ok(`tokenised in ${Date.now() - t0}ms — ${subjectToken.slice(0, 12)}…`));
 
-  const consent = await issueConsent({
+  const consent = await issueConsent(who, {
     subjectToken,
-    memberCode,
     capturedVia: "LMS_CONSOLE",
     wordingVersion: consentRow?.version,
     evidence: { surface: "scripts/verify-interchange-report", lmsConsentId: consentRow?.id },

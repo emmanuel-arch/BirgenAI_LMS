@@ -110,12 +110,15 @@ export default function PlatformBoard({ adminName }: { adminName: string }) {
       });
       const data = await res.json();
       if (!data.success) { setError(data.message || "Could not enter the console."); return; }
-      // The launcher, not the lending console. Stepping into an organisation
-      // means stepping into ALL SIX of its systems, and which one matters
-      // depends on why you came — a collections question is answered in
-      // ConnectDesk, not in /console. The suite is the landing that offers all
-      // six; the console is one door on it.
-      window.location.assign("/suite");
+      // The lending console — the anchor of the suite, and now the landing,
+      // because the launcher page this used to open no longer exists.
+      //
+      // That is not a loss of reach: an impersonating platform session holds
+      // every right (lib/rbac/authz), and the system grid is in the identity
+      // menu in the console's top-right corner. So a collections question is
+      // still two clicks from here, and the ONE click this replaces was a menu
+      // nobody arrived wanting.
+      window.location.assign("/console");
     } catch { setError("Could not enter the console."); } finally { setActing(null); }
   };
 

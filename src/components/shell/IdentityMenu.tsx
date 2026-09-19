@@ -203,16 +203,14 @@ export default function IdentityMenu({
                 })}
               </div>
 
-              {/* ACCOUNT. The things you do to the identity itself, not with it. */}
+              {/* ACCOUNT. The things you do to the identity itself, not with it.
+                  The row that used to sit at the top of this group — "All
+                  systems & how single sign-on works", opening the /suite
+                  launcher — is gone with that page. THIS MENU IS the launcher
+                  now: the grid above it is every system this person holds, and a
+                  link from a list of systems to a list of systems was the kind
+                  of row that exists because it always has. */}
               <div className="border-t border-[color:var(--ink)]/[0.07] p-1.5">
-                <Link
-                  href="/suite"
-                  onClick={() => setOpen(false)}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[12.5px] font-medium text-[color:var(--ink-body)] transition-colors hover:bg-[color:var(--ink)]/[0.04]"
-                >
-                  <ShieldCheck className="h-4 w-4 text-[color:var(--ink-faint)]" />
-                  All systems &amp; how single sign-on works
-                </Link>
                 <button
                   type="button"
                   onClick={() => setPw(true)}

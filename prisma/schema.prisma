@@ -214,6 +214,16 @@ enum IntegrationKind {
   MPESA_STK // Daraja STK push (collections)
   MPESA_B2C // Daraja B2C (disbursement) — NATIVE orgs only
   MPESA_C2B // paybill callback registration
+  /// Daraja Standing Order / M-Pesa Ratiba.
+  ///
+  /// SEPARATE from MPESA_STK, and not for tidiness. Ratiba is subscribed PER
+  /// DARAJA APP, and Micromart is two entities with two apps: STK collections
+  /// run on entity 3002 (paybill 4038021) whose app has no Standing Order
+  /// product, while Ratiba is enabled on entity 3005 (paybill 4329635), the
+  /// Micro Eazy book. One config for both would have to be wrong for one of
+  /// them, and the way it is wrong is a 401 at the moment a customer is
+  /// expecting a mandate on their handset.
+  MPESA_RATIBA
   SMS // provider + apiKey + senderId
   SMTP // per-org from-address (Enterprise)
   CRB // TransUnion / Metropol / Creditinfo (lender's subscription)

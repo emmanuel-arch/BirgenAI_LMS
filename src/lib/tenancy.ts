@@ -30,6 +30,35 @@ export type ResolvedOrg = {
   isDemo: boolean;
 };
 
+/**
+ * Resolved lenders, by slug, with an expiry. See the note inside resolveOrg for
+ * why this is cached and why sixty seconds.
+ *
+ * On `globalThis` so it survives Next.js dev hot-reloads, the same way the
+ * Prisma client and the MSSQL pools do — otherwise every edit would
+ * re-introduce the cost this exists to remove, and a local timing run would
+ * never match what production does.
+ */
+const globalForOrgCache = globalThis as unknown as {
+  __orgCache?: Map<string, { org: ResolvedOrg; until: number }>;
+};
+const orgCache = globalForOrgCache.__orgCache ?? new Map<string, { org: ResolvedOrg; until: number }>();
+if (!globalForOrgCache.__orgCache) globalForOrgCache.__orgCache = orgCache;
+
+const ORG_CACHE_MS = 60_000;
+
+/**
+ * Drop a lender from the cache, or all of them.
+ *
+ * For the surfaces that CHANGE one of these fields — onboarding a lender, the
+ * platform board suspending one — so an operator who switches something off sees
+ * it take effect on the next request rather than within the minute.
+ */
+export function forgetOrg(slug?: string): void {
+  if (slug) orgCache.delete(slug.trim().toLowerCase());
+  else orgCache.clear();
+}
+
 export async function resolveOrg(slug: string): Promise<ResolvedOrg | null> {
   // ── A BLANK SLUG IS A CLIENT BUG, AND IT REACHED PRODUCTION ────────────────
   // Twelve borrower routes resolve the lender from the request body. A Micro
@@ -48,6 +77,30 @@ export async function resolveOrg(slug: string): Promise<ResolvedOrg | null> {
   // lender still gets that lender, so this cannot silently cross books.
   const s = ((slug ?? "").trim() || (process.env.PORTAL_DEFAULT_LENDER_SLUG ?? "").trim()).toLowerCase();
   if (!s) return null;
+
+  // ── CACHED, BECAUSE THIS ROW COSTS A SECOND ────────────────────────────────
+  // Every borrower request starts here, and this read was measured at ~1,000 ms
+  // against the Supabase pooler — not because the query is slow (it is a unique
+  // index lookup on one row) but because of what wraps it. The RLS extension in
+  // lib/prisma puts EVERY statement inside its own transaction so the tenant
+  // stamp lands on the same connection, which is BEGIN, set_config, the query,
+  // COMMIT: four round trips where one would do. At Nairobi-to-eu-west-1
+  // latency that is a second, per query, and the Home aggregate paid it three
+  // times before it had read anything at all.
+  //
+  // Caching is safe HERE in a way it would not be for borrower data, because of
+  // what this row is: a lender's slug, name, mode, status and entity id. It
+  // changes when somebody onboards a lender or a platform administrator flips a
+  // switch — not during a customer's session. Sixty seconds is short enough that
+  // suspending a lender takes effect while the operator is still watching, and
+  // long enough that a burst of requests from one app open pays for it once.
+  //
+  // It is per-process, so it warms per lambda and disappears with it. That is
+  // the right shape: no invalidation to get wrong, no shared cache to poison,
+  // and the worst case is the uncached behaviour this replaced.
+  const hit = orgCache.get(s);
+  if (hit && Date.now() < hit.until) return hit.org;
+
   // The Org registry is the one table with no orgId of its own, and we must read
   // it BEFORE we know which tenant we are — a chicken-and-egg the platform scope
   // resolves.
@@ -90,7 +143,7 @@ export async function resolveOrg(slug: string): Promise<ResolvedOrg | null> {
   const entityId =
     override ?? row.serviceSuiteEntityId ?? (registry ? getEntityId(registry) : 0);
 
-  return {
+  const resolved: ResolvedOrg = {
     id: row.id,
     slug: row.slug,
     name: row.name,
@@ -101,6 +154,8 @@ export async function resolveOrg(slug: string): Promise<ResolvedOrg | null> {
     bridgedReady: row.mode === "BRIDGED" && !!registry && isOrgConfigured(registry),
     isDemo: row.isDemo,
   };
+  orgCache.set(s, { org: resolved, until: Date.now() + ORG_CACHE_MS });
+  return resolved;
 }
 
 /**

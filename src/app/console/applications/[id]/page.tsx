@@ -9,14 +9,14 @@
 // and then — and only then — the three buttons that move it: approve to the next
 // stage, send it back to be fixed, or reject it.
 // ─────────────────────────────────────────────────────────────────────────────
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useLoad } from "@/lib/hooks/useLoad";
 import {
   ArrowLeft, Loader2, AlertTriangle, CheckCircle2, XCircle, Undo2, ShieldAlert, MapPin,
   ScanFace, Gauge, TrendingUp, TrendingDown, Minus, Users, BadgeCheck, Landmark, IdCard,
-  FileSearch, Download, Share2,
+  FileSearch, Download, Share2, FileText, X, ExternalLink,
 } from "lucide-react";
 import { REPORT_REASON } from "@/lib/crb/catalogue";
 import { OfferPanel } from "../OfferPanel";
@@ -114,6 +114,31 @@ export default function ApplicationDetailPage() {
   const [icBusy, setIcBusy] = useState(false);
   const [icNote, setIcNote] = useState<string | null>(null);
   const [icError, setIcError] = useState<string | null>(null);
+  /**
+   * The bureau file the officer is currently reading, as a blob URL.
+   *
+   * It lives in state rather than being clicked away as a download so the
+   * document can be read NEXT TO the decision it informs. A blob URL is a
+   * document held open by this tab and is released by hand — the browser will
+   * not do it — so every path that replaces or closes one revokes it first.
+   */
+  const [icPdf, setIcPdf] = useState<{ url: string; name: string } | null>(null);
+  const showPdf = (url: string, name: string) =>
+    setIcPdf((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return { url, name };
+    });
+  const closePdf = () =>
+    setIcPdf((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+  // And on the way off the page, for the officer who navigates away with one
+  // open — which is most of them, most of the time.
+  useEffect(() => () => setIcPdf((prev) => {
+    if (prev) URL.revokeObjectURL(prev.url);
+    return null;
+  }), []);
 
   const load = useCallback(async () => {
     setError(null);
@@ -166,13 +191,29 @@ export default function ApplicationDetailPage() {
    * this pull actually is, and Metropol records the reason we declare.
    */
   /**
-   * Buy a report THROUGH THE INTERCHANGE and hand the officer the PDF.
+   * Buy a report THROUGH THE INTERCHANGE and put the PDF in front of the officer.
    *
-   * The response is bytes, not JSON, so it becomes a blob and is clicked as a
-   * download rather than navigated to — the officer stays on the application
-   * they were reading. The receipt headers (log entry, pulls billed, latency)
-   * are surfaced, because a member paying per pull should see what a press of
-   * this button cost and be able to find it in the message log.
+   * ── IT OPENS, IT DOES NOT JUST DOWNLOAD ────────────────────────────────────
+   * This used to synthesise an <a download> and click it, which is the correct
+   * shape for a file somebody wants to keep and the wrong one for a file
+   * somebody has to READ RIGHT NOW to make the decision on the screen behind it.
+   * The officer got a toast saying "Report downloaded", and then had to leave
+   * the console, find the file, open it in another application, read it, and
+   * come back to the stage they were deciding — with a bureau file they paid for
+   * now sitting in a downloads folder, outside the audited surface.
+   *
+   * So the blob stays in the page and is shown in a viewer beside the decision.
+   * The download is still there, as a button, for the officer who wants the
+   * file — it is just no longer the only thing that happens.
+   *
+   * The object URL is revoked when the viewer is closed and when a second report
+   * replaces the first (see `showPdf`), because a blob held by a closed viewer
+   * is a few hundred KB of leaked memory per press on a screen officers sit on
+   * all day.
+   *
+   * The receipt headers (log entry, pulls billed, latency) are surfaced, because
+   * a member paying per pull should see what a press of this button cost and be
+   * able to find it in the message log.
    */
   const requestInterchangeReport = async (reportType = 8) => {
     setIcBusy(true); setIcNote(null); setIcError(null);
@@ -188,22 +229,15 @@ export default function ApplicationDetailPage() {
       }
       const blob = await res.blob();
       const disposition = res.headers.get("content-disposition") ?? "";
-      const named = /filename="([^"]+)"/.exec(disposition)?.[1];
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = named ?? `interchange-report-${reportType}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      const named = /filename="([^"]+)"/.exec(disposition)?.[1] ?? `interchange-report-${reportType}.pdf`;
+      showPdf(URL.createObjectURL(blob), named);
 
       const seq = res.headers.get("x-interchange-log-seq");
       const billed = res.headers.get("x-interchange-billed-pulls");
       const ms = res.headers.get("x-interchange-ms");
       setIcNote(
         [
-          "Report downloaded",
+          "Report open below",
           billed ? `${billed} bureau pull${billed === "1" ? "" : "s"} billed` : null,
           seq ? `logged as entry #${seq}` : null,
           ms ? `${ms}ms` : null,
@@ -369,6 +403,62 @@ export default function ApplicationDetailPage() {
               </p>
             )}
           </div>
+
+          {/* ── THE BUREAU FILE, OPEN ───────────────────────────────────────
+              Beside the decision rather than in a downloads folder. The officer
+              is being asked to approve or decline on the strength of this
+              document, so the document is on the screen where the buttons are.
+
+              <object> rather than <iframe>: it degrades to its children when the
+              browser has no PDF plugin, which is a real state on a locked-down
+              workstation — and "this browser cannot display it, here is the
+              file" is a useful sentence, where an iframe's blank white rectangle
+              is not.
+
+              Tall enough to read a page of a bureau report without scrolling the
+              console behind it, and resizable by the officer who wants more. */}
+          {icPdf && (
+            <div className="glass overflow-hidden">
+              <div className="flex items-center gap-2 border-b border-ash-900/10 px-3 py-2">
+                <FileText className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--brand)" }} />
+                <p className="min-w-0 flex-1 truncate text-[11px] font-semibold text-ash-700">{icPdf.name}</p>
+                <a
+                  href={icPdf.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open in a new tab"
+                  className="rounded p-1 text-ash-400 transition-colors hover:text-ash-800"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+                <a
+                  href={icPdf.url}
+                  download={icPdf.name}
+                  title="Save a copy"
+                  className="rounded p-1 text-ash-400 transition-colors hover:text-ash-800"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                </a>
+                <button
+                  type="button"
+                  onClick={closePdf}
+                  title="Close"
+                  className="rounded p-1 text-ash-400 transition-colors hover:text-ash-800"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <object data={icPdf.url} type="application/pdf" className="block h-[34rem] w-full resize-y">
+                <p className="px-3 py-4 text-[12px] leading-relaxed text-ash-600">
+                  This browser cannot display PDFs inline.{" "}
+                  <a href={icPdf.url} download={icPdf.name} className="font-semibold underline">
+                    Save the report
+                  </a>{" "}
+                  and open it from there — it is the same file, already paid for.
+                </p>
+              </object>
+            </div>
+          )}
         </div>
 
         {/* ── Decision column ── */}

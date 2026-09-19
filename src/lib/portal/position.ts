@@ -99,10 +99,21 @@ export async function readPosition(org: ResolvedOrg, session: BorrowerSession, n
     return emptyPosition(org.name);
   }
 
-  // ── OUR SIDE ──────────────────────────────────────────────────────────────
-  // True regardless of who holds the loan book: the conversation, the identity
-  // check, and any application currently moving through a workflow.
-  const [unread, application, nativeLoan, threads, standingOrder] = await Promise.all([
+  // ── OUR SIDE, AND THE LENDER'S, AT THE SAME TIME ──────────────────────────
+  //
+  // This block used to be AWAITED before the bridge read below it even started,
+  // and the two have nothing to say to each other: the conversations, the
+  // application and the standing order come out of our Postgres, the balance and
+  // the limit come out of the lender's SQL Server, and neither needs the other's
+  // answer. Run in series they cost the sum; run together they cost the larger.
+  //
+  // On the measured path that was ~1,000 ms of Postgres sitting in front of
+  // ~400 ms of bridge, on the one screen the app is judged on in four seconds.
+  //
+  // So the promise is STARTED here and awaited after the book read. Note there
+  // is no `await` on this line — that is the entire change, and it is the kind
+  // that a stray `await` added later silently undoes.
+  const oursPromise = Promise.all([
     borrower
       ? prisma.conversationThread.aggregate({
           where: { orgId: org.id, borrowerId: borrower.id },
@@ -166,6 +177,9 @@ export async function readPosition(org: ResolvedOrg, session: BorrowerSession, n
   let liveScore: PortalScore | null = null;
 
   if (org.mode === "NATIVE") {
+    // A native book has no bridge read to overlap with, so the wait for our own
+    // side happens here and costs nothing that was not already being paid.
+    const [, , nativeLoan] = await oursPromise;
     bookSource = "native";
     if (nativeLoan) {
       const open = nativeLoan.installments.filter((i) =>
@@ -208,7 +222,31 @@ export async function readPosition(org: ResolvedOrg, session: BorrowerSession, n
 
     if (org.registry && entity) {
       try {
-        if (ssId) position = await readBookPosition(org.registry, entity, ssId);
+        if (ssId) {
+          // ── THE THREE BRIDGE READS, AS ONE WAIT ───────────────────────────
+          // Where the customer's ServiceSuite id is already known — which is
+          // every open after the first, because it is linked onto our row below
+          // — the balance, the savings and the score are three independent reads
+          // about the same person. They used to run as the position read, THEN a
+          // pair; now all three go together and the screen waits for the slowest
+          // rather than for the sum.
+          //
+          // `savings` and `liveScore` are assigned here rather than in the block
+          // further down, and that block is skipped when they have been. If the
+          // id turns out to be stale the position comes back null, the two
+          // speculative reads are simply discarded, and the by-phone path below
+          // runs exactly as it did.
+          const [pos, sav, sco] = await Promise.all([
+            readBookPosition(org.registry, entity, ssId),
+            micromartSavings(org.registry, ssId),
+            micromartScore(org.registry, entity, ssId),
+          ]);
+          position = pos;
+          if (pos) {
+            savings = sav;
+            liveScore = sco;
+          }
+        }
         if (!position) {
           // No id held, or the one held is no longer on this entity: match the
           // phone the session proved, disambiguated only by the ID they proved.
@@ -255,7 +293,10 @@ export async function readPosition(org: ResolvedOrg, session: BorrowerSession, n
         };
       }
       const ssKey = position.borrowerId;
-      if (org.registry) {
+      // Only when the fast path above did NOT already fetch them — which is the
+      // first open for this customer, where the id had to be found by phone
+      // first and there was nothing to speculate on.
+      if (org.registry && savings === null && liveScore === null) {
         [savings, liveScore] = await Promise.all([
           micromartSavings(org.registry, ssKey),
           micromartScore(org.registry, entity, ssKey),
@@ -324,6 +365,15 @@ export async function readPosition(org: ResolvedOrg, session: BorrowerSession, n
     // rather than showing zeroes, which read as "you owe nothing".
   }
   if (bookSource === "unavailable" && !bookIssue) bookIssue = "unreachable";
+
+  // Our own side, started before the bridge read and collected now. By this point
+  // it has almost always resolved already, which is the whole point: the wait was
+  // spent on the lender's SQL Server rather than after it.
+  //
+  // Awaiting the same promise a second time (the native branch above took the
+  // loan out of it) is free — a promise resolves once and hands the same value to
+  // every later await.
+  const [unread, application, , threads, standingOrder] = await oursPromise;
 
   return {
     erased: false,

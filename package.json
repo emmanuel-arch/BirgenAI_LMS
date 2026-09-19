@@ -114,7 +114,14 @@
     "ratiba:test": "tsx scripts/ratiba-test.ts",
     "ratiba:diagnose": "tsx scripts/ratiba-diagnose.ts",
     "products:sync": "tsx scripts/sync-live-products.ts",
-    "crb:entitlement": "tsx scripts/crb-entitlement.ts"
+    "crb:entitlement": "tsx scripts/crb-entitlement.ts",
+    "db:seed:micromart-team": "tsx scripts/seed-micromart-team.ts",
+    "test:doors": "tsx scripts/verify-doors.ts",
+    "art:doors": "tsx scripts/build-door-art.ts",
+    "db:ratiba-kind": "tsx scripts/add-ratiba-kind.ts",
+    "vault:ratiba-micromart": "tsx scripts/seed-micromart-ratiba.ts",
+    "applications:clear": "tsx scripts/clear-applications.ts",
+    "interchange:report": "tsx scripts/interchange-report.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

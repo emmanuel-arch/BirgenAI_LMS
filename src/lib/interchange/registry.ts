@@ -238,18 +238,43 @@ export const MANDATORY_SCOPES = [
   "collections.contact",
 ] as const;
 
-export async function issueConsent(opts: {
-  subjectToken: string;
-  memberCode: string;
-  scopes?: readonly string[];
-  capturedVia?: "PWA" | "LMS_CONSOLE" | "MEMBER_API" | "FIELD_OFFICER";
-  wordingVersion?: string;
-  ttlDays?: number;
-  evidence?: unknown;
-}): Promise<{ ok: true; ref: string } | { ok: false; status: number; message: string }> {
-  const res = await plainPost("/api/consent", {
+/**
+ * Register a borrower's consent with the Registry and get back the `consent_ref`
+ * every later call has to quote.
+ *
+ * ── THIS CALL IS SIGNED, AND WAS NOT ─────────────────────────────────────────
+ * It used to go out through `plainPost` — unsigned, with the member code taken
+ * from the body. The Registry accepted that until 17 Sep 2026, when the endpoint
+ * was hardened for a good reason: a consent record is evidence a lender relies
+ * on in a dispute, and an endpoint that trusts a member code in a request body
+ * lets anybody who knows that code write consents in that lender's name.
+ *
+ * Only the Registry changed. This client did not, so from that day every consent
+ * issued by this deployment came back 401 — and because a report cannot be
+ * requested without a consent_ref, the Risk stage's "Request CRB report" button
+ * could not succeed at all. It surfaced as the Interchange being unreachable or
+ * unconfigured, which is the wrong place to look: the keys were right, the URL
+ * was right, and the OPRF call one line earlier was signed and worked.
+ *
+ * So the member identity is now a PARAMETER rather than a string in the body.
+ * The signature is what names the member, the Registry reads the signer, and the
+ * `member_code` field is left in only because the endpoint cross-checks it
+ * against the signer and refuses a mismatch.
+ */
+export async function issueConsent(
+  who: MemberIdentity,
+  opts: {
+    subjectToken: string;
+    scopes?: readonly string[];
+    capturedVia?: "PWA" | "LMS_CONSOLE" | "MEMBER_API" | "FIELD_OFFICER";
+    wordingVersion?: string;
+    ttlDays?: number;
+    evidence?: unknown;
+  },
+): Promise<{ ok: true; ref: string } | { ok: false; status: number; message: string }> {
+  const res = await signedPost(who, "/api/consent", {
     subject_token: opts.subjectToken,
-    member_code: opts.memberCode,
+    member_code: who.code,
     scopes: opts.scopes ?? MANDATORY_SCOPES,
     captured_via: opts.capturedVia ?? "PWA",
     wording_version: opts.wordingVersion,
@@ -262,7 +287,12 @@ export async function issueConsent(opts: {
   return {
     ok: false,
     status: res.status,
-    message: String(res.json.message ?? res.json.error ?? "Consent could not be issued."),
+    // The Registry's refusals carry an `api_code_description` (lib/codes/
+    // interchange on that side); reading it is the difference between "Consent
+    // could not be issued" and "the signature did not verify".
+    message: String(
+      res.json.api_code_description ?? res.json.message ?? res.json.error ?? "Consent could not be issued.",
+    ),
   };
 }
 

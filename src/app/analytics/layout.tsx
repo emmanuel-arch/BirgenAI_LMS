@@ -25,6 +25,7 @@ import { getRights, getDeniedModules } from "@/lib/rbac/authz";
 import { studioNavFor } from "@/lib/analytics/studio-nav";
 import { resolveSuite, hrefFor } from "@/lib/suite/hosts";
 import { visibleSystemIds } from "@/lib/suite/access";
+import { landingExcept } from "@/lib/suite/landing";
 import { suiteApp } from "@/lib/suite/apps";
 import { ANALYTICS_IDENTITY } from "@/lib/suite/satellites";
 import SuiteShell from "@/components/suite/SuiteShell";
@@ -57,7 +58,7 @@ export default async function AnalyticsLayout({ children }: { children: React.Re
   // signed-in user to a sign-in page to tell them their company does not have a
   // system reads as a broken session, which is the wrong support ticket.
   const visible = visibleSystemIds(org.systems, denied);
-  if (!visible.includes("analytics")) redirect("/suite");
+  if (!visible.includes("analytics")) redirect(landingExcept(visible, "analytics"));
 
   // The studio reads the WHOLE book. That is a reporting right, not a lending
   // one — a field officer with borrowers.view has no business reading group PAR,
